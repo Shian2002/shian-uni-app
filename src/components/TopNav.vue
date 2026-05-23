@@ -521,11 +521,14 @@ function updateNavOverflow() {
     more.style.display = 'none'
     moreMenu.innerHTML = ''
 
-    // 检测溢出：按钮右边界超出容器右边界
-    var barRight = bar.getBoundingClientRect().right - 5
+    // 检测溢出：按钮右边界超出视口右边界
+    // ⚠️ 不能用 bar.getBoundingClientRect().right 作为阈值，
+    // 移动端 nav-btn-bar 可能宽于视口（flex-shrink:0），
+    // 导致所有按钮都在 bar 内部不溢出，但实际上已经超出屏幕
+    var viewportWidth = window.innerWidth
     var overflow = []
     bar.querySelectorAll('.nav-btn:not(.nav-btn-more)').forEach(function(btn) {
-      if (btn.getBoundingClientRect().right > barRight) overflow.push(btn)
+      if (btn.getBoundingClientRect().right > viewportWidth - 10) overflow.push(btn)
     })
 
     if (overflow.length > 0) {
