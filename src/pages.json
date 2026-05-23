@@ -26,7 +26,8 @@
     {
       "root": "package-user",
       "pages": [
-        {"path": "history/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "排盘历史"}}
+        {"path": "history/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "排盘历史"}},
+        {"path": "points/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "积分中心"}}
       ]
     },
     {

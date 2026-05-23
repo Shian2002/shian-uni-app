@@ -55,6 +55,13 @@
              </view>
            </view>
            <view class="nav-avatar-dropdown" id="avatarDropdown">
+             <view class="avatar-dropdown-item points-display" id="avatarPointsDisplay">
+               <text class="points-label">积分</text>
+               <text class="points-badge" id="avatarPointsBadge">...</text>
+             </view>
+             <view class="avatar-dropdown-divider"></view>
+             <view class="avatar-dropdown-item" data-href="#/package-user/points/index" onclick="window.__topNavGo('#/package-user/points/index')">积分中心 ›</view>
+             <view class="avatar-dropdown-divider"></view>
              <view class="avatar-dropdown-item" onclick="window._xc_doLogout()">退出登录</view>
            </view>
          </view>
@@ -316,6 +323,19 @@ function loadAvatar() {
     } else if (d && d.username) {
       avatarLetter.value = d.username.charAt(0).toUpperCase()
       if (d.avatar) avatarUrl.value = d.avatar
+    }
+  }).catch(function() {})
+}
+var pointsLoadAttempted = false
+function loadPointsSummary() {
+  if (!props.isLoggedIn || pointsLoadAttempted) return
+  pointsLoadAttempted = true
+  uni.request({ url: '/api/membership', method: 'GET' }).then(function(res) {
+    var d = res.data
+    if (d && typeof d.points === 'number') {
+      document.querySelectorAll('#avatarPointsBadge').forEach(function(el) {
+        el.textContent = d.points
+      })
     }
   }).catch(function() {})
 }
@@ -671,6 +691,8 @@ onMounted(() => {
   // #endif
   // 加载头像
   loadAvatar()
+  // 加载积分
+  loadPointsSummary()
   // 全局头像事件委托 - 使用 mouseenter/mouseleave 防止闪烁消失
   if (!window.__avatarDelegated) {
     window.__avatarDelegated = true
@@ -963,6 +985,11 @@ onMounted(() => {
 .nav-avatar-dropdown.open { display: block; }
 .avatar-dropdown-item { padding: 10px 16px; font-size: 0.78rem; color: var(--text-2); cursor: pointer; white-space: nowrap; }
 .avatar-dropdown-item:hover { background: var(--accent-glow); color: var(--accent); }
+.points-display { display: flex; align-items: center; justify-content: space-between; cursor: default; }
+.points-display:hover { background: transparent; color: var(--text-2); }
+.points-label { font-size: 0.78rem; color: var(--text-3); }
+.points-badge { font-size: 0.82rem; font-weight: 700; color: var(--accent); }
+.avatar-dropdown-divider { height: 1px; background: var(--card-border); margin: 2px 0; }
 
 /* ═══ 登录/注册弹窗 ═══ */
 .modal-overlay { position: fixed; inset: 0; z-index: 999; background: rgba(0,0,0,0.55); display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
