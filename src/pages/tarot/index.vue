@@ -783,7 +783,11 @@ function _loadConversations() {
     success: function(res) {
       var list = document.getElementById('sidebarList')
       if (!list) return
-      var convs = res.data || []
+      var convs = res.data
+      if (!convs || !Array.isArray(convs)) {
+        list.innerHTML = '<view class="sidebar-empty">暂无对话记录</view>'
+        return
+      }
       if (!convs.length) { list.innerHTML = '<view class="sidebar-empty">暂无对话记录</view>'; return }
       var html = ''
       convs.forEach(function(c) {

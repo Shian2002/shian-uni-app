@@ -346,7 +346,8 @@ function switchCaseFilter(val) {
 }
 
 function toggleFaq(ev) {
-  var el = ev.currentTarget  // .faq-q
+  var el = ev && ev.currentTarget  // .faq-q (guard against programmatic dispatch)
+  if (!el) return
   el.classList.toggle('open')
   // DOM操作 toggle .faq-a 和 .arrow（绕过Vue 3.4.21 render effect bug）
   var item = el.parentNode  // .faq-item
