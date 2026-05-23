@@ -1,0 +1,1089 @@
+<template>
+  <view class="page-root" :data-theme="theme">
+    <view class="bg-layer"></view>
+    <TopNav :theme="theme" :is-logged-in="isLoggedIn" @toggle-theme="toggleTheme" />
+
+    <view class="page-wrap">
+      <!-- 页面头部 -->
+      <section class="tool-hero">
+        <view class="tool-hero-content">
+          <view class="section-tag">个人中心</view>
+          <view class="tool-hero-title">个人中心 · 命盘存档与账号管理</view>
+          <view class="tool-hero-desc">命理库管理 · 一键调用 · 跨设备同步</view>
+        </view>
+      </section>
+
+      <!-- 工具面板 -->
+      <section class="section">
+        <view class="tool-container" style="max-width:860px;">
+          <!-- 声明 -->
+          <view class="profile-disclaimer">⚠️ 仅供民俗文化参考，不构成任何决策建议</view>
+
+          <!-- 命盘存档区 -->
+          <view class="profile-section">
+            <view class="profile-section-title">
+              <text>📋 个人命理库</text>
+            </view>
+
+            <!-- 三个标签页 -->
+            <view class="profile-tabs">
+              <view class="profile-tab" id="profileTabSelf" :class="{ active: profileTab === 'self' }" @tap="switchTab('self')">自身命盘</view>
+              <view class="profile-tab" id="profileTabCustomer" :class="{ active: profileTab === 'customer' }" @tap="switchTab('customer')">客户命盘</view>
+              <view class="profile-tab" id="profileTabCollect" :class="{ active: profileTab === 'collect' }" @tap="switchTab('collect')">收藏命盘</view>
+            </view>
+
+            <!-- 未登录提示 -->
+            <view class="profile-empty" v-if="!isLoggedIn">
+              <view class="profile-empty-icon">🔒</view>
+              <text class="profile-empty-text">登录后管理命盘存档</text>
+              <text class="profile-empty-sub">命盘存档跨设备同步，永不丢失</text>
+              <view class="btn btn-accent btn-sm" style="margin-top:16px;" @tap="showLoginBtn">立即登录</view>
+            </view>
+
+            <template v-else>
+              <!-- 搜索栏 -->
+              <view class="profile-search-row">
+                <view id="profileSearch-wrap" class="dom-input-wrap"></view>
+                <picker :range="['最近使用', '创建时间']" :value="profileSortIdx" @change="profileSortIdx = $event.detail.value">
+                  <view class="form-select-picker" style="width:auto;">{{ ['最近使用', '创建时间'][profileSortIdx] }}</view>
+                </picker>
+              </view>
+
+              <!-- 命盘列表 -->
+              <view class="profile-grid" v-if="filteredProfiles.length > 0">
+                <view class="p-card" :class="{ 'is-default': p.isDefault || p.is_default }" v-for="p in filteredProfiles" :key="p.id" @tap="selectProfile(p)">
+                  <view class="p-card-head">
+                    <text class="p-card-name">{{ p.name }}</text>
+                    <view class="p-card-badge" v-if="p.isDefault || p.is_default">默认</view>
+                  </view>
+                  <view class="p-card-detail">
+                    性别：{{ p.gender || '—' }} ｜ 历法：{{ p.calType || p.cal_type || '—' }}
+                  </view>
+                  <view class="p-card-detail">
+                    出生：{{ formatBirthTime(p.birthTime || p.birth_time) }}
+                  </view>
+                  <view class="p-card-detail">
+                    出生地：{{ p.birthAddr || p.birth_addr || '—' }}
+                  </view>
+                  <view class="p-card-detail p-card-last-used" v-if="p.lastUsedAt || p.last_used_at">
+                    最近使用：{{ timeAgo(new Date(p.lastUsedAt || p.last_used_at)) }}
+                  </view>
+                  <view class="p-card-actions">
+                    <view class="btn btn-outline btn-sm" @tap.stop="editProfile(p)">编辑</view>
+                    <view class="btn btn-outline btn-sm" v-if="!(p.isDefault || p.is_default)" @tap.stop="setDefaultProfile(p.id)">设为默认</view>
+                    <view class="btn btn-outline btn-sm btn-danger" @tap.stop="deleteProfile(p.id)">删除</view>
+                  </view>
+                </view>
+              </view>
+              <view class="profile-empty" v-else>
+                <view class="profile-empty-icon">📭</view>
+                <text class="profile-empty-text">暂无{{ tabLabels[profileTab] }}</text>
+              </view>
+            </template>
+          </view>
+
+          <!-- 新增/编辑存档表单（v-if已移除，由DOM style.display控制） -->
+          <view class="profile-form-card" id="profileFormCard" style="display:none;">
+            <view class="profile-section-title">
+              <text>✎ 编辑存档</text>
+            </view>
+            <view class="form-row">
+              <view class="form-group">
+                <text class="form-label">姓名</text>
+                <view id="profileName-wrap" class="dom-input-wrap"></view>
+              </view>
+              <view class="form-group">
+                <text class="form-label">性别</text>
+                <picker :range="['男', '女']" :value="formData.genderIdx" @change="formData.genderIdx = $event.detail.value">
+                  <view class="form-select-picker">{{ ['男', '女'][formData.genderIdx] }}</view>
+                </picker>
+              </view>
+            </view>
+            <view class="form-row">
+              <view class="form-group">
+                <text class="form-label">历法</text>
+                <picker :range="['公历', '农历']" :value="formData.calTypeIdx" @change="formData.calTypeIdx = $event.detail.value">
+                  <view class="form-select-picker">{{ ['公历', '农历'][formData.calTypeIdx] }}</view>
+                </picker>
+              </view>
+              <view class="form-group">
+                <text class="form-label">出生时间</text>
+                <picker mode="date" :value="formData.birthDate" @change="formData.birthDate = $event.detail.value">
+                  <view class="form-select-picker">{{ formData.birthDate || '选择日期' }}</view>
+                </picker>
+              </view>
+            </view>
+            <view class="form-group">
+              <text class="form-label">出生地</text>
+              <view id="profileBirthAddr-wrap" class="dom-input-wrap"></view>
+            </view>
+            <view class="form-checkbox-row">
+              <switch :checked="formData.isDefault" @change="formData.isDefault = $event.detail.value" color="var(--accent)" />
+              <text class="form-checkbox-label">设为默认命盘</text>
+            </view>
+            <view class="form-actions">
+              <view class="btn btn-outline" @tap="hideProfileForm">取消</view>
+              <view class="btn btn-accent" @tap="saveProfile">保存</view>
+            </view>
+          </view>
+
+          <!-- 账号信息区 -->
+          <view class="profile-section">
+            <view class="profile-section-title"><text>🔑 账号信息</text></view>
+            <view class="profile-empty" v-if="!isLoggedIn">
+              <view class="profile-empty-icon">🔒</view>
+              <text class="profile-empty-text">登录后查看账号信息</text>
+            </view>
+            <view class="account-info" v-else>
+              <view class="account-info-row account-info-center">
+                <text class="account-info-label">头像</text>
+                <view class="profile-avatar-large" @tap="clickProfileAvatar" title="点击更换头像">
+                  <image v-if="userInfo.avatar" :src="userInfo.avatar" class="profile-avatar-img" mode="aspectFill" />
+                  <text v-else class="profile-avatar-text">{{ (userInfo.username || '用').charAt(0).toUpperCase() }}</text>
+                </view>
+              </view>
+              <view class="account-info-row">
+                <text class="account-info-label">用户名</text>
+                <text class="account-info-value">{{ userInfo.username }}</text>
+              </view>
+              <view class="account-info-row">
+                <text class="account-info-label">注册时间</text>
+                <text class="account-info-value">{{ userInfo.regDate }}</text>
+              </view>
+              <view class="account-info-row">
+                <text class="account-info-label">存档数量</text>
+                <text class="account-info-value">{{ profiles.length }}</text>
+              </view>
+              <view class="account-info-row account-info-actions">
+                <view class="btn btn-outline btn-sm" @tap="doLogout">退出登录</view>
+                <view class="btn btn-accent btn-sm" onclick="window._xc_showAccountSettings()">账号设置</view>
+              </view>
+            </view>
+          </view>
+
+          <!-- 账号设置弹窗（用 createNativeInput + wrap 模式） -->
+          <view class="modal-overlay" id="accountSettingsModal" onclick="if(event.target.id==='accountSettingsModal')window._xc_closeAccountSettings()">
+            <view class="modal-box">
+              <view class="modal-title">🔐 账号设置</view>
+              <view class="modal-close" onclick="window._xc_closeAccountSettings()">✕</view>
+
+              <!-- 当前绑定状态 -->
+              <view class="as-section">
+                <view class="as-section-title">当前绑定</view>
+                <view class="bind-info">
+                  <view class="bind-row"><text class="bind-label">用户名</text><text class="bind-value" id="bindUsername">—</text></view>
+                  <view class="bind-row"><text class="bind-label">邮箱</text><text class="bind-value" id="bindEmail">未绑定</text><text class="bind-unbind" id="bindEmailUnbind" style="display:none;" onclick="window._xc_unbindEmail()">解绑</text></view>
+                  <view class="bind-row"><text class="bind-label">手机号</text><text class="bind-value" id="bindPhone">未绑定</text><text class="bind-unbind" id="bindPhoneUnbind" style="display:none;" onclick="window._xc_unbindPhone()">解绑</text></view>
+                  <view class="bind-row"><text class="bind-label">密码</text><text class="bind-value" id="bindPassword">已设置</text></view>
+                  <view class="bind-row"><text class="bind-label">Gitee</text><text class="bind-value" id="bindGitee">未绑定</text></view>
+                </view>
+              </view>
+
+              <view class="as-divider"></view>
+
+              <!-- 修改/设置用户名 -->
+              <view class="as-section">
+                <view class="as-section-title">修改用户名</view>
+                <view class="field">
+                  <text class="field-label">新用户名</text>
+                  <view id="asNewUsername-wrap" class="dom-input-wrap"></view>
+                </view>
+                <view class="field" id="asUsernamePassField" v-if="hasPassword">
+                  <text class="field-label">当前密码（验证身份）</text>
+                  <view id="asCurrPassForUser-wrap" class="dom-input-wrap"></view>
+                </view>
+                <view class="modal-error" id="asUsernameError"></view>
+                <view class="btn btn-accent btn-block" id="asUsernameBtn" onclick="window._xc_changeUsername()">修改用户名</view>
+              </view>
+
+              <view class="as-divider"></view>
+
+              <!-- 设置/修改密码 -->
+              <view class="as-section">
+                <view class="as-section-title">{{ hasPassword ? '修改密码' : '设置密码' }}</view>
+                <view class="field" id="asOldPassField" v-if="hasPassword">
+                  <text class="field-label">当前密码</text>
+                  <view id="asOldPass-wrap" class="dom-input-wrap"></view>
+                </view>
+                <view class="field">
+                  <text class="field-label">新密码</text>
+                  <view id="asNewPass-wrap" class="dom-input-wrap"></view>
+                </view>
+                <view class="modal-error" id="asPassError"></view>
+                <view class="btn btn-accent btn-block" id="asPasswordBtn" onclick="window._xc_changePassword()">{{ hasPassword ? '修改密码' : '设置密码' }}</view>
+              </view>
+
+              <view class="as-divider"></view>
+
+              <!-- 绑定邮箱 -->
+              <view class="as-section">
+                <view class="as-section-title">绑定邮箱</view>
+                <view class="field">
+                  <text class="field-label">邮箱地址</text>
+                  <view id="asBindEmail-wrap" class="dom-input-wrap"></view>
+                </view>
+                <view class="field code-field" style="display:flex;gap:8px;margin-bottom:10px;">
+                  <view id="asBindEmailCode-wrap" class="dom-input-wrap" style="flex:1;"></view>
+                  <view class="btn btn-outline btn-sm code-btn" onclick="window._xc_sendBindEmailCode()" id="asBindEmailBtn">获取验证码</view>
+                </view>
+                <view class="modal-error" id="asBindEmailError"></view>
+                <view class="btn btn-accent btn-block" id="asBindEmailSubmit" onclick="window._xc_bindEmail()">绑定邮箱</view>
+              </view>
+
+              <view class="as-divider"></view>
+
+              <!-- 绑定手机号 -->
+              <view class="as-section">
+                <view class="as-section-title">绑定手机号</view>
+                <view class="field">
+                  <text class="field-label">手机号</text>
+                  <view id="asBindPhone-wrap" class="dom-input-wrap"></view>
+                </view>
+                <view class="field code-field" style="display:flex;gap:8px;margin-bottom:10px;">
+                  <view id="asBindPhoneCode-wrap" class="dom-input-wrap" style="flex:1;"></view>
+                  <view class="btn btn-outline btn-sm code-btn" onclick="window._xc_sendBindPhoneCode()" id="asBindPhoneBtn">获取验证码</view>
+                </view>
+                <view class="modal-error" id="asBindPhoneError"></view>
+                <view class="btn btn-accent btn-block" id="asBindPhoneSubmit" onclick="window._xc_bindPhone()">绑定手机号</view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </section>
+    </view>
+
+    <!-- 页脚 -->
+    <view class="site-footer">
+      <view class="footer-disclaimer">⚠️ 本站所有内容仅为民俗文化与传统命理科普参考，不构成任何决策建议，严禁利用本站内容从事封建迷信及违法违规活动，本站不对任何用户基于本站内容做出的决策承担任何责任</view>
+      <view class="footer-grid">
+        <view class="footer-col">
+          <view class="footer-col-title">平台信息</view>
+          <view class="footer-link" @tap="goNav('/package-info/about/index')">关于我们</view>
+          <view class="footer-link" @tap="showFooterInfo('contact')">联系方式</view>
+          <view class="footer-link" @tap="showFooterInfo('privacy')">隐私政策</view>
+        </view>
+        <view class="footer-col">
+          <view class="footer-col-title">快捷导航</view>
+          <view class="footer-link" @tap="goNav('/pages/qimen/index', 'switchTab')">奇门遁甲</view>
+          <view class="footer-link" @tap="goNav('/pages/bazi-index/index')">八字排盘</view>
+          <view class="footer-link" @tap="goNav('/pages/calendar/index')">专属日历</view>
+          <view class="footer-link" @tap="goNav('/pages/community/index', 'switchTab')">社区</view>
+        </view>
+        <view class="footer-col">
+          <view class="footer-col-title">备案与版权</view>
+          <view class="footer-icp">ICP备案号：京ICP备2026050601号-1</view>
+          <view class="footer-icp">© 2026 时安解忧屋 版权所有</view>
+        </view>
+      </view>
+      <view class="footer-bottom">
+        <text class="footer-bottom-text">时安解忧屋 · 看得懂用得上的民俗命理参考平台</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup>
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import TopNav from '@/components/TopNav.vue'
+
+const theme = ref(uni.getStorageSync('xc_theme') || 'dark')
+function toggleTheme() {
+  theme.value = theme.value === 'dark' ? 'light' : 'dark'
+  uni.setStorageSync('xc_theme', theme.value)
+  try {
+    document.documentElement.setAttribute('data-theme', theme.value); document.body.setAttribute('data-theme', theme.value); const root = document.querySelector('.page-root')
+    if (root) root.setAttribute('data-theme', theme.value)
+    const icon = document.getElementById('themeToggleIcon')
+    if (icon) icon.textContent = theme.value === 'dark' ? '🌙' : '☀️'
+  } catch(_) {}
+}
+
+const isLoggedIn = ref(!!uni.getStorageSync('xc_token'))
+window.addEventListener('xc-session-expired', function() { isLoggedIn.value = false })
+const hasPassword = ref(uni.getStorageSync('xc_has_password') === '1')
+
+function showLoginBtn() {
+  try {
+    _openLoginModal()
+    var e = document.getElementById('tnLoginError'); if (e) e.textContent = ''
+  } catch(_) {}
+}
+
+async function doLogout() {
+  try {
+    await uni.request({ url: '/api/logout', method: 'POST' })
+  } catch (_) {}
+  isLoggedIn.value = false
+  profiles.value = []
+  userInfo.username = '用户'
+  userInfo.regDate = '—'
+  userInfo.avatar = ''
+  uni.removeStorageSync('xc_token')
+  uni.removeStorageSync('xc_user')
+  uni.showToast({ title: '已退出登录', icon: 'none' })
+}
+
+function showAccountSettings() {
+  try {
+    document.querySelectorAll('#accountSettingsModal').forEach(function(el) { el.classList.add('open') })
+    // 在可见的弹窗内创建原生input
+    var modal = document.querySelector('#accountSettingsModal.open') || document.querySelector('#accountSettingsModal')
+    if (modal) {
+      var wraps = ['asNewUsername-wrap', 'asNewPass-wrap']
+      if (hasPassword.value) wraps.push('asCurrPassForUser-wrap', 'asOldPass-wrap')
+      wraps.forEach(function(wrapId) {
+        if (modal.querySelector('#' + wrapId) && !modal.querySelector('#' + wrapId + ' input')) {
+          var wrap = modal.querySelector('#' + wrapId)
+          var inp = document.createElement('input')
+          inp.type = wrapId.indexOf('Pass') > -1 ? 'password' : 'text'
+          // 内联样式（style scoped 对动态创建的 input 不生效）
+          inp.style.cssText = 'width:100%;padding:10px 14px;border-radius:10px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--text-1);font-size:0.875rem;outline:none;box-sizing:border-box;transition:border-color 0.2s,box-shadow 0.2s'
+          inp.onfocus = function() { this.style.borderColor = 'var(--accent)'; this.style.boxShadow = '0 0 0 2px var(--accent-glow)' }
+          inp.onblur = function() { this.style.borderColor = 'var(--input-border)'; this.style.boxShadow = 'none' }
+          if (wrapId === 'asNewUsername-wrap') inp.placeholder = '输入新用户名'
+          else if (wrapId === 'asCurrPassForUser-wrap') inp.placeholder = '输入当前密码'
+          else if (wrapId === 'asOldPass-wrap') inp.placeholder = '输入当前密码'
+          else inp.placeholder = '至少4个字符'
+          wrap.appendChild(inp)
+        }
+      })
+    }
+    document.querySelectorAll('#asUsernameError').forEach(function(el) { el.textContent = '' })
+    document.querySelectorAll('#asPassError').forEach(function(el) { el.textContent = '' })
+  } catch(_) {}
+}
+function closeAccountSettings() {
+  try { document.querySelectorAll('#accountSettingsModal').forEach(function(el) { el.classList.remove('open') }) } catch(_) {}
+}
+function onAccountSettingsOverlayTap(e) {
+  try { if (e && e.target && e.target.id === 'accountSettingsModal') closeAccountSettings() } catch(_) {}
+}
+async function changeUsername() {
+  var btn = document.getElementById('asUsernameBtn'); var origText = ''
+  if (btn) { origText = btn.textContent; btn.textContent = '修改中...'; btn.style.opacity = '0.6'; btn.style.pointerEvents = 'none' }
+  try { document.querySelectorAll('#asUsernameError').forEach(function(el) { el.textContent = '' }) } catch(_) {}
+  var modal = document.querySelector('#accountSettingsModal.open') || document.querySelector('#accountSettingsModal')
+  var u = modal ? modal.querySelector('#asNewUsername-wrap input') : null
+  var p = modal ? modal.querySelector('#asCurrPassForUser-wrap input') : null
+  var newUsername = u ? u.value.trim() : ''; var currPass = p ? p.value : ''
+  if (!newUsername || newUsername.length < 2) { try { document.querySelectorAll('#asUsernameError').forEach(function(el) { el.textContent = '用户名至少2个字符' }) } catch(_) {}; if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }; return }
+  if (hasPassword.value && !currPass) { try { document.querySelectorAll('#asUsernameError').forEach(function(el) { el.textContent = '请输入当前密码' }) } catch(_) {}; if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }; return }
+  var data = { new_username: newUsername }
+  if (hasPassword.value) data.current_password = currPass
+  try {
+    var res = await uni.request({ url: '/api/user/change-username', method: 'POST', data: data })
+    var d = res.data
+    if (d.error) { try { document.querySelectorAll('#asUsernameError').forEach(function(el) { el.textContent = d.error }) } catch(_) {}; if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }; return }
+    userInfo.username = newUsername; uni.setStorageSync('xc_user', newUsername)
+    closeAccountSettings(); uni.showToast({ title: '用户名已更新', icon: 'success' })
+  } catch (e) { try { document.querySelectorAll('#asUsernameError').forEach(function(el) { el.textContent = '网络错误' }) } catch(_) {}; if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' } }
+}
+async function changePassword() {
+  var btn = document.getElementById('asPasswordBtn'); var origText = ''
+  if (btn) { origText = btn.textContent; btn.textContent = '设置中...'; btn.style.opacity = '0.6'; btn.style.pointerEvents = 'none' }
+  try { document.querySelectorAll('#asPassError').forEach(function(el) { el.textContent = '' }) } catch(_) {}
+  var modal = document.querySelector('#accountSettingsModal.open') || document.querySelector('#accountSettingsModal')
+  var oldEl = modal ? modal.querySelector('#asOldPass-wrap input') : null
+  var newEl = modal ? modal.querySelector('#asNewPass-wrap input') : null
+  var oldPass = oldEl ? oldEl.value : ''; var newPass = newEl ? newEl.value : ''
+  if (hasPassword.value && !oldPass) { try { document.querySelectorAll('#asPassError').forEach(function(el) { el.textContent = '请输入当前密码' }) } catch(_) {}; if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }; return }
+  if (!newPass || newPass.length < 4) { try { document.querySelectorAll('#asPassError').forEach(function(el) { el.textContent = '新密码至少4个字符' }) } catch(_) {}; if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }; return }
+  var data = { new_password: newPass }
+  if (hasPassword.value) data.old_password = oldPass
+  try {
+    var res = await uni.request({ url: '/api/user/change-password', method: 'POST', data: data })
+    var d = res.data
+    if (d.error) { try { document.querySelectorAll('#asPassError').forEach(function(el) { el.textContent = d.error }) } catch(_) {}; if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }; return }
+    hasPassword.value = true; uni.setStorageSync('xc_has_password', '1')
+    closeAccountSettings(); uni.showToast({ title: '密码已设置', icon: 'success' })
+  } catch (e) { try { document.querySelectorAll('#asPassError').forEach(function(el) { el.textContent = '网络错误' }) } catch(_) {}; if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' } }
+}
+
+const userInfo = reactive({
+  username: uni.getStorageSync('xc_user') || '用户',
+  regDate: '—',
+  avatar: ''
+})
+const asForm = reactive({ newUsername: '', currPassForUser: '', oldPass: '', newPass: '' })
+
+// 命理库
+const profileTab = ref('self')
+const profileSearch = ref('')
+const profileSortIdx = ref(0)
+const profiles = ref([])
+const showProfileForm = ref(false)
+const editingProfile = ref(null)
+const formData = reactive({ name: '', genderIdx: 0, calTypeIdx: 0, birthDate: '', birthAddr: '', isDefault: false, profileType: 'self' })
+
+const tabLabels = { self: '自身命盘', customer: '客户命盘', collect: '收藏命盘' }
+
+// 格式化出生时间 (YYYYMMDDHHmm → YYYY-MM-DD HH:mm)
+function formatBirthTime(bt) {
+  if (!bt || bt.length < 8) return '—'
+  const s = bt.padEnd(12, '0')
+  const y = s.slice(0, 4), m = s.slice(4, 6), d = s.slice(6, 8)
+  const h = s.slice(8, 10), min = s.slice(10, 12)
+  let result = `${y}-${m}-${d}`
+  if (h) result += ` ${h}:${min || '00'}`
+  return result
+}
+
+// 相对时间
+function timeAgo(date) {
+  const now = new Date()
+  const diff = Math.floor((now - date) / 1000)
+  if (diff < 60) return '刚刚'
+  if (diff < 3600) return Math.floor(diff / 60) + '分钟前'
+  if (diff < 86400) return Math.floor(diff / 3600) + '小时前'
+  if (diff < 2592000) return Math.floor(diff / 86400) + '天前'
+  return date.toLocaleDateString('zh-CN')
+}
+
+// 切换标签页
+function switchTab(type) {
+  profileTab.value = type
+  // DOM直操作active class
+  var tabs = ['self','customer','collect']
+  var ids = ['profileTabSelf','profileTabCustomer','profileTabCollect']
+  for (var i = 0; i < tabs.length; i++) {
+    var el = document.getElementById(ids[i])
+    if (el) { type === tabs[i] ? el.classList.add('active') : el.classList.remove('active') }
+  }
+  loadProfiles()
+}
+
+// 加载后端档案数据
+async function loadProfiles() {
+  if (!isLoggedIn.value) return
+  try {
+    const search = (document.getElementById('profileSearch')?.value || '').trim()
+    const sort = profileSortIdx.value === 0 ? 'last_used' : 'created'
+    let url = `/api/profiles?type=${profileTab.value}&sort=${sort}`
+    if (search) url += `&search=${encodeURIComponent(search)}`
+    const res = await uni.request({ url, method: 'GET' })
+    const d = res.data
+    if (d && !d.error) {
+      profiles.value = d.profiles || (Array.isArray(d) ? d : [])
+    }
+  } catch (_) {
+    profiles.value = []
+  }
+}
+
+// 搜索/排序时重新加载
+watch([profileSearch, profileSortIdx], () => {
+  if (isLoggedIn.value) loadProfiles()
+})
+// 搜索值改为从DOM读取，profileSearch ref仅用于watch触发
+// loadProfiles中实际用 document.getElementById('profileSearch')?.value
+
+// 搜索过滤 (本地兜底)
+const filteredProfiles = computed(() => {
+  let list = profiles.value
+  // tab 过滤 (本地兜底，后端已过滤时无需二次过滤)
+  if (list.length > 0 && (list[0].profileType || list[0].profile_type)) {
+    list = list.filter(p => (p.profileType || p.profile_type) === profileTab.value)
+  }
+  if (profileSearch.value) {
+    const q = profileSearch.value.toLowerCase()
+    list = list.filter(p => (p.name || '').toLowerCase().includes(q) || (p.birthTime || p.birth_time || '').includes(q))
+  }
+  // 排序
+  if (profileSortIdx.value === 0) {
+    // 最近使用
+    list = [...list].sort((a, b) => {
+      const ta = a.lastUsedAt || a.last_used_at || a.createdAt || a.created_at || ''
+      const tb = b.lastUsedAt || b.last_used_at || b.createdAt || b.created_at || ''
+      return tb.localeCompare(ta)
+    })
+  } else {
+    // 创建时间
+    list = [...list].sort((a, b) => {
+      const ta = a.createdAt || a.created_at || ''
+      const tb = b.createdAt || b.created_at || ''
+      return tb.localeCompare(ta)
+    })
+  }
+  return list
+})
+
+function selectProfile(p) {
+  uni.setStorageSync('xc_selected_profile', JSON.stringify(p))
+  uni.navigateTo({ url: '/pages/bazi-index/index?fromProfile=1' })
+}
+
+function hideProfileForm() {
+  showProfileForm.value = false
+  editingProfile.value = null
+  var el = document.getElementById('profileFormCard')
+  if (el) el.style.display = 'none'
+}
+
+function editProfile(p) {
+  editingProfile.value = p
+  formData.name = p.name || ''
+  formData.genderIdx = (p.gender === '女') ? 1 : 0
+  formData.calTypeIdx = (p.calType || p.cal_type) === '农历' ? 1 : 0
+  formData.birthAddr = p.birthAddr || p.birth_addr || ''
+  // 同步到原生DOM输入框
+  var n = document.getElementById('profileName'); if (n) n.value = formData.name
+  var a = document.getElementById('profileBirthAddr'); if (a) a.value = formData.birthAddr
+  formData.isDefault = !!(p.isDefault || p.is_default)
+  formData.profileType = p.profileType || p.profile_type || profileTab.value
+  // 出生时间转换: YYYYMMDDHHmm → YYYY-MM-DD
+  const bt = (p.birthTime || p.birth_time || '').padEnd(12, '0')
+  if (bt.length >= 8) {
+    formData.birthDate = bt.slice(0, 4) + '-' + bt.slice(4, 6) + '-' + bt.slice(6, 8)
+  } else {
+    formData.birthDate = ''
+  }
+  showProfileForm.value = true
+  var el = document.getElementById('profileFormCard')
+  if (el) el.style.display = 'block'
+}
+
+async function setDefaultProfile(id) {
+  try {
+    const res = await uni.request({
+      url: `/api/profiles/${id}`,
+      method: 'PUT',
+      data: { isDefault: 1 }
+    })
+    const d = res.data
+    if (d.error) { uni.showToast({ title: d.error, icon: 'none' }); return }
+    loadProfiles()
+  } catch (e) {
+    uni.showToast({ title: '操作失败', icon: 'none' })
+  }
+}
+
+function deleteProfile(id) {
+  uni.showModal({
+    title: '确认删除', content: '确定要删除该命盘存档吗？',
+    success: async (r) => {
+      if (!r.confirm) return
+      try {
+        await uni.request({ url: `/api/profiles/${id}`, method: 'DELETE' })
+      } catch (_) {}
+      profiles.value = profiles.value.filter(p => p.id !== id)
+      uni.showToast({ title: '已删除', icon: 'success' })
+    }
+  })
+}
+
+async function saveProfile() {
+  var domName = (document.getElementById('profileName')?.value || '').trim()
+  if (!domName) { uni.showToast({ title: '请输入姓名', icon: 'none' }); return }
+  formData.name = domName
+  formData.birthAddr = (document.getElementById('profileBirthAddr')?.value || '').trim()
+  const data = {
+    name: formData.name,
+    gender: ['男', '女'][formData.genderIdx],
+    calType: ['公历', '农历'][formData.calTypeIdx],
+    birthAddr: formData.birthAddr.trim(),
+    isDefault: formData.isDefault ? 1 : 0,
+    profileType: formData.profileType || profileTab.value,
+  }
+  // 出生时间: YYYY-MM-DD → YYYYMMDD0000
+  if (formData.birthDate) {
+    data.birthTime = formData.birthDate.replace(/-/g, '') + '00'
+    data.birthTime = data.birthTime.padEnd(12, '0').slice(0, 12)
+  }
+
+  try {
+    let res
+    if (editingProfile.value) {
+      res = await uni.request({ url: `/api/profiles/${editingProfile.value.id}`, method: 'PUT', data })
+    } else {
+      res = await uni.request({ url: '/api/profiles', method: 'POST', data })
+    }
+    const d = res.data
+    if (d.error) { uni.showToast({ title: d.error, icon: 'none' }); return }
+    hideProfileForm()
+    loadProfiles()
+    uni.showToast({ title: '保存成功', icon: 'success' })
+  } catch (e) {
+    // 后端失败时本地兜底
+    const profile = {
+      id: editingProfile.value ? editingProfile.value.id : Date.now(),
+      ...data,
+      birthTime: data.birthTime || '',
+      ganzhi: '',
+    }
+    if (editingProfile.value) {
+      const idx = profiles.value.findIndex(p => p.id === editingProfile.value.id)
+      if (idx >= 0) profiles.value[idx] = profile
+    } else {
+      profiles.value.push(profile)
+    }
+    hideProfileForm()
+    uni.showToast({ title: '保存成功(本地)', icon: 'success' })
+  }
+}
+
+function clickProfileAvatar() {
+  uni.chooseImage({
+    count: 1,
+    sizeType: ['compressed'],
+    sourceType: ['album', 'camera'],
+    success: async (res) => {
+      const tempFile = res.tempFilePaths[0]
+      // 检查文件大小 (5MB)
+      try {
+        const fileInfo = await uni.getFileInfo({ filePath: tempFile })
+        if (fileInfo.size > 5 * 1024 * 1024) {
+          uni.showToast({ title: '图片大小不能超过5MB', icon: 'none' })
+          return
+        }
+      } catch (_) {}
+      try {
+        const uploadRes = await uni.uploadFile({
+          url: '/api/avatar',
+          filePath: tempFile,
+          name: 'file'
+        })
+        const d = JSON.parse(uploadRes.data)
+        if (d.error) { uni.showToast({ title: d.error, icon: 'none' }); return }
+        userInfo.avatar = d.url
+        uni.showToast({ title: '头像已更新', icon: 'success' })
+      } catch (e) {
+        uni.showToast({ title: '头像上传失败', icon: 'none' })
+      }
+    }
+  })
+}
+
+// 页脚链接
+function showFooterInfo(type) {
+  const info = {
+    contact: '联系方式：support@shian.com\n客服时间：工作日 9:00-18:00',
+    privacy: '我们重视您的隐私保护。所有命盘数据仅用于排盘展示，不会向第三方共享。详细隐私政策请访问关于我们页面。'
+  }
+  uni.showModal({
+    title: type === 'contact' ? '联系方式' : '隐私政策',
+    content: info[type] || '',
+    showCancel: false
+  })
+}
+
+function goNav(url, type) {
+  var TAB_LIST = ['/pages/index/index', '/pages/qimen/index', '/pages/bazi-index/index', '/pages/tarot/index', '/pages/liuyao/index', '/pages/meihua/index', '/pages/ziwei/index', '/pages/zeji/index', '/pages/calendar/index', '/pages/community/index', '/pages/profile/index']
+  var pathOnly = url.split('?')[0]
+  if (type === 'switchTab' || TAB_LIST.indexOf(pathOnly) > -1) {
+    if (url.indexOf('?') > -1) {
+      var queryStr = url.substring(url.indexOf('?'))
+      try { sessionStorage.setItem('_nav_query', queryStr) } catch(_) {}
+    }
+    uni.switchTab({
+      url: pathOnly,
+      success: function() {
+        if (url.indexOf('?') > -1) {
+          var q = url.substring(url.indexOf('?'))
+          setTimeout(function() { try { uni.$emit('nav-query', q) } catch(_) {} }, 200)
+        }
+      }
+    })
+  } else {
+    uni.navigateTo({ url })
+  }
+}
+
+// 页面加载时从后端获取档案
+onMounted(() => {
+  window.__xc_hasPassword = hasPassword.value
+  // 全局账号设置弹窗操作（解决 tabBar 多实例问题 + 防止弹出层覆盖）
+  if (!window._xc_showAccountSettings) {
+    window._xc_showAccountSettings = function() {
+      // 打开账号设置前先关闭所有登录弹窗，防止 position:fixed overlay 拦截点击
+      try { document.querySelectorAll('#topnavLoginModal').forEach(function(el) { el.classList.remove('open') }) } catch(_) {}
+      document.querySelectorAll('#accountSettingsModal').forEach(function(el) { el.classList.add('open') })
+      // 在可见的弹窗内创建原生input
+      var modal = document.querySelector('#accountSettingsModal.open') || document.querySelector('#accountSettingsModal')
+      if (modal) {
+        var wraps = ['asNewUsername-wrap', 'asNewPass-wrap']
+        if (window.__xc_hasPassword) wraps.push('asCurrPassForUser-wrap', 'asOldPass-wrap')
+        // 添加绑定相关输入框
+        wraps = wraps.concat(['asBindEmail-wrap', 'asBindEmailCode-wrap', 'asBindPhone-wrap', 'asBindPhoneCode-wrap'])
+        wraps.forEach(function(wrapId) {
+          if (modal.querySelector('#' + wrapId) && !modal.querySelector('#' + wrapId + ' input')) {
+            var wrap = modal.querySelector('#' + wrapId)
+            var inp = document.createElement('input')
+            if (wrapId.indexOf('Code') > -1) inp.type = 'text'
+            else if (wrapId.indexOf('Email') > -1) inp.type = 'email'
+            else if (wrapId.indexOf('Phone') > -1) inp.type = 'tel'
+            else inp.type = wrapId.indexOf('Pass') > -1 ? 'password' : 'text'
+            inp.style.cssText = 'width:100%;padding:10px 14px;border-radius:10px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--text-1);font-size:0.875rem;outline:none;box-sizing:border-box;transition:border-color 0.2s,box-shadow 0.2s'
+            inp.onfocus = function() { this.style.borderColor = 'var(--accent)'; this.style.boxShadow = '0 0 0 2px var(--accent-glow)' }
+            inp.onblur = function() { this.style.borderColor = 'var(--input-border)'; this.style.boxShadow = 'none' }
+            if (wrapId === 'asNewUsername-wrap') inp.placeholder = '输入新用户名'
+            else if (wrapId === 'asCurrPassForUser-wrap') inp.placeholder = '输入当前密码'
+            else if (wrapId === 'asOldPass-wrap') inp.placeholder = '输入当前密码'
+            else if (wrapId === 'asBindEmail-wrap') inp.placeholder = 'your@email.com'
+            else if (wrapId === 'asBindEmailCode-wrap') inp.placeholder = '验证码'
+            else if (wrapId === 'asBindPhone-wrap') inp.placeholder = '手机号'
+            else if (wrapId === 'asBindPhoneCode-wrap') inp.placeholder = '验证码'
+            else inp.placeholder = '至少4个字符'
+            wrap.appendChild(inp)
+          }
+        })
+      }
+      try { document.querySelectorAll('#asUsernameError').forEach(function(el) { el.textContent = '' }); document.querySelectorAll('#asPassError').forEach(function(el) { el.textContent = '' }); document.querySelectorAll('#asBindEmailError').forEach(function(el) { el.textContent = '' }); document.querySelectorAll('#asBindPhoneError').forEach(function(el) { el.textContent = '' }) } catch(_) {}
+      // 加载绑定信息
+      loadBindings()
+    }
+  }
+  if (!window._xc_closeAccountSettings) {
+    window._xc_closeAccountSettings = function() {
+      document.querySelectorAll('#accountSettingsModal').forEach(function(el) { el.classList.remove('open') })
+    }
+  }
+  if (!window._xc_changeUsername) {
+    window._xc_changeUsername = async function() {
+      var modal = document.querySelector('#accountSettingsModal.open')
+      if (!modal) return
+      var btn = modal.querySelector('#asUsernameBtn'); var origText = btn ? btn.textContent : ''
+      if (btn) { origText = btn.textContent; btn.textContent = '修改中...'; btn.style.opacity = '0.6'; btn.style.pointerEvents = 'none' }
+      try {
+        modal.querySelectorAll('#asUsernameError').forEach(function(el) { el.textContent = '' })
+        var u = modal.querySelector('#asNewUsername-wrap input')
+        var p = modal.querySelector('#asCurrPassForUser-wrap input')
+        var newUsername = u ? u.value.trim() : ''; var currPass = p ? p.value : ''
+        if (!newUsername || newUsername.length < 2) { if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }; uni.showToast({ title: '用户名至少2个字符', icon: 'none' }); return }
+        if (window.__xc_hasPassword && !currPass) { if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }; uni.showToast({ title: '请输入当前密码', icon: 'none' }); return }
+        var data = { new_username: newUsername }
+        if (window.__xc_hasPassword) data.current_password = currPass
+        var res = await uni.request({ url: '/api/user/change-username', method: 'POST', data: data })
+        var d = res.data
+        modal.classList.remove('open'); modal.style.display = 'none'; document.querySelectorAll('#accountSettingsModal').forEach(function(el) { el.classList.remove('open') })
+        if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }
+        if (d.error) { uni.showToast({ title: d.error, icon: 'none' }); return }
+        uni.setStorageSync('xc_user', newUsername); uni.showToast({ title: '用户名已更新', icon: 'success' })
+      } catch (e) { modal.classList.remove('open'); modal.style.display = 'none'; document.querySelectorAll('#accountSettingsModal').forEach(function(el) { el.classList.remove('open') }); if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }; uni.showToast({ title: '网络错误', icon: 'none' }) }
+    }
+  }
+  // 加载账号绑定信息
+  async function loadBindings() {
+    try {
+      var res = await uni.request({ url: '/api/user/bindings', method: 'GET' })
+      var d = res.data
+      if (d && !d.error) {
+        try {
+          document.getElementById('bindUsername').textContent = d.username || '—'
+          document.getElementById('bindEmail').textContent = d.email || '未绑定'
+          document.getElementById('bindPhone').textContent = d.phone || '未绑定'
+          document.getElementById('bindPassword').textContent = d.has_password ? '已设置' : '未设置'
+          document.getElementById('bindGitee').textContent = d.oauth_gitee ? '已绑定' : '未绑定'
+          // 显示解绑按钮
+          var eu = document.getElementById('bindEmailUnbind')
+          if (eu) eu.style.display = d.email ? 'inline' : 'none'
+          var pu = document.getElementById('bindPhoneUnbind')
+          if (pu) pu.style.display = d.phone ? 'inline' : 'none'
+        } catch(_) {}
+      }
+    } catch(_) {}
+  }
+  if (!window._xc_loadBindings) { window._xc_loadBindings = loadBindings }
+
+  // 通用验证码发送（账号设置中绑定邮箱/手机号共用）
+  function _profileSendCode(config) {
+    return async function() {
+      var btn = document.getElementById(config.btnId)
+      if (btn && btn.getAttribute('data-counting') === '1') return
+      var modal = document.querySelector('#accountSettingsModal.open') || document.querySelector('#accountSettingsModal')
+      var input = modal ? modal.querySelector('#' + config.wrapId + ' input') : null
+      var val = input ? input.value.trim() : ''
+      if (!val || !config.validate(val)) { uni.showToast({ title: config.errMsg, icon: 'none' }); return }
+      try {
+        var res = await uni.request({ url: config.url, method: 'POST', data: (config.buildData || function(v) { return {[config.key]: v} })(val) })
+        if (res.data && res.data.error) { uni.showToast({ title: res.data.error, icon: 'none' }); return }
+        uni.showToast({ title: '验证码已发送', icon: 'success' })
+        if (btn) {
+          btn.setAttribute('data-counting', '1')
+          var count = 60; btn.textContent = count + 's'
+          var timer = setInterval(function() { count--; if (count <= 0) { clearInterval(timer); btn.textContent = '获取验证码'; btn.removeAttribute('data-counting') } else { btn.textContent = count + 's' } }, 1000)
+        }
+      } catch(e) { uni.showToast({ title: '发送失败', icon: 'none' }) }
+    }
+  }
+  if (!window._xc_sendBindEmailCode) {
+    window._xc_sendBindEmailCode = _profileSendCode({ btnId:'asBindEmailBtn', wrapId:'asBindEmail', key:'email', url:'/api/email/send', errMsg:'请输入正确的邮箱', validate:function(v){return v.indexOf('@')!==-1} })
+  }
+  if (!window._xc_sendBindPhoneCode) {
+    window._xc_sendBindPhoneCode = _profileSendCode({ btnId:'asBindPhoneBtn', wrapId:'asBindPhone', key:'phone', url:'/api/sms/send', errMsg:'请输入正确的手机号', validate:function(v){return v.length>=11} })
+  }
+  // 通用绑定（邮箱/手机号共用）
+  function _profileBind(config) {
+    return async function() {
+      var modal = document.querySelector('#accountSettingsModal.open') || document.querySelector('#accountSettingsModal')
+      var valInput = modal ? modal.querySelector('#' + config.wrapId + ' input') : null
+      var codeInput = modal ? modal.querySelector('#' + config.codeWrapId + ' input') : null
+      var val = valInput ? valInput.value.trim() : ''
+      var code = codeInput ? codeInput.value.trim() : ''
+      if (!val || !code) { uni.showToast({ title: '请填写完整', icon: 'none' }); return }
+      var btn = document.getElementById(config.btnId)
+      if (btn) { btn.textContent = '绑定中...'; btn.style.opacity = '0.6'; btn.style.pointerEvents = 'none' }
+      var resetBtn = function() { if (btn) { btn.textContent = config.label; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' } }
+      try {
+        var data = {}; data[config.key] = val; data.code = code
+        var res = await uni.request({ url: config.url, method: 'POST', data: data })
+        var d = res.data
+        if (d && d.error) { uni.showToast({ title: d.error, icon: 'none' }); resetBtn(); return }
+        uni.showToast({ title: config.successMsg, icon: 'success' })
+        loadBindings()
+        if (valInput) valInput.value = ''
+        if (codeInput) codeInput.value = ''
+        resetBtn()
+      } catch(e) { uni.showToast({ title: '绑定失败', icon: 'none' }); resetBtn() }
+    }
+  }
+  // 通用解绑（邮箱/手机号共用）
+  function _profileUnbind(config) {
+    return async function() {
+      uni.showModal({
+        title: '确认解绑', content: config.confirmMsg,
+        success: async function(r) {
+          if (!r.confirm) return
+          try {
+            var res = await uni.request({ url: config.url, method: 'POST' })
+            if (res.data && res.data.error) { uni.showToast({ title: res.data.error, icon: 'none' }); return }
+            uni.showToast({ title: '已解绑', icon: 'success' }); loadBindings()
+          } catch(e) { uni.showToast({ title: '解绑失败', icon: 'none' }) }
+        }
+      })
+    }
+  }
+  if (!window._xc_bindEmail) {
+    window._xc_bindEmail = _profileBind({ wrapId:'asBindEmail', codeWrapId:'asBindEmailCode', btnId:'asBindEmailSubmit', key:'email', url:'/api/bind/email', label:'绑定邮箱', successMsg:'邮箱绑定成功' })
+  }
+  if (!window._xc_bindPhone) {
+    window._xc_bindPhone = _profileBind({ wrapId:'asBindPhone', codeWrapId:'asBindPhoneCode', btnId:'asBindPhoneSubmit', key:'phone', url:'/api/bind/phone', label:'绑定手机号', successMsg:'手机号绑定成功' })
+  }
+  if (!window._xc_unbindEmail) {
+    window._xc_unbindEmail = _profileUnbind({ confirmMsg:'确定要解绑邮箱吗？', url:'/api/unbind/email' })
+  }
+  if (!window._xc_unbindPhone) {
+    window._xc_unbindPhone = _profileUnbind({ confirmMsg:'确定要解绑手机号吗？', url:'/api/unbind/phone' })
+  }
+
+  if (!window._xc_changePassword) {
+    window._xc_changePassword = async function() {
+      var modal = document.querySelector('#accountSettingsModal.open')
+      if (!modal) return
+      var btn = modal.querySelector('#asPasswordBtn'); var origText = btn ? btn.textContent : ''
+      if (btn) { origText = btn.textContent; btn.textContent = '设置中...'; btn.style.opacity = '0.6'; btn.style.pointerEvents = 'none' }
+      try {
+        modal.querySelectorAll('#asPassError').forEach(function(el) { el.textContent = '' })
+        var oldEl = modal.querySelector('#asOldPass-wrap input')
+        var newEl = modal.querySelector('#asNewPass-wrap input')
+        var oldPass = oldEl ? oldEl.value : ''; var newPass = newEl ? newEl.value : ''
+        if (window.__xc_hasPassword && !oldPass) { if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }; uni.showToast({ title: '请输入当前密码', icon: 'none' }); return }
+        if (!newPass || newPass.length < 4) { if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }; uni.showToast({ title: '新密码至少4个字符', icon: 'none' }); return }
+        var data = { new_password: newPass }
+        if (window.__xc_hasPassword) data.old_password = oldPass
+        var res = await uni.request({ url: '/api/user/change-password', method: 'POST', data: data })
+        var d = res.data
+        modal.classList.remove('open'); modal.style.display = 'none'; document.querySelectorAll('#accountSettingsModal').forEach(function(el) { el.classList.remove('open') })
+        if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }
+        if (d.error) { uni.showToast({ title: d.error, icon: 'none' }); return }
+        window.__xc_hasPassword = true; uni.setStorageSync('xc_has_password', '1')
+        uni.showToast({ title: '密码已设置', icon: 'success' })
+      } catch (e) { modal.classList.remove('open'); modal.style.display = 'none'; document.querySelectorAll('#accountSettingsModal').forEach(function(el) { el.classList.remove('open') }); if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }; uni.showToast({ title: '网络错误', icon: 'none' }) }
+    }
+  }
+  // 创建原生DOM输入框
+  function createNativeInput(wrapId, type, placeholder) {
+    var wrap = document.getElementById(wrapId)
+    if (!wrap) return null
+    var inp = document.createElement('input')
+    inp.type = type
+    inp.id = wrapId.replace('-wrap', '')
+    if (placeholder) inp.placeholder = placeholder
+    inp.style.cssText = 'width:100%;padding:10px 14px;border-radius:10px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--text-1);font-size:0.875rem;outline:none;box-sizing:border-box;transition:border-color 0.2s,box-shadow 0.2s'
+    inp.onfocus = function() { this.style.borderColor = 'var(--accent)'; this.style.boxShadow = '0 0 0 2px var(--accent-glow)' }
+    inp.onblur = function() { this.style.borderColor = 'var(--input-border)'; this.style.boxShadow = 'none' }
+    if (type === 'text') inp.setAttribute('maxlength', '100')
+    wrap.appendChild(inp)
+    return inp
+  }
+  createNativeInput('profileSearch', 'text', '按姓名搜索...')
+  createNativeInput('profileName', 'text', '姓名')
+  createNativeInput('profileBirthAddr', 'text', '如：北京')
+
+  if (isLoggedIn.value) {
+    loadProfiles()
+    // 获取用户信息
+    uni.request({ url: '/api/me', method: 'GET' }).then(res => {
+      const d = res.data && res.data[0] ? res.data[0] : res.data
+      if (d && !d.error) {
+        window.__xc_hasPassword = d.has_password !== false
+        hasPassword.value = d.has_password !== false
+        if (d.username) userInfo.username = d.username
+        if (d.created_at) userInfo.regDate = new Date(d.created_at).toLocaleString('zh-CN')
+        if (d.avatar) userInfo.avatar = d.avatar
+      }
+    }).catch(() => {})
+  }
+
+  // OAuth 回调处理
+  try {
+    var params = new URLSearchParams(window.location.hash.split('?')[1] || window.location.search)
+    var oauthSuccess = params.get('oauth_success')
+    var oauthError = params.get('oauth_error')
+    if (oauthSuccess) {
+      isLoggedIn.value = true
+      uni.setStorageSync('xc_token', 'session')
+      uni.showToast({ title: oauthSuccess === 'qq' ? 'QQ登录成功' : '微信登录成功', icon: 'success' })
+      loadProfiles()
+      // 清除 URL 参数
+      window.history.replaceState({}, '', window.location.pathname + window.location.hash.split('?')[0])
+    }
+    if (oauthError) {
+      uni.showToast({ title: decodeURIComponent(oauthError), icon: 'none' })
+      window.history.replaceState({}, '', window.location.pathname + window.location.hash.split('?')[0])
+    }
+  } catch(_) {}
+
+  // 验证真实登录状态（后端session可能已过期）
+  uni.request({ url: '/api/me', method: 'GET' }).then(function(res) {
+    var d = res.data
+    if (d && d.guest) {
+      isLoggedIn.value = false
+      uni.removeStorageSync('xc_token')
+      uni.removeStorageSync('xc_user')
+    } else if (d && d.username) {
+      isLoggedIn.value = true
+      uni.setStorageSync('xc_token', 'session')
+      uni.setStorageSync('xc_user', d.username)
+      uni.setStorageSync('xc_has_password', d.has_password !== false ? '1' : '0')
+      hasPassword.value = d.has_password !== false
+      userInfo.username = d.username
+      if (d.avatar) userInfo.avatar = d.avatar
+      if (d.created_at) userInfo.regDate = new Date(d.created_at).toLocaleString('zh-CN')
+    }
+  }).catch(function() {})
+})
+
+onShow(function() {
+  if (uni.getStorageSync('xc_token')) {
+    loadProfiles()
+  }
+})
+</script>
+
+<style scoped>
+:root { --ease: cubic-bezier(0.4, 0, 0.2, 1); --radius-md: 14px; --radius-lg: 20px; --font-serif: 'Songti SC', 'Noto Serif SC', 'STSong', serif; --font-sans: 'PingFang SC', 'Helvetica Neue', -apple-system, sans-serif; --max-w: 1280px; }
+[data-theme="dark"] { --bg-grad-1: #161a2a; --bg-grad-2: #1a1e30; --bg-grad-3: #141824; --accent: hsl(38, 60%, 60%); --accent-glow: hsla(38, 60%, 60%, 0.10); --card-bg: rgba(48, 53, 76, 0.85); --card-border: rgba(255,255,255,0.12); --card-border-hover: rgba(255,255,255,0.18); --card-shadow: 0 16px 48px rgba(0,0,0,0.35); --input-bg: rgba(58, 64, 90, 0.88); --input-border: rgba(255,255,255,0.20); --text-1: rgba(240,236,228,0.97); --text-2: rgba(195,185,165,0.95); --text-3: rgba(170,160,145,0.88); --danger: rgba(215,125,110,0.88); --success: rgba(110,195,135,0.88); --nav-bg: rgba(22, 26, 42, 0.92); --section-alt: rgba(30,34,55,0.45); }
+[data-theme="light"] { --bg-grad-1: #f7f2ea; --bg-grad-2: #f0ebe1; --bg-grad-3: #f9f5f0; --accent: hsl(38, 72%, 30%); --accent-glow: hsla(38, 72%, 30%, 0.065); --card-bg: rgba(255,253,248,0.68); --card-border: rgba(0,0,0,0.045); --card-border-hover: rgba(0,0,0,0.08); --card-shadow: 0 8px 28px rgba(60,40,15,0.055); --input-bg: rgba(252,248,240,0.75); --input-border: rgba(0,0,0,0.065); --text-1: rgba(20,16,10,0.96); --text-2: rgba(70,58,40,0.90); --text-3: rgba(100,88,68,0.78); --danger: rgba(170,65,50,0.88); --success: rgba(30,130,60,0.88); --nav-bg: rgba(247,242,234,0.95); --section-alt: rgba(240,235,225,0.45); }
+
+.page-root { min-height: 100vh; }
+.bg-layer { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+[data-theme="dark"] .bg-layer { background: radial-gradient(ellipse 80% 60% at 18% 8%, rgba(45,50,90,0.30) 0%, transparent 72%), radial-gradient(ellipse 65% 50% at 88% 92%, rgba(65,42,18,0.16) 0%, transparent 68%), linear-gradient(162deg, var(--bg-grad-1), var(--bg-grad-2) 50%, var(--bg-grad-3)); }
+[data-theme="light"] .bg-layer { background: radial-gradient(ellipse 72% 52% at 12% 18%, rgba(210,190,150,0.20) 0%, transparent 65%), radial-gradient(ellipse 55% 42% at 92% 85%, rgba(195,175,135,0.13) 0%, transparent 60%), linear-gradient(155deg, var(--bg-grad-1), var(--bg-grad-2) 60%, var(--bg-grad-3)); }
+.page-wrap { position: relative; z-index: 1; }
+
+/* 页面样式 */
+.section { max-width: var(--max-w); margin: 0 auto; padding: 80px 32px; }
+.section-tag { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.6875rem; letter-spacing: 2px; color: var(--accent); background: var(--accent-glow); margin-bottom: 12px; }
+.tool-hero { padding: 60px 32px 32px; text-align: center; position: relative; overflow: hidden; }
+.tool-hero::before { content: ''; position: absolute; top: -50%; left: -20%; width: 140%; height: 200%; background: radial-gradient(ellipse at center, var(--accent-glow) 0%, transparent 70%); opacity: 0.5; pointer-events: none; }
+.tool-hero-content { position: relative; z-index: 1; max-width: var(--max-w); margin: 0 auto; }
+.tool-hero-title { font-family: var(--font-serif); font-size: 2rem; font-weight: 400; letter-spacing: 4px; color: var(--text-1); margin-bottom: 12px; }
+.tool-hero-desc { font-size: 0.9375rem; color: var(--text-3); letter-spacing: 2px; }
+
+.tool-container { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; backdrop-filter: blur(20px); box-shadow: var(--card-shadow); max-width: 720px; margin: 0 auto; }
+.profile-disclaimer { background: var(--accent-glow); border: 1px solid var(--card-border); border-radius: 12px; padding: 12px 18px; margin-bottom: 24px; font-size: 0.8125rem; color: var(--text-2); text-align: center; letter-spacing: 1px; }
+
+.profile-section { margin-bottom: 28px; }
+.profile-section-title { font-family: var(--font-serif); font-size: 1.125rem; font-weight: 400; letter-spacing: 2px; color: var(--text-1); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+
+/* ═══ 账号设置弹窗 ═══ */
+.modal-overlay { position: fixed; inset: 0; z-index: 999; background: rgba(0,0,0,0.55); display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 16px; box-sizing: border-box; }
+.modal-overlay.open { display: flex; }
+#accountSettingsModal .modal-box { position: relative; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 20px; padding: 32px 28px 24px; max-width: 420px; width: 100%; box-shadow: 0 12px 48px rgba(0,0,0,0.25); }
+#accountSettingsModal .modal-title { font-family: var(--font-serif); font-size: 1.15rem; text-align: center; color: var(--text-1); margin-bottom: 24px; letter-spacing: 1px; }
+#accountSettingsModal .modal-close { position: absolute; top: 12px; right: 16px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 0.85rem; color: var(--text-3); cursor: pointer; }
+#accountSettingsModal .modal-close:hover { background: var(--accent-glow); color: var(--accent); }
+#accountSettingsModal .field { margin-bottom: 14px; }
+#accountSettingsModal .field-label { display: block; font-size: 0.72rem; color: var(--text-3); margin-bottom: 5px; letter-spacing: 0.5px; }
+#accountSettingsModal .field-input { width: 100%; padding: 11px 14px; border-radius: 10px; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-1); font-size: 0.875rem; outline: none; box-sizing: border-box; transition: border-color 0.2s; }
+#accountSettingsModal .field-input:focus { border-color: var(--accent); }
+#accountSettingsModal .modal-error { color: var(--danger); font-size: 0.75rem; min-height: 18px; margin: 6px 0 10px; line-height: 1.4; }
+#accountSettingsModal .btn-block { width: 100%; text-align: center; padding: 10px 0; border-radius: 10px; font-size: 0.85rem; cursor: pointer; transition: opacity 0.2s; }
+.as-section { margin-bottom: 6px; }
+.as-section-title { font-size: 0.78rem; font-weight: 600; color: var(--text-2); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--card-border); letter-spacing: 1px; }
+.as-divider { height: 1px; background: var(--card-border); margin: 20px 0; opacity: 0.5; }
+
+.profile-tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid var(--card-border); }
+.profile-tab { padding: 10px 18px; font-size: 0.875rem; cursor: pointer; border: none; background: transparent; color: var(--text-3); border-bottom: 2px solid transparent; transition: all 0.2s; }
+.profile-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+.profile-search-row { display: flex; gap: 10px; margin-bottom: 16px; }
+.form-input { flex: 1; padding: 10px 14px; border-radius: 10px; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-1); font-size: 0.875rem; outline: none; box-sizing: border-box; }
+.form-select-picker { padding: 10px 14px; border-radius: 10px; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-1); font-size: 0.875rem; }
+
+.profile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.p-card { background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); border-radius: 12px; padding: 18px; transition: all 0.2s; cursor: pointer; }
+.p-card:hover { border-color: var(--card-border-hover); background: var(--accent-glow); transform: translateX(4px); }
+.p-card.is-default { border-color: var(--accent); }
+.p-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.p-card-name { font-size: 1rem; font-weight: 600; color: var(--text-1); }
+.p-card-badge { font-size: 0.6875rem; padding: 2px 8px; border-radius: 4px; background: var(--accent); color: #fff; }
+.p-card-detail { font-size: 0.8125rem; color: var(--text-3); line-height: 1.7; }
+.p-card-last-used { font-size: 0.6875rem; color: var(--text-3); }
+.p-card-actions { display: flex; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--card-border); }
+.btn-danger { color: var(--danger); border-color: var(--danger); }
+
+.profile-empty { text-align: center; padding: 48px 20px; color: var(--text-3); }
+.profile-empty-icon { font-size: 3rem; margin-bottom: 12px; }
+.profile-empty-text { font-size: 0.9375rem; color: var(--text-2); display: block; margin-bottom: 4px; }
+.profile-empty-sub { font-size: 0.75rem; color: var(--text-3); display: block; margin-bottom: 16px; }
+
+.profile-form-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 28px; backdrop-filter: blur(20px); box-shadow: var(--card-shadow); margin-bottom: 24px; }
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 0.75rem; color: var(--text-3); margin-bottom: 6px; letter-spacing: 1px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-checkbox-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.form-checkbox-label { font-size: 0.8125rem; color: var(--text-2); }
+.form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+
+/* 头像 */
+.profile-avatar-large { width: 48px; height: 48px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; font-weight: 600; cursor: pointer; overflow: hidden; transition: box-shadow 0.2s, transform 0.2s; }
+.profile-avatar-large:active { transform: scale(1.08); }
+.profile-avatar-img { width: 100%; height: 100%; border-radius: 50%; }
+.profile-avatar-text { font-size: 1.25rem; font-weight: 600; }
+.account-info-actions { justify-content: center; padding-top: 8px; }
+
+.account-info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--card-border); align-items: center; }
+.account-info-row:last-child { border-bottom: none; }
+.account-info-label { color: var(--text-3); font-size: 0.875rem; }
+.account-info-value { color: var(--text-1); font-weight: 500; font-size: 0.875rem; }
+
+/* 页脚 */
+.site-footer { background: var(--nav-bg); border-top: 1px solid var(--card-border); padding: 48px 32px 24px; margin-top: 80px; }
+.footer-disclaimer { max-width: var(--max-w); margin: 0 auto 32px; padding: 14px 20px; border-radius: 10px; background: rgba(215,125,110,0.08); border: 1px solid rgba(215,125,110,0.15); font-size: 0.75rem; color: var(--danger); line-height: 1.6; text-align: center; }
+.footer-grid { max-width: var(--max-w); margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; }
+.footer-col-title { font-size: 0.8125rem; color: var(--text-2); margin-bottom: 12px; }
+.footer-link { font-size: 0.75rem; color: var(--text-3); padding: 3px 0; cursor: pointer; }
+.footer-link:active { color: var(--accent); }
+.footer-icp { font-size: 0.6875rem; color: var(--text-3); margin-top: 8px; }
+.footer-bottom { max-width: var(--max-w); margin: 24px auto 0; padding-top: 16px; border-top: 1px solid var(--card-border); }
+.footer-bottom-text { font-size: 0.6875rem; color: var(--text-3); }
+
+/* 绑定信息样式 */
+.bind-info { margin-bottom: 8px; }
+.bind-row { display: flex; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--card-border); font-size: 0.8125rem; gap: 8px; }
+.bind-row:last-child { border-bottom: none; }
+.bind-label { color: var(--text-3); min-width: 52px; }
+.bind-value { color: var(--text-1); flex: 1; }
+.bind-unbind { color: var(--danger); font-size: 0.6875rem; cursor: pointer; text-decoration: underline; }
+
+/* 弹窗 */
+@media (max-width: 768px) {
+  .section { padding: 48px 16px; }
+  .profile-search-row { flex-direction: column; }
+  .profile-grid { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; gap: 0; }
+  .footer-grid { grid-template-columns: 1fr; gap: 24px; }
+}
+</style>

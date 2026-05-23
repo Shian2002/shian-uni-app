@@ -1,0 +1,310 @@
+/* ═══ 紫微斗数专用样式 ═══ */
+
+/* ── 表单网格 ── */
+.zw-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+/* ── Tab 切换 ── (handled by tool-pages.css) */
+
+/* ── 排盘结果区域 ── */
+.zw-result-wrap {
+    margin-top: 24px;
+}
+
+/* 基础信息卡片 */
+.zw-basic-card {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+.zw-basic-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+}
+.zw-basic-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.zw-basic-label {
+    font-size: 0.75rem;
+    color: var(--text-4);
+    letter-spacing: 1px;
+}
+.zw-basic-value {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--accent);
+}
+
+/* ── 命盘宫格 - 传统4x4布局 ── */
+.zw-palace-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: 20px;
+}
+.zw-palace-cell {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    min-height: 110px;
+    position: relative;
+    transition: all 0.2s;
+    cursor: default;
+}
+.zw-palace-cell:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px rgba(212,168,71,0.08);
+}
+.zw-palace-cell.is-soul {
+    border-color: var(--accent);
+    box-shadow: 0 0 16px rgba(212,168,71,0.12);
+}
+.zw-palace-cell.is-body {
+    border-color: var(--danger);
+}
+.zw-palace-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+.zw-palace-name {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--accent);
+}
+.zw-palace-ganzhi {
+    font-size: 0.6875rem;
+    color: var(--text-4);
+}
+.zw-palace-badge {
+    font-size: 0.5625rem;
+    padding: 1px 5px;
+    border-radius: 3px;
+    position: absolute;
+    top: 5px;
+    right: 5px;
+}
+.zw-badge-soul {
+    background: rgba(212,168,71,0.15);
+    color: var(--accent);
+}
+.zw-badge-body {
+    background: rgba(231,76,60,0.12);
+    color: var(--danger);
+}
+
+/* 星曜标签 */
+.zw-palace-stars {
+    margin-top: 4px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+}
+.zw-star-major {
+    display: inline-block;
+    padding: 2px 7px;
+    background: rgba(212,168,71,0.1);
+    color: var(--accent);
+    border-radius: 4px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+.zw-star-minor {
+    display: inline-block;
+    padding: 1px 6px;
+    background: rgba(41,128,185,0.08);
+    color: #5dade2;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+.zw-star-adj {
+    display: inline-block;
+    padding: 1px 4px;
+    color: #7dcea0;
+    font-size: 0.6875rem;
+}
+
+/* 四化标记 */
+.zw-mutagen {
+    font-size: 0.625rem;
+    padding: 1px 4px;
+    border-radius: 3px;
+    margin-left: 2px;
+    font-weight: 600;
+}
+.zw-mutagen-lu { background: rgba(39,174,96,0.15); color: #27ae60; }
+.zw-mutagen-quan { background: rgba(231,76,60,0.12); color: #e74c3c; }
+.zw-mutagen-ke { background: rgba(52,152,219,0.12); color: #3498db; }
+.zw-mutagen-ji { background: rgba(142,68,173,0.12); color: #8e44ad; }
+
+/* 大限信息 */
+.zw-palace-decadal {
+    margin-top: 6px;
+    font-size: 0.6875rem;
+    color: var(--text-4);
+    border-top: 1px solid var(--border);
+    padding-top: 4px;
+}
+
+/* 中心信息 */
+.zw-center-info {
+    grid-column: 2 / 4;
+    grid-row: 2 / 4;
+    background: var(--bg-2);
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+.zw-center-title {
+    font-size: 1.125rem;
+    color: var(--accent);
+    font-weight: 700;
+    letter-spacing: 3px;
+    margin-bottom: 8px;
+}
+.zw-center-wuxing {
+    font-size: 1rem;
+    color: #c39bd3;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+.zw-center-soul {
+    font-size: 0.8125rem;
+    color: var(--text-3);
+    margin: 2px 0;
+}
+.zw-center-date {
+    font-size: 0.75rem;
+    color: var(--text-4);
+    margin-top: 6px;
+}
+
+/* ── 大限概览 ── */
+.zw-decadal-card {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+.zw-decadal-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.zw-decadal-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+}
+.zw-decadal-table th,
+.zw-decadal-table td {
+    padding: 8px 10px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+}
+.zw-decadal-table th {
+    color: var(--text-4);
+    font-weight: 500;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+}
+.zw-decadal-table td {
+    color: var(--text-2);
+}
+
+/* ── 推运结果 ── */
+.zw-horoscope-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #c39bd3;
+    margin-bottom: 16px;
+}
+.zw-period-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+}
+.zw-period-card {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    transition: all 0.2s;
+}
+.zw-period-card:hover {
+    border-color: #c39bd3;
+    box-shadow: 0 0 12px rgba(155,89,182,0.08);
+}
+.zw-period-name {
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 4px;
+    font-size: 0.875rem;
+}
+.zw-period-ganzhi {
+    font-size: 0.875rem;
+    color: #c39bd3;
+}
+.zw-period-range {
+    font-size: 0.75rem;
+    color: var(--text-4);
+    margin-top: 2px;
+}
+.zw-period-mutagen {
+    font-size: 0.75rem;
+    color: var(--text-3);
+    margin-top: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+/* ── 响应式 ── */
+@media (max-width: 768px) {
+    .zw-palace-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .zw-center-info {
+        grid-column: 1 / -1;
+        grid-row: auto;
+    }
+    .zw-form-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    .zw-basic-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+@media (max-width: 480px) {
+    .zw-palace-cell {
+        min-height: 90px;
+        padding: 8px;
+    }
+    .zw-star-major { font-size: 0.75rem; padding: 1px 5px; }
+    .zw-star-minor { font-size: 0.6875rem; }
+    .zw-star-adj { font-size: 0.625rem; }
+    .zw-period-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}

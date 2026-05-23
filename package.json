@@ -1,0 +1,44 @@
+{
+  "name": "xuan-cet-tai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "玄策台 - Flask 1:1 UniApp 多端复刻",
+  "scripts": {
+    "dev:h5": "uni dev",
+    "build:h5": "node scripts/patch-vue-slot.js && node scripts/patch-tab-dom.js && uni build",
+    "dev:mp-weixin": "uni dev -p mp-weixin",
+    "build:mp-weixin": "uni build -p mp-weixin",
+    "dev:mp-alipay": "uni dev -p mp-alipay",
+    "build:mp-alipay": "uni build -p mp-alipay",
+    "dev:mp-toutiao": "uni dev -p mp-toutiao",
+    "build:mp-toutiao": "uni build -p mp-toutiao",
+    "dev:app": "uni dev -p app",
+    "build:app": "uni build -p app"
+  },
+  "dependencies": {
+    "@dcloudio/uni-app": "3.0.0-alpha-5000920260515001",
+    "@dcloudio/uni-h5": "^3.0.0-alpha-5000920260515001",
+    "@dcloudio/uni-mp-alipay": "3.0.0-alpha-5000920260515001",
+    "@dcloudio/uni-mp-toutiao": "3.0.0-alpha-5000920260515001",
+    "@dcloudio/uni-mp-weixin": "3.0.0-alpha-5000920260515001",
+    "pinia": "2.1.7",
+    "vue": "3.4.38"
+  },
+  "devDependencies": {
+    "@dcloudio/types": "^3.4.31",
+    "@dcloudio/vite-plugin-uni": "3.0.0-alpha-5000920260515001",
+    "sass-embedded": "^1.99.0",
+    "vite": "^5.0.0"
+  },
+  "overrides": {
+    "@vue/compiler-core": "3.4.38",
+    "@vue/compiler-dom": "3.4.38",
+    "@vue/compiler-sfc": "3.4.38",
+    "@vue/compiler-ssr": "3.4.38",
+    "@vue/reactivity": "3.4.38",
+    "@vue/runtime-core": "3.4.38",
+    "@vue/runtime-dom": "3.4.38",
+    "@vue/server-renderer": "3.4.38",
+    "@vue/shared": "3.4.38"
+  }
+}

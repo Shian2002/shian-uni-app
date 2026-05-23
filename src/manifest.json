@@ -1,0 +1,35 @@
+{
+  "name": "xuan-cet-tai",
+  "appid": "",
+  "description": "时安解忧屋 - Flask 1:1 UniApp 多端复刻",
+  "versionName": "1.0.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "h5": {
+    "devServer": {
+      "port": 5173,
+      "proxy": {
+        "/api": {
+          "target": "http://localhost:5199",
+          "changeOrigin": true
+        }
+      }
+    },
+    "title": "时安解忧屋",
+    "router": {
+      "mode": "hash"
+    }
+  },
+  "mp-weixin": {
+    "appid": "touristappid",
+    "setting": {
+      "urlCheck": false
+    }
+  },
+  "mp-alipay": {
+    "usingComponents": true
+  },
+  "mp-toutiao": {
+    "usingComponents": true
+  }
+}
