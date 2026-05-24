@@ -85,7 +85,10 @@ export default {
   components: { TopNav },
   setup() {
     var theme = inject('theme', ref('light'))
-    var isLoggedIn = inject('isLoggedIn', ref(false))
+    // 直接检查 localStorage 中的登录状态，不依赖 Vue inject
+    // 因为 uni-app 子包页面可能无法继承父级的 provide
+    var isLoggedIn = ref(false)
+    try { isLoggedIn.value = !!(uni.getStorageSync('xc_token') || localStorage.getItem('xc_token')) } catch(_) {}
     var toggleTheme = inject('toggleTheme', function() {})
 
     var packages = [
@@ -108,7 +111,7 @@ export default {
         url: '/api/membership', method: 'GET',
         success: function(res) {
           var d = res.data
-          if (!d || !d.points) return
+          if (!d || typeof d.points !== 'number') return
           var el = document.getElementById('pointsNumber')
           if (el) el.textContent = d.points
           var lv = document.getElementById('pointsLevel')
@@ -140,6 +143,8 @@ export default {
             var txt = document.getElementById('signinText')
             if (txt) txt.textContent = '已签到'
             uni.showToast({ title: '签到成功 +' + d.added, icon: 'success' })
+            // 通知所有 TopNav 实例更新积分 badge
+            try { window.dispatchEvent(new CustomEvent('xc-points-updated', { detail: { points: d.points } })) } catch(_) {}
             // 刷新积分明细
             logPage = 1; hasMoreLogs = true
             loadLogs(true)
@@ -263,23 +268,34 @@ export default {
 
 /* 积分卡片 */
 .points-card {
-  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
-  border-radius: 16px; padding: 28px 24px; text-align: center;
-  margin-bottom: 20px; color: #fff;
+  background: linear-gradient(135deg, #c9a84c, #b2955d, #8d7140);
+  border-radius: 18px; padding: 32px 24px 28px; text-align: center;
+  margin-bottom: 24px; color: #fff;
+  box-shadow: 0 8px 32px rgba(178,149,93,0.3), inset 0 1px 0 rgba(255,255,255,0.15);
+  position: relative; overflow: hidden;
 }
-.points-balance { display: flex; align-items: baseline; justify-content: center; gap: 6px; margin-bottom: 6px; }
-.points-number { font-size: 2.8rem; font-weight: 800; letter-spacing: -1px; }
+.points-card::before {
+  content: ''; position: absolute; top: -50%; right: -50%;
+  width: 100%; height: 100%;
+  background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.points-balance { display: flex; align-items: baseline; justify-content: center; gap: 6px; margin-bottom: 4px; position: relative; z-index: 1; }
+.points-number { font-size: 3rem; font-weight: 800; letter-spacing: -1px; text-shadow: 0 2px 8px rgba(0,0,0,0.15); }
 .points-unit { font-size: 1rem; opacity: 0.85; }
-.points-level { font-size: 0.82rem; opacity: 0.75; margin-bottom: 16px; }
+.points-level { font-size: 0.82rem; opacity: 0.75; margin-bottom: 18px; position: relative; z-index: 1; }
 .signin-btn {
   display: inline-flex; align-items: center; gap: 8px;
-  background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);
-  border-radius: 24px; padding: 10px 24px; cursor: pointer;
-  font-size: 0.88rem; transition: background 0.2s;
+  background: rgba(255,255,255,0.18); backdrop-filter: blur(4px);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 24px; padding: 10px 28px; cursor: pointer;
+  font-size: 0.88rem; transition: all 0.25s;
+  position: relative; z-index: 1;
 }
-.signin-btn:hover { background: rgba(255,255,255,0.3); }
-.signin-btn.signed { opacity: 0.5; cursor: default; }
-.signin-btn.signed:hover { background: rgba(255,255,255,0.2); }
+.signin-btn:hover { background: rgba(255,255,255,0.3); transform: translateY(-1px); }
+.signin-btn:active { transform: translateY(0); }
+.signin-btn.signed { opacity: 0.5; cursor: default; background: rgba(255,255,255,0.1); }
+.signin-btn.signed:hover { background: rgba(255,255,255,0.1); transform: none; }
 .signin-reward { font-size: 0.75rem; opacity: 0.8; }
 
 /* 区块标题 */
@@ -297,7 +313,7 @@ export default {
 }
 .pkg-scroll::-webkit-scrollbar { display: none; }
 .pkg-card {
-  flex: 0 0 130px; background: var(--card-bg); border: 1px solid var(--card-border);
+  flex: 1 1 0; min-width: 110px; background: var(--card-bg); border: 1px solid var(--card-border);
   border-radius: 14px; padding: 18px 16px; text-align: center;
   cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;
   scroll-snap-align: start;
@@ -317,7 +333,7 @@ export default {
 .log-left { display: flex; flex-direction: column; gap: 2px; }
 .log-desc { font-size: 0.82rem; color: var(--text-2); }
 .log-date { font-size: 0.7rem; color: var(--text-3); }
-.log-points { font-size: 0.9rem; font-weight: 700; }
+.log-points { font-size: 0.9rem; font-weight: 700; min-width: 60px; text-align: right; }
 .log-plus { color: var(--accent); }
 .log-minus { color: var(--danger); }
 .log-empty { text-align: center; padding: 40px 0; color: var(--text-3); font-size: 0.85rem; }
@@ -326,6 +342,22 @@ export default {
   cursor: pointer;
 }
 .load-more:hover { text-decoration: underline; }
+
+/* 弹窗遮罩 */
+.modal-overlay {
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 999; background: rgba(0,0,0,.55);
+  display: none; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+  background: var(--card-bg); border-radius: 18px;
+  padding: 28px 32px; max-width: 400px; width: 90%;
+  box-shadow: 0 12px 40px rgba(0,0,0,.2);
+}
+.modal-title { font-size: 1.05rem; font-weight: 700; color: var(--text-1); margin-bottom: 18px; text-align: center; }
+.modal-btns { display: flex; gap: 10px; margin-top: 6px; }
 
 /* 充值弹窗 */
 .recharge-modal { max-width: 360px; }
@@ -338,6 +370,7 @@ export default {
 .pay-methods { margin-bottom: 14px; }
 .pay-method {
   display: flex; align-items: center; gap: 12px;
+  width: 100%;
   padding: 14px; border: 1px solid var(--card-border); border-radius: 12px;
   cursor: pointer; transition: border-color 0.15s;
 }
@@ -350,7 +383,7 @@ export default {
 
 /* 响应式 */
 @media (max-width: 480px) {
-  .pkg-card { flex: 0 0 110px; padding: 14px 12px; }
+  .pkg-card { flex: 0 0 110px; min-width: unset; padding: 14px 12px; }
   .points-number { font-size: 2.2rem; }
 }
 </style>

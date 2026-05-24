@@ -74,6 +74,7 @@ export default {
 [data-theme="dark"] {
   --bg-grad-1: #161a2a; --bg-grad-2: #1a1e30; --bg-grad-3: #141824;
   --accent: #b2955d; --accent-2: #a07d10;
+  --accent-hover: #8d7140;
   --accent-glow: rgba(178,149,93,0.10);
   --card-bg: rgba(48, 53, 76, 0.85); --card-border: rgba(255,255,255,0.12);
   --card-border-hover: rgba(255,255,255,0.18);
@@ -91,6 +92,7 @@ export default {
 [data-theme="light"] {
   --bg-grad-1: #f7f2ea; --bg-grad-2: #f0ebe1; --bg-grad-3: #f9f5f0;
   --accent: #b2955d; --accent-2: #a07d10;
+  --accent-hover: #8d7140;
   --accent-glow: rgba(178,149,93,0.065);
   --card-bg: rgba(255,253,248,0.68); --card-border: rgba(0,0,0,0.045);
   --card-border-hover: rgba(0,0,0,0.08);

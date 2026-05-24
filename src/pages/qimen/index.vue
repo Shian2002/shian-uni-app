@@ -27,16 +27,16 @@
 
           <!-- Tab 切换 -->
           <view class="tool-tabs">
-            <view class="tool-tab" id="qiTabFree" :class="{ active: activeTab === 'free' }" @tap="switchQiTab('free')">
+            <view class="tool-tab" id="qiTabFree" :class="{ active: activeTab === 'free' }" @click="switchQiTab('free')" @tap="switchQiTab('free')">
               ☯️ 奇门排盘<text class="tab-badge free">免费</text>
             </view>
-            <view class="tool-tab" id="qiTabAi" :class="{ active: activeTab === 'ai' }" @tap="switchQiTab('ai')">
+            <view class="tool-tab" id="qiTabAi" :class="{ active: activeTab === 'ai' }" @click="switchQiTab('ai')" @tap="switchQiTab('ai')">
               🔮 时安奇门系统<text class="tab-badge">PRO</text>
             </view>
           </view>
 
           <!-- ══ 奇门排盘（免费） ══ -->
-          <view class="tool-tab-content" id="qiTabFreeContent"><!-- v-show removed - controlled by switchQiTab DOM -->
+          <view class="tool-tab-content" id="qiTabFreeContent" v-show="activeTab === 'free'">
             <view class="qf-form">
               <!-- 起局时间 -->
               <view class="qf-datetime-section">
@@ -81,7 +81,7 @@
           </view>
 
           <!-- ══ 奇门AI系统 ══ -->
-          <view class="tool-tab-content" id="qiTabAiContent" style="display:none;"><!-- v-show removed - controlled by switchQiTab DOM -->
+          <view class="tool-tab-content" id="qiTabAiContent" v-show="activeTab === 'ai'">
             <view class="form-group">
               <text class="form-label">问事类型</text>
               <select id="qai-type" class="form-select-picker"></select>
@@ -139,18 +139,18 @@
             </view>
 
             <view class="btn-row">
-              <view class="submit-btn" :class="{ disabled: qaiLoading }" @tap="qimenAskPaipan">🔮 一键起局 · 深度解读</view>
+              <view class="submit-btn" :class="{ disabled: qaiLoading }" @click="qimenAskPaipan" @tap="qimenAskPaipan">🔮 一键起局 · 深度解读</view>
               <view class="btn btn-ghost" @tap="qaiReset">🔄 重新问策</view>
             </view>
 
-            <!-- 进度条 -->
-            <view class="qai-progress" v-if="qaiLoading">
-              <view class="qai-progress-bar"><view class="qai-progress-fill" :style="{ width: qaiProgress + '%' }"></view></view>
-              <view class="qai-step-text">{{ qaiStepText }}</view>
+            <!-- 流式解读卡片区 -->
+            <view class="qai-stream-box" v-if="qaiLoading || qaiResult">
+              <view class="qai-stage-text" id="qaiStageText">🔗 正在连接 DeepSeek AI 引擎...</view>
+              <view class="qai-progress-bar" id="qaiProgressBarWrap">
+                <view class="qai-progress-fill" id="qaiProgressFill" :style="{ width: qaiProgress + '%' }"></view>
+              </view>
+              <view class="qai-cards" id="qaiCards"></view>
             </view>
-
-            <!-- AI 解答结果 -->
-            <view class="qai-result" v-if="qaiResult" v-html="qaiResult"></view>
 
             <view class="result-mode-switch">
               <view class="result-mode-btn" id="qiResultSimple" :class="{ active: resultMode === 'simple' }" @tap="switchQiResultMode('simple')">小白极简版</view>
@@ -599,6 +599,11 @@ async function qimenAskPaipan() {
   if (qaiPollTimer) { clearInterval(qaiPollTimer); qaiPollTimer = null }
   qaiPollCount = 0
   qaiResult.value = ''
+  // 清空旧卡片和进度条
+  var oldCards = document.getElementById('qaiCards'); if (oldCards) oldCards.innerHTML = ''
+  var oldStage = document.getElementById('qaiStageText'); if (oldStage) oldStage.textContent = '🔗 正在连接 DeepSeek AI 引擎...'
+  var oldBar = document.getElementById('qaiProgressBarWrap'); if (oldBar) oldBar.style.display = 'block'
+  var oldFill = document.getElementById('qaiProgressFill'); if (oldFill) oldFill.style.width = '0%'
   qaiLoading.value = true
   qaiProgress.value = 10
   qaiStepText.value = '起局中...'
@@ -631,7 +636,7 @@ async function qimenAskPaipan() {
     if (data.run_id) {
       qaiProgress.value = 20
       qaiStepText.value = '排盘计算中...'
-      qaiPoll(data.run_id)
+      qaiStreamSSE(data.run_id)
     } else {
       qaiResult.value = `<div class="qai-error">未获取到任务ID，请重试</div>`
       qaiLoading.value = false
@@ -694,15 +699,6 @@ function toggleQiIncognito() {
 
 function switchQiTab(tab) {
   activeTab.value = tab
-  var freeBtn = document.getElementById('qiTabFree')
-  var aiBtn = document.getElementById('qiTabAi')
-  if (freeBtn) { tab === 'free' ? freeBtn.classList.add('active') : freeBtn.classList.remove('active') }
-  if (aiBtn) { tab === 'ai' ? aiBtn.classList.add('active') : aiBtn.classList.remove('active') }
-  // 切换内容面板（绕过v-show reactivity bug）
-  var freeContent = document.getElementById('qiTabFreeContent')
-  var aiContent = document.getElementById('qiTabAiContent')
-  if (freeContent) freeContent.style.display = tab === 'free' ? 'block' : 'none'
-  if (aiContent) aiContent.style.display = tab === 'ai' ? 'block' : 'none'
 }
 
 function toggleQiDeepMode() {
@@ -815,8 +811,8 @@ function _refillDaySelect(id, labels, idxRef) {
 // 初始化（页面刷新时重新同步当前时间，确保时分也正确）
 function applyNavQuery(q) {
   if (!q) return
-  if (q.includes('tab=free')) { activeTab.value = 'free'; nextTick(() => { switchQiTab('free') }) }
-  else if (q.includes('tab=ai')) { activeTab.value = 'ai'; nextTick(() => { switchQiTab('ai') }) }
+  if (q.includes('tab=free')) { activeTab.value = 'free' }
+  else if (q.includes('tab=ai')) { activeTab.value = 'ai' }
 }
 
 onShow(() => {
@@ -896,8 +892,6 @@ onMounted(() => {
   const hash = location.hash
   if (hash.includes('tab=free')) activeTab.value = 'free'
   else if (hash.includes('tab=ai')) activeTab.value = 'ai'
-  // 调用 switchQiTab 同步DOM（绕过Vue 3.4.21 render effect bug）
-  nextTick(() => { switchQiTab(activeTab.value) })
   // 检查scenario参数
   const params = new URLSearchParams(location.search)
   const scenario = params.get('scenario') || hash.match(/scenario=([^&]+)/)?.[1]
@@ -909,6 +903,85 @@ onMounted(() => {
   // #endif
 
 })
+
+// ═══ 轮询式流式解读（兼容所有浏览器，含 Safari） ═══
+function qaiStreamSSE(runId) {
+  var stageEl = document.getElementById('qaiStageText')
+  var barWrap = document.getElementById('qaiProgressBarWrap')
+  var barFill = document.getElementById('qaiProgressFill')
+  var cardsEl = document.getElementById('qaiCards')
+  var lastResultLen = 0
+  var pollTimer = null
+  var pollCount = 0
+  var MAX_POLL = 200
+
+  if (stageEl) stageEl.textContent = '🔗 正在连接 DeepSeek AI 引擎...'
+  if (barFill) barFill.style.width = '5%'
+
+  pollTimer = setInterval(async function() {
+    pollCount++
+    if (pollCount >= MAX_POLL) {
+      clearInterval(pollTimer)
+      if (stageEl) stageEl.textContent = '⚠️ 等待超时，请重新问策'
+      qaiLoading.value = false
+      return
+    }
+    try {
+      var res = await uni.request({ url: '/api/qimen/ask/status?run_id=' + runId + '&_t=' + Date.now(), method: 'GET' })
+      var d = res.data
+      if (d.progress !== undefined) qaiProgress.value = Math.max(qaiProgress.value, d.progress)
+
+      if (d.phase === 'done') {
+        clearInterval(pollTimer)
+        qaiProgress.value = 100
+        if (d.result && cardsEl) {
+          cardsEl.innerHTML = renderQimenCards(d.result)
+        }
+        if (stageEl) stageEl.textContent = '✅ 解读完成'
+        if (barFill) barFill.style.width = '100%'
+        if (barWrap) { setTimeout(function() { barWrap.style.display = 'none' }, 600) }
+        qaiResult.value = d.result || ''
+        setTimeout(function() { qaiLoading.value = false }, 300)
+      } else if (d.phase === 'streaming') {
+        // 在流式阶段，尝试从 stream 端点获取增量内容
+        if (typeof d.result === 'string' && d.result.length > lastResultLen && cardsEl) {
+          lastResultLen = d.result.length
+          cardsEl.innerHTML = renderQimenCards(d.result)
+          if (stageEl) stageEl.textContent = '✍️ 正在生成解读...'
+          if (barFill) barFill.style.width = '70%'
+        }
+        if (d.message && stageEl && stageEl.textContent.indexOf('✍️') === -1) {
+          stageEl.textContent = d.message
+        }
+      } else if (d.phase === 'error') {
+        clearInterval(pollTimer)
+        if (stageEl) stageEl.textContent = '⚠️ ' + (d.message || '解读失败')
+        qaiLoading.value = false
+      }
+    } catch(e) {
+      // 单次轮询失败不中断
+    }
+  }, 1500)
+}
+
+// ═══ 卡片式渲染 ═══
+function renderQimenCards(text) {
+  var sections = text.split(/\n(?=#{2,3} )/)
+  var html = ''
+  sections.forEach(function(sec) {
+    var m = sec.match(/^(#{2,3})\s+(.+)/)
+    var title = m ? m[2] : ''
+    var body = m ? sec.substring(m[0].length).trim() : sec
+    body = body.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/\n/g, '<br>')
+    if (!body) body = '&nbsp;'
+    if (title) {
+      html += '<div class="qai-card-item"><div class="qai-card-title">' + title + '</div><div class="qai-card-body"><p>' + body + '</p></div></div>'
+    }
+  })
+  return html
+}
 </script>
 
 <style scoped>
@@ -917,7 +990,7 @@ onMounted(() => {
 [data-theme="dark"] { --bg-grad-1: #161a2a; --bg-grad-2: #1a1e30; --bg-grad-3: #141824; --accent: hsl(38, 60%, 60%); --accent-2: hsl(38, 60%, 48%); --accent-glow: hsla(38, 60%, 60%, 0.10); --card-bg: rgba(48, 53, 76, 0.85); --card-border: rgba(255,255,255,0.12); --card-border-hover: rgba(255,255,255,0.18); --card-shadow: 0 16px 48px rgba(0,0,0,0.35); --input-bg: rgba(58, 64, 90, 0.88); --input-border: rgba(255,255,255,0.20); --text-1: rgba(240,236,228,0.97); --text-2: rgba(195,185,165,0.95); --text-3: rgba(170,160,145,0.88); --danger: rgba(215,125,110,0.88); --success: rgba(110,195,135,0.88); --nav-bg: rgba(22, 26, 42, 0.92); --section-alt: rgba(30,34,55,0.45); }
 [data-theme="light"] { --bg-grad-1: #f7f2ea; --bg-grad-2: #f0ebe1; --bg-grad-3: #f9f5f0; --accent: hsl(38, 72%, 30%); --accent-2: hsl(38, 72%, 22%); --accent-glow: hsla(38, 72%, 30%, 0.065); --card-bg: rgba(255,253,248,0.68); --card-border: rgba(0,0,0,0.045); --card-border-hover: rgba(0,0,0,0.08); --card-shadow: 0 8px 28px rgba(60,40,15,0.055); --input-bg: rgba(252,248,240,0.75); --input-border: rgba(0,0,0,0.065); --text-1: rgba(20,16,10,0.96); --text-2: rgba(70,58,40,0.90); --text-3: rgba(100,88,68,0.78); --danger: rgba(170,65,50,0.88); --success: rgba(30,130,60,0.88); --nav-bg: rgba(247,242,234,0.95); --section-alt: rgba(240,235,225,0.45); }
 
-.page-root { min-height: 100vh; }
+.page-root { position: relative; z-index: 0; min-height: 100vh; }
 .bg-layer { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
 [data-theme="dark"] .bg-layer { background: radial-gradient(ellipse 80% 60% at 18% 8%, rgba(45,50,90,0.30) 0%, transparent 72%), radial-gradient(ellipse 65% 50% at 88% 92%, rgba(65,42,18,0.16) 0%, transparent 68%), linear-gradient(162deg, var(--bg-grad-1), var(--bg-grad-2) 50%, var(--bg-grad-3)); }
 [data-theme="light"] .bg-layer { background: radial-gradient(ellipse 72% 52% at 12% 18%, rgba(210,190,150,0.20) 0%, transparent 65%), radial-gradient(ellipse 55% 42% at 92% 85%, rgba(195,175,135,0.13) 0%, transparent 60%), linear-gradient(155deg, var(--bg-grad-1), var(--bg-grad-2) 60%, var(--bg-grad-3)); }
@@ -1043,4 +1116,33 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   .submit-btn { font-size: 0.875rem; padding: 12px 16px; }
   .btn-row { flex-direction: column; }
 }
+
+/* ═══ 流式解读卡片 ═══ */
+.qai-stream-box {
+  margin-top: 20px; padding: 16px;
+  background: var(--card-bg); border: 1px solid var(--card-border);
+  border-radius: 14px;
+}
+.qai-stage-text {
+  font-size: 0.85rem; color: var(--accent);
+  margin-bottom: 10px; text-align: center;
+}
+.qai-progress-bar {
+  height: 4px; background: var(--card-border);
+  border-radius: 2px; margin-bottom: 16px; overflow: hidden;
+}
+.qai-progress-fill {
+  height: 100%; background: var(--accent);
+  border-radius: 2px; transition: width 0.3s; width: 0%;
+}
+.qai-card-item {
+  background: var(--bg); border: 1px solid var(--card-border);
+  border-radius: 10px; padding: 14px 16px; margin-bottom: 10px;
+}
+.qai-card-title {
+  font-size: 0.9rem; font-weight: 700;
+  color: var(--accent); margin-bottom: 6px;
+}
+.qai-card-body { font-size: 0.82rem; color: var(--text-2); line-height: 1.7; }
+.qai-card-body strong { color: var(--text-1); }
 </style>

@@ -296,7 +296,57 @@ function toggleSidebar() {
   } else {
     sidebar.classList.add('open'); overlay.classList.add('show')
     uni.$emit('sidebar-opened')
+    // 同时加载通用历史记录
+    _loadHistorySidebar()
   }
+}
+
+function _loadHistorySidebar() {
+  var listEl = document.getElementById('sidebarList')
+  if (!listEl) return
+  listEl.innerHTML = '<view class="sidebar-empty">加载中...</view>'
+
+  // 系统图标映射
+  var icons = { qimen: '🔮', bazi: '📜', liuyao: '🧭', meihua: '🌸', ziwei: '⭐', tarot: '🃏' }
+  var names = { qimen: '奇门', bazi: '八字', liuyao: '六爻', meihua: '梅花', ziwei: '紫微', tarot: '塔罗' }
+
+  uni.request({ url: '/api/records?per_page=50', method: 'GET', success: function(res) {
+    var d = res.data; var items = d.records || []; var html = ''
+    if (!items.length) { listEl.innerHTML = '<view class="sidebar-empty">暂无历史记录</view>'; return }
+    items.forEach(function(r) {
+      var icon = icons[r.app_type] || '🔮'
+      var name = names[r.app_type] || r.app_type
+      var time = r.created_at ? r.created_at.substring(0, 10) : ''
+      html += '<view class="sidebar-item" onclick="window._showHistoryDetail(' + r.id + ')">'
+        + '<text class="sidebar-item-icon">' + icon + '</text>'
+        + '<view class="sidebar-item-body">'
+        + '<text class="sidebar-item-type">' + name + '解读</text>'
+        + '<text class="sidebar-item-text">' + (r.question || '(无问题)') + '</text>'
+        + '<text class="sidebar-item-time">' + time + '</text>'
+        + '</view></view>'
+    })
+    listEl.innerHTML = html
+  }, fail: function() {
+    listEl.innerHTML = '<view class="sidebar-empty">加载失败</view>'
+  }})
+}
+
+window._showHistoryDetail = function(rid) {
+  uni.request({ url: '/api/records/' + rid, method: 'GET', success: function(res) {
+    var d = res.data; var overlay = document.getElementById('historyDetailOverlay')
+    var title = document.getElementById('historyDetailTitle')
+    var content = document.getElementById('historyDetailContent')
+    if (overlay) overlay.classList.add('open')
+    if (title) title.textContent = d.question || '历史记录'
+    if (content) content.innerHTML = '<div class="history-markdown">' + (d.result_html || '暂无内容') + '</div>'
+    // 关闭侧边栏
+    toggleSidebar()
+  }})
+}
+
+function closeHistoryDetail() {
+  var overlay = document.getElementById('historyDetailOverlay')
+  if (overlay) overlay.classList.remove('open')
 }
 
 function onShowLogin() {
@@ -317,19 +367,17 @@ function loadAvatar() {
   uni.request({ url: '/api/me', method: 'GET' }).then(function(res) {
     var d = res.data
     if (d && d.guest) {
-      uni.removeStorageSync('xc_token')
-      uni.removeStorageSync('xc_user')
-      window.dispatchEvent(new CustomEvent('xc-session-expired'))
+      // Safari 可能在页面刚加载时延迟发送 Cookie，不要因为 /api/me 返回 guest 就清除登录态
+      // 只要 localStorage 中还有 token，前端就保持登录状态
+      // 真正的 session 过期会在后续 API 调用返回 401 时自然处理
     } else if (d && d.username) {
       avatarLetter.value = d.username.charAt(0).toUpperCase()
       if (d.avatar) avatarUrl.value = d.avatar
     }
   }).catch(function() {})
 }
-var pointsLoadAttempted = false
 function loadPointsSummary() {
-  if (!props.isLoggedIn || pointsLoadAttempted) return
-  pointsLoadAttempted = true
+  if (!props.isLoggedIn) return
   uni.request({ url: '/api/membership', method: 'GET' }).then(function(res) {
     var d = res.data
     if (d && typeof d.points === 'number') {
@@ -338,6 +386,17 @@ function loadPointsSummary() {
       })
     }
   }).catch(function() {})
+}
+// 监听积分更新事件（签到/消费后实时刷新）
+if (!window.__xcPointsListener) {
+  window.__xcPointsListener = true
+  window.addEventListener('xc-points-updated', function(e) {
+    if (e.detail && typeof e.detail.points === 'number') {
+      document.querySelectorAll('#avatarPointsBadge').forEach(function(el) {
+        el.textContent = e.detail.points
+      })
+    }
+  })
 }
 function doLogout() {
   uni.request({ url: '/api/logout', method: 'POST' }).then(function() {
@@ -1059,4 +1118,18 @@ onMounted(() => {
 .sidebar-item-title { font-size:.875rem; color:var(--text-2); margin-bottom:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .sidebar-item-meta { font-size:.7rem; color:var(--text-4); }
 @media (max-width: 480px) { .tarot-sidebar { width:260px; } }
+/* 历史记录侧边栏列表项 */
+.sidebar-item { display:flex; align-items:center; gap:10px; padding:12px 14px; cursor:pointer; border-bottom:1px solid var(--card-border); transition:background .15s; }
+.sidebar-item:hover { background:var(--accent-glow); }
+.sidebar-item-icon { font-size:1.3rem; flex-shrink:0; }
+.sidebar-item-body { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.sidebar-item-type { font-size:.7rem; color:var(--accent); }
+.sidebar-item-text { font-size:.82rem; color:var(--text-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sidebar-item-time { font-size:.68rem; color:var(--text-3); }
+/* 历史记录详情弹窗 */
+.history-detail-box { max-width:600px; max-height:70vh; overflow-y:auto; }
+.history-detail-content { font-size:.85rem; color:var(--text-2); line-height:1.8; }
+.history-markdown h2, .history-markdown h3 { color:var(--accent); margin:14px 0 8px; }
+.history-markdown strong { color:var(--text-1); }
+.history-markdown p { margin-bottom:6px; }
 </style>
