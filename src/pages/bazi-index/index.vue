@@ -608,7 +608,7 @@ async function baiAiAsk() {
 
   _baiDoStreamSSE({
     bubbleId: bubbleId, url: '/api/bazi/ask/stream',
-    body: { birthTime: d + h + '00', gender: gender, calType: calType, question: question, analysis_type: baiAnalysisTypes[baiAnalysisTypeIdx] },
+    body: { birth: d + h + '00', gender: gender, cal_type: calType, question: question, analysis_type: baiAnalysisTypes[baiAnalysisTypeIdx] },
     question: question,
     onDone: function(fullText) {
       window._baiChatHistory = [{ role: 'user', content: question }, { role: 'assistant', content: fullText }]
