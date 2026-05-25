@@ -3,7 +3,7 @@
     <!-- 顶部固定导航 — 两行结构 -->
     <nav class="topnav topnav-solid">
       <!-- 单行：☰ + 按钮栏 + 右侧 -->
-      <view class="topnav-sidebar-btn" id="topnavSidebarBtn" @click="toggleSidebar">☰</view>
+      <view class="topnav-sidebar-btn" id="topnavSidebarBtn" @click="toggleSidebar" @tap="toggleSidebar" onclick="window._xc_toggleSidebar()">☰</view>
       <view class="nav-btn-bar" id="navBtnBar">
         <view class="nav-btn" data-href="#/" @click="go('#/')">首页</view>
 
@@ -67,22 +67,6 @@
          </view>
       </view>
     </nav>
-  </view>
-
-  <!-- 对话历史侧边栏（全局） -->
-  <view class="sidebar-overlay" id="sidebarOverlay" @click="toggleSidebar"></view>
-  <view class="tarot-sidebar" id="tarotSidebar">
-    <view class="sidebar-brand">
-      <text class="sidebar-brand-icon">☯️</text>
-      <text class="sidebar-brand-name">时安解忧屋</text>
-    </view>
-    <view class="sidebar-header">
-      <text class="sidebar-title">对话历史</text>
-      <view class="sidebar-close" @click="toggleSidebar">✕</view>
-    </view>
-    <view class="sidebar-list" id="sidebarList">
-      <view class="sidebar-empty">请在塔罗牌页面查看</view>
-    </view>
   </view>
 
   <!-- 登录弹窗 — 多Tab登录 -->
@@ -149,7 +133,59 @@ const props = defineProps({
 
 const emit = defineEmits(['toggle-theme', 'show-login'])
 
+// ── 全局侧边栏：在 document.body 上创建唯一实例 ──
+// 原因：uni-app custom tabBar 下每个 tab 页面各有一份 TopNav 实例，
+// 若侧边栏 DOM 在 TopNav template 中，会产生 11 份 #tarotSidebar，
+// getElementById 只找到第一个（可能是被 display:none 隐藏的 tab 中的），
+// 导致侧边栏有时可见有时不可见。
+// 修复：改为 JS 动态创建全局唯一 DOM 挂到 body 上，不受 tab 切换影响。
+function ensureGlobalSidebar() {
+  if (document.getElementById('tarotSidebarGlobal')) return
+  var overlay = document.createElement('div')
+  overlay.className = 'sidebar-overlay'
+  overlay.id = 'sidebarOverlayGlobal'
+  overlay.onclick = function() { toggleSidebar() }
+
+  var sidebar = document.createElement('div')
+  sidebar.className = 'tarot-sidebar'
+  sidebar.id = 'tarotSidebarGlobal'
+  sidebar.innerHTML = '<div class="sidebar-brand"><span class="sidebar-brand-icon-wrap"><img class="sidebar-brand-icon" src="/static/images/logo.png"></span><span class="sidebar-brand-name">时安解忧屋</span></div>'
+    + '<div class="sidebar-header"><span class="sidebar-title">对话历史</span><div class="sidebar-close" id="sidebarCloseGlobal">✕</div></div>'
+    + '<div class="sidebar-content" id="sidebarListGlobal"><div class="sidebar-empty">加载中...</div></div>'
+    + '<div class="sidebar-user-panel" id="sidebarUserPanel">'
+    + '<div class="sidebar-user-logged" id="sidebarUserLogged" style="display:none;">'
+    + '<div class="sidebar-user-avatar-wrap"><img class="sidebar-user-avatar" id="sidebarUserAvatar" src=""><span class="sidebar-user-avatar-letter" id="sidebarUserLetter">U</span></div>'
+    + '<div class="sidebar-user-info"><span class="sidebar-user-name" id="sidebarUserName">用户</span><span class="sidebar-user-points" id="sidebarUserPoints">积分: --</span></div>'
+    + '<div class="sidebar-user-actions"><span class="sidebar-user-setting" id="sidebarUserSetting">⚙</span><span class="sidebar-user-logout" id="sidebarUserLogout">退出</span></div>'
+    + '</div>'
+    + '<div class="sidebar-user-guest" id="sidebarUserGuest" style="display:none;">'
+    + '<span class="sidebar-guest-text">登录后可同步历史记录</span>'
+    + '<span class="sidebar-guest-btn" id="sidebarGuestLogin">登录</span>'
+    + '</div>'
+    + '</div>'
+  sidebar.querySelector('#sidebarCloseGlobal').onclick = function() { toggleSidebar() }
+  sidebar.querySelector('#sidebarUserSetting').onclick = function() { toggleSidebar(); go('#/pages/profile/index') }
+  sidebar.querySelector('#sidebarUserLogout').onclick = function() { if (window._xc_doLogout) window._xc_doLogout() }
+  sidebar.querySelector('#sidebarGuestLogin').onclick = function() { if (window._openLoginModal) window._openLoginModal() }
+
+  var detailOverlay = document.createElement('div')
+  detailOverlay.className = 'modal-overlay'
+  detailOverlay.id = 'historyDetailOverlayGlobal'
+  detailOverlay.onclick = function(e) { if (e.target === detailOverlay) window._closeHistoryDetail() }
+  detailOverlay.innerHTML = '<div class="modal-box history-detail-box" onclick="event.stopPropagation()">'
+    + '<div class="modal-title" id="historyDetailTitle">历史记录</div>'
+    + '<div class="history-detail-content" id="historyDetailContent"></div>'
+    + '<div class="modal-btns"><div class="btn btn-outline" onclick="window._closeHistoryDetail()">关闭</div></div></div>'
+
+  document.body.appendChild(overlay)
+  document.body.appendChild(sidebar)
+  document.body.appendChild(detailOverlay)
+}
+
 onMounted(function() {
+  // 创建全局侧边栏（仅一次）
+  ensureGlobalSidebar()
+
   // 获取可见弹窗的辅助函数 — 兼容 uni-app H5 页面结构
   if (!window._xc_getVisibleModal) {
     window._xc_getVisibleModal = function() {
@@ -287,65 +323,180 @@ onMounted(function() {
     window._xc_sendEmailCode = function() { _xc_sendCode({ inputId:'tnLoginEmail', btnId:'tnEmailCodeBtn', key:'email', url:'/api/email/send', errMsg:'请输入正确的邮箱', validate:function(v){return v.indexOf('@')!==-1} }) }
   })
 
+window._xc_toggleSidebar = function() { toggleSidebar() }
+window._xc_toggleGroup = function(headerEl) { var g = headerEl.parentElement; if (g) g.classList.toggle('collapsed') }
+
+// 按 app_type 分组（处理后端值不一致：paipan/bazi, taluo/tarot）
+var _SIDEBAR_TYPE_ORDER = ['qimen', 'paipan', 'bazi', 'liuyao', 'meihua', 'ziwei', 'taluo', 'tarot']
+var _SIDEBAR_TYPE_META = {
+  qimen: { icon: '🔮', label: '奇门遁甲' }, paipan: { icon: '📜', label: '八字排盘' }, bazi: { icon: '📜', label: '八字排盘' },
+  liuyao: { icon: '🧭', label: '六爻排盘' }, meihua: { icon: '🌸', label: '梅花易数' }, ziwei: { icon: '⭐', label: '紫微斗数' },
+  taluo: { icon: '🃏', label: '塔罗牌' }, tarot: { icon: '🃏', label: '塔罗牌' }
+}
+function _groupRecords(records) {
+  var groups = {}, seen = {}
+  records.forEach(function(r) {
+    var t = r.app_type || 'qimen'
+    if (!groups[t]) groups[t] = []
+    groups[t].push(r)
+  })
+  var result = []
+  _SIDEBAR_TYPE_ORDER.forEach(function(t) {
+    if (groups[t]) {
+      var meta = _SIDEBAR_TYPE_META[t] || { icon: '🔮', label: t }
+      // 去重：paipan 和 bazi 合并显示，tarot 和 taluo 合并显示
+      var dedupKey = meta.label
+      if (seen[dedupKey]) {
+        seen[dedupKey].records = seen[dedupKey].records.concat(groups[t])
+      } else {
+        var entry = { type: t, icon: meta.icon, label: meta.label, records: groups[t] }
+        result.push(entry)
+        seen[dedupKey] = entry
+      }
+      delete groups[t]
+    }
+  })
+  Object.keys(groups).forEach(function(t) {
+    var meta = _SIDEBAR_TYPE_META[t] || { icon: '🔮', label: t }
+    result.push({ type: t, icon: meta.icon, label: meta.label, records: groups[t] })
+  })
+  return result
+}
+
+function _loadSidebarUserPanel() {
+  var loggedEl = document.getElementById('sidebarUserLogged')
+  var guestEl = document.getElementById('sidebarUserGuest')
+  if (!loggedEl || !guestEl) return
+  var token = uni.getStorageSync('xc_token')
+  if (!token) { guestEl.style.display = 'flex'; loggedEl.style.display = 'none'; return }
+  uni.request({ url: '/api/me', method: 'GET' }).then(function(res) {
+    var d = res.data
+    if (d && d.guest) { guestEl.style.display = 'flex'; loggedEl.style.display = 'none'; return }
+    if (d && d.username) {
+      loggedEl.style.display = 'flex'; guestEl.style.display = 'none'
+      document.getElementById('sidebarUserName').textContent = d.username
+      var letterEl = document.getElementById('sidebarUserLetter')
+      if (letterEl) letterEl.textContent = d.username.charAt(0).toUpperCase()
+      if (d.avatar) {
+        var img = document.getElementById('sidebarUserAvatar')
+        if (img) { img.src = d.avatar; img.style.display = 'block' }
+        if (letterEl) letterEl.style.display = 'none'
+      }
+    }
+  }).catch(function() { guestEl.style.display = 'flex'; loggedEl.style.display = 'none' })
+  uni.request({ url: '/api/membership', method: 'GET' }).then(function(res) {
+    var d = res.data
+    if (d && typeof d.points === 'number') {
+      var el = document.getElementById('sidebarUserPoints')
+      if (el) el.textContent = '积分: ' + d.points
+    }
+  }).catch(function() {})
+}
+
 function toggleSidebar() {
-  var sidebar = document.getElementById('tarotSidebar')
-  var overlay = document.getElementById('sidebarOverlay')
+  var sidebar = document.getElementById('tarotSidebarGlobal')
+  var overlay = document.getElementById('sidebarOverlayGlobal')
   if (!sidebar || !overlay) return
   if (sidebar.classList.contains('open')) {
     sidebar.classList.remove('open'); overlay.classList.remove('show')
-  } else {
-    sidebar.classList.add('open'); overlay.classList.add('show')
-    uni.$emit('sidebar-opened')
-    // 同时加载通用历史记录
-    _loadHistorySidebar()
+    document.body.removeEventListener('click', window.__sidebarClickAway)
+    return
   }
-}
-
-function _loadHistorySidebar() {
-  var listEl = document.getElementById('sidebarList')
+  sidebar.classList.add('open'); overlay.classList.add('show')
+  uni.$emit('sidebar-opened')
+  document.body.removeEventListener('click', window.__sidebarClickAway)
+  window.__sidebarClickAway = function(e) {
+    var s = document.getElementById('tarotSidebarGlobal')
+    if (s && s.classList.contains('open') && !s.contains(e.target)) {
+      e.stopPropagation(); s.classList.remove('open')
+      document.getElementById('sidebarOverlayGlobal').classList.remove('show')
+      document.body.removeEventListener('click', window.__sidebarClickAway)
+    }
+  }
+  setTimeout(function() { document.body.addEventListener('click', window.__sidebarClickAway) }, 200)
+  var listEl = document.getElementById('sidebarListGlobal')
   if (!listEl) return
-  listEl.innerHTML = '<view class="sidebar-empty">加载中...</view>'
-
-  // 系统图标映射
-  var icons = { qimen: '🔮', bazi: '📜', liuyao: '🧭', meihua: '🌸', ziwei: '⭐', tarot: '🃏' }
-  var names = { qimen: '奇门', bazi: '八字', liuyao: '六爻', meihua: '梅花', ziwei: '紫微', tarot: '塔罗' }
-
-  uni.request({ url: '/api/records?per_page=50', method: 'GET', success: function(res) {
-    var d = res.data; var items = d.records || []; var html = ''
-    if (!items.length) { listEl.innerHTML = '<view class="sidebar-empty">暂无历史记录</view>'; return }
-    items.forEach(function(r) {
-      var icon = icons[r.app_type] || '🔮'
-      var name = names[r.app_type] || r.app_type
-      var time = r.created_at ? r.created_at.substring(0, 10) : ''
-      html += '<view class="sidebar-item" onclick="window._showHistoryDetail(' + r.id + ')">'
-        + '<text class="sidebar-item-icon">' + icon + '</text>'
-        + '<view class="sidebar-item-body">'
-        + '<text class="sidebar-item-type">' + name + '解读</text>'
-        + '<text class="sidebar-item-text">' + (r.question || '(无问题)') + '</text>'
-        + '<text class="sidebar-item-time">' + time + '</text>'
-        + '</view></view>'
+  listEl.innerHTML = '<div class="sidebar-empty">加载中...</div>'
+  // 并行加载用户面板
+  _loadSidebarUserPanel()
+  // 并行加载 Record 和 TarotConversation，合并后分组渲染
+  var recordsLoaded = false, tarotLoaded = false
+  var allRecords = [], tarotItems = []
+  function _renderMerged() {
+    if (!recordsLoaded || !tarotLoaded) return
+    // 将塔罗对话转为统一格式
+    tarotItems.forEach(function(c) {
+      allRecords.push({ id: 'tarot_' + c.id, app_type: 'tarot', question: c.title || c.spread_name || '塔罗解读', created_at: c.updated_at || c.created_at, _tarotConvId: c.id })
+    })
+    if (!allRecords.length) { listEl.innerHTML = '<div class="sidebar-empty">暂无历史记录</div>'; return }
+    var groups = _groupRecords(allRecords)
+    var html = ''
+    groups.forEach(function(g) {
+      html += '<div class="sidebar-group" data-type="' + g.type + '">'
+        + '<div class="sidebar-group-header" onclick="window._xc_toggleGroup(this)">'
+        + '<span class="sidebar-group-icon">' + g.icon + '</span>'
+        + '<span class="sidebar-group-label">' + g.label + '</span>'
+        + '<span class="sidebar-group-count">' + g.records.length + '</span>'
+        + '<span class="sidebar-group-arrow">▾</span>'
+        + '</div><div class="sidebar-group-items">'
+      g.records.forEach(function(r) {
+        var time = r.created_at ? r.created_at.substring(0, 16).replace('T', ' ') : ''
+        var clickAction = r._tarotConvId
+          ? 'onclick="window._showTarotConv(' + r._tarotConvId + ')"'
+          : 'onclick="window._showHistoryDetail(' + r.id + ')"'
+        html += '<div class="sidebar-item" ' + clickAction + '>'
+          + '<div class="sidebar-item-body">'
+          + '<span class="sidebar-item-text">' + (r.question || '(无问题)') + '</span>'
+          + '<span class="sidebar-item-time">' + time + '</span>'
+          + '</div></div>'
+      })
+      html += '</div></div>'
     })
     listEl.innerHTML = html
-  }, fail: function() {
-    listEl.innerHTML = '<view class="sidebar-empty">加载失败</view>'
+  }
+  uni.request({ url: '/api/records?per_page=50', method: 'GET', success: function(res) {
+    allRecords = res.data.records || []; recordsLoaded = true; _renderMerged()
+  }, fail: function() { recordsLoaded = true; _renderMerged() }})
+  uni.request({ url: '/api/tarot/conversations', method: 'GET', success: function(res) {
+    tarotItems = res.data || []; if (!Array.isArray(tarotItems)) tarotItems = []; tarotLoaded = true; _renderMerged()
+  }, fail: function() { tarotLoaded = true; _renderMerged() }})
+}
+
+// 塔罗对话查看（挂在 window 上避免 tree-shaking）
+window._showTarotConv = function(cid) {
+  uni.request({ url: '/api/tarot/conversations/' + cid, method: 'GET', success: function(res) {
+    var d = res.data
+    if (!d) return
+    var overlay = document.getElementById('historyDetailOverlayGlobal')
+    var title = document.getElementById('historyDetailTitle')
+    var content = document.getElementById('historyDetailContent')
+    if (overlay) overlay.classList.add('open')
+    if (title) title.textContent = d.title || d.spread_name || '塔罗解读'
+    // 解析对话消息，显示最后一条 AI 回复
+    var msgs = []
+    try { msgs = JSON.parse(d.messages_json || '[]') } catch(_) {}
+    var aiMsgs = msgs.filter(function(m) { return m.role === 'assistant' })
+    var lastMsg = aiMsgs.length ? aiMsgs[aiMsgs.length - 1].content : ''
+    if (content) content.innerHTML = '<div class="history-markdown">' + (lastMsg || '无解读内容') + '</div>'
+    window._xc_toggleSidebar()
   }})
 }
 
+// 历史详情弹窗（挂在 window 上避免 tree-shaking）
 window._showHistoryDetail = function(rid) {
   uni.request({ url: '/api/records/' + rid, method: 'GET', success: function(res) {
-    var d = res.data; var overlay = document.getElementById('historyDetailOverlay')
+    var d = res.data
+    var overlay = document.getElementById('historyDetailOverlayGlobal')
     var title = document.getElementById('historyDetailTitle')
     var content = document.getElementById('historyDetailContent')
     if (overlay) overlay.classList.add('open')
     if (title) title.textContent = d.question || '历史记录'
-    if (content) content.innerHTML = '<div class="history-markdown">' + (d.result_html || '暂无内容') + '</div>'
-    // 关闭侧边栏
-    toggleSidebar()
+    if (content) content.innerHTML = '<div class="history-markdown">' + (d.result_html || '') + '</div>'
+    window._xc_toggleSidebar()
   }})
 }
-
-function closeHistoryDetail() {
-  var overlay = document.getElementById('historyDetailOverlay')
+window._closeHistoryDetail = function() {
+  var overlay = document.getElementById('historyDetailOverlayGlobal')
   if (overlay) overlay.classList.remove('open')
 }
 
@@ -871,8 +1022,8 @@ onMounted(() => {
   backdrop-filter: blur(40px) saturate(1.4);
   display: flex;
   align-items: center;
-  height: 44px;
-  padding: 0 16px;
+  height: 60px;
+  padding: 0 24px;
   border-bottom: 1px solid var(--card-border);
   font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
   font-weight: 400;
@@ -891,11 +1042,11 @@ onMounted(() => {
 .topnav-row {
   display: flex;
   align-items: center;
-  height: 44px;
+  height: 60px;
   flex:1;
   min-width:0;
 }
-.topnav-sidebar-btn { display:inline-flex; font-size:1.2rem; color:var(--text-2); cursor:pointer; padding:6px 10px; margin-right:4px; flex-shrink:0; align-items:center; border-radius:8px; }
+.topnav-sidebar-btn { display:inline-flex; font-size:1.6rem; color:var(--text-2); cursor:pointer; padding:6px 10px; margin-right:4px; flex-shrink:0; align-items:center; border-radius:8px; }
 .topnav-sidebar-btn:hover { background:var(--accent-glow); }
 .topnav-logo {
   display: flex;
@@ -929,12 +1080,12 @@ onMounted(() => {
 .nav-btn {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
+  padding: 6px 12px;
   border-radius: 7px;
-  font-size: 0.75rem;
+  font-size: 1rem;
   color: var(--text-2);
   white-space: nowrap;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
   transition: color 0.2s, background 0.2s;
   cursor: pointer;
   position: relative;
@@ -1004,13 +1155,13 @@ onMounted(() => {
 }
 .btn-outline { background: transparent; border: 1px solid var(--card-border); color: var(--text-2); }
 .btn-accent { background: var(--accent); color: #fff; }
-.btn-sm { padding: 4px 10px; font-size: 0.7rem; border-radius: 7px; }
+.btn-sm { padding: 6px 14px; font-size: 0.9rem; border-radius: 7px; }
 .nav-profile-btn {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
+  padding: 6px 12px;
   border-radius: 7px;
-  font-size: 0.75rem;
+  font-size: 1rem;
   color: var(--text-2);
   white-space: nowrap;
   cursor: pointer;
@@ -1020,7 +1171,7 @@ onMounted(() => {
   border: none;
   color: var(--text-3);
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 1.25rem;
   padding: 4px;
 }
 
@@ -1037,9 +1188,9 @@ onMounted(() => {
 
 /* ═══ 用户头像 ═══ */
 .nav-avatar-wrap { position: relative; display: flex; align-items: center; cursor: pointer; margin-left: 8px; }
-.nav-avatar-inner { width: 32px; height: 32px; border-radius: 50%; overflow: hidden; background: var(--accent-glow); display: flex; align-items: center; justify-content: center; }
+.nav-avatar-inner { width: 38px; height: 38px; border-radius: 50%; overflow: hidden; background: var(--accent-glow); display: flex; align-items: center; justify-content: center; }
 .nav-avatar-img { width: 100%; height: 100%; object-fit: cover; }
-.nav-avatar-text { font-size: 0.82rem; font-weight: 700; color: var(--accent); }
+.nav-avatar-text { font-size: 0.95rem; font-weight: 700; color: var(--accent); }
 .nav-avatar-dropdown { position: absolute; top: 100%; right: 0; margin-top: 8px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 4px 0; min-width: 120px; display: none; box-shadow: var(--card-shadow); z-index: 200; }
 .nav-avatar-dropdown.open { display: block; }
 .avatar-dropdown-item { padding: 10px 16px; font-size: 0.78rem; color: var(--text-2); cursor: pointer; white-space: nowrap; }
@@ -1095,41 +1246,4 @@ onMounted(() => {
   .code-btn { font-size: 0.72rem; padding: 8px 10px; }
 }
 
-/* ═══ 对话历史侧边栏 ═══ */
-.tarot-sidebar {
-  position:fixed; top:0; left:0; bottom:0; width:300px; z-index:400;
-  background:var(--nav-bg); border-right:1px solid var(--card-border);
-  transform:translateX(-100%); transition:transform .3s ease; overflow-y:auto;
-  box-shadow:4px 0 24px rgba(0,0,0,.15);
-}
-.tarot-sidebar.open { transform:translateX(0); }
-.sidebar-overlay { position:fixed; inset:0; z-index:399; background:rgba(0,0,0,.4); display:none; }
-.sidebar-overlay.show { display:block; }
-.sidebar-brand { display:flex; align-items:center; gap:10px; padding:18px 20px 14px; border-bottom:1px solid var(--card-border); }
-.sidebar-brand-icon { font-size:1.6rem; }
-.sidebar-brand-name { font-family:var(--font-serif); font-size:1.1rem; color:var(--text-1); letter-spacing:3px; }
-.sidebar-header { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; }
-.sidebar-title { font-size:0.8rem; color:var(--text-4); letter-spacing:1px; }
-.sidebar-close { font-size:1.2rem; color:var(--text-3); cursor:pointer; padding:4px; }
-.sidebar-list { padding:12px; }
-.sidebar-empty { text-align:center; color:var(--text-4); font-size:.85rem; padding:40px 20px; }
-.sidebar-item { padding:12px 16px; border-radius:10px; cursor:pointer; margin-bottom:4px; transition:background .2s; }
-.sidebar-item:hover { background:var(--accent-glow); }
-.sidebar-item-title { font-size:.875rem; color:var(--text-2); margin-bottom:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.sidebar-item-meta { font-size:.7rem; color:var(--text-4); }
-@media (max-width: 480px) { .tarot-sidebar { width:260px; } }
-/* 历史记录侧边栏列表项 */
-.sidebar-item { display:flex; align-items:center; gap:10px; padding:12px 14px; cursor:pointer; border-bottom:1px solid var(--card-border); transition:background .15s; }
-.sidebar-item:hover { background:var(--accent-glow); }
-.sidebar-item-icon { font-size:1.3rem; flex-shrink:0; }
-.sidebar-item-body { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
-.sidebar-item-type { font-size:.7rem; color:var(--accent); }
-.sidebar-item-text { font-size:.82rem; color:var(--text-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.sidebar-item-time { font-size:.68rem; color:var(--text-3); }
-/* 历史记录详情弹窗 */
-.history-detail-box { max-width:600px; max-height:70vh; overflow-y:auto; }
-.history-detail-content { font-size:.85rem; color:var(--text-2); line-height:1.8; }
-.history-markdown h2, .history-markdown h3 { color:var(--accent); margin:14px 0 8px; }
-.history-markdown strong { color:var(--text-1); }
-.history-markdown p { margin-bottom:6px; }
 </style>

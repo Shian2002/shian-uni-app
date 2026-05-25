@@ -20,7 +20,7 @@ export default {
     // uni-app 内置 useRem() 会设 html font-size = width / 23.4375，
     // 桌面端 800px+ 视口下导致全局放大 2 倍以上。
     // 必须在 load/resize 事件后也覆盖，因为 useRem() 也监听了这些事件。
-    function _fixRem() { document.documentElement.style.fontSize = '16px' }
+    function _fixRem() { var w = window.innerWidth; var fs = '16px'; if (w >= 1920) fs = '18px'; else if (w >= 1400) fs = '17px'; document.documentElement.style.fontSize = fs }
     _fixRem()
     window.addEventListener('load', _fixRem)
     window.addEventListener('resize', _fixRem)
@@ -88,6 +88,8 @@ export default {
   --sidebar-bg: rgba(30,34,55,0.55);
   --dayun-active: rgba(178,149,93,0.25);
   --input-bg: rgba(58, 64, 90, 0.88); --input-border: rgba(255,255,255,0.20);
+  --hero-logo-backdrop: radial-gradient(circle, rgba(48,53,76,0.85) 50%, rgba(30,34,55,0.4) 80%, transparent 100%);
+  --hero-logo-backdrop-shadow: 0 0 30px rgba(0,0,0,0.3);
 }
 [data-theme="light"] {
   --bg-grad-1: #f7f2ea; --bg-grad-2: #f0ebe1; --bg-grad-3: #f9f5f0;
@@ -106,6 +108,8 @@ export default {
   --sidebar-bg: rgba(245,242,234,0.55);
   --dayun-active: rgba(178,149,93,0.12);
   --input-bg: rgba(252,248,240,0.75); --input-border: rgba(0,0,0,0.065);
+  --hero-logo-backdrop: radial-gradient(circle, rgba(255,255,255,0.75) 50%, rgba(255,255,255,0.35) 80%, transparent 100%);
+  --hero-logo-backdrop-shadow: 0 0 20px rgba(100,80,40,0.08);
 }
 html, body {
   margin: 0;
@@ -147,4 +151,74 @@ uni-tabbar, .uni-tabbar, .uni-tabbar-bottom {
 .uni-app--showtabbar {
   padding-bottom: 0 !important;
 }
+
+/* ═══ 全局侧边栏样式（DOM 在 document.body 上，不受 scoped 限制） ═══ */
+.tarot-sidebar {
+  position:fixed; top:0; left:0; bottom:0; width:300px; z-index:400;
+  background:var(--nav-bg); border-right:1px solid var(--card-border);
+  transform:translateX(-100%); transition:transform .3s ease;
+  box-shadow:4px 0 24px rgba(0,0,0,.15);
+  display:flex; flex-direction:column;
+}
+.tarot-sidebar.open { transform:translateX(0); }
+.sidebar-overlay { position:fixed; inset:0; z-index:399; background:rgba(0,0,0,.4); display:none; }
+.sidebar-overlay.show { display:block; }
+.sidebar-brand { display:flex; align-items:center; gap:12px; padding:22px 24px 18px; border-bottom:1px solid var(--card-border); }
+.sidebar-brand-icon-wrap { position:relative; display:flex; align-items:center; justify-content:center; width:52px; height:52px; flex-shrink:0; }
+.sidebar-brand-icon-wrap::before { content:''; position:absolute; inset:0; border-radius:50%; background:var(--hero-logo-backdrop); box-shadow:var(--hero-logo-backdrop-shadow); z-index:0; }
+.sidebar-brand-icon { width:38px; height:38px; object-fit:contain; position:relative; z-index:1; }
+.sidebar-brand-name { font-family:var(--font-serif); font-size:1.3rem; color:var(--text-1); letter-spacing:4px; }
+.sidebar-header { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; }
+.sidebar-title { font-size:0.8rem; color:var(--text-4); letter-spacing:1px; }
+.sidebar-close { font-size:1.2rem; color:var(--text-3); cursor:pointer; padding:4px; }
+/* 内容区（可滚动） */
+.sidebar-content { flex:1; overflow-y:auto; min-height:0; }
+.sidebar-empty { text-align:center; color:var(--text-4); font-size:.85rem; padding:40px 20px; }
+/* 分组 */
+.sidebar-group { border-bottom:1px solid var(--card-border); }
+.sidebar-group-header {
+  display:flex; align-items:center; gap:8px; padding:10px 16px;
+  cursor:pointer; user-select:none; transition:background .15s;
+}
+.sidebar-group-header:hover { background:var(--accent-glow); }
+.sidebar-group-icon { font-size:1rem; flex-shrink:0; }
+.sidebar-group-label { font-size:.78rem; color:var(--text-1); font-weight:600; flex:1; }
+.sidebar-group-count { font-size:.68rem; color:var(--text-3); background:var(--tag-bg); border-radius:10px; padding:2px 8px; }
+.sidebar-group-arrow { font-size:.7rem; color:var(--text-3); transition:transform .25s ease; }
+.sidebar-group.collapsed .sidebar-group-arrow { transform:rotate(-90deg); }
+.sidebar-group.collapsed .sidebar-group-items { display:none; }
+.sidebar-group-items { padding:0 8px 4px; }
+/* 列表项 */
+.sidebar-item { display:flex; align-items:center; gap:10px; padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--card-border); transition:background .15s; }
+.sidebar-item:hover { background:var(--accent-glow); }
+.sidebar-item:last-child { border-bottom:none; }
+.sidebar-item-icon { font-size:1.3rem; flex-shrink:0; }
+.sidebar-item-body { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.sidebar-item-type { font-size:.7rem; color:var(--accent); }
+.sidebar-item-text { font-size:.82rem; color:var(--text-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sidebar-item-time { font-size:.68rem; color:var(--text-3); }
+/* 底部用户面板 */
+.sidebar-user-panel { flex-shrink:0; border-top:1px solid var(--card-border); padding:12px 16px; background:var(--nav-bg); }
+.sidebar-user-logged { display:flex; align-items:center; gap:10px; }
+.sidebar-user-avatar-wrap { width:36px; height:36px; border-radius:50%; background:var(--accent-glow); overflow:hidden; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.sidebar-user-avatar { width:100%; height:100%; object-fit:cover; display:none; }
+.sidebar-user-avatar-letter { font-size:.9rem; font-weight:700; color:var(--accent); }
+.sidebar-user-info { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.sidebar-user-name { font-size:.82rem; font-weight:600; color:var(--text-1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sidebar-user-points { font-size:.7rem; color:var(--accent); }
+.sidebar-user-actions { display:flex; gap:8px; flex-shrink:0; }
+.sidebar-user-setting, .sidebar-user-logout { font-size:.72rem; color:var(--text-3); cursor:pointer; padding:4px 8px; border-radius:6px; transition:color .15s, background .15s; }
+.sidebar-user-setting:hover { color:var(--accent); background:var(--accent-glow); }
+.sidebar-user-logout:hover { color:var(--danger); background:rgba(215,125,110,.1); }
+.sidebar-user-guest { display:flex; align-items:center; justify-content:space-between; }
+.sidebar-guest-text { font-size:.75rem; color:var(--text-3); }
+.sidebar-guest-btn { font-size:.75rem; color:var(--accent); cursor:pointer; padding:4px 14px; border-radius:8px; border:1px solid var(--accent); transition:.2s; }
+.sidebar-guest-btn:hover { background:var(--accent); color:#fff; }
+/* 历史详情弹窗 */
+.history-detail-box { max-width:600px; max-height:70vh; overflow-y:auto; }
+.history-detail-content { font-size:.85rem; color:var(--text-2); line-height:1.8; }
+.history-markdown h2, .history-markdown h3 { color:var(--accent); margin:14px 0 8px; }
+.history-markdown strong { color:var(--text-1); }
+.history-markdown p { margin-bottom:6px; }
+@media (max-width: 480px) { .tarot-sidebar { width:260px; } }
 </style>

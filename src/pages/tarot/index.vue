@@ -781,7 +781,7 @@ function _loadConversations() {
   uni.request({
     url: '/api/tarot/conversations', method: 'GET',
     success: function(res) {
-      var list = document.getElementById('sidebarList')
+      var list = document.getElementById('sidebarListGlobal')
       if (!list) return
       var convs = res.data
       if (!convs || !Array.isArray(convs)) {
@@ -831,8 +831,8 @@ window._loadConvDetail = function(cid) {
       // 显示解读区
       var readingArea = document.getElementById('readingArea')
       if (readingArea) { readingArea.classList.add('show'); readingArea.scrollIntoView({behavior:'smooth', block:'start'}) }
-      document.getElementById('tarotSidebar').classList.remove('open')
-      document.getElementById('sidebarOverlay').classList.remove('show')
+      document.getElementById('tarotSidebarGlobal').classList.remove('open')
+      document.getElementById('sidebarOverlayGlobal').classList.remove('show')
     }
   })
 }
