@@ -234,22 +234,22 @@
             <view class="advanced-toggle" @tap="baiAdvanced = !baiAdvanced">{{ baiAdvanced ? '▼ 收起高级选项' : '▶ 高级选项' }}</view>
             <view class="form-group"><text class="form-label">分析类型</text>
               <view class="analysis-type-row">
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 0 }" @click="baiAnalysisTypeIdx = 0">📜 命局总览</view>
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 1 }" @click="baiAnalysisTypeIdx = 1">💰 财运事业</view>
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 2 }" @click="baiAnalysisTypeIdx = 2">❤️ 婚姻感情</view>
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 3 }" @click="baiAnalysisTypeIdx = 3">📈 大运流年</view>
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 4 }" @click="baiAnalysisTypeIdx = 4">🏥 健康六亲</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 0 }" id="baiAiTypeBtn0">📜 命局总览</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 1 }" id="baiAiTypeBtn1">💰 财运事业</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 2 }" id="baiAiTypeBtn2">❤️ 婚姻感情</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 3 }" id="baiAiTypeBtn3">📈 大运流年</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 4 }" id="baiAiTypeBtn4">🏥 健康六亲</view>
               </view>
             </view>
             <view class="form-group"><text class="form-label">你的问题（选填）</text><view id="baiQuestion-wrap" class="dom-input-wrap"></view></view>
-            <view class="submit-btn" @click="baiAiAsk">🔮 AI 深度解读</view>
+            <view class="submit-btn" id="baiAiAskBtn">🔮 AI 深度解读</view>
             <!-- 流式解读区域 -->
             <view class="qai-stream-box" v-if="baiAiLoading || baziAiResult">
               <view class="chat-container" id="baiChatContainer"></view>
             </view>
             <view class="chat-input-bar" id="baiChatInputBar" style="display:none;">
               <input class="chat-input" id="baiChatInput" placeholder="继续追问..." />
-              <view class="chat-send-btn" @click="baiSendFollowUp">发送</view>
+              <view class="chat-send-btn" id="baiFollowUpBtn">发送</view>
             </view>
             <view class="privacy-note incognito-status">✅ 无痕模式已开启 · 本地计算 · 不上传数据 · 退出自动清空</view>
           </view>
@@ -714,7 +714,22 @@ const records = ref([])
 const starredRecords = computed(() => records.value.filter(r => r.starred))
 const filteredRecords = computed(() => {
   let list = records.value
-  const searchEl = document.getElementById('recordSearch')
+  const searchEl = 
+  // DOM click 绑定
+  setTimeout(function() {
+    var aiAskBtn = document.getElementById('baiAiAskBtn')
+    if (aiAskBtn) aiAskBtn.addEventListener('click', function() { baiAiAsk() })
+    var fwBtn = document.getElementById('baiFollowUpBtn')
+    if (fwBtn) fwBtn.addEventListener('click', function() { baiSendFollowUp() })
+    for (var i = 0; i < 5; i++) {
+      (function(idx) {
+        var btn = document.getElementById('baiAiTypeBtn' + idx)
+        if (btn) btn.addEventListener('click', function() { baiAnalysisTypeIdx.value = idx })
+      })(i)
+    }
+  }, 300)
+
+  document.getElementById('recordSearch')
   const searchVal = searchEl ? searchEl.value : recordSearch.value
   if (catFilter.value !== '全部') list = list.filter(r => r.category === catFilter.value)
   if (searchVal) { const q = searchVal.toLowerCase(); list = list.filter(r => (r.name || '').toLowerCase().includes(q)) }
@@ -722,7 +737,22 @@ const filteredRecords = computed(() => {
 })
 
 function onRecordSearch() {
-  const el = document.getElementById('recordSearch')
+  const el = 
+  // DOM click 绑定
+  setTimeout(function() {
+    var aiAskBtn = document.getElementById('baiAiAskBtn')
+    if (aiAskBtn) aiAskBtn.addEventListener('click', function() { baiAiAsk() })
+    var fwBtn = document.getElementById('baiFollowUpBtn')
+    if (fwBtn) fwBtn.addEventListener('click', function() { baiSendFollowUp() })
+    for (var i = 0; i < 5; i++) {
+      (function(idx) {
+        var btn = document.getElementById('baiAiTypeBtn' + idx)
+        if (btn) btn.addEventListener('click', function() { baiAnalysisTypeIdx.value = idx })
+      })(i)
+    }
+  }, 300)
+
+  document.getElementById('recordSearch')
   if (el) recordSearch.value = el.value
 }
 function toggleBatchDelete() {
@@ -1300,7 +1330,22 @@ onMounted(() => {
   createNativeInput('baiQuestion', 'text', '请输入您想问的问题', '200')
   createNativeInput('recordSearch', 'text', '请输入搜索的内容')
   // 记录搜索框特殊样式（在搜索栏圆角容器内，去掉边框/背景）
-  var rsEl = document.getElementById('recordSearch')
+  var rsEl = 
+  // DOM click 绑定
+  setTimeout(function() {
+    var aiAskBtn = document.getElementById('baiAiAskBtn')
+    if (aiAskBtn) aiAskBtn.addEventListener('click', function() { baiAiAsk() })
+    var fwBtn = document.getElementById('baiFollowUpBtn')
+    if (fwBtn) fwBtn.addEventListener('click', function() { baiSendFollowUp() })
+    for (var i = 0; i < 5; i++) {
+      (function(idx) {
+        var btn = document.getElementById('baiAiTypeBtn' + idx)
+        if (btn) btn.addEventListener('click', function() { baiAnalysisTypeIdx.value = idx })
+      })(i)
+    }
+  }, 300)
+
+  document.getElementById('recordSearch')
   if (rsEl) {
     rsEl.style.cssText = 'width:100%;padding:8px 10px;border:none;background:none;outline:none;font-size:14px;color:var(--text-1);box-sizing:border-box;'
   }
