@@ -192,7 +192,7 @@
 
 
           <!-- ══ 八字AI系统 ══ -->
-          <view class="tool-tab-content" id="baziTabAiContent" style="display:none;">
+          <view class="tool-tab-content" id="baziTabAiContent" v-show="activeTab === 'ai'">
             <view class="form-group">
               <text class="form-label">姓名</text>
               <view id="baiName-wrap" class="dom-input-wrap"></view>
@@ -767,12 +767,7 @@ function switchBaziTab(tab) {
       }
     }
   }
-  // 切换 tab content 可见性（仅限当前页面 wrapper，避免误伤其他页面）
-  var wrapper = (document.getElementById('baziTabFree') || document.getElementById('baziTabAi') || document.getElementById('baziTabRecords'))?.closest('.tab-page-wrapper')
-  var contents = wrapper ? wrapper.querySelectorAll('.tool-tab-content') : []
-  for (var j = 0; j < contents.length; j++) {
-    contents[j].style.display = (j === 0 && tab === 'free') || (j === 1 && tab === 'ai') || (j === 2 && tab === 'records') ? 'block' : 'none'
-  }
+
 }
 
 // ── 模式B: 性别选择 ──

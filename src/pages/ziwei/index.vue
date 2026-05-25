@@ -13,7 +13,7 @@
             <view id="zwTabHoro" class="tool-tab" :class="{ active: activeTab === 'horoscope' }" data-zw-tab="horoscope">📅 推运<text class="tab-badge">PRO</text></view>
           </view>
           <!-- 排盘面板 -->
-          <view class="tool-tab-content" id="zwPanContent">
+          <view class="tool-tab-content" id="zwPanContent" v-show="activeTab === 'pan'">
             <view class="zw-form-grid">
               <view class="form-group"><text class="form-label">出生年</text><view id="zwYear-wrap" class="dom-input-wrap"></view></view>
               <view class="form-group"><text class="form-label">出生月</text><view id="zwMonth-wrap" class="dom-input-wrap"></view></view>
@@ -32,7 +32,7 @@
             <view class="zw-result" v-if="zwPanResult" v-html="zwPanResult"></view>
           </view>
           <!-- 推运面板 -->
-          <view class="tool-tab-content" id="zwHoroContent">
+          <view class="tool-tab-content" id="zwHoroContent" v-show="activeTab === 'horoscope'">
             <view class="zw-form-grid">
               <view class="form-group"><text class="form-label">出生年</text><view id="zwHYear-wrap" class="dom-input-wrap"></view></view>
               <view class="form-group"><text class="form-label">出生月</text><view id="zwHMonth-wrap" class="dom-input-wrap"></view></view>
@@ -530,14 +530,6 @@ onMounted(() => {
   if (!window._xc_switchZwTab) {
     window._xc_switchZwTab = function(tab) {
       activeTab.value = tab
-      try {
-        var pan = document.getElementById('zwTabPan'); var horo = document.getElementById('zwTabHoro')
-        if (pan) pan.classList.toggle('active', tab === 'pan')
-        if (horo) horo.classList.toggle('active', tab === 'horoscope')
-        var pc = document.getElementById('zwPanContent'); var hc = document.getElementById('zwHoroContent')
-        if (pc) pc.style.display = tab === 'pan' ? '' : 'none'
-        if (hc) hc.style.display = tab === 'horoscope' ? '' : 'none'
-      } catch(_) {}
     }
   }
   // DOM事件委托：修复<view onclick>在uni-app H5中不生效的问题
