@@ -526,11 +526,11 @@ onMounted(() => {
 .hero-home { min-height: calc(100vh - 60px); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; position: relative; padding: 48px 32px 60px; }
 .hero-home-content { max-width: var(--max-w); width: 100%; margin: 0 auto; text-align: center; }
 .hero-brand { margin-bottom: 60px; }
-.hero-brand-icon-wrap { position: relative; display: flex; align-items: center; justify-content: center; width: 170px; height: 170px; margin: 0 auto 20px; animation: float 6s ease-in-out infinite; }
+.hero-brand-icon-wrap { position: relative; display: flex; align-items: center; justify-content: center; width: 160px; height: 160px; margin: 0 auto 20px; animation: float 6s ease-in-out infinite; }
 .hero-brand-icon-wrap::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--hero-logo-backdrop); box-shadow: var(--hero-logo-backdrop-shadow); z-index: 0; }
-.hero-brand-icon { width: 130px; height: 130px; position: relative; z-index: 1; display: block; }
+.hero-brand-icon { width: 140px; height: 140px; position: relative; z-index: 1; display: block; }
 @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-.hero-brand-name { font-family: var(--font-serif); font-size: 3.2rem; font-weight: 400; letter-spacing: 12px; color: var(--text-1); margin-bottom: 16px; background: linear-gradient(135deg, var(--text-1), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.hero-brand-name { font-family: var(--font-serif); font-size: 3.2rem; font-weight: 400; letter-spacing: 12px; color: var(--text-1); margin-bottom: 16px; background: linear-gradient(135deg, var(--text-1), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-indent: 12px; }
 .hero-brand-divider { width: 60px; height: 2px; background: var(--accent); margin: 16px auto; border-radius: 1px; box-shadow: 0 0 12px var(--accent-glow); }
 .hero-brand-slogan { font-family: var(--font-serif); font-size: 1.125rem; letter-spacing: 6px; color: var(--accent); margin-bottom: 8px; }
 .hero-brand-sub { font-size: 0.875rem; color: var(--text-3); letter-spacing: 2px; }

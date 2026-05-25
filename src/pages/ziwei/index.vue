@@ -9,6 +9,7 @@
           <view class="incognito-bar"><label class="incognito-toggle"><view id="zwIncognitoChk" class="incognito-visual" @tap="toggleZwIncognito()"></view><text>{{ incognito ? '🔒 无痕模式' : '🔓 有痕模式' }}</text></label><text class="incognito-desc">本地计算 · 不上传数据 · 退出自动清空</text></view>
           <view class="tool-tabs">
             <view id="zwTabPan" class="tool-tab" :class="{ active: activeTab === 'pan' }" data-zw-tab="pan">⭐ 排盘<text class="tab-badge free">免费</text></view>
+            <view id="zwTabAi" class="tool-tab" :class="{ active: activeTab === 'ai' }" @tap="switchZwTab('ai')">🔮 时安紫微系统<text class="tab-badge">PRO</text></view>
             <view id="zwTabHoro" class="tool-tab" :class="{ active: activeTab === 'horoscope' }" data-zw-tab="horoscope">📅 推运<text class="tab-badge">PRO</text></view>
           </view>
           <!-- 排盘面板 -->
@@ -45,6 +46,30 @@
               <view class="btn btn-ghost" data-zw-action="resetHoroscope">🔄 清空</view>
             </view>
             <view class="zw-result" v-if="zwHoroscopeResult" v-html="zwHoroscopeResult"></view>
+          </view>
+          <!-- AI解读面板 -->
+          <view class="tool-tab-content" id="zwTabAiContent" v-show="activeTab === 'ai'">
+            <view class="zw-form-grid">
+              <view class="form-group"><text class="form-label">出生年</text><view id="zwAiYear-wrap" class="dom-input-wrap"></view></view>
+              <view class="form-group"><text class="form-label">出生月</text><view id="zwAiMonth-wrap" class="dom-input-wrap"></view></view>
+              <view class="form-group"><text class="form-label">出生日</text><view id="zwAiDay-wrap" class="dom-input-wrap"></view></view>
+              <view class="form-group"><text class="form-label">出生时(0-23)</text><view id="zwAiHour-wrap" class="dom-input-wrap"></view></view>
+              <view class="form-group"><text class="form-label">出生分(可选)</text><view id="zwAiMinute-wrap" class="dom-input-wrap"></view></view>
+              <view class="form-group"><text class="form-label">性别</text><picker :range="['男', '女']" :value="zwAiGenderIdx" @change="zwAiGenderIdx = $event.detail.value"><view class="form-select-picker">{{ ['男', '女'][zwAiGenderIdx] }}</view></picker></view>
+              <view class="form-group"><text class="form-label">历法类型</text><picker :range="['阳历(公历)', '农历(阴历)']" :value="zwAiDateTypeIdx" @change="zwAiDateTypeIdx = $event.detail.value"><view class="form-select-picker">{{ ['阳历(公历)', '农历(阴历)'][zwAiDateTypeIdx] }}</view></picker></view>
+            </view>
+            <view class="form-group"><text class="form-label">你的问题（选填）</text><view id="zwAiQuestion-wrap" class="dom-input-wrap"></view></view>
+            <view class="btn-row">
+              <view class="submit-btn" @tap="zwAiAsk">🔮 AI 深度解读</view>
+            </view>
+            <view class="qai-stream-box" v-if="zwAiLoading || zwAiResult">
+              <view class="chat-container" id="zwChatContainer"></view>
+            </view>
+            <view class="chat-input-bar" id="zwChatInputBar" style="display:none;">
+              <input class="chat-input" id="zwChatInput" placeholder="继续追问..." />
+              <view class="chat-send-btn" @tap="zwSendFollowUp">发送</view>
+            </view>
+            <view class="privacy-note incognito-status">✅ 无痕模式已开启 · 本地计算 · 不上传数据 · 退出自动清空</view>
           </view>
         </view>
       </section>
@@ -83,7 +108,7 @@ function toggleZwIncognito() {
 
 function switchZwTab(tab) {
   activeTab.value = tab
-  var els = [['zwTabPan','pan'],['zwTabHoro','horoscope']]
+  var els = [['zwTabPan','pan'],['zwTabAi','ai'],['zwTabHoro','horoscope']]
   els.forEach(function(e) {
     var btn = document.getElementById(e[0])
     if (btn) { tab === e[1] ? btn.classList.add('active') : btn.classList.remove('active') }
@@ -106,6 +131,134 @@ const zwTargetDate = ref(''); const zwHoroscopeResult = ref('')
 function zwResetHoroscope() {
   zwHYear.value = ''; zwHMonth.value = ''; zwHDay.value = ''; zwHHour.value = ''
   zwHGenderIdx.value = 0; zwHDateTypeIdx.value = 0; zwTargetDate.value = ''; zwHoroscopeResult.value = ''
+}
+
+// AI 解读
+const zwAiGenderIdx = ref(0); const zwAiDateTypeIdx = ref(0)
+const zwAiLoading = ref(false); const zwAiResult = ref('')
+window._zwChatHistory = []
+
+async function zwAiAsk() {
+  if (zwAiLoading.value) return
+  var elY = document.getElementById('zwAiYear'); var elM = document.getElementById('zwAiMonth')
+  var elD = document.getElementById('zwAiDay'); var elH = document.getElementById('zwAiHour')
+  var elMin = document.getElementById('zwAiMinute')
+  var y = elY ? parseInt(elY.value) : NaN; var m = elM ? parseInt(elM.value) : NaN
+  var d = elD ? parseInt(elD.value) : NaN; var h = elH ? parseInt(elH.value) : NaN
+  var min = elMin ? parseInt(elMin.value) : 0
+  if (isNaN(y) || isNaN(m) || isNaN(d) || isNaN(h)) {
+    uni.showToast({ title: '请填写完整的出生时间', icon: 'none' }); return
+  }
+  var question = ((document.getElementById('zwAiQuestion') || {}).value || '').trim()
+  var gender = ['男', '女'][zwAiGenderIdx.value]
+  var date_type = ['solar', 'lunar'][zwAiDateTypeIdx.value]
+
+  // 清理
+  zwAiResult.value = ''; window._zwChatHistory = []
+  var chatContainer = document.getElementById('zwChatContainer')
+  if (chatContainer) chatContainer.innerHTML = ''
+  var inputBar = document.getElementById('zwChatInputBar')
+  if (inputBar) inputBar.style.display = 'none'
+  zwAiLoading.value = true
+
+  var bubbleId = 'zwBubble_' + Date.now()
+  var bubbleHTML = '<div class="chat-bubble-ai" id="' + bubbleId + '">' +
+    '<div class="ai-stage">🔗 正在连接 DeepSeek AI 引擎...</div>' +
+    '<div class="ai-progress-bar"><div class="ai-progress-fill" style="width:20%"></div></div>' +
+    '<div class="chat-bubble-content"></div></div>'
+  if (chatContainer) chatContainer.innerHTML = bubbleHTML
+
+  _zwDoStreamSSE({
+    bubbleId: bubbleId, url: '/api/ziwei/ask/stream',
+    body: { year: y, month: m, day: d, hour: h, minute: min, gender: gender, date_type: date_type, question: question },
+    question: question,
+    onDone: function(fullText) {
+      window._zwChatHistory = [{ role: 'user', content: question }, { role: 'assistant', content: fullText }]
+      zwAiResult.value = fullText
+      var bar = document.getElementById('zwChatInputBar'); if (bar) bar.style.display = 'flex'
+    },
+    onError: function() { zwAiLoading.value = false }
+  })
+}
+
+function _zwDoStreamSSE(opts) {
+  var bubble = document.getElementById(opts.bubbleId); if (!bubble) return
+  var stageEl = bubble.querySelector('.ai-stage'); var barEl = bubble.querySelector('.ai-progress-fill')
+  var contentEl = bubble.querySelector('.chat-bubble-content')
+  var xhr = new XMLHttpRequest(); xhr.open('POST', opts.url, true); xhr.setRequestHeader('Content-Type', 'application/json')
+  var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
+  if (token) xhr.setRequestHeader('Authorization', 'Bearer ' + token)
+  var lastIndex = 0, fullText = '', charQueue = '', typeTimer = null, doneReceived = false
+  function startTypewriter() {
+    if (typeTimer) return
+    typeTimer = setInterval(function() {
+      if (charQueue.length === 0 && doneReceived) {
+        clearInterval(typeTimer); typeTimer = null
+        if (stageEl) stageEl.style.display = 'none'
+        var barWrap = bubble.querySelector('.ai-progress-bar'); if (barWrap) barWrap.style.display = 'none'
+        if (contentEl) contentEl.innerHTML = _zwRenderCards(fullText)
+        if (opts.onDone) opts.onDone(fullText); return
+      }
+      if (charQueue.length === 0) return
+      var take = charQueue.length > 3 ? 2 : 1
+      fullText += charQueue.substring(0, take); charQueue = charQueue.substring(take)
+      if (contentEl) contentEl.innerHTML = fullText.replace(/\n/g, '<br>')
+    }, 35)
+  }
+  xhr.onprogress = function() {
+    var newText = xhr.responseText.substring(lastIndex); lastIndex = xhr.responseText.length
+    var lines = newText.split('\n'), eventType = ''
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i]
+      if (line.indexOf('event:') === 0) { eventType = line.replace('event:', '').trim(); continue }
+      if (line.indexOf('data:') !== 0) continue
+      try {
+        var data = JSON.parse(line.replace('data:', '').trim())
+        if (eventType === 'progress') {
+          if (data.stage === 'connecting' && stageEl) stageEl.innerHTML = '🔗 正在连接...'
+          else if (data.stage === 'analyzing' && stageEl) stageEl.innerHTML = '🧠 排盘分析中...'
+          else if (data.stage === 'generating' && stageEl) { stageEl.innerHTML = '✍️ 正在生成解读...'; startTypewriter() }
+          if (barEl) barEl.style.width = '60%'
+        } else if (eventType === 'chunk') { charQueue += data.content }
+        else if (eventType === 'done') { doneReceived = true; zwAiLoading.value = false }
+        else if (eventType === 'error') { if (stageEl) stageEl.innerHTML = '⚠️ ' + data.message; if (opts.onError) opts.onError() }
+        eventType = ''
+      } catch(_) {}
+    }
+  }
+  xhr.onerror = function() { if (stageEl) stageEl.innerHTML = '⚠️ 网络错误'; if (opts.onError) opts.onError() }
+  xhr.send(JSON.stringify(opts.body))
+}
+
+function _zwRenderCards(text) {
+  var sections = text.split(/\n(?=#{2,3} )/), html = ''
+  sections.forEach(function(sec) {
+    var m = sec.match(/^(#{2,3})\s+(.+)/); var title = m ? m[2] : ''
+    var body = m ? sec.substring(m[0].length).trim() : sec
+    body = body.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')
+    if (!body) body = '&nbsp;'
+    if (title) html += '<div class="qai-card-item"><div class="qai-card-title">' + title + '</div><div class="qai-card-body"><p>' + body + '</p></div></div>'
+  })
+  return html
+}
+
+function zwSendFollowUp() {
+  var input = document.getElementById('zwChatInput'); if (!input) return
+  var question = input.value.trim(); if (!question) return; input.value = ''
+  var chatContainer = document.getElementById('zwChatContainer'); if (!chatContainer) return
+  var userBubble = document.createElement('view'); userBubble.className = 'chat-bubble-user'; userBubble.textContent = question
+  chatContainer.appendChild(userBubble)
+  var bubbleId = 'zwFollow_' + Date.now()
+  var aiBubble = document.createElement('view'); aiBubble.className = 'chat-bubble-ai'; aiBubble.id = bubbleId
+  aiBubble.innerHTML = '<div class="ai-stage">✍️ 正在生成回复...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div><div class="chat-bubble-content"></div>'
+  chatContainer.appendChild(aiBubble); chatContainer.scrollIntoView({ behavior: 'smooth', block: 'end' })
+  var history = window._zwChatHistory || []; history.push({ role: 'user', content: question })
+  _zwDoStreamSSE({
+    bubbleId: bubbleId, url: '/api/ziwei/ask/stream', body: { question: question, history: history },
+    question: question,
+    onDone: function(fullText) { history.push({ role: 'assistant', content: fullText }); window._zwChatHistory = history },
+    onError: function() {}
+  })
 }
 
 async function ziweiFreePan() {
@@ -442,6 +595,13 @@ onMounted(() => {
   createNativeInput('zwHMonth-wrap', 'number', '1-12')
   createNativeInput('zwHDay-wrap', 'number', '1-31')
   createNativeInput('zwHHour-wrap', 'number', '0-23')
+  // AI 表单
+  createNativeInput('zwAiYear-wrap', 'number', 'yyyy')
+  createNativeInput('zwAiMonth-wrap', 'number', '1-12')
+  createNativeInput('zwAiDay-wrap', 'number', '1-31')
+  createNativeInput('zwAiHour-wrap', 'number', '0-23')
+  createNativeInput('zwAiMinute-wrap', 'number', '0-59')
+  createNativeInput('zwAiQuestion-wrap', 'text', '请输入您想问的问题', '200')
   const now = new Date()
   // 默认填充当前时间
   var elY = document.getElementById('zwYear'); if (elY) elY.value = now.getFullYear()
@@ -592,4 +752,23 @@ onMounted(() => {
 .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
 .modal-btns .btn { flex: 1; text-align: center; }
 .modal-error { color: var(--danger); font-size: 0.75rem; text-align: center; margin-top: 10px; min-height: 18px; }
-@media (max-width: 768px) { .tool-hero { padding: 40px 16px 24px; } .tool-hero-title { font-size: 1.5rem; } .tool-container { padding: 20px 16px; } .section { padding: 48px 16px; } .footer-grid { grid-template-columns: 1fr; gap: 24px; } .zw-form-grid { grid-template-columns: 1fr 1fr; } }</style>
+@media (max-width: 768px) { .tool-hero { padding: 40px 16px 24px; } .tool-hero-title { font-size: 1.5rem; } .tool-container { padding: 20px 16px; } .section { padding: 48px 16px; } .footer-grid { grid-template-columns: 1fr; gap: 24px; } .zw-form-grid { grid-template-columns: 1fr 1fr; } }
+
+/* ═══ 流式解读 + 对话气泡 ═══ */
+.qai-stream-box { margin-top: 20px; padding: 16px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; }
+.qai-card-item { background: var(--section-alt); border: 1px solid var(--card-border); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
+.qai-card-title { font-size: 0.9rem; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
+.qai-card-body { font-size: 0.82rem; color: var(--text-2); line-height: 1.7; }
+.qai-card-body strong { color: var(--text-1); }
+.chat-container { display: flex; flex-direction: column; gap: 12px; }
+.chat-bubble-ai { align-self: flex-start; background: var(--section-alt); border: 1px solid var(--card-border); border-radius: 14px 14px 14px 4px; padding: 16px 20px; max-width: 92%; width: 100%; box-sizing: border-box; }
+.chat-bubble-user { align-self: flex-end; background: var(--accent); color: #fff; border-radius: 14px 14px 4px 14px; padding: 10px 16px; max-width: 80%; font-size: 0.9rem; line-height: 1.5; }
+.chat-bubble-content { font-size: 0.875rem; color: var(--text-2); line-height: 1.9; }
+.ai-stage { font-size: 0.9rem; color: var(--text-1); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.ai-progress-bar { height: 4px; background: var(--card-border); border-radius: 2px; overflow: hidden; margin-bottom: 16px; }
+.ai-progress-fill { height: 100%; width: 20%; background: linear-gradient(90deg, var(--accent), #8b5cf6); border-radius: 2px; animation: ai-progress-pulse 1.5s ease-in-out infinite; transition: width 0.3s ease; }
+@keyframes ai-progress-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+.chat-input-bar { display: flex; gap: 8px; margin-top: 16px; padding: 10px 14px; background: var(--section-alt); border-radius: 12px; border: 1px solid var(--card-border); }
+.chat-input { flex: 1; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--card-border); background: var(--input-bg); color: var(--text-1); font-size: 0.875rem; outline: none; }
+.chat-send-btn { padding: 8px 20px; background: var(--accent); color: #fff; border-radius: 8px; font-size: 0.875rem; cursor: pointer; white-space: nowrap; }
+</style>

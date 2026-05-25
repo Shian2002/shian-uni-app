@@ -127,14 +127,14 @@
               <view class="submit-btn" @tap="liuyaoAskPaipan">一键起卦 · 深度解读</view>
               <view class="btn btn-ghost" @tap="laiReset">清空</view>
             </view>
-            <view class="qai-progress" v-if="laiLoading">
-              <view class="qai-progress-bar"><view class="qai-progress-fill" :style="{ width: laiProgress + '%' }"></view></view>
-              <view class="qai-step-text">{{ laiStepText }}</view>
+            <!-- 流式解读区域 -->
+            <view class="qai-stream-box" v-if="laiLoading || laiResult">
+              <view class="chat-container" id="lyChatContainer"></view>
             </view>
-            <view class="qai-result" v-if="laiResult" v-html="laiResult"></view>
-            <view class="result-mode-switch">
-              <view class="result-mode-btn" id="lyResultSimple" @tap="switchLyResultMode('simple')">小白极简版</view>
-              <view class="result-mode-btn" id="lyResultPro" @tap="switchLyResultMode('pro')">专业深度版</view>
+            <!-- 追问输入栏 -->
+            <view class="chat-input-bar" id="lyChatInputBar" style="display:none;">
+              <input class="chat-input" id="lyChatInput" placeholder="继续追问..." />
+              <view class="chat-send-btn" @tap="lySendFollowUp">发送</view>
             </view>
             <view class="privacy-note incognito-status">✅ 无痕模式已开启 · 本地计算 · 不上传数据 · 退出自动清空</view>
           </view>
@@ -510,22 +510,189 @@ function onLaiTypeChange(e) {
   }
 }
 
+// ═══ 六爻 SSE 流式解读 + 追问 ═══
+window._lyChatHistory = []
+
 async function liuyaoAskPaipan() {
-  laiLoading.value = true; laiProgress.value = 10; laiStepText.value = '起卦中...'
-  try {
-    let tossData = null
-    if (laiMethod.value === 'manual') { tossData = laiTossRows.map(row => [...row]) }
-    const type = laiTypeValues[laiTypeIdx.value] || 'general'
-    const question = (document.getElementById('laiQuestion') || {}).value || ''
-    laiProgress.value = 30; laiStepText.value = '排盘计算中...'
-    const res = await uni.request({ url: '/api/liuyao/ask', method: 'POST', data: { mode: laiMethod.value, tosses: tossData, type, question, deepMode: deepMode.value } })
-    laiProgress.value = 80; laiStepText.value = 'AI解读中...'
-    const data = res.data
-    if (data.error) { laiResult.value = `<div class="qai-error">${data.error}</div>` }
-    else { laiResult.value = `<div class="qai-markdown">${data.result || data.markdown || '排盘完成'}</div>` }
-    laiProgress.value = 100; laiStepText.value = '完成'
-  } catch (e) { laiResult.value = `<div class="qai-error">请求失败</div>` }
-  setTimeout(() => { laiLoading.value = false }, 500)
+  if (laiLoading.value) return
+  // 清理旧状态
+  laiResult.value = ''
+  window._lyChatHistory = []
+  var chatContainer = document.getElementById('lyChatContainer')
+  if (chatContainer) chatContainer.innerHTML = ''
+  var inputBar = document.getElementById('lyChatInputBar')
+  if (inputBar) inputBar.style.display = 'none'
+  laiLoading.value = true
+
+  // 创建 AI 气泡
+  var bubbleId = 'lyBubble_' + Date.now()
+  var bubbleHTML = '<div class="chat-bubble-ai" id="' + bubbleId + '">' +
+    '<div class="ai-stage">🔗 正在连接 DeepSeek AI 引擎...</div>' +
+    '<div class="ai-progress-bar"><div class="ai-progress-fill" style="width:20%"></div></div>' +
+    '<div class="chat-bubble-content"></div></div>'
+  if (chatContainer) chatContainer.innerHTML = bubbleHTML
+
+  // 构建参数
+  var tossData = null
+  if (laiMethod.value === 'manual') { tossData = laiTossRows.map(function(row) { return [...row] }) }
+  var type = laiTypeValues[laiTypeIdx.value] || 'general'
+  var question = ((document.getElementById('laiQuestion') || {}).value || '').trim()
+
+  _lyDoStreamSSE({
+    bubbleId: bubbleId,
+    url: '/api/liuyao/ask/stream',
+    body: { mode: laiMethod.value, tosses: tossData, type: type, question: question, is_deep: deepMode.value },
+    question: question,
+    onDone: function(fullText) {
+      window._lyChatHistory = [
+        { role: 'user', content: question },
+        { role: 'assistant', content: fullText }
+      ]
+      laiResult.value = fullText
+      var bar = document.getElementById('lyChatInputBar')
+      if (bar) bar.style.display = 'flex'
+    },
+    onError: function() {
+      laiLoading.value = false
+    }
+  })
+}
+
+function _lyDoStreamSSE(opts) {
+  var bubble = document.getElementById(opts.bubbleId)
+  if (!bubble) return
+  var stageEl = bubble.querySelector('.ai-stage')
+  var barEl = bubble.querySelector('.ai-progress-fill')
+  var contentEl = bubble.querySelector('.chat-bubble-content')
+
+  var xhr = new XMLHttpRequest()
+  xhr.open('POST', opts.url, true)
+  xhr.setRequestHeader('Content-Type', 'application/json')
+  var token = ''
+  try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
+  if (token) xhr.setRequestHeader('Authorization', 'Bearer ' + token)
+
+  var lastIndex = 0
+  var fullText = ''
+  var charQueue = ''
+  var typeTimer = null
+  var doneReceived = false
+
+  function startTypewriter() {
+    if (typeTimer) return
+    typeTimer = setInterval(function() {
+      if (charQueue.length === 0 && doneReceived) {
+        clearInterval(typeTimer); typeTimer = null
+        if (stageEl) stageEl.style.display = 'none'
+        var barWrap = bubble.querySelector('.ai-progress-bar')
+        if (barWrap) barWrap.style.display = 'none'
+        if (contentEl) contentEl.innerHTML = _lyRenderCards(fullText)
+        if (opts.onDone) opts.onDone(fullText)
+        return
+      }
+      if (charQueue.length === 0) return
+      var take = charQueue.length > 3 ? 2 : 1
+      fullText += charQueue.substring(0, take)
+      charQueue = charQueue.substring(take)
+      if (contentEl) contentEl.innerHTML = fullText.replace(/\n/g, '<br>')
+    }, 35)
+  }
+
+  xhr.onprogress = function() {
+    var newText = xhr.responseText.substring(lastIndex)
+    lastIndex = xhr.responseText.length
+    var lines = newText.split('\n')
+    var eventType = ''
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i]
+      if (line.indexOf('event:') === 0) { eventType = line.replace('event:', '').trim(); continue }
+      if (line.indexOf('data:') !== 0) continue
+      try {
+        var data = JSON.parse(line.replace('data:', '').trim())
+        if (eventType === 'progress') {
+          if (data.stage === 'connecting' && stageEl) stageEl.innerHTML = '🔗 正在连接...'
+          else if (data.stage === 'analyzing' && stageEl) stageEl.innerHTML = '🧠 排盘分析中...'
+          else if (data.stage === 'generating' && stageEl) { stageEl.innerHTML = '✍️ 正在生成解读...'; startTypewriter() }
+          if (barEl) barEl.style.width = '60%'
+        } else if (eventType === 'chunk') {
+          charQueue += data.content
+        } else if (eventType === 'done') {
+          doneReceived = true
+          laiLoading.value = false
+        } else if (eventType === 'error') {
+          if (stageEl) stageEl.innerHTML = '⚠️ ' + data.message
+          if (barEl) barEl.style.display = 'none'
+          if (opts.onError) opts.onError()
+        }
+        eventType = ''
+      } catch(_) {}
+    }
+  }
+  xhr.onerror = function() {
+    if (stageEl) stageEl.innerHTML = '⚠️ 网络错误，请重试'
+    if (opts.onError) opts.onError()
+  }
+  xhr.send(JSON.stringify(opts.body))
+}
+
+function _lyRenderCards(text) {
+  var sections = text.split(/\n(?=#{2,3} )/)
+  var html = ''
+  sections.forEach(function(sec) {
+    var m = sec.match(/^(#{2,3})\s+(.+)/)
+    var title = m ? m[2] : ''
+    var body = m ? sec.substring(m[0].length).trim() : sec
+    body = body.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/\n/g, '<br>')
+    if (!body) body = '&nbsp;'
+    if (title) {
+      html += '<div class="qai-card-item"><div class="qai-card-title">' + title + '</div><div class="qai-card-body"><p>' + body + '</p></div></div>'
+    }
+  })
+  return html
+}
+
+// ═══ 追问 ═══
+function lySendFollowUp() {
+  var input = document.getElementById('lyChatInput')
+  if (!input) return
+  var question = input.value.trim()
+  if (!question) return
+  input.value = ''
+
+  var chatContainer = document.getElementById('lyChatContainer')
+  if (!chatContainer) return
+
+  var userBubble = document.createElement('view')
+  userBubble.className = 'chat-bubble-user'
+  userBubble.textContent = question
+  chatContainer.appendChild(userBubble)
+
+  var bubbleId = 'lyFollow_' + Date.now()
+  var aiBubble = document.createElement('view')
+  aiBubble.className = 'chat-bubble-ai'
+  aiBubble.id = bubbleId
+  aiBubble.innerHTML = '<div class="ai-stage">✍️ 正在生成回复...</div>' +
+    '<div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div>' +
+    '<div class="chat-bubble-content"></div>'
+  chatContainer.appendChild(aiBubble)
+  chatContainer.scrollIntoView({ behavior: 'smooth', block: 'end' })
+
+  var history = window._lyChatHistory || []
+  history.push({ role: 'user', content: question })
+
+  _lyDoStreamSSE({
+    bubbleId: bubbleId,
+    url: '/api/liuyao/ask/stream',
+    body: { question: question, history: history },
+    question: question,
+    onDone: function(fullText) {
+      history.push({ role: 'assistant', content: fullText })
+      window._lyChatHistory = history
+    },
+    onError: function() {}
+  })
 }
 
 // ═══ 六爻手动输入切换（DOM直操作绕过Vue 3.4.21嵌套数组render bug） ═══
@@ -899,5 +1066,57 @@ onMounted(() => {
   .ly-ben-bian-top-arrow { font-size: 1rem; }
   .ly-trigram-badge { font-size: 0.65rem; padding: 2px 6px; }
   .ly-ben-bian-body { gap: 1px; }
+}
+
+/* ═══ 流式解读 + 对话气泡 ═══ */
+.qai-stream-box {
+  margin-top: 20px; padding: 16px;
+  background: var(--card-bg); border: 1px solid var(--card-border);
+  border-radius: 14px;
+}
+.qai-card-item {
+  background: var(--section-alt); border: 1px solid var(--card-border);
+  border-radius: 10px; padding: 14px 16px; margin-bottom: 10px;
+}
+.qai-card-title { font-size: 0.9rem; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
+.qai-card-body { font-size: 0.82rem; color: var(--text-2); line-height: 1.7; }
+.qai-card-body strong { color: var(--text-1); }
+.chat-container { display: flex; flex-direction: column; gap: 12px; }
+.chat-bubble-ai {
+  align-self: flex-start;
+  background: var(--section-alt); border: 1px solid var(--card-border);
+  border-radius: 14px 14px 14px 4px;
+  padding: 16px 20px; max-width: 92%; width: 100%; box-sizing: border-box;
+}
+.chat-bubble-user {
+  align-self: flex-end;
+  background: var(--accent); color: #fff;
+  border-radius: 14px 14px 4px 14px;
+  padding: 10px 16px; max-width: 80%;
+  font-size: 0.9rem; line-height: 1.5;
+}
+.chat-bubble-content { font-size: 0.875rem; color: var(--text-2); line-height: 1.9; }
+.ai-stage { font-size: 0.9rem; color: var(--text-1); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.ai-progress-bar { height: 4px; background: var(--card-border); border-radius: 2px; overflow: hidden; margin-bottom: 16px; }
+.ai-progress-fill {
+  height: 100%; width: 20%;
+  background: linear-gradient(90deg, var(--accent), #8b5cf6);
+  border-radius: 2px; animation: ai-progress-pulse 1.5s ease-in-out infinite; transition: width 0.3s ease;
+}
+@keyframes ai-progress-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+.chat-input-bar {
+  display: flex; gap: 8px; margin-top: 16px;
+  padding: 10px 14px; background: var(--section-alt);
+  border-radius: 12px; border: 1px solid var(--card-border);
+}
+.chat-input {
+  flex: 1; padding: 8px 14px; border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--input-bg); color: var(--text-1);
+  font-size: 0.875rem; outline: none;
+}
+.chat-send-btn {
+  padding: 8px 20px; background: var(--accent); color: #fff;
+  border-radius: 8px; font-size: 0.875rem; cursor: pointer; white-space: nowrap;
 }
 </style>

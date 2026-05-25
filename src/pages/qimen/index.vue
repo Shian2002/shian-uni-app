@@ -143,18 +143,16 @@
               <view class="btn btn-ghost" @tap="qaiReset">🔄 重新问策</view>
             </view>
 
-            <!-- 流式解读卡片区 -->
+            <!-- 流式解读区域 -->
             <view class="qai-stream-box" v-if="qaiLoading || qaiResult">
-              <view class="qai-stage-text" id="qaiStageText">🔗 正在连接 DeepSeek AI 引擎...</view>
-              <view class="qai-progress-bar" id="qaiProgressBarWrap">
-                <view class="qai-progress-fill" id="qaiProgressFill" :style="{ width: qaiProgress + '%' }"></view>
-              </view>
-              <view class="qai-cards" id="qaiCards"></view>
+              <!-- 对话容器 -->
+              <view class="chat-container" id="qaiChatContainer"></view>
             </view>
 
-            <view class="result-mode-switch">
-              <view class="result-mode-btn" id="qiResultSimple" :class="{ active: resultMode === 'simple' }" @tap="switchQiResultMode('simple')">小白极简版</view>
-              <view class="result-mode-btn" id="qiResultPro" :class="{ active: resultMode === 'pro' }" @tap="switchQiResultMode('pro')">专业深度版</view>
+            <!-- 追问输入栏 -->
+            <view class="chat-input-bar" id="qaiChatInputBar" style="display:none;">
+              <input class="chat-input" id="qaiChatInput" placeholder="继续追问..." />
+              <view class="chat-send-btn" @tap="qaiSendFollowUp">发送</view>
             </view>
             <view class="privacy-note incognito-status">✅ 无痕模式已开启 · 本地计算 · 不上传数据 · 退出自动清空</view>
           </view>
@@ -577,15 +575,11 @@ function qaiReset() {
   })
 }
 
-// 轮询定时器（1:1复刻Flask index.js qimenPoll）
-let qaiPollTimer = null
-let qaiPollCount = 0
-const QAI_MAX_POLL = 200 // 200次 × 1.5秒 = 5分钟上限
+// ═══ 奇门 SSE 流式解读 + 追问 ═══
+window._qaiChatHistory = []
 
 async function qimenAskPaipan() {
-  // 防重复提交
   if (qaiLoading.value) return
-  // 校验
   const q = ((document.getElementById('qaiQuestion') || {}).value || '').trim()
   if (!q) {
     uni.showToast({ title: '请输入您的问题', icon: 'none' })
@@ -596,98 +590,175 @@ async function qimenAskPaipan() {
   }
 
   // 清理旧状态
-  if (qaiPollTimer) { clearInterval(qaiPollTimer); qaiPollTimer = null }
-  qaiPollCount = 0
   qaiResult.value = ''
-  // 清空旧卡片和进度条
-  var oldCards = document.getElementById('qaiCards'); if (oldCards) oldCards.innerHTML = ''
-  var oldStage = document.getElementById('qaiStageText'); if (oldStage) oldStage.textContent = '🔗 正在连接 DeepSeek AI 引擎...'
-  var oldBar = document.getElementById('qaiProgressBarWrap'); if (oldBar) oldBar.style.display = 'block'
-  var oldFill = document.getElementById('qaiProgressFill'); if (oldFill) oldFill.style.width = '0%'
+  window._qaiChatHistory = []
+  var chatContainer = document.getElementById('qaiChatContainer')
+  if (chatContainer) chatContainer.innerHTML = ''
+  var inputBar = document.getElementById('qaiChatInputBar')
+  if (inputBar) inputBar.style.display = 'none'
   qaiLoading.value = true
-  qaiProgress.value = 10
-  qaiStepText.value = '起局中...'
 
-  try {
-    const y = yearOptions[qaiYearIdx.value]
-    const m = monthOptions[qaiMonthIdx.value]
-    const d = qaiDayOptions.value[qaiDayIdx.value]
-    const hourVal = hourOptions[qaiHourIdx.value]; const h = parseInt(hourVal)
-    const min = parseInt(minuteOptions[qaiMinuteIdx.value] || '0')
-    const panType = [2, 3][qaiJuIdx.value]
-    const type = qaiTypeValues[qaiTypeIdx.value] || 'general'
+  // 创建 AI 气泡
+  var bubbleId = 'qaiBubble_' + Date.now()
+  var bubbleHTML = '<div class="chat-bubble-ai" id="' + bubbleId + '">' +
+    '<div class="ai-stage">🔗 正在连接 DeepSeek AI 引擎...</div>' +
+    '<div class="ai-progress-bar"><div class="ai-progress-fill" style="width:20%"></div></div>' +
+    '<div class="chat-bubble-content"></div></div>'
+  if (chatContainer) chatContainer.innerHTML = bubbleHTML
 
-    qaiProgress.value = 15; qaiStepText.value = '提交问题中...'
+  // 构建参数
+  var y = yearOptions[qaiYearIdx.value]
+  var m = monthOptions[qaiMonthIdx.value]
+  var d = qaiDayOptions.value[qaiDayIdx.value]
+  var hourVal = hourOptions[qaiHourIdx.value]; var h = parseInt(hourVal)
+  var min = parseInt(minuteOptions[qaiMinuteIdx.value] || '0')
+  var panType = [2, 3][qaiJuIdx.value]
+  var type = qaiTypeValues[qaiTypeIdx.value] || 'general'
 
-    // 第一步：提交问题，获取run_id（1:1复刻Flask qimenStart）
-    const res = await uni.request({
-      url: '/api/qimen/ask',
-      method: 'POST',
-      data: { year: y, month: m, day: d, hour: h, minute: min, panType, type, question: q, deep_analysis: deepMode.value }
-    })
-    const data = res.data
-
-    if (data.error) {
-      qaiResult.value = `<div class="qai-error">${data.error}</div>`
+  _qaiDoStreamSSE({
+    bubbleId: bubbleId,
+    url: '/api/qimen/ask/stream',
+    body: { year: y, month: m, day: d, hour: h, minute: min, panType: panType, type: type, question: q, is_deep: deepMode.value },
+    question: q,
+    onDone: function(fullText) {
+      window._qaiChatHistory = [
+        { role: 'user', content: q },
+        { role: 'assistant', content: fullText }
+      ]
+      qaiResult.value = fullText
+      var bar = document.getElementById('qaiChatInputBar')
+      if (bar) bar.style.display = 'flex'
+    },
+    onError: function() {
       qaiLoading.value = false
-      return
     }
-
-    if (data.run_id) {
-      qaiProgress.value = 20
-      qaiStepText.value = '排盘计算中...'
-      qaiStreamSSE(data.run_id)
-    } else {
-      qaiResult.value = `<div class="qai-error">未获取到任务ID，请重试</div>`
-      qaiLoading.value = false
-    }
-  } catch (e) {
-    qaiResult.value = `<div class="qai-error">请求失败，请稍后重试</div>`
-    qaiLoading.value = false
-  }
+  })
 }
 
-// 轮询状态（1:1复刻Flask index.js qimenPoll）
-function qaiPoll(runId) {
-  if (qaiPollTimer) clearInterval(qaiPollTimer)
-  qaiPollTimer = setInterval(async () => {
-    qaiPollCount++
-    if (qaiPollCount >= QAI_MAX_POLL) {
-      clearInterval(qaiPollTimer); qaiPollTimer = null
-      qaiStepText.value = '等待超时，请重新问策'
-      qaiLoading.value = false
-      return
-    }
-    try {
-      const res = await uni.request({
-        url: `/api/qimen/ask/status?run_id=${runId}&_t=${Date.now()}`,
-        method: 'GET'
-      })
-      const d = res.data
+// 通用 SSE XHR（奇门专用，适配 /api/qimen/ask/stream 端点）
+function _qaiDoStreamSSE(opts) {
+  var bubble = document.getElementById(opts.bubbleId)
+  if (!bubble) return
+  var stageEl = bubble.querySelector('.ai-stage')
+  var barEl = bubble.querySelector('.ai-progress-fill')
+  var contentEl = bubble.querySelector('.chat-bubble-content')
 
-      // 更新进度条
-      if (d.progress !== undefined) qaiProgress.value = Math.max(qaiProgress.value, d.progress)
-      if (d.message) qaiStepText.value = d.message
+  var xhr = new XMLHttpRequest()
+  xhr.open('POST', opts.url, true)
+  xhr.setRequestHeader('Content-Type', 'application/json')
+  // 带 token
+  var token = ''
+  try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
+  if (token) xhr.setRequestHeader('Authorization', 'Bearer ' + token)
 
-      if (d.phase === 'done') {
-        clearInterval(qaiPollTimer); qaiPollTimer = null
-        qaiProgress.value = 100; qaiStepText.value = '完成'
-        // 显示结果
-        if (d.result) {
-          qaiResult.value = `<div class="qai-markdown">${d.result}</div>`
-        } else {
-          qaiResult.value = `<div class="qai-markdown">排盘完成</div>`
-        }
-        setTimeout(() => { qaiLoading.value = false }, 500)
-      } else if (d.phase === 'error') {
-        clearInterval(qaiPollTimer); qaiPollTimer = null
-        qaiResult.value = `<div class="qai-error">${d.message || '排盘失败'}</div>`
-        qaiLoading.value = false
+  var lastIndex = 0
+  var fullText = ''
+  var charQueue = ''
+  var typeTimer = null
+  var doneReceived = false
+
+  function startTypewriter() {
+    if (typeTimer) return
+    typeTimer = setInterval(function() {
+      if (charQueue.length === 0 && doneReceived) {
+        clearInterval(typeTimer); typeTimer = null
+        if (stageEl) stageEl.style.display = 'none'
+        var barWrap = bubble.querySelector('.ai-progress-bar')
+        if (barWrap) barWrap.style.display = 'none'
+        // 将原始文本转为卡片渲染
+        if (contentEl) contentEl.innerHTML = renderQimenCards(fullText)
+        if (opts.onDone) opts.onDone(fullText)
+        return
       }
-    } catch (e) {
-      // 单次轮询失败不中断，继续重试
+      if (charQueue.length === 0) return
+      var take = charQueue.length > 3 ? 2 : 1
+      fullText += charQueue.substring(0, take)
+      charQueue = charQueue.substring(take)
+      if (contentEl) contentEl.innerHTML = fullText.replace(/\n/g, '<br>')
+    }, 35)
+  }
+
+  xhr.onprogress = function() {
+    var newText = xhr.responseText.substring(lastIndex)
+    lastIndex = xhr.responseText.length
+    var lines = newText.split('\n')
+    var eventType = ''
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i]
+      if (line.indexOf('event:') === 0) { eventType = line.replace('event:', '').trim(); continue }
+      if (line.indexOf('data:') !== 0) continue
+      try {
+        var data = JSON.parse(line.replace('data:', '').trim())
+        if (eventType === 'progress') {
+          if (data.stage === 'connecting' && stageEl) stageEl.innerHTML = '🔗 正在连接...'
+          else if (data.stage === 'analyzing' && stageEl) stageEl.innerHTML = '🧠 排盘分析中...'
+          else if (data.stage === 'generating' && stageEl) { stageEl.innerHTML = '✍️ 正在生成解读...'; startTypewriter() }
+          if (barEl) barEl.style.width = '60%'
+        } else if (eventType === 'chunk') {
+          charQueue += data.content
+        } else if (eventType === 'done') {
+          doneReceived = true
+          qaiLoading.value = false
+        } else if (eventType === 'error') {
+          if (stageEl) stageEl.innerHTML = '⚠️ ' + data.message
+          if (barEl) barEl.style.display = 'none'
+          if (opts.onError) opts.onError()
+        }
+        eventType = ''
+      } catch(_) {}
     }
-  }, 1500)
+  }
+  xhr.onerror = function() {
+    if (stageEl) stageEl.innerHTML = '⚠️ 网络错误，请重试'
+    if (opts.onError) opts.onError()
+  }
+
+  xhr.send(JSON.stringify(opts.body))
+}
+
+// ═══ 追问 ═══
+function qaiSendFollowUp() {
+  var input = document.getElementById('qaiChatInput')
+  if (!input) return
+  var question = input.value.trim()
+  if (!question) return
+  input.value = ''
+
+  var chatContainer = document.getElementById('qaiChatContainer')
+  if (!chatContainer) return
+
+  // 添加用户气泡
+  var userBubble = document.createElement('view')
+  userBubble.className = 'chat-bubble-user'
+  userBubble.textContent = question
+  chatContainer.appendChild(userBubble)
+
+  // 添加 AI 气泡（流式）
+  var bubbleId = 'qaiFollow_' + Date.now()
+  var aiBubble = document.createElement('view')
+  aiBubble.className = 'chat-bubble-ai'
+  aiBubble.id = bubbleId
+  aiBubble.innerHTML = '<div class="ai-stage">✍️ 正在生成回复...</div>' +
+    '<div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div>' +
+    '<div class="chat-bubble-content"></div>'
+  chatContainer.appendChild(aiBubble)
+  chatContainer.scrollIntoView({ behavior: 'smooth', block: 'end' })
+
+  // 构建历史
+  var history = window._qaiChatHistory || []
+  history.push({ role: 'user', content: question })
+
+  _qaiDoStreamSSE({
+    bubbleId: bubbleId,
+    url: '/api/qimen/ask/stream',
+    body: { question: question, history: history },
+    question: question,
+    onDone: function(fullText) {
+      history.push({ role: 'assistant', content: fullText })
+      window._qaiChatHistory = history
+    },
+    onError: function() {}
+  })
 }
 
 // ═══ DOM直操作辅助函数（绕过Vue 3.4.21 render effect bug） ═══
@@ -904,66 +975,6 @@ onMounted(() => {
 
 })
 
-// ═══ 轮询式流式解读（兼容所有浏览器，含 Safari） ═══
-function qaiStreamSSE(runId) {
-  var stageEl = document.getElementById('qaiStageText')
-  var barWrap = document.getElementById('qaiProgressBarWrap')
-  var barFill = document.getElementById('qaiProgressFill')
-  var cardsEl = document.getElementById('qaiCards')
-  var lastResultLen = 0
-  var pollTimer = null
-  var pollCount = 0
-  var MAX_POLL = 200
-
-  if (stageEl) stageEl.textContent = '🔗 正在连接 DeepSeek AI 引擎...'
-  if (barFill) barFill.style.width = '5%'
-
-  pollTimer = setInterval(async function() {
-    pollCount++
-    if (pollCount >= MAX_POLL) {
-      clearInterval(pollTimer)
-      if (stageEl) stageEl.textContent = '⚠️ 等待超时，请重新问策'
-      qaiLoading.value = false
-      return
-    }
-    try {
-      var res = await uni.request({ url: '/api/qimen/ask/status?run_id=' + runId + '&_t=' + Date.now(), method: 'GET' })
-      var d = res.data
-      if (d.progress !== undefined) qaiProgress.value = Math.max(qaiProgress.value, d.progress)
-
-      if (d.phase === 'done') {
-        clearInterval(pollTimer)
-        qaiProgress.value = 100
-        if (d.result && cardsEl) {
-          cardsEl.innerHTML = renderQimenCards(d.result)
-        }
-        if (stageEl) stageEl.textContent = '✅ 解读完成'
-        if (barFill) barFill.style.width = '100%'
-        if (barWrap) { setTimeout(function() { barWrap.style.display = 'none' }, 600) }
-        qaiResult.value = d.result || ''
-        setTimeout(function() { qaiLoading.value = false }, 300)
-      } else if (d.phase === 'streaming') {
-        // 在流式阶段，尝试从 stream 端点获取增量内容
-        if (typeof d.result === 'string' && d.result.length > lastResultLen && cardsEl) {
-          lastResultLen = d.result.length
-          cardsEl.innerHTML = renderQimenCards(d.result)
-          if (stageEl) stageEl.textContent = '✍️ 正在生成解读...'
-          if (barFill) barFill.style.width = '70%'
-        }
-        if (d.message && stageEl && stageEl.textContent.indexOf('✍️') === -1) {
-          stageEl.textContent = d.message
-        }
-      } else if (d.phase === 'error') {
-        clearInterval(pollTimer)
-        if (stageEl) stageEl.textContent = '⚠️ ' + (d.message || '解读失败')
-        qaiLoading.value = false
-      }
-    } catch(e) {
-      // 单次轮询失败不中断
-    }
-  }, 1500)
-}
-
 // ═══ 卡片式渲染 ═══
 function renderQimenCards(text) {
   var sections = text.split(/\n(?=#{2,3} )/)
@@ -1123,18 +1134,6 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   background: var(--card-bg); border: 1px solid var(--card-border);
   border-radius: 14px;
 }
-.qai-stage-text {
-  font-size: 0.85rem; color: var(--accent);
-  margin-bottom: 10px; text-align: center;
-}
-.qai-progress-bar {
-  height: 4px; background: var(--card-border);
-  border-radius: 2px; margin-bottom: 16px; overflow: hidden;
-}
-.qai-progress-fill {
-  height: 100%; background: var(--accent);
-  border-radius: 2px; transition: width 0.3s; width: 0%;
-}
 .qai-card-item {
   background: var(--bg); border: 1px solid var(--card-border);
   border-radius: 10px; padding: 14px 16px; margin-bottom: 10px;
@@ -1145,4 +1144,59 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 }
 .qai-card-body { font-size: 0.82rem; color: var(--text-2); line-height: 1.7; }
 .qai-card-body strong { color: var(--text-1); }
+
+/* ═══ 对话气泡 ═══ */
+.chat-container { display: flex; flex-direction: column; gap: 12px; }
+.chat-bubble-ai {
+  align-self: flex-start;
+  background: var(--section-alt); border: 1px solid var(--card-border);
+  border-radius: 14px 14px 14px 4px;
+  padding: 16px 20px; max-width: 92%; width: 100%; box-sizing: border-box;
+}
+.chat-bubble-user {
+  align-self: flex-end;
+  background: var(--accent); color: #fff;
+  border-radius: 14px 14px 4px 14px;
+  padding: 10px 16px; max-width: 80%;
+  font-size: 0.9rem; line-height: 1.5;
+}
+.chat-bubble-content {
+  font-size: 0.875rem; color: var(--text-2); line-height: 1.9;
+}
+.ai-stage {
+  font-size: 0.9rem; color: var(--text-1);
+  margin-bottom: 8px; display: flex; align-items: center; gap: 8px;
+}
+.ai-progress-bar {
+  height: 4px; background: var(--card-border);
+  border-radius: 2px; overflow: hidden; margin-bottom: 16px;
+}
+.ai-progress-fill {
+  height: 100%; width: 20%;
+  background: linear-gradient(90deg, var(--accent), #8b5cf6);
+  border-radius: 2px;
+  animation: ai-progress-pulse 1.5s ease-in-out infinite;
+  transition: width 0.3s ease;
+}
+@keyframes ai-progress-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* ═══ 追问输入栏 ═══ */
+.chat-input-bar {
+  display: flex; gap: 8px; margin-top: 16px;
+  padding: 10px 14px; background: var(--section-alt);
+  border-radius: 12px; border: 1px solid var(--card-border);
+}
+.chat-input {
+  flex: 1; padding: 8px 14px; border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--input-bg); color: var(--text-1);
+  font-size: 0.875rem; outline: none;
+}
+.chat-send-btn {
+  padding: 8px 20px; background: var(--accent); color: #fff;
+  border-radius: 8px; font-size: 0.875rem; cursor: pointer; white-space: nowrap;
+}
 </style>

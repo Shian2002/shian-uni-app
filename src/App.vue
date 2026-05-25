@@ -111,8 +111,8 @@ export default {
   --sidebar-bg: rgba(245,242,234,0.55);
   --dayun-active: rgba(178,149,93,0.12);
   --input-bg: rgba(252,248,240,0.75); --input-border: rgba(0,0,0,0.065);
-  --hero-logo-backdrop: radial-gradient(circle, rgba(255,255,255,0.75) 50%, rgba(255,255,255,0.35) 80%, transparent 100%);
-  --hero-logo-backdrop-shadow: 0 0 20px rgba(100,80,40,0.08);
+  --hero-logo-backdrop: radial-gradient(circle, rgba(255,255,255,0.92) 50%, rgba(255,255,255,0.6) 80%, transparent 100%);
+  --hero-logo-backdrop-shadow: 0 0 20px rgba(0,0,0,0.06);
 }
 html, body {
   margin: 0;
@@ -167,7 +167,7 @@ uni-tabbar, .uni-tabbar, .uni-tabbar-bottom {
 .sidebar-overlay { position:fixed; inset:0; z-index:399; background:rgba(0,0,0,.4); display:none; }
 .sidebar-overlay.show { display:block; }
 .sidebar-brand { display:flex; align-items:center; gap:12px; padding:22px 24px 18px; border-bottom:1px solid var(--card-border); }
-.sidebar-brand-icon-wrap { position:relative; display:flex; align-items:center; justify-content:center; width:52px; height:52px; flex-shrink:0; }
+.sidebar-brand-icon-wrap { position:relative; display:flex; align-items:center; justify-content:center; width:48px; height:48px; flex-shrink:0; }
 .sidebar-brand-icon-wrap::before { content:''; position:absolute; inset:0; border-radius:50%; background:var(--hero-logo-backdrop); box-shadow:var(--hero-logo-backdrop-shadow); z-index:0; }
 .sidebar-brand-icon { width:38px; height:38px; object-fit:contain; position:relative; z-index:1; }
 .sidebar-brand-name { font-family:var(--font-serif); font-size:1.3rem; color:var(--text-1); letter-spacing:4px; }

@@ -232,10 +232,15 @@
               </view>
             </view>
             <view class="advanced-toggle" @tap="baiAdvanced = !baiAdvanced">{{ baiAdvanced ? '▼ 收起高级选项' : '▶ 高级选项' }}</view>
-            <view class="submit-btn" @tap="goPaipan">📜 一键排盘 · 时安八字系统</view>
-            <view class="result-mode-switch">
-              <view class="result-mode-btn" id="baziResultSimple" :class="{ active: resultMode === 'simple' }" @tap="switchBaziResultMode('simple')">小白极简版</view>
-              <view class="result-mode-btn" id="baziResultPro" :class="{ active: resultMode === 'pro' }" @tap="switchBaziResultMode('pro')">专业深度版</view>
+            <view class="form-group"><text class="form-label">你的问题（选填）</text><view id="baiQuestion-wrap" class="dom-input-wrap"></view></view>
+            <view class="submit-btn" @tap="baiAiAsk">🔮 AI 深度解读</view>
+            <!-- 流式解读区域 -->
+            <view class="qai-stream-box" v-if="baiAiLoading || baziAiResult">
+              <view class="chat-container" id="baiChatContainer"></view>
+            </view>
+            <view class="chat-input-bar" id="baiChatInputBar" style="display:none;">
+              <input class="chat-input" id="baiChatInput" placeholder="继续追问..." />
+              <view class="chat-send-btn" @tap="baiSendFollowUp">发送</view>
             </view>
             <view class="privacy-note incognito-status">✅ 无痕模式已开启 · 本地计算 · 不上传数据 · 退出自动清空</view>
           </view>
@@ -560,31 +565,133 @@ async function baziFreePaipan() {
 // ── 八字AI系统 ──
 const baiName = ref(''); const baiGenderIdx = ref(0); const baiCalIdx = ref(0)
 const baiDate = ref(''); const baiHourIdx = ref(0); const baiAddr = ref('')
-const baiAdvanced = ref(false); const resultMode = ref('simple')
+const baiAdvanced = ref(false)
+const baiAiLoading = ref(false); const baziAiResult = ref('')
 const shichenLabels = ['不确定', '子时 (23-1)', '丑时 (1-3)', '寅时 (3-5)', '卯时 (5-7)', '辰时 (7-9)', '巳时 (9-11)', '午时 (11-13)', '未时 (13-15)', '申时 (15-17)', '酉时 (17-19)', '戌时 (19-21)', '亥时 (21-23)']
+window._baiChatHistory = []
 
+async function baiAiAsk() {
+  if (baiAiLoading.value) return
+  if (!baiDate.value) { uni.showToast({ title: '请选择出生日期', icon: 'none' }); return }
+
+  var d = baiDate.value.replace(/-/g, '')
+  var h = String(baiHourIdx.value).padStart(2, '0')
+  var gender = ['男', '女'][baiGenderIdx.value]
+  var calType = ['公历', '农历'][baiCalIdx.value]
+  var question = ((document.getElementById('baiQuestion') || {}).value || '').trim()
+
+  // 清理
+  baziAiResult.value = ''; window._baiChatHistory = []
+  var chatContainer = document.getElementById('baiChatContainer')
+  if (chatContainer) chatContainer.innerHTML = ''
+  var inputBar = document.getElementById('baiChatInputBar')
+  if (inputBar) inputBar.style.display = 'none'
+  baiAiLoading.value = true
+
+  var bubbleId = 'baiBubble_' + Date.now()
+  var bubbleHTML = '<div class="chat-bubble-ai" id="' + bubbleId + '">' +
+    '<div class="ai-stage">🔗 正在连接 DeepSeek AI 引擎...</div>' +
+    '<div class="ai-progress-bar"><div class="ai-progress-fill" style="width:20%"></div></div>' +
+    '<div class="chat-bubble-content"></div></div>'
+  if (chatContainer) chatContainer.innerHTML = bubbleHTML
+
+  _baiDoStreamSSE({
+    bubbleId: bubbleId, url: '/api/bazi/ask/stream',
+    body: { birthTime: d + h + '00', gender: gender, calType: calType, question: question },
+    question: question,
+    onDone: function(fullText) {
+      window._baiChatHistory = [{ role: 'user', content: question }, { role: 'assistant', content: fullText }]
+      baziAiResult.value = fullText
+      var bar = document.getElementById('baiChatInputBar'); if (bar) bar.style.display = 'flex'
+    },
+    onError: function() { baiAiLoading.value = false }
+  })
+}
+
+function _baiDoStreamSSE(opts) {
+  var bubble = document.getElementById(opts.bubbleId); if (!bubble) return
+  var stageEl = bubble.querySelector('.ai-stage'); var barEl = bubble.querySelector('.ai-progress-fill')
+  var contentEl = bubble.querySelector('.chat-bubble-content')
+  var xhr = new XMLHttpRequest(); xhr.open('POST', opts.url, true); xhr.setRequestHeader('Content-Type', 'application/json')
+  var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
+  if (token) xhr.setRequestHeader('Authorization', 'Bearer ' + token)
+  var lastIndex = 0, fullText = '', charQueue = '', typeTimer = null, doneReceived = false
+  function startTypewriter() {
+    if (typeTimer) return
+    typeTimer = setInterval(function() {
+      if (charQueue.length === 0 && doneReceived) {
+        clearInterval(typeTimer); typeTimer = null
+        if (stageEl) stageEl.style.display = 'none'
+        var barWrap = bubble.querySelector('.ai-progress-bar'); if (barWrap) barWrap.style.display = 'none'
+        if (contentEl) contentEl.innerHTML = _baiRenderCards(fullText)
+        if (opts.onDone) opts.onDone(fullText); return
+      }
+      if (charQueue.length === 0) return
+      var take = charQueue.length > 3 ? 2 : 1
+      fullText += charQueue.substring(0, take); charQueue = charQueue.substring(take)
+      if (contentEl) contentEl.innerHTML = fullText.replace(/\n/g, '<br>')
+    }, 35)
+  }
+  xhr.onprogress = function() {
+    var newText = xhr.responseText.substring(lastIndex); lastIndex = xhr.responseText.length
+    var lines = newText.split('\n'), eventType = ''
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i]
+      if (line.indexOf('event:') === 0) { eventType = line.replace('event:', '').trim(); continue }
+      if (line.indexOf('data:') !== 0) continue
+      try {
+        var data = JSON.parse(line.replace('data:', '').trim())
+        if (eventType === 'progress') {
+          if (data.stage === 'connecting' && stageEl) stageEl.innerHTML = '🔗 正在连接...'
+          else if (data.stage === 'analyzing' && stageEl) stageEl.innerHTML = '🧠 排盘分析中...'
+          else if (data.stage === 'generating' && stageEl) { stageEl.innerHTML = '✍️ 正在生成解读...'; startTypewriter() }
+          if (barEl) barEl.style.width = '60%'
+        } else if (eventType === 'chunk') { charQueue += data.content }
+        else if (eventType === 'done') { doneReceived = true; baiAiLoading.value = false }
+        else if (eventType === 'error') { if (stageEl) stageEl.innerHTML = '⚠️ ' + data.message; if (opts.onError) opts.onError() }
+        eventType = ''
+      } catch(_) {}
+    }
+  }
+  xhr.onerror = function() { if (stageEl) stageEl.innerHTML = '⚠️ 网络错误'; if (opts.onError) opts.onError() }
+  xhr.send(JSON.stringify(opts.body))
+}
+
+function _baiRenderCards(text) {
+  var sections = text.split(/\n(?=#{2,3} )/), html = ''
+  sections.forEach(function(sec) {
+    var m = sec.match(/^(#{2,3})\s+(.+)/); var title = m ? m[2] : ''
+    var body = m ? sec.substring(m[0].length).trim() : sec
+    body = body.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')
+    if (!body) body = '&nbsp;'
+    if (title) html += '<div class="qai-card-item"><div class="qai-card-title">' + title + '</div><div class="qai-card-body"><p>' + body + '</p></div></div>'
+  })
+  return html
+}
+
+function baiSendFollowUp() {
+  var input = document.getElementById('baiChatInput'); if (!input) return
+  var question = input.value.trim(); if (!question) return; input.value = ''
+  var chatContainer = document.getElementById('baiChatContainer'); if (!chatContainer) return
+  var userBubble = document.createElement('view'); userBubble.className = 'chat-bubble-user'; userBubble.textContent = question
+  chatContainer.appendChild(userBubble)
+  var bubbleId = 'baiFollow_' + Date.now()
+  var aiBubble = document.createElement('view'); aiBubble.className = 'chat-bubble-ai'; aiBubble.id = bubbleId
+  aiBubble.innerHTML = '<div class="ai-stage">✍️ 正在生成回复...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div><div class="chat-bubble-content"></div>'
+  chatContainer.appendChild(aiBubble); chatContainer.scrollIntoView({ behavior: 'smooth', block: 'end' })
+  var history = window._baiChatHistory || []; history.push({ role: 'user', content: question })
+  _baiDoStreamSSE({
+    bubbleId: bubbleId, url: '/api/bazi/ask/stream', body: { question: question, history: history },
+    question: question,
+    onDone: function(fullText) { history.push({ role: 'assistant', content: fullText }); window._baiChatHistory = history },
+    onError: function() {}
+  })
+}
+
+// 保留旧函数兼容
 function goPaipan() {
   if (!baiDate.value) { uni.showToast({ title: '请选择出生日期', icon: 'none' }); return }
-  // 构建Flask后端期望的参数格式
-  const d = baiDate.value.replace(/-/g, '')  // YYYYMMDD
-  const h = String(baiHourIdx.value).padStart(2, '0')
-  const nameVal = document.getElementById('baiName') ? document.getElementById('baiName').value : baiName.value
-  const addrVal = document.getElementById('baiAddr') ? document.getElementById('baiAddr').value : baiAddr.value
-  const params = {
-    calType: ['公历', '农历'][baiCalIdx.value],
-    birthTime: d + h + '00',
-    gender: ['男', '女'][baiGenderIdx.value],
-    name: nameVal || '',
-    birthAddr: addrVal || '',
-    birthLng: 0, birthLat: 0,
-    isDst: false, nightZiMode: '夜子时不换日',
-    useSolarTime: true, isLeapMonth: false,
-    _replay: true,
-  }
-  // #ifdef H5
-  sessionStorage.setItem('xc_bazi_params', JSON.stringify(params))
-  // #endif
-  uni.navigateTo({ url: '/pages/bazi-result/index' })
+  baiAiAsk()
 }
 
 // ── 记录案例 ──
@@ -1184,6 +1291,7 @@ onMounted(() => {
   createNativeInput('siziHour', 'text', '庚申', 2)
   createNativeInput('baiName', 'text', '选填')
   createNativeInput('baiAddr', 'text', '如：北京')
+  createNativeInput('baiQuestion', 'text', '请输入您想问的问题', '200')
   createNativeInput('recordSearch', 'text', '请输入搜索的内容')
   // 记录搜索框特殊样式（在搜索栏圆角容器内，去掉边框/背景）
   var rsEl = document.getElementById('recordSearch')
@@ -1644,5 +1752,23 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   .tab-badge { font-size: 0.5rem; padding: 1px 4px; }
   .record-tab { padding: 12px 16px; font-size: 0.8125rem; }
 }
+
+/* ═══ 流式解读 + 对话气泡 ═══ */
+.qai-stream-box { margin-top: 20px; padding: 16px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; }
+.qai-card-item { background: var(--section-alt); border: 1px solid var(--card-border); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
+.qai-card-title { font-size: 0.9rem; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
+.qai-card-body { font-size: 0.82rem; color: var(--text-2); line-height: 1.7; }
+.qai-card-body strong { color: var(--text-1); }
+.chat-container { display: flex; flex-direction: column; gap: 12px; }
+.chat-bubble-ai { align-self: flex-start; background: var(--section-alt); border: 1px solid var(--card-border); border-radius: 14px 14px 14px 4px; padding: 16px 20px; max-width: 92%; width: 100%; box-sizing: border-box; }
+.chat-bubble-user { align-self: flex-end; background: var(--accent); color: #fff; border-radius: 14px 14px 4px 14px; padding: 10px 16px; max-width: 80%; font-size: 0.9rem; line-height: 1.5; }
+.chat-bubble-content { font-size: 0.875rem; color: var(--text-2); line-height: 1.9; }
+.ai-stage { font-size: 0.9rem; color: var(--text-1); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.ai-progress-bar { height: 4px; background: var(--card-border); border-radius: 2px; overflow: hidden; margin-bottom: 16px; }
+.ai-progress-fill { height: 100%; width: 20%; background: linear-gradient(90deg, var(--accent), #8b5cf6); border-radius: 2px; animation: ai-progress-pulse 1.5s ease-in-out infinite; transition: width 0.3s ease; }
+@keyframes ai-progress-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+.chat-input-bar { display: flex; gap: 8px; margin-top: 16px; padding: 10px 14px; background: var(--section-alt); border-radius: 12px; border: 1px solid var(--card-border); }
+.chat-input { flex: 1; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--card-border); background: var(--input-bg); color: var(--text-1); font-size: 0.875rem; outline: none; }
+.chat-send-btn { padding: 8px 20px; background: var(--accent); color: #fff; border-radius: 8px; font-size: 0.875rem; cursor: pointer; white-space: nowrap; }
 
 </style>
