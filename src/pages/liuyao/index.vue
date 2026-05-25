@@ -540,8 +540,9 @@ async function liuyaoAskPaipan() {
 
   _lyDoStreamSSE({
     bubbleId: bubbleId,
-    url: '/api/liuyao/ask/stream',
-    body: { mode: laiMethod.value, tosses: tossData, type: type, question: question, is_deep: deepMode.value },
+    askUrl: '/api/liuyao/ask',
+    askBody: { mode: laiMethod.value, tosses: tossData, question: question, deep_analysis: deepMode.value },
+    streamUrl: '/api/liuyao/ask/stream',
     question: question,
     onDone: function(fullText) {
       window._lyChatHistory = [
@@ -684,8 +685,9 @@ function lySendFollowUp() {
 
   _lyDoStreamSSE({
     bubbleId: bubbleId,
-    url: '/api/liuyao/ask/stream',
-    body: { question: question, history: history },
+    askUrl: '/api/liuyao/ask',
+    askBody: { question: question, history: history },
+    streamUrl: '/api/liuyao/ask/stream',
     question: question,
     onDone: function(fullText) {
       history.push({ role: 'assistant', content: fullText })

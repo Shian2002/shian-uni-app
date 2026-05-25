@@ -368,8 +368,9 @@ async function meihuaAskPaipan() {
 
   _mhDoStreamSSE({
     bubbleId: bubbleId,
-    url: '/api/meihua/ask/stream',
-    body: payload,
+    askUrl: '/api/meihua/ask',
+    askBody: payload,
+    streamUrl: '/api/meihua/ask/stream',
     question: question,
     onDone: function(fullText) {
       window._mhChatHistory = [
@@ -484,8 +485,9 @@ function mhSendFollowUp() {
   var history = window._mhChatHistory || []
   history.push({ role: 'user', content: question })
   _mhDoStreamSSE({
-    bubbleId: bubbleId, url: '/api/meihua/ask/stream',
-    body: { question: question, history: history },
+    bubbleId: bubbleId, askUrl: '/api/meihua/ask',
+    askBody: { question: question, history: history },
+    streamUrl: '/api/meihua/ask/stream',
     question: question,
     onDone: function(fullText) { history.push({ role: 'assistant', content: fullText }); window._mhChatHistory = history },
     onError: function() {}

@@ -232,6 +232,15 @@
               </view>
             </view>
             <view class="advanced-toggle" @tap="baiAdvanced = !baiAdvanced">{{ baiAdvanced ? '▼ 收起高级选项' : '▶ 高级选项' }}</view>
+            <view class="form-group"><text class="form-label">分析类型</text>
+              <view class="analysis-type-row">
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 0 }" @tap="baiAnalysisTypeIdx = 0">📜 命局总览</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 1 }" @tap="baiAnalysisTypeIdx = 1">💰 财运事业</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 2 }" @tap="baiAnalysisTypeIdx = 2">❤️ 婚姻感情</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 3 }" @tap="baiAnalysisTypeIdx = 3">📈 大运流年</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 4 }" @tap="baiAnalysisTypeIdx = 4">🏥 健康六亲</view>
+              </view>
+            </view>
             <view class="form-group"><text class="form-label">你的问题（选填）</text><view id="baiQuestion-wrap" class="dom-input-wrap"></view></view>
             <view class="submit-btn" @tap="baiAiAsk">🔮 AI 深度解读</view>
             <!-- 流式解读区域 -->
@@ -565,6 +574,8 @@ async function baziFreePaipan() {
 // ── 八字AI系统 ──
 const baiName = ref(''); const baiGenderIdx = ref(0); const baiCalIdx = ref(0)
 const baiDate = ref(''); const baiHourIdx = ref(0); const baiAddr = ref('')
+const baiAnalysisTypeIdx = ref(0)
+const baiAnalysisTypes = ['overview', 'career', 'love', 'decadal', 'health']
 const baiAdvanced = ref(false)
 const baiAiLoading = ref(false); const baziAiResult = ref('')
 const shichenLabels = ['不确定', '子时 (23-1)', '丑时 (1-3)', '寅时 (3-5)', '卯时 (5-7)', '辰时 (7-9)', '巳时 (9-11)', '午时 (11-13)', '未时 (13-15)', '申时 (15-17)', '酉时 (17-19)', '戌时 (19-21)', '亥时 (21-23)']
@@ -597,7 +608,7 @@ async function baiAiAsk() {
 
   _baiDoStreamSSE({
     bubbleId: bubbleId, url: '/api/bazi/ask/stream',
-    body: { birthTime: d + h + '00', gender: gender, calType: calType, question: question },
+    body: { birthTime: d + h + '00', gender: gender, calType: calType, question: question, analysis_type: baiAnalysisTypes[baiAnalysisTypeIdx] },
     question: question,
     onDone: function(fullText) {
       window._baiChatHistory = [{ role: 'user', content: question }, { role: 'assistant', content: fullText }]
@@ -1770,5 +1781,9 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .chat-input-bar { display: flex; gap: 8px; margin-top: 16px; padding: 10px 14px; background: var(--section-alt); border-radius: 12px; border: 1px solid var(--card-border); }
 .chat-input { flex: 1; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--card-border); background: var(--input-bg); color: var(--text-1); font-size: 0.875rem; outline: none; }
 .chat-send-btn { padding: 8px 20px; background: var(--accent); color: #fff; border-radius: 8px; font-size: 0.875rem; cursor: pointer; white-space: nowrap; }
+
+.analysis-type-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.analysis-type-btn { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--card-border); background: transparent; color: var(--text-3); font-size: 0.75rem; cursor: pointer; text-align: center; white-space: nowrap; transition: all .15s; }
+.analysis-type-btn.active { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); }
 
 </style>

@@ -58,6 +58,15 @@
               <view class="form-group"><text class="form-label">性别</text><picker :range="['男', '女']" :value="zwAiGenderIdx" @change="zwAiGenderIdx = $event.detail.value"><view class="form-select-picker">{{ ['男', '女'][zwAiGenderIdx] }}</view></picker></view>
               <view class="form-group"><text class="form-label">历法类型</text><picker :range="['阳历(公历)', '农历(阴历)']" :value="zwAiDateTypeIdx" @change="zwAiDateTypeIdx = $event.detail.value"><view class="form-select-picker">{{ ['阳历(公历)', '农历(阴历)'][zwAiDateTypeIdx] }}</view></picker></view>
             </view>
+            <view class="form-group"><text class="form-label">分析类型</text>
+              <view class="analysis-type-row">
+                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 0 }" @tap="zwAiAnalysisTypeIdx = 0">🔮 命盘总览</view>
+                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 1 }" @tap="zwAiAnalysisTypeIdx = 1">💼 事业财运</view>
+                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 2 }" @tap="zwAiAnalysisTypeIdx = 2">💕 姻缘感情</view>
+                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 3 }" @tap="zwAiAnalysisTypeIdx = 3">🏥 健康运势</view>
+                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 4 }" @tap="zwAiAnalysisTypeIdx = 4">📅 大限流年</view>
+              </view>
+            </view>
             <view class="form-group"><text class="form-label">你的问题（选填）</text><view id="zwAiQuestion-wrap" class="dom-input-wrap"></view></view>
             <view class="btn-row">
               <view class="submit-btn" @tap="zwAiAsk">🔮 AI 深度解读</view>
@@ -134,6 +143,8 @@ function zwResetHoroscope() {
 }
 
 // AI 解读
+const zwAiAnalysisTypeIdx = ref(0)
+const zwAiAnalysisTypes = ['overview', 'career', 'love', 'health', 'decadal']
 const zwAiGenderIdx = ref(0); const zwAiDateTypeIdx = ref(0)
 const zwAiLoading = ref(false); const zwAiResult = ref('')
 window._zwChatHistory = []
@@ -170,7 +181,7 @@ async function zwAiAsk() {
 
   _zwDoStreamSSE({
     bubbleId: bubbleId, url: '/api/ziwei/ask/stream',
-    body: { year: y, month: m, day: d, hour: h, minute: min, gender: gender, date_type: date_type, question: question },
+    body: { year: y, month: m, day: d, hour: h, minute: min, gender: gender, date_type: date_type, question: question, analysis_type: zwAiAnalysisTypes[zwAiAnalysisTypeIdx] },
     question: question,
     onDone: function(fullText) {
       window._zwChatHistory = [{ role: 'user', content: question }, { role: 'assistant', content: fullText }]
@@ -771,4 +782,9 @@ onMounted(() => {
 .chat-input-bar { display: flex; gap: 8px; margin-top: 16px; padding: 10px 14px; background: var(--section-alt); border-radius: 12px; border: 1px solid var(--card-border); }
 .chat-input { flex: 1; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--card-border); background: var(--input-bg); color: var(--text-1); font-size: 0.875rem; outline: none; }
 .chat-send-btn { padding: 8px 20px; background: var(--accent); color: #fff; border-radius: 8px; font-size: 0.875rem; cursor: pointer; white-space: nowrap; }
+
+/* 分析类型选择器 */
+.analysis-type-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.analysis-type-btn { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--card-border); background: transparent; color: var(--text-3); font-size: 0.75rem; cursor: pointer; text-align: center; white-space: nowrap; transition: all .15s; }
+.analysis-type-btn.active { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); }
 </style>

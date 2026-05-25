@@ -750,8 +750,9 @@ function qaiSendFollowUp() {
 
   _qaiDoStreamSSE({
     bubbleId: bubbleId,
-    url: '/api/qimen/ask/stream',
-    body: { question: question, history: history },
+    askUrl: '/api/qimen/ask',
+    askBody: { question: question, history: history },
+    streamUrl: '/api/qimen/ask/stream',
     question: question,
     onDone: function(fullText) {
       history.push({ role: 'assistant', content: fullText })
