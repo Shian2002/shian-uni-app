@@ -60,23 +60,23 @@
             </view>
             <view class="form-group"><text class="form-label">分析类型</text>
               <view class="analysis-type-row">
-                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 0 }" id="zwAiTypeBtn0">🔮 命盘总览</view>
-                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 1 }" id="zwAiTypeBtn1">💼 事业财运</view>
-                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 2 }" id="zwAiTypeBtn2">💕 姻缘感情</view>
-                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 3 }" id="zwAiTypeBtn3">🏥 健康运势</view>
-                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 4 }" id="zwAiTypeBtn4">📅 大限流年</view>
+                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 0 }" >🔮 命盘总览</view>
+                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 1 }" >💼 事业财运</view>
+                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 2 }" >💕 姻缘感情</view>
+                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 3 }" >🏥 健康运势</view>
+                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 4 }" >📅 大限流年</view>
               </view>
             </view>
             <view class="form-group"><text class="form-label">你的问题（选填）</text><view id="zwAiQuestion-wrap" class="dom-input-wrap"></view></view>
             <view class="btn-row">
-              <view class="submit-btn" id="zwAiAskBtn">🔮 AI 深度解读</view>
+              <view class="submit-btn">🔮 AI 深度解读</view>
             </view>
             <view class="qai-stream-box" v-if="zwAiLoading || zwAiResult">
               <view class="chat-container" id="zwChatContainer"></view>
             </view>
             <view class="chat-input-bar" id="zwChatInputBar" style="display:none;">
               <input class="chat-input" id="zwChatInput" placeholder="继续追问..." />
-              <view class="chat-send-btn" id="zwFollowUpBtn">发送</view>
+              <view class="chat-send-btn">发送</view>
             </view>
             <view class="privacy-note incognito-status">✅ 无痕模式已开启 · 本地计算 · 不上传数据 · 退出自动清空</view>
           </view>
@@ -533,17 +533,33 @@ onMounted(() => {
     }
   }
   
-  // DOM click 绑定（替代 @tap/@click 在 uni-view 上不生效的问题）
+  // DOM click 绑定（uni-view 的 @tap/@click 不生效，用 DOM 事件代理）
   setTimeout(function() {
-    var aiAskBtn = document.getElementById('zwAiAskBtn')
-    if (aiAskBtn) aiAskBtn.addEventListener('click', function() { zwAiAsk() })
-    var fwBtn = document.getElementById('zwFollowUpBtn')
-    if (fwBtn) fwBtn.addEventListener('click', function() { zwSendFollowUp() })
-    for (var i = 0; i < 5; i++) {
-      (function(idx) {
-        var btn = document.getElementById('zwAiTypeBtn' + idx)
-        if (btn) btn.addEventListener('click', function() { zwAiAnalysisTypeIdx.value = idx })
-      })(i)
+    var aiContent = document.getElementById('zwTabAiContent')
+    if (aiContent) {
+      aiContent.addEventListener('click', function(e) {
+        var target = e.target
+        // 查找最近的 .submit-btn
+        var btn = target.closest ? target.closest('.submit-btn') : null
+        if (!btn) { btn = target; while (btn && !btn.classList.contains('submit-btn')) btn = btn.parentElement }
+        if (btn && btn.textContent.indexOf('AI 深度解读') !== -1) {
+          zwAiAsk()
+          return
+        }
+        // 查找最近的 .chat-send-btn
+        var sendBtn = target.closest ? target.closest('.chat-send-btn') : null
+        if (!sendBtn) { sendBtn = target; while (sendBtn && !sendBtn.classList.contains('chat-send-btn')) sendBtn = sendBtn.parentElement }
+        if (sendBtn) { zwSendFollowUp(); return }
+        // 分析类型按钮
+        var typeBtn = target.closest ? target.closest('.analysis-type-btn') : null
+        if (!typeBtn) { typeBtn = target; while (typeBtn && !typeBtn.classList.contains('analysis-type-btn')) typeBtn = typeBtn.parentElement }
+        if (typeBtn) {
+          var texts = ['命盘总览', '事业财运', '姻缘感情', '健康运势', '大限流年']
+          for (var i = 0; i < texts.length; i++) {
+            if (typeBtn.textContent.indexOf(texts[i]) !== -1) { zwAiAnalysisTypeIdx.value = i; return }
+          }
+        }
+      })
     }
   }, 300)
 

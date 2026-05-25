@@ -234,22 +234,22 @@
             <view class="advanced-toggle" @tap="baiAdvanced = !baiAdvanced">{{ baiAdvanced ? '▼ 收起高级选项' : '▶ 高级选项' }}</view>
             <view class="form-group"><text class="form-label">分析类型</text>
               <view class="analysis-type-row">
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 0 }" id="baiAiTypeBtn0">📜 命局总览</view>
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 1 }" id="baiAiTypeBtn1">💰 财运事业</view>
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 2 }" id="baiAiTypeBtn2">❤️ 婚姻感情</view>
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 3 }" id="baiAiTypeBtn3">📈 大运流年</view>
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 4 }" id="baiAiTypeBtn4">🏥 健康六亲</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 0 }" >📜 命局总览</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 1 }" >💰 财运事业</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 2 }" >❤️ 婚姻感情</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 3 }" >📈 大运流年</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 4 }" >🏥 健康六亲</view>
               </view>
             </view>
             <view class="form-group"><text class="form-label">你的问题（选填）</text><view id="baiQuestion-wrap" class="dom-input-wrap"></view></view>
-            <view class="submit-btn" id="baiAiAskBtn">🔮 AI 深度解读</view>
+            <view class="submit-btn">🔮 AI 深度解读</view>
             <!-- 流式解读区域 -->
             <view class="qai-stream-box" v-if="baiAiLoading || baziAiResult">
               <view class="chat-container" id="baiChatContainer"></view>
             </view>
             <view class="chat-input-bar" id="baiChatInputBar" style="display:none;">
               <input class="chat-input" id="baiChatInput" placeholder="继续追问..." />
-              <view class="chat-send-btn" id="baiFollowUpBtn">发送</view>
+              <view class="chat-send-btn">发送</view>
             </view>
             <view class="privacy-note incognito-status">✅ 无痕模式已开启 · 本地计算 · 不上传数据 · 退出自动清空</view>
           </view>
@@ -715,17 +715,29 @@ const starredRecords = computed(() => records.value.filter(r => r.starred))
 const filteredRecords = computed(() => {
   let list = records.value
   const searchEl = 
-  // DOM click 绑定
+  // DOM click 绑定（事件代理，uni-view 的 @tap/@click 不生效）
   setTimeout(function() {
-    var aiAskBtn = document.getElementById('baiAiAskBtn')
-    if (aiAskBtn) aiAskBtn.addEventListener('click', function() { baiAiAsk() })
-    var fwBtn = document.getElementById('baiFollowUpBtn')
-    if (fwBtn) fwBtn.addEventListener('click', function() { baiSendFollowUp() })
-    for (var i = 0; i < 5; i++) {
-      (function(idx) {
-        var btn = document.getElementById('baiAiTypeBtn' + idx)
-        if (btn) btn.addEventListener('click', function() { baiAnalysisTypeIdx.value = idx })
-      })(i)
+    var aiContent = document.getElementById('baziTabAiContent')
+    if (aiContent) {
+      aiContent.addEventListener('click', function(e) {
+        var target = e.target
+        var btn = target.closest ? target.closest('.submit-btn') : null
+        if (!btn) { btn = target; while (btn && !btn.classList.contains('submit-btn')) btn = btn.parentElement }
+        if (btn && btn.textContent.indexOf('AI 深度解读') !== -1) {
+          baiAiAsk(); return
+        }
+        var sendBtn = target.closest ? target.closest('.chat-send-btn') : null
+        if (!sendBtn) { sendBtn = target; while (sendBtn && !sendBtn.classList.contains('chat-send-btn')) sendBtn = sendBtn.parentElement }
+        if (sendBtn) { baiSendFollowUp(); return }
+        var typeBtn = target.closest ? target.closest('.analysis-type-btn') : null
+        if (!typeBtn) { typeBtn = target; while (typeBtn && !typeBtn.classList.contains('analysis-type-btn')) typeBtn = typeBtn.parentElement }
+        if (typeBtn) {
+          var texts = ['命局总览', '财运事业', '婚姻感情', '大运流年', '健康六亲']
+          for (var i = 0; i < texts.length; i++) {
+            if (typeBtn.textContent.indexOf(texts[i]) !== -1) { baiAnalysisTypeIdx.value = i; return }
+          }
+        }
+      })
     }
   }, 300)
 
@@ -738,17 +750,29 @@ const filteredRecords = computed(() => {
 
 function onRecordSearch() {
   const el = 
-  // DOM click 绑定
+  // DOM click 绑定（事件代理，uni-view 的 @tap/@click 不生效）
   setTimeout(function() {
-    var aiAskBtn = document.getElementById('baiAiAskBtn')
-    if (aiAskBtn) aiAskBtn.addEventListener('click', function() { baiAiAsk() })
-    var fwBtn = document.getElementById('baiFollowUpBtn')
-    if (fwBtn) fwBtn.addEventListener('click', function() { baiSendFollowUp() })
-    for (var i = 0; i < 5; i++) {
-      (function(idx) {
-        var btn = document.getElementById('baiAiTypeBtn' + idx)
-        if (btn) btn.addEventListener('click', function() { baiAnalysisTypeIdx.value = idx })
-      })(i)
+    var aiContent = document.getElementById('baziTabAiContent')
+    if (aiContent) {
+      aiContent.addEventListener('click', function(e) {
+        var target = e.target
+        var btn = target.closest ? target.closest('.submit-btn') : null
+        if (!btn) { btn = target; while (btn && !btn.classList.contains('submit-btn')) btn = btn.parentElement }
+        if (btn && btn.textContent.indexOf('AI 深度解读') !== -1) {
+          baiAiAsk(); return
+        }
+        var sendBtn = target.closest ? target.closest('.chat-send-btn') : null
+        if (!sendBtn) { sendBtn = target; while (sendBtn && !sendBtn.classList.contains('chat-send-btn')) sendBtn = sendBtn.parentElement }
+        if (sendBtn) { baiSendFollowUp(); return }
+        var typeBtn = target.closest ? target.closest('.analysis-type-btn') : null
+        if (!typeBtn) { typeBtn = target; while (typeBtn && !typeBtn.classList.contains('analysis-type-btn')) typeBtn = typeBtn.parentElement }
+        if (typeBtn) {
+          var texts = ['命局总览', '财运事业', '婚姻感情', '大运流年', '健康六亲']
+          for (var i = 0; i < texts.length; i++) {
+            if (typeBtn.textContent.indexOf(texts[i]) !== -1) { baiAnalysisTypeIdx.value = i; return }
+          }
+        }
+      })
     }
   }, 300)
 
@@ -1331,17 +1355,29 @@ onMounted(() => {
   createNativeInput('recordSearch', 'text', '请输入搜索的内容')
   // 记录搜索框特殊样式（在搜索栏圆角容器内，去掉边框/背景）
   var rsEl = 
-  // DOM click 绑定
+  // DOM click 绑定（事件代理，uni-view 的 @tap/@click 不生效）
   setTimeout(function() {
-    var aiAskBtn = document.getElementById('baiAiAskBtn')
-    if (aiAskBtn) aiAskBtn.addEventListener('click', function() { baiAiAsk() })
-    var fwBtn = document.getElementById('baiFollowUpBtn')
-    if (fwBtn) fwBtn.addEventListener('click', function() { baiSendFollowUp() })
-    for (var i = 0; i < 5; i++) {
-      (function(idx) {
-        var btn = document.getElementById('baiAiTypeBtn' + idx)
-        if (btn) btn.addEventListener('click', function() { baiAnalysisTypeIdx.value = idx })
-      })(i)
+    var aiContent = document.getElementById('baziTabAiContent')
+    if (aiContent) {
+      aiContent.addEventListener('click', function(e) {
+        var target = e.target
+        var btn = target.closest ? target.closest('.submit-btn') : null
+        if (!btn) { btn = target; while (btn && !btn.classList.contains('submit-btn')) btn = btn.parentElement }
+        if (btn && btn.textContent.indexOf('AI 深度解读') !== -1) {
+          baiAiAsk(); return
+        }
+        var sendBtn = target.closest ? target.closest('.chat-send-btn') : null
+        if (!sendBtn) { sendBtn = target; while (sendBtn && !sendBtn.classList.contains('chat-send-btn')) sendBtn = sendBtn.parentElement }
+        if (sendBtn) { baiSendFollowUp(); return }
+        var typeBtn = target.closest ? target.closest('.analysis-type-btn') : null
+        if (!typeBtn) { typeBtn = target; while (typeBtn && !typeBtn.classList.contains('analysis-type-btn')) typeBtn = typeBtn.parentElement }
+        if (typeBtn) {
+          var texts = ['命局总览', '财运事业', '婚姻感情', '大运流年', '健康六亲']
+          for (var i = 0; i < texts.length; i++) {
+            if (typeBtn.textContent.indexOf(texts[i]) !== -1) { baiAnalysisTypeIdx.value = i; return }
+          }
+        }
+      })
     }
   }, 300)
 
