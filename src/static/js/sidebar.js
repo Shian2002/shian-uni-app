@@ -11,41 +11,10 @@
   if (window.__sidebarLoaded) return
   window.__sidebarLoaded = true
 
-  // 按 app_type 分组（处理后端值不一致）
-  var TYPE_ORDER = ['qimen', 'paipan', 'bazi', 'liuyao', 'meihua', 'ziwei', 'taluo', 'tarot']
-  var TYPE_META = {
-    qimen: { icon: '🔮', label: '奇门遁甲' }, paipan: { icon: '📜', label: '八字排盘' }, bazi: { icon: '📜', label: '八字排盘' },
-    liuyao: { icon: '🧭', label: '六爻排盘' }, meihua: { icon: '🌸', label: '梅花易数' }, ziwei: { icon: '⭐', label: '紫微斗数' },
-    taluo: { icon: '🃏', label: '塔罗牌' }, tarot: { icon: '🃏', label: '塔罗牌' }
-  }
-  function groupRecords(records) {
-    var groups = {}, seen = {}
-    records.forEach(function(r) {
-      var t = r.app_type || 'qimen'
-      if (!groups[t]) groups[t] = []
-      groups[t].push(r)
-    })
-    var result = []
-    TYPE_ORDER.forEach(function(t) {
-      if (groups[t]) {
-        var meta = TYPE_META[t] || { icon: '🔮', label: t }
-        var dedupKey = meta.label
-        if (seen[dedupKey]) {
-          seen[dedupKey].records = seen[dedupKey].records.concat(groups[t])
-        } else {
-          var entry = { type: t, icon: meta.icon, label: meta.label, records: groups[t] }
-          result.push(entry)
-          seen[dedupKey] = entry
-        }
-        delete groups[t]
-      }
-    })
-    Object.keys(groups).forEach(function(t) {
-      var meta = TYPE_META[t] || { icon: '🔮', label: t }
-      result.push({ type: t, icon: meta.icon, label: meta.label, records: groups[t] })
-    })
-    return result
-  }
+  // 从共享模块获取分组数据和工具函数
+  var ST = window.__sidebarTypes
+  var groupRecords = ST.groupRecords
+  var escHtml = ST.escHtml
 
   // ── 确保全局侧边栏 DOM 存在（仅创建一次） ──
   function ensureGlobalSidebar() {
@@ -144,6 +113,34 @@
     xhr2.send()
   }
 
+  // 渲染分组历史（共享函数）
+  function renderSidebarGroups(groups, listEl) {
+    var h = ''
+    groups.forEach(function(g) {
+      h += '<div class="sidebar-group" data-type="' + g.type + '">'
+        + '<div class="sidebar-group-header" onclick="window._xc_toggleGroup(this)">'
+        + '<span class="sidebar-group-icon">' + g.icon + '</span>'
+        + '<span class="sidebar-group-label">' + g.label + '</span>'
+        + '<span class="sidebar-group-count">' + g.records.length + '</span>'
+        + '<span class="sidebar-group-arrow">▾</span>'
+        + '</div><div class="sidebar-group-items">'
+      g.records.forEach(function(r) {
+        var time = r.created_at ? r.created_at.substring(0, 16).replace('T', ' ') : ''
+        var text = escHtml(r.question || '(无问题)')
+        var clickAction = r._tarotConvId
+          ? 'onclick="window._showTarotConv(' + r._tarotConvId + ')"'
+          : 'onclick="window._showHistoryDetail(' + r.id + ')"'
+        h += '<div class="sidebar-item" ' + clickAction + '>'
+          + '<div class="sidebar-item-body">'
+          + '<span class="sidebar-item-text">' + text + '</span>'
+          + '<span class="sidebar-item-time">' + time + '</span>'
+          + '</div></div>'
+      })
+      h += '</div></div>'
+    })
+    listEl.innerHTML = h
+  }
+
   // ═══ 开/关侧边栏 + 加载历史 ═══
   window._xc_toggleSidebar = function() {
     ensureGlobalSidebar()
@@ -178,9 +175,14 @@
     // 加载用户面板
     loadUserPanel()
 
-    // 加载分组历史记录
+    // 加载分组历史记录（30 秒内缓存）
     var listEl = document.getElementById('sidebarListGlobal')
     if (!listEl) return
+    var now = Date.now()
+    if (window.__sidebarCache && (now - window.__sidebarCache.ts) < 30000) {
+      renderSidebarGroups(window.__sidebarCache.groups, listEl)
+      return
+    }
     listEl.innerHTML = '<div class="sidebar-empty">加载中...</div>'
 
     var xhr = new XMLHttpRequest()
@@ -194,67 +196,24 @@
       try {
         var data = JSON.parse(xhr.responseText)
         var items = data.records || []
-        // 合并塔罗对话
-        var tarotXhr = new XMLHttpRequest()
-        tarotXhr.open('GET', '/api/tarot/conversations')
-        tarotXhr.setRequestHeader('Accept', 'application/json')
-        tarotXhr.onload = function() {
-          var tarotItems = []
-          try { tarotItems = JSON.parse(tarotXhr.responseText); if (!Array.isArray(tarotItems)) tarotItems = [] } catch(e) {}
+        function onTarotDone(tarotItems) {
           tarotItems.forEach(function(c) {
             items.push({ id: 'tarot_' + c.id, app_type: 'tarot', question: c.title || c.spread_name || '塔罗解读', created_at: c.updated_at || c.created_at, _tarotConvId: c.id })
           })
           if (!items.length) { listEl.innerHTML = '<div class="sidebar-empty">暂无历史记录</div>'; return }
           var groups = groupRecords(items)
-          var html = ''
-          groups.forEach(function(g) {
-            html += '<div class="sidebar-group" data-type="' + g.type + '">'
-              + '<div class="sidebar-group-header" onclick="window._xc_toggleGroup(this)">'
-              + '<span class="sidebar-group-icon">' + g.icon + '</span>'
-              + '<span class="sidebar-group-label">' + g.label + '</span>'
-              + '<span class="sidebar-group-count">' + g.records.length + '</span>'
-              + '<span class="sidebar-group-arrow">▾</span>'
-              + '</div><div class="sidebar-group-items">'
-            g.records.forEach(function(r) {
-              var time = r.created_at ? r.created_at.substring(0, 16).replace('T', ' ') : ''
-              var clickAction = r._tarotConvId
-                ? 'onclick="window._showTarotConv(' + r._tarotConvId + ')"'
-                : 'onclick="window._showHistoryDetail(' + r.id + ')"'
-              html += '<div class="sidebar-item" ' + clickAction + '>'
-                + '<div class="sidebar-item-body">'
-                + '<span class="sidebar-item-text">' + (r.question || '(无问题)') + '</span>'
-                + '<span class="sidebar-item-time">' + time + '</span>'
-                + '</div></div>'
-            })
-            html += '</div></div>'
-          })
-          listEl.innerHTML = html
+          window.__sidebarCache = { ts: Date.now(), groups: groups }
+          renderSidebarGroups(groups, listEl)
         }
-        tarotXhr.onerror = function() {
-          // 塔罗加载失败，仍显示 records
-          if (!items.length) { listEl.innerHTML = '<div class="sidebar-empty">暂无历史记录</div>'; return }
-          var groups = groupRecords(items)
-          var html = ''
-          groups.forEach(function(g) {
-            html += '<div class="sidebar-group" data-type="' + g.type + '">'
-              + '<div class="sidebar-group-header" onclick="window._xc_toggleGroup(this)">'
-              + '<span class="sidebar-group-icon">' + g.icon + '</span>'
-              + '<span class="sidebar-group-label">' + g.label + '</span>'
-              + '<span class="sidebar-group-count">' + g.records.length + '</span>'
-              + '<span class="sidebar-group-arrow">▾</span>'
-              + '</div><div class="sidebar-group-items">'
-            g.records.forEach(function(r) {
-              var time = r.created_at ? r.created_at.substring(0, 16).replace('T', ' ') : ''
-              html += '<div class="sidebar-item" onclick="window._showHistoryDetail(' + r.id + ')">'
-                + '<div class="sidebar-item-body">'
-                + '<span class="sidebar-item-text">' + (r.question || '(无问题)') + '</span>'
-                + '<span class="sidebar-item-time">' + time + '</span>'
-                + '</div></div>'
-            })
-            html += '</div></div>'
-          })
-          listEl.innerHTML = html
+        var tarotXhr = new XMLHttpRequest()
+        tarotXhr.open('GET', '/api/tarot/conversations')
+        tarotXhr.setRequestHeader('Accept', 'application/json')
+        tarotXhr.onload = function() {
+          var t = []
+          try { t = JSON.parse(tarotXhr.responseText); if (!Array.isArray(t)) t = [] } catch(e) {}
+          onTarotDone(t)
         }
+        tarotXhr.onerror = function() { onTarotDone([]) }
         tarotXhr.send()
       } catch(e) {
         listEl.innerHTML = '<div class="sidebar-empty">解析失败</div>'
@@ -285,7 +244,7 @@
         try { msgs = JSON.parse(d.messages_json || '[]') } catch(_) {}
         var aiMsgs = msgs.filter(function(m) { return m.role === 'assistant' })
         var lastMsg = aiMsgs.length ? aiMsgs[aiMsgs.length - 1].content : ''
-        if (content) content.innerHTML = '<div class="history-markdown">' + (lastMsg || '无解读内容') + '</div>'
+        if (content) content.innerHTML = '<div class="history-markdown">' + escHtml(lastMsg || '无解读内容') + '</div>'
         window._xc_toggleSidebar()
       } catch(e) {}
     }

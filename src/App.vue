@@ -23,7 +23,8 @@ export default {
     function _fixRem() { var w = window.innerWidth; var fs = '16px'; if (w >= 1920) fs = '18px'; else if (w >= 1400) fs = '17px'; document.documentElement.style.fontSize = fs }
     _fixRem()
     window.addEventListener('load', _fixRem)
-    window.addEventListener('resize', _fixRem)
+    var _fixRemTimer
+    window.addEventListener('resize', function() { clearTimeout(_fixRemTimer); _fixRemTimer = setTimeout(_fixRem, 120) })
     // #endif
     var TAB_PAGES = ['/pages/index/index', '/pages/qimen/index', '/pages/bazi-index/index', '/pages/tarot/index', '/pages/liuyao/index', '/pages/meihua/index', '/pages/ziwei/index', '/pages/zeji/index', '/pages/calendar/index', '/pages/community/index', '/pages/profile/index']
     document.addEventListener('click', function(e) {
@@ -80,7 +81,8 @@ export default {
   --card-border-hover: rgba(255,255,255,0.18);
   --card-shadow: 0 16px 48px rgba(0,0,0,0.35);
   --text-1: rgba(240,236,228,0.97); --text-2: rgba(195,185,165,0.95);
-  --text-3: rgba(170,160,145,0.88); --danger: rgba(215,125,110,0.88);
+  --text-3: rgba(170,160,145,0.88); --text-4: rgba(140,130,115,0.60);
+  --danger: rgba(215,125,110,0.88);
   --success: rgba(7,233,48,0.88); --info: rgba(46,131,246,0.88);
   --nav-bg: rgba(22, 26, 42, 0.92); --section-alt: rgba(30,34,55,0.45);
   --tag-bg: rgba(255,255,255,0.08); --tag-text: rgba(195,185,165,0.85);
@@ -100,7 +102,8 @@ export default {
   --card-border-hover: rgba(0,0,0,0.08);
   --card-shadow: 0 8px 28px rgba(60,40,15,0.055);
   --text-1: rgba(20,16,10,0.96); --text-2: rgba(70,58,40,0.90);
-  --text-3: rgba(100,88,68,0.78); --danger: rgba(170,65,50,0.88);
+  --text-3: rgba(100,88,68,0.78); --text-4: rgba(130,115,100,0.50);
+  --danger: rgba(170,65,50,0.88);
   --success: rgba(7,233,48,0.88); --info: rgba(46,131,246,0.88);
   --nav-bg: rgba(247,242,234,0.95); --section-alt: rgba(240,235,225,0.45);
   --tag-bg: rgba(0,0,0,0.05); --tag-text: rgba(70,58,40,0.80);
