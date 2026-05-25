@@ -60,23 +60,23 @@
             </view>
             <view class="form-group"><text class="form-label">分析类型</text>
               <view class="analysis-type-row">
-                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 0 }" @tap="zwAiAnalysisTypeIdx = 0">🔮 命盘总览</view>
-                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 1 }" @tap="zwAiAnalysisTypeIdx = 1">💼 事业财运</view>
-                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 2 }" @tap="zwAiAnalysisTypeIdx = 2">💕 姻缘感情</view>
-                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 3 }" @tap="zwAiAnalysisTypeIdx = 3">🏥 健康运势</view>
-                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 4 }" @tap="zwAiAnalysisTypeIdx = 4">📅 大限流年</view>
+                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 0 }" @click="zwAiAnalysisTypeIdx = 0">🔮 命盘总览</view>
+                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 1 }" @click="zwAiAnalysisTypeIdx = 1">💼 事业财运</view>
+                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 2 }" @click="zwAiAnalysisTypeIdx = 2">💕 姻缘感情</view>
+                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 3 }" @click="zwAiAnalysisTypeIdx = 3">🏥 健康运势</view>
+                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 4 }" @click="zwAiAnalysisTypeIdx = 4">📅 大限流年</view>
               </view>
             </view>
             <view class="form-group"><text class="form-label">你的问题（选填）</text><view id="zwAiQuestion-wrap" class="dom-input-wrap"></view></view>
             <view class="btn-row">
-              <view class="submit-btn" @tap="zwAiAsk">🔮 AI 深度解读</view>
+              <view class="submit-btn" @click="zwAiAsk">🔮 AI 深度解读</view>
             </view>
             <view class="qai-stream-box" v-if="zwAiLoading || zwAiResult">
               <view class="chat-container" id="zwChatContainer"></view>
             </view>
             <view class="chat-input-bar" id="zwChatInputBar" style="display:none;">
               <input class="chat-input" id="zwChatInput" placeholder="继续追问..." />
-              <view class="chat-send-btn" @tap="zwSendFollowUp">发送</view>
+              <view class="chat-send-btn" @click="zwSendFollowUp">发送</view>
             </view>
             <view class="privacy-note incognito-status">✅ 无痕模式已开启 · 本地计算 · 不上传数据 · 退出自动清空</view>
           </view>

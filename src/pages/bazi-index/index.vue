@@ -234,22 +234,22 @@
             <view class="advanced-toggle" @tap="baiAdvanced = !baiAdvanced">{{ baiAdvanced ? '▼ 收起高级选项' : '▶ 高级选项' }}</view>
             <view class="form-group"><text class="form-label">分析类型</text>
               <view class="analysis-type-row">
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 0 }" @tap="baiAnalysisTypeIdx = 0">📜 命局总览</view>
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 1 }" @tap="baiAnalysisTypeIdx = 1">💰 财运事业</view>
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 2 }" @tap="baiAnalysisTypeIdx = 2">❤️ 婚姻感情</view>
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 3 }" @tap="baiAnalysisTypeIdx = 3">📈 大运流年</view>
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 4 }" @tap="baiAnalysisTypeIdx = 4">🏥 健康六亲</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 0 }" @click="baiAnalysisTypeIdx = 0">📜 命局总览</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 1 }" @click="baiAnalysisTypeIdx = 1">💰 财运事业</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 2 }" @click="baiAnalysisTypeIdx = 2">❤️ 婚姻感情</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 3 }" @click="baiAnalysisTypeIdx = 3">📈 大运流年</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 4 }" @click="baiAnalysisTypeIdx = 4">🏥 健康六亲</view>
               </view>
             </view>
             <view class="form-group"><text class="form-label">你的问题（选填）</text><view id="baiQuestion-wrap" class="dom-input-wrap"></view></view>
-            <view class="submit-btn" @tap="baiAiAsk">🔮 AI 深度解读</view>
+            <view class="submit-btn" @click="baiAiAsk">🔮 AI 深度解读</view>
             <!-- 流式解读区域 -->
             <view class="qai-stream-box" v-if="baiAiLoading || baziAiResult">
               <view class="chat-container" id="baiChatContainer"></view>
             </view>
             <view class="chat-input-bar" id="baiChatInputBar" style="display:none;">
               <input class="chat-input" id="baiChatInput" placeholder="继续追问..." />
-              <view class="chat-send-btn" @tap="baiSendFollowUp">发送</view>
+              <view class="chat-send-btn" @click="baiSendFollowUp">发送</view>
             </view>
             <view class="privacy-note incognito-status">✅ 无痕模式已开启 · 本地计算 · 不上传数据 · 退出自动清空</view>
           </view>
