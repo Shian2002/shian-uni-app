@@ -193,31 +193,7 @@
       </view>
     </view>
 
-    <!-- 页脚 -->
-    <view class="site-footer">
-      <view class="footer-disclaimer">⚠️ 本站所有内容仅为民俗文化与传统命理科普参考，不构成任何决策建议，严禁利用本站内容从事封建迷信及违法违规活动，本站不对任何用户基于本站内容做出的决策承担任何责任</view>
-      <view class="footer-grid">
-        <view class="footer-col">
-          <view class="footer-col-title">平台信息</view>
-          <navigator url="/package-info/about/index">关于我们</navigator>
-        </view>
-        <view class="footer-col">
-          <view class="footer-col-title">快捷导航</view>
-          <navigator url="/pages/qimen/index" open-type="switchTab">奇门遁甲</navigator>
-          <navigator url="/pages/bazi-index/index" open-type="switchTab">八字排盘</navigator>
-          <navigator url="/pages/calendar/index" open-type="switchTab">专属日历</navigator>
-          <navigator url="/pages/community/index" open-type="switchTab">社区</navigator>
-        </view>
-        <view class="footer-col">
-          <view class="footer-col-title">备案与版权</view>
-          <view class="footer-icp">ICP备案号：京ICP备2026050601号-1</view>
-          <view class="footer-icp">© 2026 时安解忧屋 版权所有</view>
-        </view>
-      </view>
-      <view class="footer-bottom">
-        <text class="footer-bottom-text">时安解忧屋 · 看得懂用得上的民俗命理参考平台</text>
-      </view>
-    </view>
+
 
 
   </view>
@@ -570,16 +546,6 @@ defineExpose({ injectBaziData })
 .pro-pan-yun-item.current-dayun { background: #f8f4ed; border-radius: 4px; }
 [data-theme="dark"] .pro-pan-yun-item.current-dayun { background: rgba(178,149,91,0.15); }
 
-/* ========== 页脚 ========== */
-.site-footer { background: var(--nav-bg); border-top: 1px solid var(--card-border); padding: 48px 32px 24px; margin-top: 80px; }
-.footer-disclaimer { max-width: var(--max-w); margin: 0 auto 32px; padding: 14px 20px; border-radius: 10px; background: rgba(215,125,110,0.08); border: 1px solid rgba(215,125,110,0.15); font-size: 0.75rem; color: var(--danger); line-height: 1.6; text-align: center; }
-.footer-grid { max-width: var(--max-w); margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; }
-.footer-col-title { font-size: 0.8125rem; color: var(--text-2); margin-bottom: 12px; }
-.footer-col navigator { display: block; font-size: 0.75rem; color: var(--text-3); text-decoration: none; padding: 3px 0; }
-.footer-icp { font-size: 0.6875rem; color: var(--text-3); margin-top: 8px; }
-.footer-bottom { max-width: var(--max-w); margin: 24px auto 0; padding-top: 16px; border-top: 1px solid var(--card-border); display: flex; justify-content: space-between; }
-.footer-bottom-text { font-size: 0.6875rem; color: var(--text-3); }
-
 /* ========== 弹窗 ========== */
 .modal-overlay { display: none; position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.55); backdrop-filter: blur(8px); align-items: center; justify-content: center; }
 .modal-overlay.open { display: flex; }
@@ -593,7 +559,6 @@ defineExpose({ injectBaziData })
 .modal-error { color: var(--danger); font-size: 0.75rem; text-align: center; margin-top: 10px; min-height: 18px; }
 
 /* ========== 响应式 ========== */
-@media (max-width: 1024px) { .footer-grid { grid-template-columns: 1fr; gap: 24px; } }
 @media (max-width: 768px) {
   .pro-pan-content { flex-direction: column; }
   .pro-pan-content-right { width: 100%; }

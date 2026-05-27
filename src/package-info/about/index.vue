@@ -105,35 +105,7 @@
       </view>
     </view>
 
-    <!-- 页脚 -->
-    <view class="site-footer">
-      <view class="footer-disclaimer">
-        ⚠️ 本站所有内容仅为民俗文化与传统命理科普参考，不构成任何决策建议，严禁利用本站内容从事封建迷信及违法违规活动，本站不对任何用户基于本站内容做出的决策承担任何责任
-      </view>
-      <view class="footer-grid">
-        <view class="footer-col">
-          <text class="footer-col-title">平台信息</text>
-          <text class="footer-link" @tap="showFooterInfo('about')">关于我们</text>
-          <text class="footer-link" @tap="showFooterInfo('contact')">联系方式</text>
-          <text class="footer-link" @tap="showFooterInfo('privacy')">隐私政策</text>
-        </view>
-        <view class="footer-col">
-          <text class="footer-col-title">快捷导航</text>
-          <navigator url="/pages/qimen/index" open-type="switchTab">奇门遁甲</navigator>
-          <navigator url="/pages/bazi-index/index" open-type="switchTab">八字排盘</navigator>
-          <navigator url="/pages/calendar/index" open-type="switchTab">专属日历</navigator>
-          <navigator url="/pages/community/index" open-type="switchTab">社区</navigator>
-        </view>
-        <view class="footer-col">
-          <text class="footer-col-title">备案与版权</text>
-          <text class="footer-icp">ICP备案号：京ICP备2026050601号-1</text>
-          <text class="footer-copyright">© 2026 时安解忧屋 版权所有</text>
-        </view>
-      </view>
-      <view class="footer-bottom">
-        <text>时安解忧屋 · 看得懂用得上的民俗命理参考平台</text>
-      </view>
-    </view>
+
 
 
   </view>
@@ -295,17 +267,6 @@ export default {
 .btn-accent { background: var(--accent); color: #fff; }
 .btn-sm { padding: 5px 12px; font-size: 0.75rem; border-radius: 8px; }
 
-/* 页脚 */
-.site-footer { background: var(--nav-bg); border-top: 1px solid var(--card-border); padding: 48px 32px 24px; margin-top: 80px; }
-.footer-disclaimer { max-width: var(--max-w); margin: 0 auto 32px; padding: 14px 20px; border-radius: 10px; background: rgba(215,125,110,0.08); border: 1px solid rgba(215,125,110,0.15); font-size: 0.75rem; color: var(--danger); line-height: 1.6; text-align: center; }
-.footer-grid { max-width: var(--max-w); margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; }
-.footer-col-title { font-size: 0.8125rem; color: var(--text-2); margin-bottom: 12px; letter-spacing: 1px; display: block; font-weight: 600; }
-.footer-col navigator, .footer-link { display: block; font-size: 0.75rem; color: var(--text-3); text-decoration: none; padding: 3px 0; cursor: pointer; }
-.footer-icp { display: block; font-size: 0.75rem; color: var(--text-3); padding: 3px 0; }
-.footer-copyright { display: block; font-size: 0.6875rem; color: var(--text-3); margin-top: 8px; }
-.footer-bottom { max-width: var(--max-w); margin: 24px auto 0; padding-top: 16px; border-top: 1px solid var(--card-border); text-align: center; }
-.footer-bottom text { font-size: 0.6875rem; color: var(--text-3); }
-
 /* 响应式 */
 @media (max-width: 768px) {
   .about-hero { padding: 80px 16px 32px; }
@@ -313,7 +274,7 @@ export default {
   .about-hero-desc { font-size: 0.8125rem; }
   .section { padding: 48px 16px; }
   .trust-grid, .edu-grid { grid-template-columns: 1fr; }
-  .footer-grid { grid-template-columns: 1fr; gap: 24px; }
+
 }
 
 /* 弹窗 */

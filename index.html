@@ -3,16 +3,41 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0" />
-  <title>玄策台</title>
-  <link rel="icon" type="image/svg+xml" href="/static/images/favicon.svg">
-  <link rel="icon" type="image/x-icon" href="/static/images/favicon.ico">
-  <link rel="apple-touch-icon" sizes="180x180" href="/static/images/apple-touch-icon.png">
+  <title>时安解忧屋</title>
+  <link rel="icon" type="image/webp" href="/static/images/logo.webp?v=2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/images/logo.webp?v=2">
+  <link rel="preload" href="/static/images/logo.webp?v=2" as="image">
   <!--preload-links-->
   <!--app-context-->
+  <style>#xc-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:#f8f5f0;z-index:999999}#xc-overlay .xc-img{position:absolute;top:calc(50% - 40px);left:50%;margin-left:-40px;width:80px;height:80px;border-radius:50%;object-fit:cover;animation:xc-rotate 1s linear infinite;box-shadow:0 0 30px rgba(0,0,0,.06)}#xc-overlay .xc-tx{position:absolute;top:calc(50% + 50px);left:0;width:100%;text-align:center;font-size:13px;color:#b8a088}@keyframes xc-rotate{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>
 </head>
 <body>
   <div id="app"><!--app-html--></div>
+  <div id="xc-overlay"><img class="xc-img" src="/static/images/logo.webp?v=2" alt=""><div class="xc-tx">时安解忧屋</div></div>
+  <script>
+    (function(){
+      var o = document.getElementById('xc-overlay');
+      function hide(){
+        if(!o)return;
+        o.style.display='none';
+        var a=document.getElementById('app');
+        if(a)a.style.setProperty('visibility','visible','important');
+      }
+      var t = setInterval(function(){
+        var nav = document.querySelector('.topnav,.topnav-wrap');
+        if(!nav)return;
+        var btn = nav.querySelector('.nav-btn');
+        var cssOk = !btn || parseFloat(getComputedStyle(btn).borderRadius) >= 7;
+        if(nav.children.length > 0 && cssOk){
+          clearInterval(t);
+          setTimeout(hide,120);
+        }
+      }, 60);
+      setTimeout(function(){ clearInterval(t); hide(); }, 5000);
+    })();
+  </script>
   <script src="/static/js/sidebar-types.js"></script>
+  <script src="/static/js/sidebar.js"></script>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

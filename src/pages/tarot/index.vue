@@ -96,7 +96,7 @@
             <!-- 追问输入栏 -->
             <view class="chat-input-bar" id="chatInputBar" style="display:none;">
               <input class="chat-input" id="chatInput" placeholder="继续追问..." />
-              <view class="chat-send-btn" id="chatSendBtn" @tap="sendFollowUp">发送</view>
+              <view class="chat-send-btn" id="chatSendBtn" onclick="window.sendFollowUp()">发送</view>
             </view>
           </view>
           <!-- 本地解读占位（AI 不可用时） -->
@@ -116,32 +116,6 @@
       </view>
     </view>
 
-    <!-- 页脚 -->
-    <view class="site-footer">
-      <view class="footer-disclaimer">⚠️ 本站所有内容仅为民俗文化与传统命理科普参考，不构成任何决策建议，严禁利用本站内容从事封建迷信及违法违规活动，本站不对任何用户基于本站内容做出的决策承担任何责任</view>
-      <view class="footer-grid">
-        <view class="footer-col">
-          <view class="footer-col-title">平台信息</view>
-          <navigator url="/package-info/about/index">关于我们</navigator>
-        </view>
-        <view class="footer-col">
-          <view class="footer-col-title">快捷导航</view>
-          <navigator url="/pages/qimen/index" open-type="switchTab">奇门遁甲</navigator>
-          <navigator url="/pages/bazi-index/index" open-type="switchTab">八字排盘</navigator>
-          <navigator url="/pages/liuyao/index" open-type="switchTab">六爻排盘</navigator>
-          <navigator url="/pages/calendar/index" open-type="switchTab">专属日历</navigator>
-          <navigator url="/pages/community/index" open-type="switchTab">社区</navigator>
-        </view>
-        <view class="footer-col">
-          <view class="footer-col-title">备案与版权</view>
-          <view class="footer-icp">ICP备案号：京ICP备2026050601号-1</view>
-          <view class="footer-icp">© 2026 时安解忧屋 版权所有</view>
-        </view>
-      </view>
-      <view class="footer-bottom">
-        <text class="footer-bottom-text">时安解忧屋 · 看得懂用得上的民俗命理参考平台</text>
-      </view>
-    </view>
 
 
   </view>
@@ -543,44 +517,58 @@ function _startAIReading() {
 
 // ═══ 追问 ═══
 function sendFollowUp() {
-  var input = document.getElementById('chatInput')
-  if (!input) return
-  var question = input.value.trim()
-  if (!question) return
-  input.value = ''
+  try {
+    var input = document.querySelector('#chatInput input') || document.getElementById('chatInput')
+    if (!input) { console.warn('[tarot] chatInput not found'); return }
+    var question = input.value.trim()
+    if (!question) return
+    input.value = ''
 
-  var chatContainer = document.getElementById('chatContainer')
-  if (!chatContainer) return
+    var chatContainer = document.getElementById('chatContainer')
+    if (!chatContainer) return
 
-  // 添加用户气泡
-  var userBubble = document.createElement('view')
-  userBubble.className = 'chat-bubble-user'
-  userBubble.textContent = question
-  chatContainer.appendChild(userBubble)
+    var userBubble = document.createElement('view')
+    userBubble.className = 'chat-bubble-user'
+    userBubble.textContent = question
+    chatContainer.appendChild(userBubble)
 
-  // 添加 AI 气泡（流式）
-  var aiBubble = document.createElement('view')
-  aiBubble.className = 'chat-bubble-ai'
-  aiBubble.id = 'aiFollowBubble_' + Date.now()
-  aiBubble.innerHTML = '<div class="ai-stage">✍️ 正在生成回复...</div>' +
-    '<div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div>' +
-    '<div class="chat-bubble-content"></div>'
-  chatContainer.appendChild(aiBubble)
-  chatContainer.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    var aiBubble = document.createElement('view')
+    aiBubble.className = 'chat-bubble-ai'
+    aiBubble.id = 'aiFollowBubble_' + Date.now()
+    aiBubble.innerHTML = '<div class="ai-stage"><img class="ai-stage-logo" src="/static/images/logo.webp?v=2">正在生成回复...</div>' +
+      '<div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div>' +
+      '<div class="chat-bubble-content"></div>'
+    chatContainer.appendChild(aiBubble)
+    chatContainer.scrollIntoView({ behavior: 'smooth', block: 'end' })
 
-  // 构建历史
-  var history = window._chatHistory || []
-  history.push({ role: 'user', content: question })
+    var history = window._chatHistory || []
+    history.push({ role: 'user', content: question })
 
-  _doStreamSSE({
-    history: history, question: question,
-    bubbleId: aiBubble.id,
-    onDone: function(fullText) {
-      history.push({ role: 'assistant', content: fullText })
+    // 发送时立即保存
+    if (_currentConvId) {
       window._chatHistory = history
+      _updateConversation()
+    } else {
+      window._chatHistory = history
+      _saveConversation(question)
     }
-  })
+
+    _doStreamSSE({
+      history: history, question: question,
+      bubbleId: aiBubble.id,
+      onDone: function(fullText) {
+        history.push({ role: 'assistant', content: fullText })
+        window._chatHistory = history
+        if (_currentConvId) { _updateConversation() } else { _saveConversation(question) }
+      },
+      onError: function() {
+        var eb = document.getElementById(aiBubble.id)
+        if (eb) { var es = eb.querySelector('.ai-stage'); if (es) es.innerHTML = '⚠️ 追问失败，请重试' }
+      }
+    })
+  } catch (err) { console.error('[tarot] sendFollowUp error:', err) }
 }
+window.sendFollowUp = sendFollowUp
 
 // ═══ 通用 SSE 流式 ═══
 function _doStreamSSE(opts) {
@@ -590,9 +578,11 @@ function _doStreamSSE(opts) {
   var barEl = bubble.querySelector('.ai-progress-fill')
   var contentEl = bubble.querySelector('.chat-bubble-content')
 
+  var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
   var xhr = new XMLHttpRequest()
   xhr.open('POST', '/api/tarot/reading/stream', true)
   xhr.setRequestHeader('Content-Type', 'application/json')
+  if (token) xhr.setRequestHeader('Authorization', 'Bearer ' + token)
 
   var lastIndex = 0
   var fullText = ''
@@ -614,7 +604,7 @@ function _doStreamSSE(opts) {
       var take = charQueue.length > 3 ? 2 : 1
       fullText += charQueue.substring(0, take)
       charQueue = charQueue.substring(take)
-      if (contentEl) contentEl.innerHTML = fullText.replace(/\n/g, '<br>')
+      if (contentEl) contentEl.innerHTML = _stripMarkdown(fullText).replace(/\n/g, '<br>')
     }, 35)
   }
 
@@ -631,7 +621,7 @@ function _doStreamSSE(opts) {
         if (eventType === 'progress') {
           if (data.stage === 'connecting' && stageEl) stageEl.innerHTML = '🔗 正在连接...'
           else if (data.stage === 'analyzing' && stageEl) stageEl.innerHTML = '🧠 正在分析...'
-          else if (data.stage === 'generating' && stageEl) { stageEl.innerHTML = '✍️ 正在生成...'; startTypewriter() }
+          else if (data.stage === 'generating' && stageEl) { stageEl.innerHTML = '<img class="ai-stage-logo" src="/static/images/logo.webp?v=2">正在生成...'; startTypewriter() }
           if (barEl) barEl.style.width = '60%'
         } else if (eventType === 'chunk') {
           charQueue += data.content
@@ -661,14 +651,13 @@ function _doStreamSSE(opts) {
 }
 
 function _finalizeAIReading(text) {
-  // 隐藏进度条和阶段文字
+  text = _stripMarkdown(text)
   var bubble = document.getElementById('aiBubble')
   if (!bubble) return
   var bar = bubble.querySelector('.ai-progress-bar')
   var stage = bubble.querySelector('.ai-stage')
   if (bar) bar.style.display = 'none'
   if (stage) stage.style.display = 'none'
-  // markdown → 卡片
   var sections = text.split(/\n(?=#{2,3} )/)
   var html = ''
   sections.forEach(function(sec) {
@@ -682,6 +671,11 @@ function _finalizeAIReading(text) {
   })
   var contentEl = bubble.querySelector('.chat-bubble-content')
   if (contentEl) contentEl.innerHTML = html
+}
+
+function _stripMarkdown(s) {
+  if (!s) return ''
+  return s.replace(/^#{1,6}\s*/gm, '').replace(/\*\*/g, '').replace(/^[-*]\s+/gm, '')
 }
 
 // ═══ 本地规则引擎解读（AI 不可用时的降级） ═══
@@ -751,11 +745,6 @@ function _renderOverview(cards, spread, question) {
 // ═══ 对话历史侧边栏（全局，由 TopNav 控制打开/关闭） ═══
 var _currentConvId = null
 
-// 监听侧栏打开事件，加载对话列表
-uni.$on('sidebar-opened', function() {
-  _loadConversations()
-})
-
 function _saveConversation(question) {
   var title = (question || '塔罗占卜').substring(0, 50)
   uni.request({
@@ -765,7 +754,13 @@ function _saveConversation(question) {
       cards: _drawResult ? _drawResult.cards : [],
       messages: window._chatHistory || []
     },
-    success: function(res) { if (res.data && res.data.id) _currentConvId = res.data.id }
+    success: function(res) {
+      if (res.data && res.data.id) _currentConvId = res.data.id
+      window.__sidebarCache = null
+    },
+    fail: function(err) {
+      console.error('[tarot] 保存对话失败:', err)
+    }
   })
 }
 
@@ -773,31 +768,9 @@ function _updateConversation() {
   if (!_currentConvId) return
   uni.request({
     url: '/api/tarot/conversations', method: 'POST',
-    data: { id: _currentConvId, messages: window._chatHistory || [] }
-  })
-}
-
-function _loadConversations() {
-  uni.request({
-    url: '/api/tarot/conversations', method: 'GET',
-    success: function(res) {
-      var list = document.getElementById('sidebarListGlobal')
-      if (!list) return
-      var convs = res.data
-      if (!convs || !Array.isArray(convs)) {
-        list.innerHTML = '<view class="sidebar-empty">暂无对话记录</view>'
-        return
-      }
-      if (!convs.length) { list.innerHTML = '<view class="sidebar-empty">暂无对话记录</view>'; return }
-      var html = ''
-      convs.forEach(function(c) {
-        html += '<view class="sidebar-item" data-id="' + c.id + '" onclick="window._loadConvDetail(' + c.id + ')">' +
-          '<view class="sidebar-item-title">' + (c.title || '未命名').replace(/</g,'&lt;') + '</view>' +
-          '<view class="sidebar-item-meta">' + (c.spread_name || '') + ' · ' + (c.updated_at ? c.updated_at.substring(0, 10) : '') + '</view>' +
-          '</view>'
-      })
-      list.innerHTML = html
-    }
+    data: { id: _currentConvId, messages: window._chatHistory || [] },
+    success: function() { window.__sidebarCache = null },
+    fail: function(err) { console.error('[tarot] 更新对话失败:', err) }
   })
 }
 
@@ -835,14 +808,6 @@ window._loadConvDetail = function(cid) {
       document.getElementById('sidebarOverlayGlobal').classList.remove('show')
     }
   })
-}
-
-// 追问更新服务端
-var _origSendFollowUp = sendFollowUp
-sendFollowUp = function() {
-  _origSendFollowUp()
-  // 延迟更新（等 SSE 完成）
-  setTimeout(function() { _updateConversation() }, 5000)
 }
 
 // ═══ 重新抽牌（DOM直操作） ═══
@@ -916,6 +881,7 @@ function _unscopeStyles() {
 }
 
 onShow(() => {
+  try { _checkTarotRestore() } catch(_) {}
   var t = uni.getStorageSync('xc_theme')
   if (t && t !== theme.value) {
     theme.value = t
@@ -950,7 +916,68 @@ onMounted(() => {
   _unscopeStyles()
   generateStars()
   loadSpreads()
+  // 监听对话恢复事件
+  uni.$on('xc-restore', _checkTarotRestore)
+  _checkTarotRestore()
 })
+
+function _checkTarotRestore() {
+  var d = window.__xc_restoreData
+  if (!d || d.type !== 'tarot') return
+  var chatContainer = document.getElementById('chatContainer')
+  var inputBar = document.getElementById('chatInputBar')
+  var resultArea = document.getElementById('resultArea')
+  var readingArea = document.getElementById('readingArea')
+  var redrawArea = document.getElementById('redrawArea')
+  if (!chatContainer) return
+  window.__xc_restoreData = null
+  if (resultArea) resultArea.classList.add('show')
+  if (readingArea) readingArea.classList.add('show')
+  if (redrawArea) redrawArea.style.display = 'block'
+  chatContainer.innerHTML = ''
+  if (d.rawHtml) {
+    // 旧记录：先去除 markdown 格式，再渲染
+    if (d.question) {
+      var ub2 = document.createElement('view')
+      ub2.className = 'chat-bubble-user'
+      ub2.textContent = d.question
+      chatContainer.appendChild(ub2)
+    }
+    // 先去除 HTML 标签，再去除 markdown 格式，最后转成 HTML
+    var cleanHtml = _stripMarkdown(d.rawHtml.replace(/<[^>]+>/g, '')).replace(/\n/g, '<br>')
+    var ab2 = document.createElement('view')
+    ab2.className = 'chat-bubble-ai'
+    ab2.innerHTML = '<div class="chat-bubble-content">' + cleanHtml + '</div>'
+    chatContainer.appendChild(ab2)
+    window._chatHistory = [
+      { role: 'user', content: d.question || '' },
+      { role: 'assistant', content: cleanHtml.replace(/<[^>]+>/g, '').substring(0, 200) + '...' }
+    ]
+    _currentConvId = null
+  } else {
+    var messages = d.messages || []
+    window._chatHistory = messages.slice()
+    _currentConvId = d.id || null
+    messages.forEach(function(m) {
+      if (m.role === 'user') {
+        var ub = document.createElement('view')
+        ub.className = 'chat-bubble-user'
+        ub.textContent = m.content
+        chatContainer.appendChild(ub)
+      } else if (m.role === 'assistant') {
+        var ab = document.createElement('view')
+        ab.className = 'chat-bubble-ai'
+        ab.innerHTML = '<div class="chat-bubble-content">' + _stripMarkdown(m.content).replace(/\n/g, '<br>') + '</div>'
+        chatContainer.appendChild(ab)
+      }
+    })
+  }
+  if (inputBar) inputBar.style.display = 'flex'
+  setTimeout(function() {
+    var title = document.getElementById('chatSection')
+    if (title) title.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, 100)
+}
 </script>
 
 <style>
@@ -1606,64 +1633,6 @@ onMounted(() => {
 .suit-swords::before { content: '🗡️'; }
 .suit-pentacles::before { content: '🪙'; }
 
-/* ═══ 页脚 ═══ */
-.site-footer {
-  background: var(--nav-bg);
-  border-top: 1px solid var(--card-border);
-  padding: 48px 32px 24px;
-  margin-top: 80px;
-}
-.footer-disclaimer {
-  max-width: var(--max-w);
-  margin: 0 auto 32px;
-  padding: 14px 20px;
-  border-radius: 10px;
-  background: rgba(215,125,110,0.08);
-  border: 1px solid rgba(215,125,110,0.15);
-  font-size: 0.75rem;
-  color: var(--danger);
-  line-height: 1.6;
-  text-align: center;
-}
-.footer-grid {
-  max-width: var(--max-w);
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 40px;
-}
-.footer-col-title {
-  font-size: 0.8125rem;
-  color: var(--text-2);
-  margin-bottom: 12px;
-  letter-spacing: 1px;
-}
-.footer-col navigator {
-  display: block;
-  font-size: 0.75rem;
-  color: var(--text-3);
-  text-decoration: none;
-  padding: 3px 0;
-}
-.footer-icp {
-  font-size: 0.6875rem;
-  color: var(--text-3);
-  margin-top: 8px;
-}
-.footer-bottom {
-  max-width: var(--max-w);
-  margin: 24px auto 0;
-  padding-top: 16px;
-  border-top: 1px solid var(--card-border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.footer-bottom-text {
-  font-size: 0.6875rem;
-  color: var(--text-3);
-}
-
 /* ═══ 弹窗 ═══ */
 .modal-overlay {
   display: none; position: fixed; inset: 0; z-index: 300;
@@ -1702,7 +1671,6 @@ onMounted(() => {
   .tarot-card-flipper { height: 220px; }
   .tarot-cards-display { gap: 12px; }
   .tarot-settings { flex-direction: column; align-items: stretch; }
-  .footer-grid { grid-template-columns: 1fr; gap: 24px; }
 }
 @media (max-width: 480px) {
   .tarot-card-slot { width: 110px; }

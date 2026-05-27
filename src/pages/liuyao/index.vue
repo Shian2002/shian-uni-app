@@ -16,14 +16,6 @@
 
       <section class="section">
         <view class="tool-container">
-          <view class="incognito-bar">
-            <label class="incognito-toggle">
-              <view id="incognito-chk" class="toggle-visual" @tap="toggleIncognito"></view>
-              <text>{{ incognito ? '无痕模式' : '有痕模式' }}</text>
-            </label>
-            <text class="incognito-desc">本地计算 · 不上传数据 · 退出自动清空</text>
-          </view>
-
           <view class="tool-tabs">
             <view class="tool-tab" id="lyTabFree" @tap="switchTab('free')">六爻排盘<text class="tab-badge free">免费</text></view>
             <view class="tool-tab" id="lyTabAi" @tap="switchTab('ai')">时安六爻系统<text class="tab-badge">PRO</text></view>
@@ -71,12 +63,11 @@
               <view class="btn btn-ghost" @tap="lfReset">清空</view>
             </view>
             <text class="form-hint" style="text-align:center;display:block;margin-top:12px;">本地精准排盘，纳甲装卦、世应六亲全分析。如需深度解读请使用时安六爻系统。</text>
-            <view class="privacy-note">本地计算 · 不上传数据 · 秒出结果</view>
             <view class="ly-result" id="lyFreeResult"></view>
           </view>
 
           <!-- AI系统 -->
-          <view class="tool-tab-content" id="lyTabAiContent" style="display:none;">
+          <view class="tool-tab-content" id="lyTabAiContent">
             <view class="form-group">
               <text class="form-label">问事类型</text>
               <picker :range="laiTypeLabels" :value="laiTypeIdx" @change="onLaiTypeChange($event)">
@@ -127,16 +118,17 @@
               <view class="submit-btn" @tap="liuyaoAskPaipan">一键起卦 · 深度解读</view>
               <view class="btn btn-ghost" @tap="laiReset">清空</view>
             </view>
+            <!-- 排盘结果 -->
+            <view class="ly-result" id="lyAiResult" style="display:none;"></view>
             <!-- 流式解读区域 -->
-            <view class="qai-stream-box" v-if="laiLoading || laiResult">
+            <view class="qai-stream-box" id="lyStreamBox" style="display:none;">
               <view class="chat-container" id="lyChatContainer"></view>
             </view>
             <!-- 追问输入栏 -->
             <view class="chat-input-bar" id="lyChatInputBar" style="display:none;">
               <input class="chat-input" id="lyChatInput" placeholder="继续追问..." />
-              <view class="chat-send-btn" @tap="lySendFollowUp">发送</view>
+              <view class="chat-send-btn" onclick="window.lySendFollowUp()">发送</view>
             </view>
-            <view class="privacy-note incognito-status">✅ 无痕模式已开启 · 本地计算 · 不上传数据 · 退出自动清空</view>
           </view>
         </view>
       </section>
@@ -153,15 +145,7 @@
       </view>
     </view>
 
-    <!-- 页脚 -->
-    <view class="site-footer">
-      <view class="footer-disclaimer">⚠️ 本站所有内容仅为民俗文化与传统命理科普参考，不构成任何决策建议，严禁利用本站内容从事封建迷信及违法违规活动，本站不对任何用户基于本站内容做出的决策承担任何责任</view>
-      <view class="footer-grid">
-        <view class="footer-col"><view class="footer-col-title">平台信息</view><navigator url="/package-info/about/index">关于我们</navigator></view>
-        <view class="footer-col"><view class="footer-col-title">快捷导航</view><navigator url="/pages/qimen/index" open-type="switchTab">奇门遁甲</navigator><navigator url="/pages/bazi-index/index" open-type="switchTab">八字排盘</navigator><navigator url="/pages/liuyao/index" open-type="switchTab">六爻排盘</navigator><navigator url="/pages/calendar/index" open-type="switchTab">专属日历</navigator></view>
-        <view class="footer-col"><view class="footer-col-title">备案与版权</view><view class="footer-icp">ICP备案号：京ICP备2026050601号-1</view><view class="footer-icp">© 2026 时安解忧屋 版权所有</view></view>
-      </view>
-    </view>
+
 
   </view>
 </template>
@@ -185,7 +169,6 @@ function toggleTheme() {
 
 const isLoggedIn = ref(!!uni.getStorageSync('xc_token'))
 window.addEventListener('xc-session-expired', function() { isLoggedIn.value = false })
-const incognito = ref(true)
 const activeTab = ref('free')
 
 // ═══ Tab/Method切换: DOM直操作 (绕过Vue 3.4.21 render effect bug) ═══
@@ -465,7 +448,7 @@ function renderLiuyaoResult(d) {
   html += `<span>📖 ${d.method || '自动摇卦'}</span>`
   if (d.question) html += `<span>❓ ${d.question}</span>`
   html += '</div>'
-  html += '<div class="privacy-note" style="margin-top:16px;">⚠️ 以上内容仅为民俗文化与传统命理科普参考，不构成任何决策建议</div>'
+  html += '<div style="margin-top:16px;">⚠️ 以上内容仅为民俗文化与传统命理科普参考，不构成任何决策建议</div>'
   html += '</div>'
   return html
 }
@@ -487,6 +470,11 @@ const laiResult = ref('')
 function laiReset() {
   laiMethod.value = 'auto'; laiResult.value = ''; laiTypeIdx.value = 0
   deepMode.value = false; resultMode.value = 'simple'
+  // 隐藏排盘结果和流式盒子
+  var r = document.getElementById('lyAiResult')
+  if (r) { r.style.display = 'none'; r.innerHTML = '' }
+  var b = document.getElementById('lyStreamBox')
+  if (b) b.style.display = 'none'
   var laiInp = document.getElementById('laiQuestion')
   if (laiInp) laiInp.value = ''
   var deepEl = document.getElementById('lyDeepToggle')
@@ -515,14 +503,23 @@ window._lyChatHistory = []
 
 async function liuyaoAskPaipan() {
   if (laiLoading.value) return
-  // 清理旧状态
+  laiLoading.value = true
   laiResult.value = ''
   window._lyChatHistory = []
+
+  // 铜钱摇卦动画
+  if (laiMethod.value === 'auto') { await showLyCoinAnimation() }
+
+  // 直接显示盒子（绕过 Vue 3.4.21 v-show 渲染时序问题）
+  var box = document.getElementById('lyStreamBox')
+  if (box) box.style.display = ''
+  var resultEl = document.getElementById('lyAiResult')
+  if (resultEl) { resultEl.style.display = 'none'; resultEl.innerHTML = '' }
+
   var chatContainer = document.getElementById('lyChatContainer')
   if (chatContainer) chatContainer.innerHTML = ''
   var inputBar = document.getElementById('lyChatInputBar')
   if (inputBar) inputBar.style.display = 'none'
-  laiLoading.value = true
 
   // 创建 AI 气泡
   var bubbleId = 'lyBubble_' + Date.now()
@@ -531,6 +528,7 @@ async function liuyaoAskPaipan() {
     '<div class="ai-progress-bar"><div class="ai-progress-fill" style="width:20%"></div></div>' +
     '<div class="chat-bubble-content"></div></div>'
   if (chatContainer) chatContainer.innerHTML = bubbleHTML
+  _lyScrollToChat()
 
   // 构建参数
   var tossData = null
@@ -540,9 +538,8 @@ async function liuyaoAskPaipan() {
 
   _lyDoStreamSSE({
     bubbleId: bubbleId,
-    askUrl: '/api/liuyao/ask',
-    askBody: { mode: laiMethod.value, tosses: tossData, question: question, deep_analysis: deepMode.value },
-    streamUrl: '/api/liuyao/ask/stream',
+    url: '/api/liuyao/ask/stream',
+    body: { mode: laiMethod.value, tosses: tossData, question: question, deep_analysis: deepMode.value },
     question: question,
     onDone: function(fullText) {
       window._lyChatHistory = [
@@ -550,8 +547,10 @@ async function liuyaoAskPaipan() {
         { role: 'assistant', content: fullText }
       ]
       laiResult.value = fullText
+      _saveLyConversation(question)
       var bar = document.getElementById('lyChatInputBar')
       if (bar) bar.style.display = 'flex'
+      _lyScrollToChat()
     },
     onError: function() {
       laiLoading.value = false
@@ -565,19 +564,8 @@ function _lyDoStreamSSE(opts) {
   var stageEl = bubble.querySelector('.ai-stage')
   var barEl = bubble.querySelector('.ai-progress-fill')
   var contentEl = bubble.querySelector('.chat-bubble-content')
-
-  var xhr = new XMLHttpRequest()
-  xhr.open('POST', opts.url, true)
-  xhr.setRequestHeader('Content-Type', 'application/json')
-  var token = ''
-  try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
-  if (token) xhr.setRequestHeader('Authorization', 'Bearer ' + token)
-
-  var lastIndex = 0
-  var fullText = ''
-  var charQueue = ''
-  var typeTimer = null
-  var doneReceived = false
+  var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
+  var fullText = '', charQueue = '', typeTimer = null, doneReceived = false
 
   function startTypewriter() {
     if (typeTimer) return
@@ -589,118 +577,169 @@ function _lyDoStreamSSE(opts) {
         if (barWrap) barWrap.style.display = 'none'
         if (contentEl) contentEl.innerHTML = _lyRenderCards(fullText)
         if (opts.onDone) opts.onDone(fullText)
+        laiLoading.value = false
         return
       }
       if (charQueue.length === 0) return
       var take = charQueue.length > 3 ? 2 : 1
       fullText += charQueue.substring(0, take)
       charQueue = charQueue.substring(take)
-      if (contentEl) contentEl.innerHTML = fullText.replace(/\n/g, '<br>')
+      if (contentEl) contentEl.innerHTML = _stripMarkdown(fullText).replace(/\n/g, '<br>')
     }, 35)
   }
 
-  xhr.onprogress = function() {
-    var newText = xhr.responseText.substring(lastIndex)
-    lastIndex = xhr.responseText.length
-    var lines = newText.split('\n')
-    var eventType = ''
-    for (var i = 0; i < lines.length; i++) {
-      var line = lines[i]
-      if (line.indexOf('event:') === 0) { eventType = line.replace('event:', '').trim(); continue }
-      if (line.indexOf('data:') !== 0) continue
-      try {
-        var data = JSON.parse(line.replace('data:', '').trim())
-        if (eventType === 'progress') {
-          if (data.stage === 'connecting' && stageEl) stageEl.innerHTML = '🔗 正在连接...'
-          else if (data.stage === 'analyzing' && stageEl) stageEl.innerHTML = '🧠 排盘分析中...'
-          else if (data.stage === 'generating' && stageEl) { stageEl.innerHTML = '✍️ 正在生成解读...'; startTypewriter() }
-          if (barEl) barEl.style.width = '60%'
-        } else if (eventType === 'chunk') {
-          charQueue += data.content
-        } else if (eventType === 'done') {
-          doneReceived = true
-          laiLoading.value = false
-        } else if (eventType === 'error') {
-          if (stageEl) stageEl.innerHTML = '⚠️ ' + data.message
-          if (barEl) barEl.style.display = 'none'
-          if (opts.onError) opts.onError()
+  // 使用 Fetch + ReadableStream（比 XHR onprogress 更可靠）
+  fetch(opts.url, {
+    method: 'POST',
+    headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+    body: JSON.stringify(opts.body)
+  }).then(function(resp) {
+    if (!resp.ok) { if (opts.onError) opts.onError(); return }
+    var reader = resp.body.getReader(); var decoder = new TextDecoder()
+    var buffer = '', eventType = ''
+    function pump() {
+      reader.read().then(function(r) {
+        if (r.done) { doneReceived = true; return }
+        buffer += decoder.decode(r.value, { stream: true })
+        var lines = buffer.split('\n')
+        buffer = lines.pop() // 最后一行可能不完整，保留到下次
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i]
+          if (line.indexOf('event:') === 0) { eventType = line.replace('event:', '').trim(); continue }
+          if (line.indexOf('data:') !== 0) continue
+          try {
+            var data = JSON.parse(line.replace('data:', '').trim())
+            if (eventType === 'progress') {
+              if (data.stage === 'connecting' && stageEl) stageEl.innerHTML = '🔗 正在连接...'
+              else if (data.stage === 'analyzing' && stageEl) stageEl.innerHTML = '🧠 排盘分析中...'
+              else if (data.stage === 'generating' && stageEl) { stageEl.innerHTML = '<img class="ai-stage-logo" src="/static/images/logo.webp?v=2">正在生成解读...'; startTypewriter() }
+              if (barEl) barEl.style.width = '60%'
+            } else if (eventType === 'chunk') {
+              if (!typeTimer) startTypewriter()
+              charQueue += data.content
+            } else if (eventType === 'done') {
+              doneReceived = true
+            } else if (eventType === 'error') {
+              if (stageEl) stageEl.innerHTML = '⚠️ ' + data.message
+              if (opts.onError) opts.onError()
+            } else if (eventType === 'paipan') {
+              var r = document.getElementById('lyAiResult')
+              if (r) { r.style.display = ''; r.innerHTML = renderLiuyaoResult(data) }
+            }
+            eventType = ''
+          } catch(_) {}
         }
-        eventType = ''
-      } catch(_) {}
+        pump()
+      }).catch(function() { if (opts.onError) opts.onError() })
     }
-  }
-  xhr.onerror = function() {
-    if (stageEl) stageEl.innerHTML = '⚠️ 网络错误，请重试'
-    if (opts.onError) opts.onError()
-  }
-  xhr.send(JSON.stringify(opts.body))
+    pump()
+  }).catch(function() { if (opts.onError) opts.onError() })
 }
 
 function _lyRenderCards(text) {
-  var sections = text.split(/\n(?=#{2,3} )/)
+  text = _stripMarkdown(text)
+  var sections = text.split(/\n(?=#{2,} |\d+\.\s+\*\*)/)
   var html = ''
   sections.forEach(function(sec) {
-    var m = sec.match(/^(#{2,3})\s+(.+)/)
-    var title = m ? m[2] : ''
-    var body = m ? sec.substring(m[0].length).trim() : sec
-    body = body.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    var title = ''
+    var body = sec
+    var m = sec.match(/^(#{2,})\s+(.+)/)
+    if (m) {
+      title = m[2]
+      body = sec.substring(m[0].length).trim()
+    } else {
+      var m2 = sec.match(/^(\d+\.)\s+\*\*(.+?)\*\*[：:]\s*/)
+      if (m2) {
+        title = m2[2]
+        body = sec.substring(m2[0].length).trim()
+      }
+    }
+    body = body.replace(/\*\*(.+?)\*\*/g, '$1')
       .replace(/\n\n/g, '</p><p>')
       .replace(/\n/g, '<br>')
     if (!body) body = '&nbsp;'
     if (title) {
       html += '<div class="qai-card-item"><div class="qai-card-title">' + title + '</div><div class="qai-card-body"><p>' + body + '</p></div></div>'
+    } else {
+      html += '<div class="qai-card-item"><div class="qai-card-body"><p>' + body + '</p></div></div>'
     }
   })
   return html
 }
 
+function _stripMarkdown(s) {
+  if (!s) return ''
+  return s.replace(/^#{1,6}\s*/gm, '').replace(/\*\*/g, '').replace(/^[-*]\s+/gm, '')
+}
+
 // ═══ 追问 ═══
 function lySendFollowUp() {
-  var input = document.getElementById('lyChatInput')
-  if (!input) return
-  var question = input.value.trim()
-  if (!question) return
-  input.value = ''
+  try {
+    var input = document.querySelector('#lyChatInput input') || document.getElementById('lyChatInput')
+    if (!input) { console.warn('[liuyao] lyChatInput not found'); return }
+    var question = input.value.trim()
+    if (!question) return
+    input.value = ''
 
-  var chatContainer = document.getElementById('lyChatContainer')
-  if (!chatContainer) return
+    var chatContainer = document.getElementById('lyChatContainer')
+    if (!chatContainer) return
 
-  var userBubble = document.createElement('view')
-  userBubble.className = 'chat-bubble-user'
-  userBubble.textContent = question
-  chatContainer.appendChild(userBubble)
+    var userBubble = document.createElement('view')
+    userBubble.className = 'chat-bubble-user'
+    userBubble.textContent = question
+    chatContainer.appendChild(userBubble)
 
-  var bubbleId = 'lyFollow_' + Date.now()
-  var aiBubble = document.createElement('view')
-  aiBubble.className = 'chat-bubble-ai'
-  aiBubble.id = bubbleId
-  aiBubble.innerHTML = '<div class="ai-stage">✍️ 正在生成回复...</div>' +
-    '<div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div>' +
-    '<div class="chat-bubble-content"></div>'
-  chatContainer.appendChild(aiBubble)
-  chatContainer.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    var bubbleId = 'lyFollow_' + Date.now()
+    var aiBubble = document.createElement('view')
+    aiBubble.className = 'chat-bubble-ai'
+    aiBubble.id = bubbleId
+    aiBubble.innerHTML = '<div class="ai-stage"><img class="ai-stage-logo" src="/static/images/logo.webp?v=2">正在生成回复...</div>' +
+      '<div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div>' +
+      '<div class="chat-bubble-content"></div>'
+    chatContainer.appendChild(aiBubble)
+    _lyScrollToChat()
 
-  var history = window._lyChatHistory || []
-  history.push({ role: 'user', content: question })
+    var history = window._lyChatHistory || []
+    history.push({ role: 'user', content: question })
 
-  _lyDoStreamSSE({
-    bubbleId: bubbleId,
-    askUrl: '/api/liuyao/ask',
-    askBody: { question: question, history: history },
-    streamUrl: '/api/liuyao/ask/stream',
-    question: question,
-    onDone: function(fullText) {
-      history.push({ role: 'assistant', content: fullText })
+    // 发送时立即保存
+    if (_lyCurrentConvId) {
       window._lyChatHistory = history
-    },
-    onError: function() {}
-  })
+      _updateLyConversation()
+    } else {
+      window._lyChatHistory = history
+      _saveLyConversation(question)
+    }
+
+    _lyDoStreamSSE({
+      bubbleId: bubbleId,
+      url: '/api/liuyao/ask/stream',
+      body: { question: question, history: history },
+      question: question,
+      onDone: function(fullText) {
+        history.push({ role: 'assistant', content: fullText })
+        window._lyChatHistory = history
+        if (_lyCurrentConvId) { _updateLyConversation() } else { _saveLyConversation(question) }
+      },
+      onError: function() {
+        var eb = document.getElementById(bubbleId)
+        if (eb) { var es = eb.querySelector('.ai-stage'); if (es) es.innerHTML = '⚠️ 追问失败，请重试' }
+      }
+    })
+  } catch (err) { console.error('[liuyao] lySendFollowUp error:', err) }
 }
+window.lySendFollowUp = lySendFollowUp
 
 // ═══ 六爻手动输入切换（DOM直操作绕过Vue 3.4.21嵌套数组render bug） ═══
 function _afterRender(fn) {
-  // Double rAF ensures we run after Vue's render effect completes
   requestAnimationFrame(function() { requestAnimationFrame(fn) })
+}
+// 滚动到追问输入框（显示对话内容+继续追问区域）
+function _lyScrollToChat() {
+  setTimeout(function() {
+    var el = document.getElementById('lyChatInputBar')
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, 100)
 }
 function toggleFreeCoin(idx, ci) {
   lyTossRows[idx][ci] = lyTossRows[idx][ci] === 2 ? 3 : 2
@@ -731,12 +770,6 @@ function toggleAiCoin(idx, ci) {
 }
 
 // ═══ DOM直操作辅助函数（绕过Vue 3.4.21 render effect bug） ═══
-function toggleIncognito() {
-  incognito.value = !incognito.value
-  var el = document.getElementById('incognito-chk')
-  if (el) { incognito.value ? el.classList.add('active') : el.classList.remove('active') }
-}
-
 function toggleLyDeepMode() {
   deepMode.value = !deepMode.value
   var el = document.getElementById('lyDeepToggle')
@@ -809,6 +842,8 @@ onShow(() => {
     if (tabFree) tabFree.style.display = 'none'
     if (tabAi) tabAi.style.display = 'block'
   }
+  // 每次页面显示时检查是否有需要恢复的对话数据
+  try { _checkLyRestore() } catch(_) {}
 })
 
 onMounted(() => {
@@ -816,7 +851,7 @@ onMounted(() => {
   // 创建原生DOM输入框
   createNativeInput('lfQuestion-wrap', 'text', '如：这件事能成吗？')
   createNativeInput('laiQuestion-wrap', 'text', '如：这件事能不能成？')
-  // 初始化DOM状态 (绕过Vue 3.4.21 render effect bug: :class绑定不可靠)
+  // 初始化DOM状态
   var tabFree = document.getElementById('lyTabFreeContent')
   var tabAi = document.getElementById('lyTabAiContent')
   if (tabFree) tabFree.style.display = 'block'
@@ -825,27 +860,116 @@ onMounted(() => {
   if (lyMan) lyMan.style.display = 'none'
   var laiMan = document.getElementById('laiMethodManual')
   if (laiMan) laiMan.style.display = 'none'
-  // 设置初始active class (因为移除了:class绑定)
   var lyTabFreeBtn = document.getElementById('lyTabFree')
   if (lyTabFreeBtn) lyTabFreeBtn.classList.add('active')
   var lyAutoBtn = document.getElementById('lyMethodAutoBtn')
   if (lyAutoBtn) lyAutoBtn.classList.add('active')
   var laiAutoBtn = document.getElementById('laiMethodAutoBtn')
   if (laiAutoBtn) laiAutoBtn.classList.add('active')
-  var incognitoEl = document.getElementById('incognito-chk')
-  if (incognitoEl && incognito.value) incognitoEl.classList.add('active')
   var simpleBtn = document.getElementById('lyResultSimple')
   if (simpleBtn) simpleBtn.classList.add('active')
-  // 初始化铜钱按钮文本（绕过{{ }} render effect bug）
   for (var i = 0; i < 6; i++) {
     for (var j = 0; j < 3; j++) {
       var coinEl = document.getElementById('lyFC-' + i + '-' + j)
-      if (coinEl) coinEl.textContent = '花'  // 初始值 lyTossRows[i][j] = 3
+      if (coinEl) coinEl.textContent = '花'
       var aiCoinEl = document.getElementById('lyAC-' + i + '-' + j)
       if (aiCoinEl) aiCoinEl.textContent = '花'
     }
   }
+  // 监听对话恢复事件
+  uni.$on('xc-restore', _checkLyRestore)
+  _checkLyRestore()
+  // 导出全局恢复函数，供 TopNav 直接调用
+  window._xc_restoreLiuyao = _checkLyRestore
+  // 轮询检查恢复数据（持续运行，不限次数）
+  setInterval(function() {
+    var rd = window.__xc_restoreData
+    if (rd && rd.type === 'liuyao') _checkLyRestore()
+  }, 500)
 })
+
+function _checkLyRestore() {
+  var d = window.__xc_restoreData
+  if (!d || d.type !== 'liuyao') return
+  switchTab('ai')
+  var chatContainer = document.getElementById('lyChatContainer')
+  var inputBar = document.getElementById('lyChatInputBar')
+  var streamBox = document.getElementById('lyStreamBox')
+  if (streamBox) streamBox.style.display = ''
+  if (!chatContainer) return
+  window.__xc_restoreData = null
+  chatContainer.innerHTML = ''
+  if (d.rawHtml) {
+    // 旧记录格式
+    if (d.question) {
+      var ub = document.createElement('view')
+      ub.className = 'chat-bubble-user'
+      ub.textContent = d.question
+      chatContainer.appendChild(ub)
+    }
+    var cleanHtml = _stripMarkdown(d.rawHtml.replace(/<[^>]+>/g, '')).replace(/\n/g, '<br>')
+    var ab = document.createElement('view')
+    ab.className = 'chat-bubble-ai'
+    ab.innerHTML = '<div class="chat-bubble-content">' + cleanHtml + '</div>'
+    chatContainer.appendChild(ab)
+    window._lyChatHistory = [
+      { role: 'user', content: d.question || '' },
+      { role: 'assistant', content: cleanHtml.replace(/<[^>]+>/g, '').substring(0, 200) + '...' }
+    ]
+    _lyCurrentConvId = null
+  } else {
+    // 新记录格式：按messages渲染
+    var messages = d.messages || []
+    window._lyChatHistory = messages.slice()
+    _lyCurrentConvId = d.id || null
+    messages.forEach(function(m) {
+      if (m.role === 'user') {
+        var ub = document.createElement('view')
+        ub.className = 'chat-bubble-user'
+        ub.textContent = m.content
+        chatContainer.appendChild(ub)
+      } else if (m.role === 'assistant') {
+        var ab = document.createElement('view')
+        ab.className = 'chat-bubble-ai'
+        ab.innerHTML = '<div class="chat-bubble-content">' + _stripMarkdown(m.content).replace(/\n/g, '<br>') + '</div>'
+        chatContainer.appendChild(ab)
+      }
+    })
+  }
+  if (inputBar) inputBar.style.display = 'flex'
+  _lyScrollToChat()
+}
+// ═══ 六爻对话保存 ═══
+var _lyCurrentConvId = null
+
+function _saveLyConversation(question) {
+  var title = (question || '六爻占卜').substring(0, 50)
+  var typeSelect = document.getElementById('lai-type')
+  var sceneType = typeSelect ? typeSelect.value : ''
+  uni.request({
+    url: '/api/liuyao/conversations', method: 'POST',
+    data: {
+      title: title, scene_type: sceneType,
+      question: question,
+      messages: window._lyChatHistory || []
+    },
+    success: function(res) {
+      if (res.data && res.data.id) _lyCurrentConvId = res.data.id
+      window.__sidebarCache = null
+    },
+    fail: function(err) { console.error('[liuyao] 保存对话失败:', err) }
+  })
+}
+
+function _updateLyConversation() {
+  if (!_lyCurrentConvId) return
+  uni.request({
+    url: '/api/liuyao/conversations', method: 'POST',
+    data: { id: _lyCurrentConvId, messages: window._lyChatHistory || [] },
+    success: function() { window.__sidebarCache = null },
+    fail: function(err) { console.error('[liuyao] 更新对话失败:', err) }
+  })
+}
 </script>
 
 <style>
@@ -866,14 +990,12 @@ onMounted(() => {
 .tool-hero-title { font-family: var(--font-serif); font-size: 2rem; font-weight: 400; letter-spacing: 4px; color: var(--text-1); margin-bottom: 12px; }
 .tool-hero-desc { font-size: 0.9375rem; color: var(--text-3); letter-spacing: 2px; }
 .tool-container { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; backdrop-filter: blur(20px); box-shadow: var(--card-shadow); max-width: 960px; margin: 0 auto; box-sizing: border-box; }
-.incognito-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-radius: 12px; background: rgba(110,195,135,0.06); border: 1px solid rgba(110,195,135,0.12); margin-bottom: 24px; }
-.incognito-toggle { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--success); }
-.incognito-desc { font-size: 0.6875rem; color: var(--success); opacity: 0.7; }
 .tool-tabs { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid var(--card-border); }
 .tool-tab { padding: 12px 20px; border-radius: 10px 10px 0 0; font-size: 0.875rem; cursor: pointer; border: 1px solid transparent; border-bottom: none; color: var(--text-3); background: transparent; }
 .tool-tab.active { color: var(--accent); background: var(--accent-glow); border-color: var(--accent); font-weight: 600; }
 .tab-badge { font-size: 0.5625rem; padding: 1px 5px; border-radius: 4px; background: var(--accent); color: #fff; margin-left: 4px; }
 .tab-badge.free { background: var(--success); }
+#lyTabAiContent { display: none; }
 
 /* 表单 */
 .form-group { margin-bottom: 16px; }
@@ -885,8 +1007,6 @@ onMounted(() => {
 .btn-row .submit-btn { margin-top: 0; }
 .btn-row .btn-ghost { margin-top: 0; }
 .btn-ghost { background: transparent; border: 1px solid var(--card-border); color: var(--text-3); padding: 7px 18px; border-radius: 10px; font-size: 0.8125rem; }
-.privacy-note { margin-top: 16px; padding: 10px 14px; border-radius: 10px; background: rgba(110,195,135,0.08); border: 1px solid rgba(110,195,135,0.15); font-size: 0.75rem; color: var(--success); text-align: center; }
-.incognito-status { margin-top: 16px; }
 
 /* 起卦方式切换 */
 .method-switch { display: flex; gap: 8px; margin-bottom: 16px; }
@@ -1005,13 +1125,6 @@ onMounted(() => {
 @keyframes lyCoinSpin { 0% { transform: rotateY(0deg); } 50% { transform: rotateY(900deg) scale(1.1); } 100% { transform: rotateY(1800deg); } }
 .ly-coin-progress { color: var(--accent); font-size: 1rem; letter-spacing: 2px; }
 
-.site-footer { background: var(--nav-bg); border-top: 1px solid var(--card-border); padding: 48px 32px 24px; margin-top: 80px; }
-.footer-disclaimer { max-width: var(--max-w); margin: 0 auto 32px; padding: 14px 20px; border-radius: 10px; background: rgba(215,125,110,0.08); border: 1px solid rgba(215,125,110,0.15); font-size: 0.75rem; color: var(--danger); line-height: 1.6; text-align: center; }
-.footer-grid { max-width: var(--max-w); margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; }
-.footer-col-title { font-size: 0.8125rem; color: var(--text-2); margin-bottom: 12px; }
-.footer-col navigator { display: block; font-size: 0.75rem; color: var(--text-3); text-decoration: none; padding: 3px 0; }
-.footer-icp { font-size: 0.6875rem; color: var(--text-3); margin-top: 8px; }
-
 /* 弹窗 */
 .modal-overlay { display: none; position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.55); backdrop-filter: blur(8px); align-items: center; justify-content: center; }
 .modal-overlay.open { display: flex; }
@@ -1029,7 +1142,7 @@ onMounted(() => {
   .tool-hero-title { font-size: 1.5rem; }
   .tool-container { padding: 20px 16px; }
   .section { padding: 48px 16px; }
-  .footer-grid { grid-template-columns: 1fr; gap: 24px; }
+
 }
 @media (max-width: 480px) {
   .tool-hero { padding: 24px 16px 16px !important; }
@@ -1049,8 +1162,6 @@ onMounted(() => {
   .ly-toss-row { gap: 6px; }
   .ly-toss-label { font-size: 0.72rem; }
   .ly-coin-btn { width: 38px; height: 38px; font-size: 0.75rem; }
-  .incognito-bar { flex-direction: column; text-align: center; font-size: 0.6875rem; }
-  .incognito-desc { font-size: 0.625rem; }
 }
 /* 超窄屏（375px以下）六爻结果进一步紧凑 */
 @media (max-width: 420px) {

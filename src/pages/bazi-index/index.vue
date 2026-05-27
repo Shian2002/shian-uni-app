@@ -16,15 +16,6 @@
       <!-- 工具面板 -->
       <section class="section">
         <view class="tool-container">
-          <!-- 无痕模式 -->
-          <view class="incognito-bar">
-            <view class="incognito-toggle" @tap="toggleIncognito">
-              <view class="incognito-check" :class="{ checked: incognito }"></view>
-              <text>{{ incognito ? '🔒 无痕模式' : '🔓 有痕模式' }}</text>
-            </view>
-            <text class="incognito-desc">本地计算 · 不上传数据 · 退出自动清空</text>
-          </view>
-
           <!-- Tab 切换 -->
           <view class="tool-tabs">
             <view id="baziTabFree" class="tool-tab" :class="{ active: activeTab === 'free' }" @tap="switchBaziTab('free')">
@@ -186,72 +177,148 @@
 
               <view class="wz-submit-btn" @tap="baziFreePaipan">📜 免费排盘</view>
               <text class="wz-form-hint" style="text-align:center;display:block;">基础命盘结果，不含AI解读。如需深度解读请使用时安八字系统。</text>
-              <view class="privacy-note">✅ 本地计算 · 不上传数据 · 秒出结果</view>
             </view>
           </view>
 
 
-          <!-- ══ 八字AI系统 ══ -->
+          <!-- ══ 八字AI系统（共用免费排盘表单）══ -->
           <view class="tool-tab-content" id="baziTabAiContent" v-show="activeTab === 'ai'">
-            <view class="form-group">
-              <text class="form-label">姓名</text>
-              <view id="baiName-wrap" class="dom-input-wrap"></view>
-            </view>
-            <view class="form-row">
-              <view class="form-group">
-                <text class="form-label">性别</text>
-                <select id="baiGender" class="form-select-picker"></select>
-              </view>
-              <view class="form-group">
-                <text class="form-label">历法</text>
-                <select id="baiCal" class="form-select-picker"></select>
-              </view>
-            </view>
-            <view class="form-group">
-              <text class="form-label">出生日期</text>
-              <view class="qf-datetime-row" style="gap:6px;">
-                <view class="qf-dt-col">
-                  <select id="bai-year" class="qf-datetime-select"></select>
+            <view class="wz-form">
+              <view class="wz-form-row">
+                <view class="wz-form-item wz-flex-3">
+                  <text class="wz-form-label">姓名</text>
+                  <view id="baziName-wrap" class="dom-input-wrap"></view>
                 </view>
-                <view class="qf-dt-col">
-                  <select id="bai-month" class="qf-datetime-select"></select>
-                </view>
-                <view class="qf-dt-col">
-                  <select id="bai-day" class="qf-datetime-select"></select>
+                <view class="wz-form-item wz-flex-1">
+                  <text class="wz-form-label">分类</text>
+                  <picker :range="['全部', '客户', '名人']" :value="baziCatIdx" @change="baziCatIdx = $event.detail.value">
+                    <view class="wz-form-input picker-display">{{ ['全部', '客户', '名人'][baziCatIdx] }}</view>
+                  </picker>
                 </view>
               </view>
-            </view>
-            <view class="form-group">
-              <text class="form-label">出生时辰</text>
-              <select id="baiHour" class="form-select-picker"></select>
-            </view>
-            <view class="advanced-fields" :class="{ show: baiAdvanced }">
-              <view class="form-group">
-                <text class="form-label">出生地（时区校正）</text>
-                <view id="baiAddr-wrap" class="dom-input-wrap"></view>
+
+              <view class="wz-form-row">
+                <view class="wz-form-item">
+                  <text class="wz-form-label">性别</text>
+                  <view class="wz-segment-box">
+                    <view id="baziGenderMale" class="wz-segment-btn" :class="{ active: baziGender === '男' }" @tap="selectBaziGender('男')">
+                      <text class="wz-segment-icon">♂</text><text>男</text>
+                    </view>
+                    <view id="baziGenderFemale" class="wz-segment-btn" :class="{ active: baziGender === '女' }" @tap="selectBaziGender('女')">
+                      <text class="wz-segment-icon">♀</text><text>女</text>
+                    </view>
+                  </view>
+                </view>
+                <view class="wz-form-item wz-flex-2">
+                  <text class="wz-form-label">历法</text>
+                  <view class="wz-segment-box">
+                    <view id="baziCalGongLi" class="wz-segment-btn" :class="{ active: baziCalType === '公历' }" @tap="selectBaziCalType('公历')">公历</view>
+                    <view id="baziCalNongLi" class="wz-segment-btn" :class="{ active: baziCalType === '农历' }" @tap="selectBaziCalType('农历')">农历</view>
+                    <view id="baziCalSiZhu" class="wz-segment-btn" :class="{ active: baziCalType === '四柱' }" @tap="selectBaziCalType('四柱')">四柱</view>
+                  </view>
+                </view>
+              </view>
+
+              <view class="wz-divider"></view>
+
+              <view class="wz-form-group" id="baziDateSectionAi">
+                <text class="wz-form-label">出生时间</text>
+                <view class="wz-datetime-row">
+                  <view class="wz-dt-col"><select id="baziYearAi" class="wz-datetime-select"></select></view>
+                  <view class="wz-dt-col"><select id="baziMonthAi" class="wz-datetime-select"></select></view>
+                  <view class="wz-dt-col"><select id="baziDayAi" class="wz-datetime-select"></select></view>
+                  <view class="wz-dt-col wz-dt-hour"><select id="baziHourAi" class="wz-datetime-select"></select></view>
+                  <view class="wz-dt-col wz-dt-minute"><select id="baziMinuteAi" class="wz-datetime-select"></select></view>
+                </view>
+                <view class="wz-instant-row">
+                  <view class="wz-instant-btn" @tap="wzInstantPaipan">⚡ 即时起局</view>
+                  <view class="wz-instant-preview" v-if="instantPreview">{{ instantPreview }}</view>
+                </view>
+              </view>
+
+              <view class="wz-form-group" id="baziSiziSectionAi" style="display:none;">
+                <text class="wz-form-label">直接输入四柱干支</text>
+                <view class="wz-sizi-grid">
+                  <view class="wz-sizi-row-item"><text class="wz-sizi-label">年柱</text><view id="siziYear-wrap-ai" class="dom-input-wrap"></view></view>
+                  <view class="wz-sizi-row-item"><text class="wz-sizi-label">月柱</text><view id="siziMonth-wrap-ai" class="dom-input-wrap"></view></view>
+                  <view class="wz-sizi-row-item"><text class="wz-sizi-label">日柱</text><view id="siziDay-wrap-ai" class="dom-input-wrap"></view></view>
+                  <view class="wz-sizi-row-item"><text class="wz-sizi-label">时柱</text><view id="siziHour-wrap-ai" class="dom-input-wrap"></view></view>
+                </view>
+                <text class="wz-form-hint">输入天干+地支各一字，如：甲子、丙寅、戊午、庚申</text>
+              </view>
+
+              <view class="wz-divider"></view>
+
+              <view class="wz-form-group">
+                <text class="wz-form-label">出生地址</text>
+                <view class="wz-addr-selects">
+                  <select id="baziProvinceAi" class="wz-addr-select"><option value="">-- 省 --</option></select>
+                  <select id="baziCityAi" class="wz-addr-select"><option value="">-- 市 --</option></select>
+                  <select id="baziDistrictAi" class="wz-addr-select"><option value="">-- 区 --</option></select>
+                </view>
+                <input type="hidden" id="baziBirthAddrAi" value="" style="display:none;">
+                <input type="hidden" id="baziBirthLngAi" value="0" style="display:none;">
+                <input type="hidden" id="baziBirthLatAi" value="0" style="display:none;">
+                <view class="wz-addr-info" id="baziAddrInfoAi" style="display:none;">
+                  <text class="wz-addr-solar" id="baziAddrSolarAi">真太阳时：--</text>
+                  <text class="wz-addr-lng" id="baziAddrLngAi">经度：-- 纬度：--</text>
+                </view>
+              </view>
+
+              <view class="wz-form-group wz-advanced-box">
+                <view class="wz-switch-grid">
+                  <view class="wz-switch-row">
+                    <text class="wz-switch-label">真太阳时</text>
+                    <view id="baziSwitchSolar" class="wz-switch" :class="{ active: useSolarTime }" @tap="toggleBaziSolar">
+                      <view class="wz-switch-slider"></view>
+                    </view>
+                    <text class="wz-switch-hint">{{ useSolarTime ? '开' : '关' }}</text>
+                  </view>
+                  <view class="wz-switch-row">
+                    <text class="wz-switch-label">夏令时</text>
+                    <view id="baziSwitchDst" class="wz-switch" :class="{ active: isDst }" @tap="toggleBaziDst">
+                      <view class="wz-switch-slider"></view>
+                    </view>
+                    <text class="wz-switch-hint">{{ isDst ? '开' : '关' }}</text>
+                  </view>
+                  <view class="wz-switch-row">
+                    <text class="wz-switch-label">子时换日</text>
+                    <view id="baziSwitchZi" class="wz-switch" :class="{ active: nightZi }" @tap="toggleBaziZi">
+                      <view class="wz-switch-slider"></view>
+                    </view>
+                    <text class="wz-switch-hint">{{ nightZi ? '早子时' : '夜子时' }}</text>
+                  </view>
+                  <view class="wz-switch-row">
+                    <text class="wz-switch-label">保存案例</text>
+                    <view id="baziSwitchSave" class="wz-switch" :class="{ active: saveCase }" @tap="toggleBaziSave">
+                      <view class="wz-switch-slider"></view>
+                    </view>
+                    <text class="wz-switch-hint">{{ saveCase ? '保存' : '不保存' }}</text>
+                  </view>
+                </view>
+                <text class="wz-form-hint">夏令时：1986-1991年中国实行夏令时，时钟拨快1小时 | 子时换日：23:00后日柱是否换到次日（默认不换日）</text>
               </view>
             </view>
-            <view class="advanced-toggle" @tap="baiAdvanced = !baiAdvanced">{{ baiAdvanced ? '▼ 收起高级选项' : '▶ 高级选项' }}</view>
+
+            <view class="wz-divider" style="margin:24px 0 20px;"></view>
             <view class="form-group"><text class="form-label">分析类型</text>
               <view class="analysis-type-row">
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 0 }" >📜 命局总览</view>
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 1 }" >💰 财运事业</view>
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 2 }" >❤️ 婚姻感情</view>
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 3 }" >📈 大运流年</view>
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 4 }" >🏥 健康六亲</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 0 }" data-bz-action="aiType" data-bz-type-idx="0">📜 命局总览</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 1 }" data-bz-action="aiType" data-bz-type-idx="1">💰 财运事业</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 2 }" data-bz-action="aiType" data-bz-type-idx="2">❤️ 婚姻感情</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 3 }" data-bz-action="aiType" data-bz-type-idx="3">📈 大运流年</view>
+                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 4 }" data-bz-action="aiType" data-bz-type-idx="4">🏥 健康六亲</view>
               </view>
             </view>
             <view class="form-group"><text class="form-label">你的问题（选填）</text><view id="baiQuestion-wrap" class="dom-input-wrap"></view></view>
-            <view class="submit-btn">🔮 AI 深度解读</view>
-            <!-- 流式解读区域 -->
-            <view class="qai-stream-box" v-if="baiAiLoading || baziAiResult">
+            <view class="submit-btn" data-bz-action="aiAsk">🔮 AI 深度解读</view>
+            <view class="qai-stream-box" id="baiStreamBox" style="display:none;">
               <view class="chat-container" id="baiChatContainer"></view>
             </view>
             <view class="chat-input-bar" id="baiChatInputBar" style="display:none;">
               <input class="chat-input" id="baiChatInput" placeholder="继续追问..." />
-              <view class="chat-send-btn">发送</view>
+              <view class="chat-send-btn" data-bz-action="aiFollowUp">发送</view>
             </view>
-            <view class="privacy-note incognito-status">✅ 无痕模式已开启 · 本地计算 · 不上传数据 · 退出自动清空</view>
           </view>
 
           <!-- ══ 记录案例 ══ -->
@@ -346,31 +413,7 @@
       </section>
     </view>
 
-    <!-- 页脚 -->
-    <view class="site-footer">
-      <view class="footer-disclaimer">⚠️ 本站所有内容仅为民俗文化与传统命理科普参考，不构成任何决策建议，严禁利用本站内容从事封建迷信及违法违规活动，本站不对任何用户基于本站内容做出的决策承担任何责任</view>
-      <view class="footer-grid">
-        <view class="footer-col">
-          <view class="footer-col-title">平台信息</view>
-          <navigator url="/package-info/about/index">关于我们</navigator>
-        </view>
-        <view class="footer-col">
-          <view class="footer-col-title">快捷导航</view>
-          <navigator url="/pages/qimen/index" open-type="switchTab">奇门遁甲</navigator>
-          <navigator url="/pages/bazi-index/index" open-type="switchTab">八字排盘</navigator>
-          <navigator url="/pages/calendar/index" open-type="switchTab">专属日历</navigator>
-          <navigator url="/pages/community/index" open-type="switchTab">社区</navigator>
-        </view>
-        <view class="footer-col">
-          <view class="footer-col-title">备案与版权</view>
-          <view class="footer-icp">ICP备案号：京ICP备2026050601号-1</view>
-          <view class="footer-icp">© 2026 时安解忧屋 版权所有</view>
-        </view>
-      </view>
-      <view class="footer-bottom">
-        <text class="footer-bottom-text">时安解忧屋 · 看得懂用得上的民俗命理参考平台</text>
-      </view>
-    </view>
+
 
   </view>
 </template>
@@ -379,6 +422,9 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import TopNav from '@/components/TopNav.vue'
+
+// ── 全局变量 ──
+var _cityData = null
 
 // ── 主题 ──
 const theme = ref(uni.getStorageSync('xc_theme') || 'dark')
@@ -402,9 +448,6 @@ function toggleSubmenu(key) { submenuOpen.value[key] = !submenuOpen.value[key] }
 
 const isLoggedIn = ref(!!uni.getStorageSync('xc_token'))
 window.addEventListener('xc-session-expired', function() { isLoggedIn.value = false })
-
-// ── 无痕模式 ──
-const incognito = ref(true)
 
 // ── Tab切换 ──
 const activeTab = ref('free')
@@ -474,6 +517,13 @@ async function wzInstantPaipan() {
 
   var hEl = document.getElementById('baziHour'); if (hEl) hEl.value = hour
   var miEl = document.getElementById('baziMinute'); if (miEl) miEl.value = minute
+  
+  // 同时更新 AI Tab 的 select
+  var yElAi = document.getElementById('baziYearAi'); if (yElAi) yElAi.value = year
+  var mElAi = document.getElementById('baziMonthAi'); if (mElAi) mElAi.value = month
+  var dElAi = document.getElementById('baziDayAi'); if (dElAi) dElAi.value = day
+  var hElAi = document.getElementById('baziHourAi'); if (hElAi) hElAi.value = hour
+  var miElAi = document.getElementById('baziMinuteAi'); if (miElAi) miElAi.value = minute
 
   updateBaziDate()
 
@@ -573,31 +623,116 @@ async function baziFreePaipan() {
 
 // ── 八字AI系统 ──
 const baiName = ref(''); const baiGenderIdx = ref(0); const baiCalIdx = ref(0)
-const baiDate = ref(''); const baiHourIdx = ref(0); const baiAddr = ref('')
+const baiDate = ref(''); const baiHourIdx = ref(12); const baiMinuteIdx = ref(0); const baiSecondIdx = ref(0); const baiAddr = ref('')
 const baiAnalysisTypeIdx = ref(0)
-const baiAnalysisTypes = ['overview', 'career', 'love', 'decadal', 'health']
+const baiAnalysisTypes = ['general', 'career', 'marriage', 'decadal', 'family']
 const baiAdvanced = ref(false)
 const baiAiLoading = ref(false); const baziAiResult = ref('')
 const shichenLabels = ['不确定', '子时 (23-1)', '丑时 (1-3)', '寅时 (3-5)', '卯时 (5-7)', '辰时 (7-9)', '巳时 (9-11)', '午时 (11-13)', '未时 (13-15)', '申时 (15-17)', '酉时 (17-19)', '戌时 (19-21)', '亥时 (21-23)']
 window._baiChatHistory = []
 
+var _baiCurrentConvId = null
+
+function _saveBaziConversation(question, birthData) {
+  var title = (question || '八字AI解读').substring(0, 50)
+  uni.request({
+    url: '/api/bazi/conversations', method: 'POST',
+    data: {
+      title: title,
+      messages: window._baiChatHistory || [],
+      birth_data: birthData || {}
+    },
+    success: function(res) {
+      if (res.data && res.data.id) _baiCurrentConvId = res.data.id
+      window.__sidebarCache = null
+    },
+    fail: function(err) { console.error('[bazi] 保存对话失败:', err) }
+  })
+}
+
+function _updateBaziConversation() {
+  if (!_baiCurrentConvId) return
+  uni.request({
+    url: '/api/bazi/conversations', method: 'POST',
+    data: { id: _baiCurrentConvId, messages: window._baiChatHistory || [] },
+    success: function() { window.__sidebarCache = null },
+    fail: function(err) { console.error('[bazi] 更新对话失败:', err) }
+  })
+}
+
+function _checkBaziRestore() {
+  var d = window.__xc_restoreData
+  if (!d || d.type !== 'bazi') return
+  window.__xc_restoreData = null
+  switchBaziTab('ai')
+  var messages = d.messages || []
+  if (!messages.length) return
+  window._baiChatHistory = messages.slice()
+  _baiCurrentConvId = d.id || null
+  var streamBox = document.getElementById('baiStreamBox')
+  if (streamBox) streamBox.style.display = 'block'
+  var chatContainer = document.getElementById('baiChatContainer')
+  if (!chatContainer) return
+  chatContainer.innerHTML = ''
+  messages.forEach(function(m) {
+    var cls = m.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai'
+    var content = (m.content || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')
+    var bubble = document.createElement('div')
+    bubble.className = cls
+    if (m.role === 'assistant') {
+      bubble.innerHTML = '<div class="chat-bubble-content">' + content + '</div>'
+    } else {
+      bubble.innerHTML = '<div class="chat-bubble-text">' + content + '</div>'
+    }
+    chatContainer.appendChild(bubble)
+  })
+  chatContainer.scrollTop = chatContainer.scrollHeight
+  var inputBar = document.getElementById('baiChatInputBar')
+  if (inputBar) inputBar.style.display = 'flex'
+}
+
+window._xc_restoreBazi = function() {
+  nextTick(function() { _checkBaziRestore() })
+}
+
 async function baiAiAsk() {
+  window._baiAiAsk = baiAiAsk
   if (baiAiLoading.value) return
-  if (!baiDate.value) { uni.showToast({ title: '请选择出生日期', icon: 'none' }); return }
 
-  var d = baiDate.value.replace(/-/g, '')
-  var h = String(baiHourIdx.value).padStart(2, '0')
-  var gender = ['男', '女'][baiGenderIdx.value]
-  var calType = ['公历', '农历'][baiCalIdx.value]
+  // 从AI Tab表单读取（带Ai后缀的ID）
+  var yEl = document.getElementById('baziYearAi'); var mEl = document.getElementById('baziMonthAi')
+  var dEl = document.getElementById('baziDayAi'); var hEl = document.getElementById('baziHourAi')
+  var miEl = document.getElementById('baziMinuteAi')
+  if (!yEl || !mEl || !dEl) { uni.showToast({ title: '请选择出生日期', icon: 'none' }); return }
+
+  var now = new Date()
+  var defYear = now.getFullYear(), defMonth = now.getMonth() + 1, defDay = now.getDate()
+  var defHour = now.getHours(), defMin = now.getMinutes()
+
+  var yVal = yEl.value || String(defYear)
+  var mVal = mEl.value || String(defMonth)
+  var dVal = dEl.value || String(defDay)
+  var hVal = hEl && hEl.value ? String(hEl.value).padStart(2, '0') : String(defHour).padStart(2, '0')
+  var miVal = miEl && miEl.value ? String(miEl.value).padStart(2, '0') : String(defMin).padStart(2, '0')
+
+  var d = yVal + String(mVal).padStart(2, '0') + String(dVal).padStart(2, '0')
+  var h = hVal; var mi = miVal
+  var gender = baziGender.value
+  var calType = baziCalType.value
   var question = ((document.getElementById('baiQuestion') || {}).value || '').trim()
+  var birthAddr = (document.getElementById('baziBirthAddrAi') || {}).value || ''
+  var birthLng = parseFloat((document.getElementById('baziBirthLngAi') || {}).value) || 0
+  var birthLat = parseFloat((document.getElementById('baziBirthLatAi') || {}).value) || 0
 
-  // 清理
+  // 清理 — 先设 loading
+  baiAiLoading.value = true
   baziAiResult.value = ''; window._baiChatHistory = []
+  var streamBox = document.getElementById('baiStreamBox')
+  if (streamBox) streamBox.style.display = 'block'
   var chatContainer = document.getElementById('baiChatContainer')
   if (chatContainer) chatContainer.innerHTML = ''
   var inputBar = document.getElementById('baiChatInputBar')
   if (inputBar) inputBar.style.display = 'none'
-  baiAiLoading.value = true
 
   var bubbleId = 'baiBubble_' + Date.now()
   var bubbleHTML = '<div class="chat-bubble-ai" id="' + bubbleId + '">' +
@@ -608,30 +743,34 @@ async function baiAiAsk() {
 
   _baiDoStreamSSE({
     bubbleId: bubbleId, url: '/api/bazi/ask/stream',
-    body: { birth: d + h + '00', gender: gender, cal_type: calType, question: question, analysis_type: baiAnalysisTypes[baiAnalysisTypeIdx] },
+    body: { birth: d + h + mi, gender: gender, cal_type: calType, question: question, analysis_type: baiAnalysisTypes[baiAnalysisTypeIdx], birth_addr: birthAddr, birth_lng: birthLng, birth_lat: birthLat },
     question: question,
     onDone: function(fullText) {
       window._baiChatHistory = [{ role: 'user', content: question }, { role: 'assistant', content: fullText }]
       baziAiResult.value = fullText
       var bar = document.getElementById('baiChatInputBar'); if (bar) bar.style.display = 'flex'
+      _baiCurrentConvId = null
+      _saveBaziConversation(question, {
+        birth: d + h + mi, gender: gender, cal_type: calType,
+        birth_addr: birthAddr, birth_lng: birthLng, birth_lat: birthLat,
+        analysis_type: baiAnalysisTypes[baiAnalysisTypeIdx]
+      })
     },
     onError: function() { baiAiLoading.value = false }
   })
 }
 
 function _baiDoStreamSSE(opts) {
-  var bubble = document.getElementById(opts.bubbleId); if (!bubble) return
+  var bubble = document.getElementById(opts.bubbleId); if (!bubble) { console.error('[bazi] bubble not found'); return }
   var stageEl = bubble.querySelector('.ai-stage'); var barEl = bubble.querySelector('.ai-progress-fill')
   var contentEl = bubble.querySelector('.chat-bubble-content')
-  var xhr = new XMLHttpRequest(); xhr.open('POST', opts.url, true); xhr.setRequestHeader('Content-Type', 'application/json')
-  var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
-  if (token) xhr.setRequestHeader('Authorization', 'Bearer ' + token)
-  var lastIndex = 0, fullText = '', charQueue = '', typeTimer = null, doneReceived = false
+  var fullText = '', charQueue = '', typeTimer = null, doneReceived = false
   function startTypewriter() {
     if (typeTimer) return
     typeTimer = setInterval(function() {
       if (charQueue.length === 0 && doneReceived) {
         clearInterval(typeTimer); typeTimer = null
+        baiAiLoading.value = false
         if (stageEl) stageEl.style.display = 'none'
         var barWrap = bubble.querySelector('.ai-progress-bar'); if (barWrap) barWrap.style.display = 'none'
         if (contentEl) contentEl.innerHTML = _baiRenderCards(fullText)
@@ -640,61 +779,84 @@ function _baiDoStreamSSE(opts) {
       if (charQueue.length === 0) return
       var take = charQueue.length > 3 ? 2 : 1
       fullText += charQueue.substring(0, take); charQueue = charQueue.substring(take)
-      if (contentEl) contentEl.innerHTML = fullText.replace(/\n/g, '<br>')
+      if (contentEl) contentEl.innerHTML = _stripMarkdown(fullText).replace(/\n/g, '<br>')
     }, 35)
   }
-  xhr.onprogress = function() {
-    var newText = xhr.responseText.substring(lastIndex); lastIndex = xhr.responseText.length
-    var lines = newText.split('\n'), eventType = ''
+  var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
+  var xhr = new XMLHttpRequest()
+  xhr.open('POST', opts.url, false)
+  xhr.setRequestHeader('Content-Type', 'application/json')
+  if (token) xhr.setRequestHeader('Authorization', 'Bearer ' + token)
+  xhr.send(JSON.stringify(opts.body))
+  if (xhr.status >= 200 && xhr.status < 300 && xhr.responseText) {
+    var text = xhr.responseText
+    var lines = text.split('\n')
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i]
-      if (line.indexOf('event:') === 0) { eventType = line.replace('event:', '').trim(); continue }
       if (line.indexOf('data:') !== 0) continue
       try {
         var data = JSON.parse(line.replace('data:', '').trim())
-        if (eventType === 'progress') {
-          if (data.stage === 'connecting' && stageEl) stageEl.innerHTML = '🔗 正在连接...'
-          else if (data.stage === 'analyzing' && stageEl) stageEl.innerHTML = '🧠 排盘分析中...'
-          else if (data.stage === 'generating' && stageEl) { stageEl.innerHTML = '✍️ 正在生成解读...'; startTypewriter() }
-          if (barEl) barEl.style.width = '60%'
-        } else if (eventType === 'chunk') { charQueue += data.content }
-        else if (eventType === 'done') { doneReceived = true; baiAiLoading.value = false }
-        else if (eventType === 'error') { if (stageEl) stageEl.innerHTML = '⚠️ ' + data.message; if (opts.onError) opts.onError() }
-        eventType = ''
+        if (data.type === 'chunk' || data.type === 'delta') {
+          if (!typeTimer) startTypewriter()
+          charQueue += data.content
+        } else if (data.type === 'done') {
+          doneReceived = true
+        } else if (data.type === 'error') {
+          if (stageEl) stageEl.innerHTML = '⚠️ ' + data.message; if (opts.onError) opts.onError()
+        }
       } catch(_) {}
     }
+  } else {
+    if (stageEl) stageEl.innerHTML = '⚠️ 服务器错误 ' + xhr.status
+    if (opts.onError) opts.onError()
   }
-  xhr.onerror = function() { if (stageEl) stageEl.innerHTML = '⚠️ 网络错误'; if (opts.onError) opts.onError() }
-  xhr.send(JSON.stringify(opts.body))
+}
+
+function _stripMarkdown(s) {
+  if (!s) return ''
+  return s.replace(/^#{1,6}\s*/gm, '').replace(/\*\*/g, '').replace(/^[-*]\s+/gm, '')
 }
 
 function _baiRenderCards(text) {
-  var sections = text.split(/\n(?=#{2,3} )/), html = ''
+  text = _stripMarkdown(text)
+  var sections = text.split(/\n(?=#{2,} |\d+\.\s+\*\*)/)
+  var html = ''
   sections.forEach(function(sec) {
-    var m = sec.match(/^(#{2,3})\s+(.+)/); var title = m ? m[2] : ''
-    var body = m ? sec.substring(m[0].length).trim() : sec
-    body = body.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')
+    var title = ''
+    var body = sec
+    var m = sec.match(/^(#{2,})\s+(.+)/)
+    if (m) { title = m[2]; body = sec.substring(m[0].length).trim() }
+    else {
+      var m2 = sec.match(/^(\d+\.)\s+\*\*(.+?)\*\*[：:]\s*/)
+      if (m2) { title = m2[2]; body = sec.substring(m2[0].length).trim() }
+    }
+    body = body.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')
     if (!body) body = '&nbsp;'
-    if (title) html += '<div class="qai-card-item"><div class="qai-card-title">' + title + '</div><div class="qai-card-body"><p>' + body + '</p></div></div>'
+    if (title) { html += '<div class="qai-card-item"><div class="qai-card-title">' + title + '</div><div class="qai-card-body"><p>' + body + '</p></div></div>' }
+    else { html += '<div class="qai-card-item"><div class="qai-card-body"><p>' + body + '</p></div></div>' }
   })
   return html
 }
 
 function baiSendFollowUp() {
-  var input = document.getElementById('baiChatInput'); if (!input) return
+  window._baiSendFollowUp = baiSendFollowUp
+  var input = document.querySelector('#baiChatInput input') || document.getElementById('baiChatInput'); if (!input) return
   var question = input.value.trim(); if (!question) return; input.value = ''
   var chatContainer = document.getElementById('baiChatContainer'); if (!chatContainer) return
   var userBubble = document.createElement('view'); userBubble.className = 'chat-bubble-user'; userBubble.textContent = question
   chatContainer.appendChild(userBubble)
   var bubbleId = 'baiFollow_' + Date.now()
   var aiBubble = document.createElement('view'); aiBubble.className = 'chat-bubble-ai'; aiBubble.id = bubbleId
-  aiBubble.innerHTML = '<div class="ai-stage">✍️ 正在生成回复...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div><div class="chat-bubble-content"></div>'
+  aiBubble.innerHTML = '<div class="ai-stage"><img class="ai-stage-logo" src="/static/images/logo.webp?v=2">正在生成回复...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div><div class="chat-bubble-content"></div>'
   chatContainer.appendChild(aiBubble); chatContainer.scrollIntoView({ behavior: 'smooth', block: 'end' })
   var history = window._baiChatHistory || []; history.push({ role: 'user', content: question })
   _baiDoStreamSSE({
     bubbleId: bubbleId, url: '/api/bazi/ask/stream', body: { question: question, history: history },
     question: question,
-    onDone: function(fullText) { history.push({ role: 'assistant', content: fullText }); window._baiChatHistory = history },
+    onDone: function(fullText) {
+      history.push({ role: 'assistant', content: fullText }); window._baiChatHistory = history
+      if (_baiCurrentConvId) { _updateBaziConversation() } else { _saveBaziConversation(question, {}) }
+    },
     onError: function() {}
   })
 }
@@ -794,6 +956,34 @@ function cancelBatchDelete() { batchMode.value = false; selectedIds.value = [] }
 function toggleStar(r) { r.starred = !r.starred }
 function viewRecord(r) { uni.navigateTo({ url: `/pages/bazi-result/index?id=${r.id}` }) }
 
+function loadRecords() {
+  uni.request({
+    url: '/api/bazi/history',
+    method: 'GET',
+    success: function(res) {
+      if (res.data && Array.isArray(res.data)) {
+        records.value = res.data
+      } else if (res.data && res.data.success && Array.isArray(res.data.records)) {
+        records.value = res.data.records
+      }
+    },
+    fail: function(err) { console.error('[bazi] 加载排盘记录失败:', err) }
+  })
+}
+
+function deleteRecord(id) {
+  if (!id) return
+  uni.request({
+    url: '/api/bazi/history/delete',
+    method: 'POST',
+    data: { id: id },
+    success: function() {
+      records.value = records.value.filter(function(r) { return r.id !== id })
+    },
+    fail: function(err) { console.error('[bazi] 删除记录失败:', err) }
+  })
+}
+
 // ── 模式B: DOM classList 辅助函数 ──
 function domSyncActive(ids, key) {
   ids.forEach(function(id) {
@@ -821,7 +1011,139 @@ function switchBaziTab(tab) {
       }
     }
   }
+  // AI Tab激活时：初始化select选项（免费Tab先初始化，AI Tab需要同步）
+  if (tab === 'ai') {
+    nextTick(function() { _initAiTabSelects() })
+  }
+}
 
+// AI Tab：同步免费Tab的select选项到AI Tab
+function _initAiTabSelects() {
+  var freeTabIds = ['baziYear', 'baziMonth', 'baziDay', 'baziHour', 'baziMinute']
+  var aiTabIds = ['baziYearAi', 'baziMonthAi', 'baziDayAi', 'baziHourAi', 'baziMinuteAi']
+  for (var i = 0; i < freeTabIds.length; i++) {
+    var freeEl = document.getElementById(freeTabIds[i])
+    var aiEl = document.getElementById(aiTabIds[i])
+    if (freeEl && aiEl) {
+      aiEl.innerHTML = freeEl.innerHTML
+      aiEl.value = freeEl.value
+    }
+  }
+  var freeAddrIds = ['baziProvince', 'baziCity', 'baziDistrict']
+  var aiAddrIds = ['baziProvinceAi', 'baziCityAi', 'baziDistrictAi']
+  for (var j = 0; j < freeAddrIds.length; j++) {
+    var freeAddrEl = document.getElementById(freeAddrIds[j])
+    var aiAddrEl = document.getElementById(aiAddrIds[j])
+    if (freeAddrEl && aiAddrEl) {
+      aiAddrEl.innerHTML = freeAddrEl.innerHTML
+      aiAddrEl.value = freeAddrEl.value
+    }
+  }
+  _initAiTabAddrListeners()
+}
+
+// AI Tab：初始化地址选择器事件监听
+function _initAiTabAddrListeners() {
+  var provEl = document.getElementById('baziProvinceAi')
+  var cityEl = document.getElementById('baziCityAi')
+  var distEl = document.getElementById('baziDistrictAi')
+  if (!provEl || !cityEl || !distEl) return
+  if (provEl.dataset.bound) return
+  provEl.dataset.bound = '1'
+  cityEl.dataset.bound = '1'
+  distEl.dataset.bound = '1'
+  if (!_cityData) return
+  provEl.addEventListener('change', function() {
+    cityEl.innerHTML = '<option value="">-- 市 --</option>'
+    distEl.innerHTML = '<option value="">-- 区 --</option>'
+    var selProv = provEl.value
+    for (var j = 0; j < _cityData.length; j++) {
+      if (_cityData[j][0] === selProv && _cityData[j][1]) {
+        for (var k = 0; k < _cityData[j][1].length; k++) {
+          var co = document.createElement('option')
+          co.value = _cityData[j][1][k][0]
+          co.text = _cityData[j][1][k][0]
+          co.setAttribute('data-city-idx', k)
+          cityEl.appendChild(co)
+        }
+        break
+      }
+    }
+    _updateAddrInfoAi()
+  })
+  cityEl.addEventListener('change', function() {
+    distEl.innerHTML = '<option value="">-- 区 --</option>'
+    var selProv = provEl.value, selCity = cityEl.value
+    for (var j = 0; j < _cityData.length; j++) {
+      if (_cityData[j][0] === selProv && _cityData[j][1]) {
+        for (var k = 0; k < _cityData[j][1].length; k++) {
+          if (_cityData[j][1][k][0] === selCity && _cityData[j][1][k][1] && _cityData[j][1][k][1].length > 0) {
+            for (var m = 0; m < _cityData[j][1][k][1].length; m++) {
+              var dopt = document.createElement('option')
+              dopt.value = _cityData[j][1][k][1][m][0]
+              dopt.text = _cityData[j][1][k][1][m][0]
+              dopt.setAttribute('data-lat', _cityData[j][1][k][1][m][1])
+              dopt.setAttribute('data-lng', _cityData[j][1][k][1][m][2])
+              distEl.appendChild(dopt)
+            }
+            break
+          }
+        }
+        break
+      }
+    }
+    _updateAddrInfoAi()
+  })
+  distEl.addEventListener('change', function() { _updateAddrInfoAi() })
+}
+
+function _updateAddrInfoAi() {
+  var provEl = document.getElementById('baziProvinceAi')
+  var cityEl = document.getElementById('baziCityAi')
+  var distEl = document.getElementById('baziDistrictAi')
+  var addrEl = document.getElementById('baziBirthAddrAi')
+  var lngEl = document.getElementById('baziBirthLngAi')
+  var latEl = document.getElementById('baziBirthLatAi')
+  var infoEl = document.getElementById('baziAddrInfoAi')
+  var solarEl = document.getElementById('baziAddrSolarAi')
+  var lngInfoEl = document.getElementById('baziAddrLngAi')
+  var provVal = provEl ? provEl.value : ''
+  var cityVal = cityEl ? cityEl.value : ''
+  var distVal = distEl ? distEl.value : ''
+  if (!cityVal) { if (infoEl) infoEl.style.display = 'none'; return }
+  var lat = 0, lng = 0, addrText = provVal
+  if (distVal) {
+    var distOpt = distEl.options[distEl.selectedIndex]
+    lat = distOpt ? parseFloat(distOpt.getAttribute('data-lat')) : 0
+    lng = distOpt ? parseFloat(distOpt.getAttribute('data-lng')) : 0
+    addrText = provVal + ' ' + cityVal + ' ' + distVal
+  } else {
+    var found = false
+    if (_cityData) {
+      for (var j = 0; j < _cityData.length; j++) {
+        if (_cityData[j][0] === provVal && _cityData[j][1]) {
+          for (var k = 0; k < _cityData[j][1].length; k++) {
+            if (_cityData[j][1][k][0] === cityVal && _cityData[j][1][k][1] && _cityData[j][1][k][1].length > 0) {
+              lat = _cityData[j][1][k][1][0][1]
+              lng = _cityData[j][1][k][1][0][2]
+              found = true
+              break
+            }
+          }
+        }
+        if (found) break
+      }
+    }
+    addrText = provVal + ' ' + cityVal
+  }
+  if (addrEl) addrEl.value = addrText
+  if (lngEl) lngEl.value = lng
+  if (latEl) latEl.value = lat
+  if (infoEl) {
+    infoEl.style.display = 'flex'
+    if (solarEl) solarEl.textContent = '真太阳时：已根据经度校正'
+    if (lngInfoEl) lngInfoEl.textContent = '经度：' + lng + ' 纬度：' + lat
+  }
 }
 
 // ── 模式B: 性别选择 ──
@@ -856,13 +1178,19 @@ function selectBaziCalType(type) {
   // DOM 控制日期/四柱区域显示（绕过v-show render effect bug）
   var dateSection = document.getElementById('baziDateSection')
   var siziSection = document.getElementById('baziSiziSection')
+  var dateSectionAi = document.getElementById('baziDateSectionAi')
+  var siziSectionAi = document.getElementById('baziSiziSectionAi')
   if (type === '四柱') {
     if (dateSection) dateSection.style.display = 'none'
     if (siziSection) siziSection.style.display = 'block'
+    if (dateSectionAi) dateSectionAi.style.display = 'none'
+    if (siziSectionAi) siziSectionAi.style.display = 'block'
     return
   }
   if (dateSection) dateSection.style.display = 'block'
   if (siziSection) siziSection.style.display = 'none'
+  if (dateSectionAi) dateSectionAi.style.display = 'block'
+  if (siziSectionAi) siziSectionAi.style.display = 'none'
 
   // ── 读取当前日期 ──
   var yEl = document.getElementById('baziYear')
@@ -968,22 +1296,38 @@ function wzUpdateLunarMonthDay() {
     _lunarDayNames = data.dayNames || _lunarDayNameMap
     // 重建月份选择器（农历名称）
     var monthSel = document.getElementById('baziMonth')
-    if (!monthSel) return
-    var prevMonth = monthSel.value
-    monthSel.innerHTML = ''
-    data.months.forEach(function(m) {
-      var opt = document.createElement('option')
-      opt.value = String(m.value).padStart(2, '0')
-      opt.textContent = m.label
-      if (m.isLeap) opt.setAttribute('data-is-leap', 'true')
-      monthSel.appendChild(opt)
-    })
-    // 尝试恢复之前的月份选择
-    if (prevMonth && monthSel.querySelector('option[value="' + prevMonth + '"]')) {
-      monthSel.value = prevMonth
+    var monthSelAi = document.getElementById('baziMonthAi')
+    if (monthSel) {
+      var prevMonth = monthSel.value
+      monthSel.innerHTML = ''
+      data.months.forEach(function(m) {
+        var opt = document.createElement('option')
+        opt.value = String(m.value).padStart(2, '0')
+        opt.textContent = m.label
+        if (m.isLeap) opt.setAttribute('data-is-leap', 'true')
+        monthSel.appendChild(opt)
+      })
+      if (prevMonth && monthSel.querySelector('option[value="' + prevMonth + '"]')) {
+        monthSel.value = prevMonth
+      }
+    }
+    // 同时更新 AI Tab
+    if (monthSelAi) {
+      var prevMonthAi = monthSelAi.value
+      monthSelAi.innerHTML = ''
+      data.months.forEach(function(m) {
+        var opt = document.createElement('option')
+        opt.value = String(m.value).padStart(2, '0')
+        opt.textContent = m.label
+        if (m.isLeap) opt.setAttribute('data-is-leap', 'true')
+        monthSelAi.appendChild(opt)
+      })
+      if (prevMonthAi && monthSelAi.querySelector('option[value="' + prevMonthAi + '"]')) {
+        monthSelAi.value = prevMonthAi
+      }
     }
     // 根据当前选中月份获取天数
-    var selIdx = monthSel.selectedIndex
+    var selIdx = monthSel ? monthSel.selectedIndex : 0
     var mInfo = (selIdx >= 0 && selIdx < data.months.length) ? data.months[selIdx] : data.months[0]
     if (mInfo) {
       wzUpdateLunarDays(mInfo.dayCount, _lunarDayNames)
@@ -995,10 +1339,13 @@ function wzUpdateLunarMonthDay() {
 // onComplete: 完成后的回调（用于释放锁）
 function wzUpdateLunarMonthDayWithDate(lunarYear, lunarMonth, lunarDay, isLeap, onComplete) {
   var yEl = document.getElementById('baziYear')
+  var yElAi = document.getElementById('baziYearAi')
   if (!yEl) { if (onComplete) onComplete(); return }
-  // 如果农历年份与当前年份不同，需要更新年份选择器
   if (lunarYear && parseInt(yEl.value) !== lunarYear) {
     yEl.value = lunarYear
+  }
+  if (yElAi && lunarYear && parseInt(yElAi.value) !== lunarYear) {
+    yElAi.value = lunarYear
   }
   var year = lunarYear || parseInt(yEl.value)
   if (!year) { if (onComplete) onComplete(); return }
@@ -1010,34 +1357,49 @@ function wzUpdateLunarMonthDayWithDate(lunarYear, lunarMonth, lunarDay, isLeap, 
     if (!data.success) { console.error('Lunar data error:', data.error); if (onComplete) onComplete(); return }
     _lunarMonthsData = data.months
     _lunarDayNames = data.dayNames || _lunarDayNameMap
-    // 重建月份选择器（农历名称）
     var monthSel = document.getElementById('baziMonth')
-    if (!monthSel) { if (onComplete) onComplete(); return }
-    monthSel.innerHTML = ''
-    var targetMonthIdx = 0  // 默认选中第一个月
-    data.months.forEach(function(m, idx) {
-      var opt = document.createElement('option')
-      opt.value = String(m.value).padStart(2, '0')
-      opt.textContent = m.label
-      if (m.isLeap) opt.setAttribute('data-is-leap', 'true')
-      monthSel.appendChild(opt)
-      // 匹配转换后的月份（值相等 + 闰月标识一致）
-      if (lunarMonth && m.value === lunarMonth && m.isLeap === !!isLeap) {
-        targetMonthIdx = idx
-      }
-    })
-    // 选中目标月份
-    monthSel.selectedIndex = targetMonthIdx
-    // 根据选中月份的天数重建日期，并设置转换后的日
+    var monthSelAi = document.getElementById('baziMonthAi')
+    var targetMonthIdx = 0
+    if (monthSel) {
+      monthSel.innerHTML = ''
+      data.months.forEach(function(m, idx) {
+        var opt = document.createElement('option')
+        opt.value = String(m.value).padStart(2, '0')
+        opt.textContent = m.label
+        if (m.isLeap) opt.setAttribute('data-is-leap', 'true')
+        monthSel.appendChild(opt)
+        if (lunarMonth && m.value === lunarMonth && m.isLeap === !!isLeap) {
+          targetMonthIdx = idx
+        }
+      })
+      monthSel.selectedIndex = targetMonthIdx
+    }
+    if (monthSelAi) {
+      monthSelAi.innerHTML = ''
+      data.months.forEach(function(m, idx) {
+        var opt = document.createElement('option')
+        opt.value = String(m.value).padStart(2, '0')
+        opt.textContent = m.label
+        if (m.isLeap) opt.setAttribute('data-is-leap', 'true')
+        monthSelAi.appendChild(opt)
+      })
+      monthSelAi.selectedIndex = targetMonthIdx
+    }
     var targetMonthInfo = data.months[targetMonthIdx]
     if (targetMonthInfo) {
       wzUpdateLunarDays(targetMonthInfo.dayCount, _lunarDayNames)
-      // 设置转换后的日
       var daySel = document.getElementById('baziDay')
+      var daySelAi = document.getElementById('baziDayAi')
       if (daySel && lunarDay) {
         var dayVal = String(lunarDay).padStart(2, '0')
         if (lunarDay <= targetMonthInfo.dayCount) {
           daySel.value = dayVal
+        }
+      }
+      if (daySelAi && lunarDay) {
+        var dayVal = String(lunarDay).padStart(2, '0')
+        if (lunarDay <= targetMonthInfo.dayCount) {
+          daySelAi.value = dayVal
         }
       }
       updateBaziDate()
@@ -1051,46 +1413,89 @@ function wzUpdateLunarMonthDayWithDate(lunarYear, lunarMonth, lunarDay, isLeap, 
 
 function wzUpdateLunarDays(dayCount, dayNames) {
   var daySel = document.getElementById('baziDay')
-  if (!daySel) return
-  var prevDay = daySel.value
-  daySel.innerHTML = ''
-  for (var d = 1; d <= dayCount; d++) {
-    var opt = document.createElement('option')
-    opt.value = String(d).padStart(2, '0')
-    opt.textContent = (dayNames && dayNames[d]) ? dayNames[d] : d
-    daySel.appendChild(opt)
+  var daySelAi = document.getElementById('baziDayAi')
+  if (daySel) {
+    var prevDay = daySel.value
+    daySel.innerHTML = ''
+    for (var d = 1; d <= dayCount; d++) {
+      var opt = document.createElement('option')
+      opt.value = String(d).padStart(2, '0')
+      opt.textContent = (dayNames && dayNames[d]) ? dayNames[d] : d
+      daySel.appendChild(opt)
+    }
+    if (prevDay && daySel.querySelector('option[value="' + prevDay + '"]')) {
+      daySel.value = prevDay
+    } else if (daySel.options.length > 0) {
+      daySel.selectedIndex = 0
+    }
   }
-  if (parseInt(prevDay) <= dayCount) {
-    daySel.value = prevDay
+  if (daySelAi) {
+    var prevDayAi = daySelAi.value
+    daySelAi.innerHTML = ''
+    for (var d = 1; d <= dayCount; d++) {
+      var opt = document.createElement('option')
+      opt.value = String(d).padStart(2, '0')
+      opt.textContent = (dayNames && dayNames[d]) ? dayNames[d] : d
+      daySelAi.appendChild(opt)
+    }
+    if (prevDayAi && daySelAi.querySelector('option[value="' + prevDayAi + '"]')) {
+      daySelAi.value = prevDayAi
+    } else if (daySelAi.options.length > 0) {
+      daySelAi.selectedIndex = 0
+    }
   }
   updateBaziDate()
 }
 
 function wzInitSolarMonthDay() {
   var monthSel = document.getElementById('baziMonth')
-  if (!monthSel) return
-  var curMonth = monthSel.value
-  monthSel.innerHTML = ''
-  for (var m = 1; m <= 12; m++) {
-    var opt = document.createElement('option')
-    opt.value = String(m).padStart(2, '0')
-    opt.textContent = m + '月'
-    monthSel.appendChild(opt)
+  var monthSelAi = document.getElementById('baziMonthAi')
+  if (monthSel) {
+    var curMonth = monthSel.value
+    monthSel.innerHTML = ''
+    for (var m = 1; m <= 12; m++) {
+      var opt = document.createElement('option')
+      opt.value = String(m).padStart(2, '0')
+      opt.textContent = m + '月'
+      monthSel.appendChild(opt)
+    }
+    if (curMonth) monthSel.value = curMonth
   }
-  if (curMonth) monthSel.value = curMonth
+  if (monthSelAi) {
+    var curMonthAi = monthSelAi.value
+    monthSelAi.innerHTML = ''
+    for (var m = 1; m <= 12; m++) {
+      var opt = document.createElement('option')
+      opt.value = String(m).padStart(2, '0')
+      opt.textContent = m + '月'
+      monthSelAi.appendChild(opt)
+    }
+    if (curMonthAi) monthSelAi.value = curMonthAi
+  }
   refillBaziDaySelect()
 }
 
 // 不调用 refillBaziDaySelect 的版本（用于农历→公历时先建月份，再手动设日期）
 function wzInitSolarMonthDayRaw() {
   var monthSel = document.getElementById('baziMonth')
-  if (!monthSel) return
-  monthSel.innerHTML = ''
-  for (var m = 1; m <= 12; m++) {
-    var opt = document.createElement('option')
-    opt.value = String(m).padStart(2, '0')
-    opt.textContent = m + '月'
-    monthSel.appendChild(opt)
+  var monthSelAi = document.getElementById('baziMonthAi')
+  if (monthSel) {
+    monthSel.innerHTML = ''
+    for (var m = 1; m <= 12; m++) {
+      var opt = document.createElement('option')
+      opt.value = String(m).padStart(2, '0')
+      opt.textContent = m + '月'
+      monthSel.appendChild(opt)
+    }
+  }
+  if (monthSelAi) {
+    monthSelAi.innerHTML = ''
+    for (var m = 1; m <= 12; m++) {
+      var opt = document.createElement('option')
+      opt.value = String(m).padStart(2, '0')
+      opt.textContent = m + '月'
+      monthSelAi.appendChild(opt)
+    }
   }
 }
 
@@ -1099,21 +1504,42 @@ function refillBaziDaySelectForced() {
   var yEl = document.getElementById('baziYear')
   var mEl = document.getElementById('baziMonth')
   var dEl = document.getElementById('baziDay')
-  if (!yEl || !mEl || !dEl) return
-  var y = parseInt(yEl.value)
-  var m = parseInt(mEl.value)
-  var maxDay = getDaysInMonth(y, m)
-  var curDay = parseInt(dEl.value)
-  dEl.innerHTML = ''
-  for (var i = 1; i <= maxDay; i++) {
-    var opt = document.createElement('option')
-    opt.value = i
-    opt.text = i + '日'
-    if (i === curDay) opt.selected = true
-    dEl.appendChild(opt)
+  var yElAi = document.getElementById('baziYearAi')
+  var mElAi = document.getElementById('baziMonthAi')
+  var dElAi = document.getElementById('baziDayAi')
+  if (yEl && mEl && dEl) {
+    var y = parseInt(yEl.value)
+    var m = parseInt(mEl.value)
+    var maxDay = getDaysInMonth(y, m)
+    var curDay = parseInt(dEl.value)
+    dEl.innerHTML = ''
+    for (var i = 1; i <= maxDay; i++) {
+      var opt = document.createElement('option')
+      opt.value = i
+      opt.text = i + '日'
+      if (i === curDay) opt.selected = true
+      dEl.appendChild(opt)
+    }
+    if (curDay > maxDay) {
+      dEl.value = String(maxDay)
+    }
   }
-  if (curDay > maxDay) {
-    dEl.value = String(maxDay)
+  if (yElAi && mElAi && dElAi) {
+    var yAi = parseInt(yElAi.value)
+    var mAi = parseInt(mElAi.value)
+    var maxDayAi = getDaysInMonth(yAi, mAi)
+    var curDayAi = parseInt(dElAi.value)
+    dElAi.innerHTML = ''
+    for (var i = 1; i <= maxDayAi; i++) {
+      var opt = document.createElement('option')
+      opt.value = i
+      opt.text = i + '日'
+      if (i === curDayAi) opt.selected = true
+      dElAi.appendChild(opt)
+    }
+    if (curDayAi > maxDayAi) {
+      dElAi.value = String(maxDayAi)
+    }
   }
   updateBaziDate()
 }
@@ -1182,13 +1608,6 @@ function selectCatFilter(val) {
   }
 }
 
-// ── 模式C: toggleIncognito ──
-function toggleIncognito() {
-  incognito.value = !incognito.value
-  var el = document.querySelector('.incognito-check')
-  if (el) { incognito.value ? el.classList.add('checked') : el.classList.remove('checked') }
-}
-
 // ── 模式C: 填充原生select（绕过Vue 3.4.21 picker bug） ──
 function fillBaziSelect(id, options, selectedVal, onChange) {
   var el = document.getElementById(id)
@@ -1239,42 +1658,33 @@ function refillBaziDaySelect() {
   if (curDay > maxDay) {
     dEl.value = String(maxDay)
   }
+  
+  // 同时更新 AI Tab 的日 select
+  var yElAi = document.getElementById('baziYearAi')
+  var mElAi = document.getElementById('baziMonthAi')
+  var dElAi = document.getElementById('baziDayAi')
+  if (yElAi && mElAi && dElAi) {
+    var yAi = parseInt(yElAi.value) || y
+    var mAi = parseInt(mElAi.value) || m
+    var maxDayAi = getDaysInMonth(yAi, mAi)
+    var curDayAi = parseInt(dElAi.value) || curDay
+    dElAi.innerHTML = ''
+    for (var i = 1; i <= maxDayAi; i++) {
+      var optAi = document.createElement('option')
+      optAi.value = i
+      optAi.text = i + '日'
+      if (i === curDayAi) optAi.selected = true
+      dElAi.appendChild(optAi)
+    }
+    if (curDayAi > maxDayAi) {
+      dElAi.value = String(maxDayAi)
+    }
+  }
+  
   updateBaziDate()
 }
 
-// ── AI版日期联动 ──
-function refillBaiDaySelect() {
-  var yEl = document.getElementById('bai-year')
-  var mEl = document.getElementById('bai-month')
-  var dEl = document.getElementById('bai-day')
-  if (!yEl || !mEl || !dEl) return
-  var y = parseInt(yEl.value)
-  var m = parseInt(mEl.value)
-  var maxDay = getDaysInMonth(y, m)
-  var curDay = parseInt(dEl.value)
-  dEl.innerHTML = ''
-  for (var i = 1; i <= maxDay; i++) {
-    var opt = document.createElement('option')
-    opt.value = i
-    opt.text = i + '日'
-    if (i === curDay) opt.selected = true
-    dEl.appendChild(opt)
-  }
-  if (curDay > maxDay) {
-    dEl.value = String(maxDay)
-  }
-  updateBaiDate()
-}
-
-function updateBaiDate() {
-  var yEl = document.getElementById('bai-year')
-  var mEl = document.getElementById('bai-month')
-  var dEl = document.getElementById('bai-day')
-  if (yEl && mEl && dEl) {
-    baiDate.value = yEl.value + '-' + String(mEl.value).padStart(2, '0') + '-' + String(dEl.value).padStart(2, '0')
-  }
-}
-
+// ── 日期联动（免费/AI共用）──
 function updateBaziDate() {
   var y = document.getElementById('baziYear') ? document.getElementById('baziYear').value : ''
   var m = document.getElementById('baziMonth') ? String(document.getElementById('baziMonth').value).padStart(2, '0') : ''
@@ -1316,6 +1726,8 @@ onShow(() => {
     var q = sessionStorage.getItem('_nav_query')
     if (q) { sessionStorage.removeItem('_nav_query'); applyNavQuery(q) }
   } catch(_) {}
+  nextTick(function() { _checkBaziRestore() })
+  loadRecords()
   var token = uni.getStorageSync('xc_token')
   var loggedIn = !!token
   if (isLoggedIn.value !== loggedIn) {
@@ -1354,32 +1766,26 @@ onMounted(() => {
   createNativeInput('baiQuestion', 'text', '请输入您想问的问题', '200')
   createNativeInput('recordSearch', 'text', '请输入搜索的内容')
   // 记录搜索框特殊样式（在搜索栏圆角容器内，去掉边框/背景）
-  var rsEl = 
-  // DOM click 绑定（事件代理，uni-view 的 @tap/@click 不生效）
-  setTimeout(function() {
-    var aiContent = document.getElementById('baziTabAiContent')
-    if (aiContent) {
-      aiContent.addEventListener('click', function(e) {
-        var target = e.target
-        var btn = target.closest ? target.closest('.submit-btn') : null
-        if (!btn) { btn = target; while (btn && !btn.classList.contains('submit-btn')) btn = btn.parentElement }
-        if (btn && btn.textContent.indexOf('AI 深度解读') !== -1) {
-          baiAiAsk(); return
-        }
-        var sendBtn = target.closest ? target.closest('.chat-send-btn') : null
-        if (!sendBtn) { sendBtn = target; while (sendBtn && !sendBtn.classList.contains('chat-send-btn')) sendBtn = sendBtn.parentElement }
-        if (sendBtn) { baiSendFollowUp(); return }
-        var typeBtn = target.closest ? target.closest('.analysis-type-btn') : null
-        if (!typeBtn) { typeBtn = target; while (typeBtn && !typeBtn.classList.contains('analysis-type-btn')) typeBtn = typeBtn.parentElement }
-        if (typeBtn) {
-          var texts = ['命局总览', '财运事业', '婚姻感情', '大运流年', '健康六亲']
-          for (var i = 0; i < texts.length; i++) {
-            if (typeBtn.textContent.indexOf(texts[i]) !== -1) { baiAnalysisTypeIdx.value = i; return }
+  document.querySelectorAll('.btn-row').forEach(function(btnRow) {
+    btnRow.addEventListener('click', function(e) {
+      var target = e.target; var depth = 8
+      while (target && target !== this && depth > 0) {
+        if (target.dataset && target.dataset.bzAction) {
+          var action = target.dataset.bzAction
+          if (action === 'aiAsk' && window._baiAiAsk) window._baiAiAsk()
+          else if (action === 'aiFollowUp' && window._baiSendFollowUp) window._baiSendFollowUp()
+          else if (action === 'aiType') {
+            var idx = parseInt(target.dataset.bzTypeIdx)
+            if (!isNaN(idx)) baiAnalysisTypeIdx.value = idx
           }
+          return
         }
-      })
-    }
-  }, 300)
+        target = target.parentElement; depth--
+      }
+    })
+  })
+
+  var rsEl = document.getElementById('recordSearch')
 
   document.getElementById('recordSearch')
   if (rsEl) {
@@ -1446,39 +1852,45 @@ onMounted(() => {
     baziMinuteIdx.value = parseInt(val)
   })
   // #endif
-
-  // ── 填充AI版原生select ──
-  // #ifdef H5
-  // 性别
-  fillBaziSelect('baiGender', [{ value: 0, label: '男' }, { value: 1, label: '女' }], 0, function(val) { baiGenderIdx.value = parseInt(val) })
-  // 历法
-  fillBaziSelect('baiCal', [{ value: 0, label: '公历' }, { value: 1, label: '农历' }], 0, function(val) { baiCalIdx.value = parseInt(val) })
-  // AI版日期
-  var baiYearOpts = []
-  for (var y = curYear - 120; y <= curYear + 10; y++) {
-    baiYearOpts.push({ value: y, label: y + '年' })
+  
+  // 立即填充 AI Tab 的日期时间 select
+  fillBaziSelect('baziYearAi', yearOpts, curYear, function() {
+    if (baziCalType.value === '农历') { wzUpdateLunarMonthDay() } else { refillBaziDaySelect() }
+  })
+  fillBaziSelect('baziMonthAi', monthOpts, now.getMonth() + 1, function() {
+    if (baziCalType.value === '农历' && _lunarMonthsData) {
+      var mEl = document.getElementById('baziMonthAi')
+      var selVal = mEl ? mEl.value : ''
+      var mInfo = null
+      if (_lunarMonthsData) {
+        for (var idx = 0; idx < _lunarMonthsData.length; idx++) {
+          if (String(_lunarMonthsData[idx].value).padStart(2, '0') === selVal) {
+            var isLeap = false
+            var selOpt = mEl.options[mEl.selectedIndex]
+            if (selOpt && selOpt.getAttribute('data-is-leap') === 'true') isLeap = true
+            if (_lunarMonthsData[idx].isLeap === isLeap) { mInfo = _lunarMonthsData[idx]; break }
+          }
+        }
+      }
+      if (mInfo) { wzUpdateLunarDays(mInfo.dayCount, _lunarDayNames) }
+    } else {
+      refillBaziDaySelect()
+    }
+  })
+  var maxDay = getDaysInMonth(curYear, now.getMonth() + 1)
+  var dayOpts = []
+  for (var i = 1; i <= maxDay; i++) {
+    dayOpts.push({ value: i, label: i + '日' })
   }
-  fillBaziSelect('bai-year', baiYearOpts, curYear, function() { refillBaiDaySelect() })
-  var baiMonthOpts = []
-  for (var i = 1; i <= 12; i++) {
-    baiMonthOpts.push({ value: i, label: i + '月' })
-  }
-  fillBaziSelect('bai-month', baiMonthOpts, now.getMonth() + 1, function() { refillBaiDaySelect() })
-  var baiMaxDay = getDaysInMonth(curYear, now.getMonth() + 1)
-  var baiDayOpts = []
-  for (var i = 1; i <= baiMaxDay; i++) {
-    baiDayOpts.push({ value: i, label: i + '日' })
-  }
-  fillBaziSelect('bai-day', baiDayOpts, now.getDate(), function() { updateBaiDate() })
-  // 时辰
-  var baiHourOpts = []
-  for (var i = 0; i < shichenLabels.length; i++) {
-    baiHourOpts.push({ value: i, label: shichenLabels[i] })
-  }
-  fillBaziSelect('baiHour', baiHourOpts, baiHourIdx.value, function(val) { baiHourIdx.value = parseInt(val) })
+  fillBaziSelect('baziDayAi', dayOpts, now.getDate(), function() { updateBaziDate() })
+  fillBaziSelect('baziHourAi', hourOpts, now.getHours(), function(val) {
+    baziHourIdx.value = parseInt(val)
+  })
+  fillBaziSelect('baziMinuteAi', minOpts, now.getMinutes(), function(val) {
+    baziMinuteIdx.value = parseInt(val)
+  })
 
   // ── 出生地址：加载城市数据并填充三级级联选择 ──
-  var _cityData = null
   fetch('/static/js/city_data.json').then(function(r) { return r.json() }).then(function(data) {
     _cityData = data
     var provEl = document.getElementById('baziProvince')
@@ -1548,6 +1960,9 @@ onMounted(() => {
       distEl.innerHTML = '<option value="">-- 区 --</option>'
       distEl.addEventListener('change', function() { _updateAddrInfo() })
     }
+    
+    // 也初始化 AI Tab 的地址选择器
+    _initAiTabSelects()
   }).catch(function() {})
 
   function _updateAddrInfo() {
@@ -1610,7 +2025,6 @@ onMounted(() => {
   else if (hash.includes('tab=records') || hash.includes('#records')) activeTab.value = 'records'
   // 调用 switchBaziTab 同步DOM（绕过Vue 3.4.21 render effect bug）
   nextTick(() => { switchBaziTab(activeTab.value) })
-  // #endif
 
 })
 </script>
@@ -1638,17 +2052,11 @@ onMounted(() => {
 
 /* 工具容器 */
 .tool-container { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; backdrop-filter: blur(20px); box-shadow: var(--card-shadow); max-width: 720px; margin: 0 auto; }
-.incognito-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-radius: 12px; background: rgba(110,195,135,0.06); border: 1px solid rgba(110,195,135,0.12); margin-bottom: 24px; }
-.incognito-toggle { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--success); cursor: pointer; }
-.incognito-check { width: 18px; height: 18px; border: 2px solid var(--success); border-radius: 4px; position: relative; transition: all 0.2s; }
-.incognito-check.checked { background: var(--success); }
-.incognito-check.checked::after { content: '✓'; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); color: #fff; font-size: 12px; font-weight: bold; }
 .dom-input-wrap { width: 100%; }
 .dom-input-wrap .native-input { width: 100%; padding: 9px 12px; border: 1.5px solid var(--card-border); border-radius: 10px; font-size: 0.85rem; background: var(--card-bg); color: var(--text-1); outline: none; box-sizing: border-box; }
 .checkbox-view { width: 18px; height: 18px; border: 2px solid var(--accent); border-radius: 3px; position: relative; cursor: pointer; transition: all 0.15s; }
 .checkbox-view.checked { background: var(--accent); }
 .checkbox-view.checked::after { content: '✓'; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); color: #fff; font-size: 12px; font-weight: bold; }
-.incognito-desc { font-size: 0.6875rem; color: var(--success); opacity: 0.7; }
 .tool-tabs { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid var(--card-border); }
 .tool-tab { padding: 12px 20px; border-radius: 10px 10px 0 0; font-size: 0.875rem; cursor: pointer; border: 1px solid transparent; border-bottom: none; color: var(--text-3); background: transparent; }
 .tool-tab.active { color: var(--accent); background: var(--accent-glow); border-color: var(--accent); font-weight: 600; }
@@ -1730,7 +2138,6 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .advanced-fields.show { display: block; }
 .advanced-toggle { font-size: 0.75rem; color: var(--text-3); cursor: pointer; border: none; background: none; text-decoration: underline; margin-top: 8px; }
 .submit-btn { width: 100%; padding: 14px; border-radius: 30px; border: none; background: hsl(35, 38%, 52%); color: #fff; font-size: 1rem; font-weight: 600; cursor: pointer; letter-spacing: 2px; margin-top: 8px; text-align: center; }
-.privacy-note { margin-top: 16px; padding: 10px 14px; border-radius: 10px; background: rgba(110,195,135,0.08); border: 1px solid rgba(110,195,135,0.15); font-size: 0.75rem; color: var(--success); text-align: center; }
 .result-mode-switch { display: flex; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--card-border); }
 .result-mode-btn { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--card-border); background: transparent; color: var(--text-3); font-size: 0.75rem; cursor: pointer; text-align: center; }
 .result-mode-btn.active { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); }
@@ -1780,16 +2187,6 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .empty-text { font-size: 16px; color: var(--text-3); margin-bottom: 6px; }
 .empty-hint { font-size: 13px; color: var(--text-3); margin-bottom: 16px; }
 
-/* 页脚 */
-.site-footer { background: var(--nav-bg); border-top: 1px solid var(--card-border); padding: 48px 32px 24px; margin-top: 80px; }
-.footer-disclaimer { max-width: var(--max-w); margin: 0 auto 32px; padding: 14px 20px; border-radius: 10px; background: rgba(215,125,110,0.08); border: 1px solid rgba(215,125,110,0.15); font-size: 0.75rem; color: var(--danger); line-height: 1.6; text-align: center; }
-.footer-grid { max-width: var(--max-w); margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; }
-.footer-col-title { font-size: 0.8125rem; color: var(--text-2); margin-bottom: 12px; }
-.footer-col navigator { display: block; font-size: 0.75rem; color: var(--text-3); text-decoration: none; padding: 3px 0; }
-.footer-icp { font-size: 0.6875rem; color: var(--text-3); margin-top: 8px; }
-.footer-bottom { max-width: var(--max-w); margin: 24px auto 0; padding-top: 16px; border-top: 1px solid var(--card-border); display: flex; justify-content: space-between; }
-.footer-bottom-text { font-size: 0.6875rem; color: var(--text-3); }
-
 /* 弹窗 */
 .modal-overlay { display: none; position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.55); backdrop-filter: blur(8px); align-items: center; justify-content: center; }
 .modal-overlay.open { display: flex; }
@@ -1803,7 +2200,7 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .modal-error { color: var(--danger); font-size: 0.75rem; text-align: center; margin-top: 10px; min-height: 18px; }
 
 /* 响应式 */
-@media (max-width: 1024px) { .footer-grid { grid-template-columns: 1fr; gap: 24px; } }
+
 @media (max-width: 768px) {
   .tool-hero { padding: 40px 16px 24px; }
   .tool-hero-title { font-size: 1.5rem; }

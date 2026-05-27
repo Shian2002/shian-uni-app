@@ -6,7 +6,6 @@
       <section class="tool-hero"><view class="tool-hero-content"><view class="section-tag">梅花易数</view><view class="tool-hero-title">梅花易数 · 万物皆可起卦</view><view class="tool-hero-desc">数字起卦 · 时间起卦 · 字数起卦 · 体用生克 · 断事知机</view></view></section>
       <section class="section">
         <view class="tool-container">
-          <view class="incognito-bar"><label class="incognito-toggle"><input type="checkbox" :checked="incognito" @change="incognito = !incognito" /><text>{{ incognito ? '🔒 无痕模式' : '🔓 有痕模式' }}</text></label><text class="incognito-desc">本地计算 · 不上传数据 · 退出自动清空</text></view>
           <view class="tool-tabs">
             <view class="tool-tab" id="mhTabFree" :class="{ active: activeTab === 'free' }" @tap.stop="switchMhTab('free')">🌸 梅花排盘<text class="tab-badge free">免费</text></view>
             <view class="tool-tab" id="mhTabAi" :class="{ active: activeTab === 'ai' }" @tap.stop="switchMhTab('ai')">🔮 时安梅花系统<text class="tab-badge">PRO</text></view>
@@ -38,7 +37,6 @@
               <view class="submit-btn" @tap="meihuaFreePaipan">🌸 免费排盘</view>
             </view>
             <text class="form-hint" style="text-align:center;display:block;margin-top:12px;">本地精准排盘，体用生克全分析。如需深度解读请使用时安梅花系统。</text>
-            <view class="privacy-note">✅ 本地计算 · 不上传数据 · 秒出结果</view>
             <view class="mh-result" id="mhFreeResult"></view>
           </view>
 
@@ -59,20 +57,19 @@
               <view class="submit-btn" @tap="meihuaAskPaipan">🔮 一键起卦 · 深度解读</view>
             </view>
             <!-- 流式解读区域 -->
-            <view class="qai-stream-box" v-if="maiLoading || maiResult">
+            <view class="qai-stream-box" id="mhStreamBox" style="display:none;">
               <view class="chat-container" id="mhChatContainer"></view>
             </view>
             <!-- 追问输入栏 -->
             <view class="chat-input-bar" id="mhChatInputBar" style="display:none;">
               <input class="chat-input" id="mhChatInput" placeholder="继续追问..." />
-              <view class="chat-send-btn" @tap="mhSendFollowUp">发送</view>
+              <view class="chat-send-btn" onclick="window.mhSendFollowUp()">发送</view>
             </view>
-            <view class="privacy-note incognito-status">✅ 无痕模式已开启 · 本地计算 · 不上传数据 · 退出自动清空</view>
           </view>
         </view>
       </section>
     </view>
-    <view class="site-footer"><view class="footer-disclaimer">⚠️ 本站所有内容仅为民俗文化与传统命理科普参考，不构成任何决策建议，严禁利用本站内容从事封建迷信及违法违规活动，本站不对任何用户基于本站内容做出的决策承担任何责任</view><view class="footer-grid"><view class="footer-col"><view class="footer-col-title">平台信息</view><navigator url="/package-info/about/index">关于我们</navigator></view><view class="footer-col"><view class="footer-col-title">快捷导航</view><navigator url="/pages/qimen/index" open-type="switchTab">奇门遁甲</navigator><navigator url="/pages/bazi-index/index" open-type="switchTab">八字排盘</navigator><navigator url="/pages/meihua/index" open-type="switchTab">梅花易数</navigator><navigator url="/pages/calendar/index" open-type="switchTab">专属日历</navigator></view><view class="footer-col"><view class="footer-col-title">备案与版权</view><view class="footer-icp">ICP备案号：京ICP备2026050601号-1</view><view class="footer-icp">© 2026 时安解忧屋 版权所有</view></view></view></view>
+
   </view>
 </template>
 
@@ -95,7 +92,7 @@ const mobileMenuOpen = ref(false); const submenuOpen = reactive({ qimen: false, 
 function openMobileMenu() { mobileMenuOpen.value = true }; function closeMobileMenu() { mobileMenuOpen.value = false }; function toggleSubmenu(k) { submenuOpen[k] = !submenuOpen[k] }
 const isLoggedIn = ref(!!uni.getStorageSync('xc_token'))
 window.addEventListener('xc-session-expired', function() { isLoggedIn.value = false })
-const incognito = ref(true); const activeTab = ref('free')
+const activeTab = ref('free')
 
 // ═══ Tab/Method切换: DOM直操作 (绕过Vue 3.4.21 render effect bug) ═══
 // ── 深度分析/结果模式切换 ──
@@ -305,7 +302,7 @@ function renderMeihuaResult(d) {
     }
     html += '</div>'
   }
-  html += '<div class="privacy-note" style="margin-top:16px;">⚠️ 以上内容仅为民俗文化与传统命理科普参考，不构成任何决策建议</div>'
+  html += '<div style="margin-top:16px;">⚠️ 以上内容仅为民俗文化与传统命理科普参考，不构成任何决策建议</div>'
   html += '</div>'
   return html
 }
@@ -322,9 +319,14 @@ window._mhChatHistory = []
 
 async function meihuaAskPaipan() {
   if (maiLoading.value) return
-  // 清理旧状态
+  maiLoading.value = true
   maiResult.value = ''
   window._mhChatHistory = []
+  
+  // 直接显示流式盒子（绕过 Vue 3.4.21 v-show 渲染时序问题）
+  var box = document.getElementById('mhStreamBox')
+  if (box) box.style.display = ''
+  
   var chatContainer = document.getElementById('mhChatContainer')
   if (chatContainer) chatContainer.innerHTML = ''
   var inputBar = document.getElementById('mhChatInputBar')
@@ -356,8 +358,6 @@ async function meihuaAskPaipan() {
     payload.words = w.trim()
   }
 
-  maiLoading.value = true
-
   // 创建 AI 气泡
   var bubbleId = 'mhBubble_' + Date.now()
   var bubbleHTML = '<div class="chat-bubble-ai" id="' + bubbleId + '">' +
@@ -368,9 +368,8 @@ async function meihuaAskPaipan() {
 
   _mhDoStreamSSE({
     bubbleId: bubbleId,
-    askUrl: '/api/meihua/ask',
-    askBody: payload,
-    streamUrl: '/api/meihua/ask/stream',
+    url: '/api/meihua/ask/stream',
+    body: payload,
     question: question,
     onDone: function(fullText) {
       window._mhChatHistory = [
@@ -378,6 +377,7 @@ async function meihuaAskPaipan() {
         { role: 'assistant', content: fullText }
       ]
       maiResult.value = fullText
+      _saveMhConversation(question)
       var bar = document.getElementById('mhChatInputBar')
       if (bar) bar.style.display = 'flex'
     },
@@ -391,15 +391,8 @@ function _mhDoStreamSSE(opts) {
   var stageEl = bubble.querySelector('.ai-stage')
   var barEl = bubble.querySelector('.ai-progress-fill')
   var contentEl = bubble.querySelector('.chat-bubble-content')
-
-  var xhr = new XMLHttpRequest()
-  xhr.open('POST', opts.url, true)
-  xhr.setRequestHeader('Content-Type', 'application/json')
-  var token = ''
-  try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
-  if (token) xhr.setRequestHeader('Authorization', 'Bearer ' + token)
-
-  var lastIndex = 0, fullText = '', charQueue = '', typeTimer = null, doneReceived = false
+  var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
+  var fullText = '', charQueue = '', typeTimer = null, doneReceived = false
 
   function startTypewriter() {
     if (typeTimer) return
@@ -411,88 +404,143 @@ function _mhDoStreamSSE(opts) {
         if (barWrap) barWrap.style.display = 'none'
         if (contentEl) contentEl.innerHTML = _mhRenderCards(fullText)
         if (opts.onDone) opts.onDone(fullText)
+        maiLoading.value = false
         return
       }
       if (charQueue.length === 0) return
       var take = charQueue.length > 3 ? 2 : 1
       fullText += charQueue.substring(0, take)
       charQueue = charQueue.substring(take)
-      if (contentEl) contentEl.innerHTML = fullText.replace(/\n/g, '<br>')
+      if (contentEl) contentEl.innerHTML = _stripMarkdown(fullText).replace(/\n/g, '<br>')
     }, 35)
   }
 
-  xhr.onprogress = function() {
-    var newText = xhr.responseText.substring(lastIndex)
-    lastIndex = xhr.responseText.length
-    var lines = newText.split('\n'), eventType = ''
-    for (var i = 0; i < lines.length; i++) {
-      var line = lines[i]
-      if (line.indexOf('event:') === 0) { eventType = line.replace('event:', '').trim(); continue }
-      if (line.indexOf('data:') !== 0) continue
-      try {
-        var data = JSON.parse(line.replace('data:', '').trim())
-        if (eventType === 'progress') {
-          if (data.stage === 'connecting' && stageEl) stageEl.innerHTML = '🔗 正在连接...'
-          else if (data.stage === 'analyzing' && stageEl) stageEl.innerHTML = '🧠 排盘分析中...'
-          else if (data.stage === 'generating' && stageEl) { stageEl.innerHTML = '✍️ 正在生成解读...'; startTypewriter() }
-          if (barEl) barEl.style.width = '60%'
-        } else if (eventType === 'chunk') { charQueue += data.content }
-        else if (eventType === 'done') { doneReceived = true; maiLoading.value = false }
-        else if (eventType === 'error') { if (stageEl) stageEl.innerHTML = '⚠️ ' + data.message; if (opts.onError) opts.onError() }
-        eventType = ''
-      } catch(_) {}
+  // 使用 Fetch + ReadableStream（比 XHR onprogress 更可靠）
+  fetch(opts.url, {
+    method: 'POST',
+    headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+    body: JSON.stringify(opts.body)
+  }).then(function(resp) {
+    if (!resp.ok) { if (opts.onError) opts.onError(); return }
+    var reader = resp.body.getReader(); var decoder = new TextDecoder()
+    var buffer = '', eventType = ''
+    function pump() {
+      reader.read().then(function(r) {
+        if (r.done) { doneReceived = true; return }
+        buffer += decoder.decode(r.value, { stream: true })
+        var lines = buffer.split('\n')
+        buffer = lines.pop()
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i]
+          if (line.indexOf('event:') === 0) { eventType = line.replace('event:', '').trim(); continue }
+          if (line.indexOf('data:') !== 0) continue
+          try {
+            var data = JSON.parse(line.replace('data:', '').trim())
+            if (eventType === 'progress') {
+              if (data.stage === 'connecting' && stageEl) stageEl.innerHTML = '🔗 正在连接...'
+              else if (data.stage === 'analyzing' && stageEl) stageEl.innerHTML = '🧠 排盘分析中...'
+              else if (data.stage === 'generating' && stageEl) { stageEl.innerHTML = '<img class="ai-stage-logo" src="/static/images/logo.webp?v=2">正在生成解读...'; startTypewriter() }
+              if (barEl) barEl.style.width = '60%'
+            } else if (eventType === 'chunk') {
+              if (!typeTimer) startTypewriter()
+              charQueue += data.content
+            } else if (eventType === 'done') { doneReceived = true }
+            else if (eventType === 'error') { if (stageEl) stageEl.innerHTML = '⚠️ ' + data.message; if (opts.onError) opts.onError() }
+            eventType = ''
+          } catch(_) {}
+        }
+        pump()
+      }).catch(function() { if (opts.onError) opts.onError() })
     }
-  }
-  xhr.onerror = function() { if (stageEl) stageEl.innerHTML = '⚠️ 网络错误'; if (opts.onError) opts.onError() }
-  xhr.send(JSON.stringify(opts.body))
+    pump()
+  }).catch(function() { if (opts.onError) opts.onError() })
 }
 
 function _mhRenderCards(text) {
-  var sections = text.split(/\n(?=#{2,3} )/), html = ''
+  text = _stripMarkdown(text)
+  var sections = text.split(/\n(?=#{2,} |\d+\.\s+\*\*)/)
+  var html = ''
   sections.forEach(function(sec) {
-    var m = sec.match(/^(#{2,3})\s+(.+)/)
-    var title = m ? m[2] : ''
-    var body = m ? sec.substring(m[0].length).trim() : sec
-    body = body.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')
+    var title = ''
+    var body = sec
+    var m = sec.match(/^(#{2,})\s+(.+)/)
+    if (m) {
+      title = m[2]
+      body = sec.substring(m[0].length).trim()
+    } else {
+      var m2 = sec.match(/^(\d+\.)\s+\*\*(.+?)\*\*[：:]\s*/)
+      if (m2) {
+        title = m2[2]
+        body = sec.substring(m2[0].length).trim()
+      }
+    }
+    body = body.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')
     if (!body) body = '&nbsp;'
-    if (title) html += '<div class="qai-card-item"><div class="qai-card-title">' + title + '</div><div class="qai-card-body"><p>' + body + '</p></div></div>'
+    if (title) {
+      html += '<div class="qai-card-item"><div class="qai-card-title">' + title + '</div><div class="qai-card-body"><p>' + body + '</p></div></div>'
+    } else {
+      html += '<div class="qai-card-item"><div class="qai-card-body"><p>' + body + '</p></div></div>'
+    }
   })
   return html
 }
 
-function mhSendFollowUp() {
-  var input = document.getElementById('mhChatInput')
-  if (!input) return
-  var question = input.value.trim()
-  if (!question) return
-  input.value = ''
-  var chatContainer = document.getElementById('mhChatContainer')
-  if (!chatContainer) return
-
-  var userBubble = document.createElement('view')
-  userBubble.className = 'chat-bubble-user'
-  userBubble.textContent = question
-  chatContainer.appendChild(userBubble)
-
-  var bubbleId = 'mhFollow_' + Date.now()
-  var aiBubble = document.createElement('view')
-  aiBubble.className = 'chat-bubble-ai'
-  aiBubble.id = bubbleId
-  aiBubble.innerHTML = '<div class="ai-stage">✍️ 正在生成回复...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div><div class="chat-bubble-content"></div>'
-  chatContainer.appendChild(aiBubble)
-  chatContainer.scrollIntoView({ behavior: 'smooth', block: 'end' })
-
-  var history = window._mhChatHistory || []
-  history.push({ role: 'user', content: question })
-  _mhDoStreamSSE({
-    bubbleId: bubbleId, askUrl: '/api/meihua/ask',
-    askBody: { question: question, history: history },
-    streamUrl: '/api/meihua/ask/stream',
-    question: question,
-    onDone: function(fullText) { history.push({ role: 'assistant', content: fullText }); window._mhChatHistory = history },
-    onError: function() {}
-  })
+function _mhScrollToChat() {
+  setTimeout(function() {
+    var el = document.getElementById('mhChatInputBar')
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, 100)
 }
+
+function _stripMarkdown(s) {
+  if (!s) return ''
+  return s.replace(/^#{1,6}\s*/gm, '').replace(/\*\*/g, '').replace(/^[-*]\s+/gm, '')
+}
+
+function mhSendFollowUp() {
+  try {
+    var input = document.querySelector('#mhChatInput input') || document.getElementById('mhChatInput')
+    if (!input) { console.warn('[meihua] mhChatInput not found'); return }
+    var question = input.value.trim()
+    if (!question) return
+    input.value = ''
+    var chatContainer = document.getElementById('mhChatContainer')
+    if (!chatContainer) return
+    var userBubble = document.createElement('view')
+    userBubble.className = 'chat-bubble-user'
+    userBubble.textContent = question
+    chatContainer.appendChild(userBubble)
+    var bubbleId = 'mhFollow_' + Date.now()
+    var aiBubble = document.createElement('view')
+    aiBubble.className = 'chat-bubble-ai'
+    aiBubble.id = bubbleId
+    aiBubble.innerHTML = '<div class="ai-stage"><img class="ai-stage-logo" src="/static/images/logo.webp?v=2">正在生成回复...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div><div class="chat-bubble-content"></div>'
+    chatContainer.appendChild(aiBubble)
+    _mhScrollToChat()
+    var history = window._mhChatHistory || []
+    history.push({ role: 'user', content: question })
+    // 发送时立即保存
+    if (_mhCurrentConvId) {
+      window._mhChatHistory = history
+      _updateMhConversation()
+    } else {
+      window._mhChatHistory = history
+      _saveMhConversation(question)
+    }
+    _mhDoStreamSSE({
+      bubbleId: bubbleId,
+      url: '/api/meihua/ask/stream',
+      body: { question: question, history: history },
+      question: question,
+      onDone: function(fullText) { history.push({ role: 'assistant', content: fullText }); window._mhChatHistory = history; if (_mhCurrentConvId) { _updateMhConversation() } else { _saveMhConversation(question) } },
+      onError: function() {
+        var eb = document.getElementById(bubbleId)
+        if (eb) { var es = eb.querySelector('.ai-stage'); if (es) es.innerHTML = '⚠️ 追问失败，请重试' }
+      }
+    })
+  } catch (err) { console.error('[meihua] mhSendFollowUp error:', err) }
+}
+window.mhSendFollowUp = mhSendFollowUp
 
 // ═══ 注入全局样式（合并所有stylesheet） ═══
 function _unscopeStyles() {
@@ -527,6 +575,7 @@ onShow(() => {
       document.body.setAttribute('data-theme', t)
     } catch(_) {}
   }
+  try { _checkMhRestore() } catch(_) {}
 })
 
 onMounted(() => {
@@ -671,7 +720,96 @@ onMounted(() => {
   createNativeInput('mai-num2-wrap', 'number', '选填')
   createNativeInput('mai-words-wrap', 'text', '如：今天天气很好')
   createNativeInput('mai-question-wrap', 'text', '如：这件事能不能成？')
+  // 监听对话恢复事件
+  uni.$on('xc-restore', _checkMhRestore)
+  _checkMhRestore()
+  window._xc_restoreMeihua = _checkMhRestore
+  setInterval(function() {
+    var rd = window.__xc_restoreData
+    if (rd && rd.type === 'meihua') _checkMhRestore()
+  }, 500)
 })
+
+function _checkMhRestore() {
+  var d = window.__xc_restoreData
+  if (!d || d.type !== 'meihua') return
+  switchMhTab('ai')
+  var chatContainer = document.getElementById('mhChatContainer')
+  var inputBar = document.getElementById('mhChatInputBar')
+  var streamBox = document.getElementById('mhStreamBox')
+  if (streamBox) streamBox.style.display = ''
+  if (!chatContainer) return
+  window.__xc_restoreData = null
+  chatContainer.innerHTML = ''
+  if (d.rawHtml) {
+    if (d.question) {
+      var ub = document.createElement('view')
+      ub.className = 'chat-bubble-user'
+      ub.textContent = d.question
+      chatContainer.appendChild(ub)
+    }
+    var cleanHtml = _stripMarkdown(d.rawHtml.replace(/<[^>]+>/g, '')).replace(/\n/g, '<br>')
+    var ab = document.createElement('view')
+    ab.className = 'chat-bubble-ai'
+    ab.innerHTML = '<div class="chat-bubble-content">' + cleanHtml + '</div>'
+    chatContainer.appendChild(ab)
+    window._mhChatHistory = [
+      { role: 'user', content: d.question || '' },
+      { role: 'assistant', content: cleanHtml.replace(/<[^>]+>/g, '').substring(0, 200) + '...' }
+    ]
+    _mhCurrentConvId = null
+  } else {
+    var messages = d.messages || []
+    window._mhChatHistory = messages.slice()
+    _mhCurrentConvId = d.id || null
+    messages.forEach(function(m) {
+      if (m.role === 'user') {
+        var ub = document.createElement('view')
+        ub.className = 'chat-bubble-user'
+        ub.textContent = m.content
+        chatContainer.appendChild(ub)
+      } else if (m.role === 'assistant') {
+        var ab = document.createElement('view')
+        ab.className = 'chat-bubble-ai'
+        ab.innerHTML = '<div class="chat-bubble-content">' + _stripMarkdown(m.content).replace(/\n/g, '<br>') + '</div>'
+        chatContainer.appendChild(ab)
+      }
+    })
+  }
+  if (inputBar) inputBar.style.display = 'flex'
+  _mhScrollToChat()
+}
+// ═══ 梅花对话保存 ═══
+var _mhCurrentConvId = null
+
+function _saveMhConversation(question) {
+  var title = (question || '梅花易数').substring(0, 50)
+  var methodSelect = document.getElementById('mai-method')
+  var method = methodSelect ? document.querySelector('#mai-method .selected') ? document.querySelector('#mai-method .selected').getAttribute('data-value') : '' : ''
+  uni.request({
+    url: '/api/meihua/conversations', method: 'POST',
+    data: {
+      title: title, method: method,
+      question: question,
+      messages: window._mhChatHistory || []
+    },
+    success: function(res) {
+      if (res.data && res.data.id) _mhCurrentConvId = res.data.id
+      window.__sidebarCache = null
+    },
+    fail: function(err) { console.error('[meihua] 保存对话失败:', err) }
+  })
+}
+
+function _updateMhConversation() {
+  if (!_mhCurrentConvId) return
+  uni.request({
+    url: '/api/meihua/conversations', method: 'POST',
+    data: { id: _mhCurrentConvId, messages: window._mhChatHistory || [] },
+    success: function() { window.__sidebarCache = null },
+    fail: function(err) { console.error('[meihua] 更新对话失败:', err) }
+  })
+}
 </script>
 
 <style>
@@ -690,9 +828,6 @@ onMounted(() => {
 .tool-hero-title { font-family: var(--font-serif); font-size: 2rem; font-weight: 400; letter-spacing: 4px; color: var(--text-1); margin-bottom: 12px; }
 .tool-hero-desc { font-size: 0.9375rem; color: var(--text-3); letter-spacing: 2px; }
 .tool-container { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; backdrop-filter: blur(20px); box-shadow: var(--card-shadow); max-width: 720px; margin: 0 auto; }
-.incognito-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-radius: 12px; background: rgba(110,195,135,0.06); border: 1px solid rgba(110,195,135,0.12); margin-bottom: 24px; }
-.incognito-toggle { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--success); }
-.incognito-desc { font-size: 0.6875rem; color: var(--success); opacity: 0.7; }
 .tool-tabs { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid var(--card-border); }
 .tool-tab { padding: 12px 20px; border-radius: 10px 10px 0 0; font-size: 0.875rem; cursor: pointer; border: 1px solid transparent; border-bottom: none; color: var(--text-3); background: transparent; }
 .tool-tab.active { color: var(--accent); background: var(--accent-glow); border-color: var(--accent); font-weight: 600; }
@@ -706,8 +841,6 @@ onMounted(() => {
 .btn-row { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
 .btn-row .submit-btn { flex: 1; margin-top: 0; }
 .btn-ghost { background: transparent; border: 1px solid var(--card-border); color: var(--text-3); padding: 7px 18px; border-radius: 10px; font-size: 0.8125rem; }
-.privacy-note { margin-top: 16px; padding: 10px 14px; border-radius: 10px; background: rgba(110,195,135,0.08); border: 1px solid rgba(110,195,135,0.15); font-size: 0.75rem; color: var(--success); text-align: center; }
-.incognito-status { margin-top: 16px; }
 
 /* ═══ 梅花易数排盘结果样式 ═══ */
 .mh-result-wrap { animation: mhFadeIn 0.4s ease; }
@@ -795,12 +928,6 @@ onMounted(() => {
 .result-mode-switch { display: flex; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--card-border); }
 .result-mode-btn { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--card-border); background: transparent; color: var(--text-3); font-size: 0.75rem; cursor: pointer; text-align: center; }
 .result-mode-btn.active { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); }
-.site-footer { background: var(--nav-bg); border-top: 1px solid var(--card-border); padding: 48px 32px 24px; margin-top: 80px; }
-.footer-disclaimer { max-width: var(--max-w); margin: 0 auto 32px; padding: 14px 20px; border-radius: 10px; background: rgba(215,125,110,0.08); border: 1px solid rgba(215,125,110,0.15); font-size: 0.75rem; color: var(--danger); line-height: 1.6; text-align: center; }
-.footer-grid { max-width: var(--max-w); margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; }
-.footer-col-title { font-size: 0.8125rem; color: var(--text-2); margin-bottom: 12px; }
-.footer-col navigator { display: block; font-size: 0.75rem; color: var(--text-3); text-decoration: none; padding: 3px 0; }
-.footer-icp { font-size: 0.6875rem; color: var(--text-3); margin-top: 8px; }
 .modal-overlay { display: none; position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.55); backdrop-filter: blur(8px); align-items: center; justify-content: center; }
 .modal-overlay.open { display: flex; }
 .modal-box { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; width: 360px; backdrop-filter: blur(40px); }
@@ -811,7 +938,7 @@ onMounted(() => {
 .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
 .modal-btns .btn { flex: 1; text-align: center; }
 .modal-error { color: var(--danger); font-size: 0.75rem; text-align: center; margin-top: 10px; min-height: 18px; }
-@media (max-width: 768px) { .tool-hero { padding: 40px 16px 24px; } .tool-hero-title { font-size: 1.5rem; } .tool-container { padding: 20px 16px; } .section { padding: 48px 16px; } .footer-grid { grid-template-columns: 1fr; gap: 24px; } }
+@media (max-width: 768px) { .tool-hero { padding: 40px 16px 24px; } .tool-hero-title { font-size: 1.5rem; } .tool-container { padding: 20px 16px; } .section { padding: 48px 16px; } }
 
 /* ═══ 流式解读 + 对话气泡 ═══ */
 .qai-stream-box { margin-top: 20px; padding: 16px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; }

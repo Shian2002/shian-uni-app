@@ -68,31 +68,6 @@
       </section>
     </view>
 
-    <!-- 页脚 -->
-    <view class="site-footer">
-      <view class="footer-disclaimer">⚠️ 本站所有内容仅为民俗文化与传统命理科普参考，不构成任何决策建议，严禁利用本站内容从事封建迷信及违法违规活动，本站不对任何用户基于本站内容做出的决策承担任何责任</view>
-      <view class="footer-grid">
-        <view class="footer-col">
-          <view class="footer-col-title">平台信息</view>
-          <navigator url="/package-info/about/index">关于我们</navigator>
-        </view>
-        <view class="footer-col">
-          <view class="footer-col-title">快捷导航</view>
-          <navigator url="/pages/qimen/index" open-type="switchTab">奇门遁甲</navigator>
-          <navigator url="/pages/bazi-index/index" open-type="switchTab">八字排盘</navigator>
-          <navigator url="/pages/zeji/index" open-type="switchTab">择吉工具</navigator>
-          <navigator url="/pages/calendar/index" open-type="switchTab">专属日历</navigator>
-        </view>
-        <view class="footer-col">
-          <view class="footer-col-title">备案与版权</view>
-          <view class="footer-icp">ICP备案号：京ICP备2026050601号-1</view>
-          <view class="footer-icp">© 2026 时安解忧屋 版权所有</view>
-        </view>
-      </view>
-      <view class="footer-bottom">
-        <text class="footer-bottom-text">时安解忧屋 · 看得懂用得上的民俗命理参考平台</text>
-      </view>
-    </view>
 
 
   </view>
@@ -305,16 +280,6 @@ onMounted(() => {
 .result-area { font-size: 0.875rem; color: var(--text-2); white-space: pre-wrap; line-height: 1.8; }
 .compliance-notice { margin-top: 16px; padding: 10px 14px; border-radius: 8px; font-size: 0.75rem; color: var(--text-3); background: rgba(170,160,145,0.06); text-align: center; }
 
-/* 页脚 */
-.site-footer { margin-top: 80px; padding: 40px 32px 24px; border-top: 1px solid var(--card-border); }
-.footer-disclaimer { font-size: 0.6875rem; color: var(--danger); text-align: center; margin-bottom: 24px; opacity: 0.8; }
-.footer-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: var(--max-w); margin: 0 auto; }
-.footer-col-title { font-size: 0.8125rem; font-weight: 600; color: var(--text-1); margin-bottom: 8px; }
-.footer-col navigator { display: block; font-size: 0.75rem; color: var(--text-3); text-decoration: none; padding: 3px 0; }
-.footer-icp { font-size: 0.6875rem; color: var(--text-3); }
-.footer-bottom { text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--card-border); }
-.footer-bottom-text { font-size: 0.75rem; color: var(--text-3); letter-spacing: 2px; }
-
 /* 弹窗 */
 .modal-overlay { display: none; position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
 .modal-overlay.open { display: flex; }
@@ -334,6 +299,6 @@ onMounted(() => {
   .section { padding: 48px 16px; }
   .form-row-2col { flex-direction: column; gap: 0; }
   .form-row-2col .form-group { margin-bottom: 14px; }
-  .footer-grid { grid-template-columns: 1fr; gap: 16px; }
+
 }
 </style>

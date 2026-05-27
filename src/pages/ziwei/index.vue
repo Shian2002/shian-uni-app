@@ -6,7 +6,7 @@
       <section class="tool-hero"><view class="tool-hero-content"><view class="section-tag">紫微斗数</view><view class="tool-hero-title">紫微斗数 · 十二宫排盘</view><view class="tool-hero-desc">出生时间排盘 · 十二宫星曜 · 四化飞星 · 大限流年推运</view></view></section>
       <section class="section">
         <view class="tool-container">
-          <view class="incognito-bar"><label class="incognito-toggle"><view id="zwIncognitoChk" class="incognito-visual" @tap="toggleZwIncognito()"></view><text>{{ incognito ? '🔒 无痕模式' : '🔓 有痕模式' }}</text></label><text class="incognito-desc">本地计算 · 不上传数据 · 退出自动清空</text></view>
+
           <view class="tool-tabs">
             <view id="zwTabPan" class="tool-tab" :class="{ active: activeTab === 'pan' }" data-zw-tab="pan">⭐ 排盘<text class="tab-badge free">免费</text></view>
             <view id="zwTabAi" class="tool-tab" :class="{ active: activeTab === 'ai' }" @tap="switchZwTab('ai')">🔮 时安紫微系统<text class="tab-badge">PRO</text></view>
@@ -28,7 +28,6 @@
               <view class="btn btn-ghost" data-zw-action="resetPan">🔄 清空</view>
             </view>
             <text class="form-hint" style="text-align:center;display:block;margin-top:12px;">基于iztro-py精确排盘，十二宫、主星辅星、四化飞星全展示。</text>
-            <view class="privacy-note">✅ 本地计算 · 不上传数据 · 秒出结果</view>
             <view class="zw-result" v-if="zwPanResult" v-html="zwPanResult"></view>
           </view>
           <!-- 推运面板 -->
@@ -60,30 +59,29 @@
             </view>
             <view class="form-group"><text class="form-label">分析类型</text>
               <view class="analysis-type-row">
-                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 0 }" >🔮 命盘总览</view>
-                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 1 }" >💼 事业财运</view>
-                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 2 }" >💕 姻缘感情</view>
-                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 3 }" >🏥 健康运势</view>
-                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 4 }" >📅 大限流年</view>
+                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 0 }" data-zw-action="aiType" data-zw-type-idx="0">🔮 命盘总览</view>
+                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 1 }" data-zw-action="aiType" data-zw-type-idx="1">💼 事业财运</view>
+                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 2 }" data-zw-action="aiType" data-zw-type-idx="2">💕 姻缘感情</view>
+                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 3 }" data-zw-action="aiType" data-zw-type-idx="3">🏥 健康运势</view>
+                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 4 }" data-zw-action="aiType" data-zw-type-idx="4">📅 大限流年</view>
               </view>
             </view>
             <view class="form-group"><text class="form-label">你的问题（选填）</text><view id="zwAiQuestion-wrap" class="dom-input-wrap"></view></view>
             <view class="btn-row">
-              <view class="submit-btn">🔮 AI 深度解读</view>
+              <view class="submit-btn" data-zw-action="aiAsk">🔮 AI 深度解读</view>
             </view>
-            <view class="qai-stream-box" v-if="zwAiLoading || zwAiResult">
+            <view class="qai-stream-box" id="zwStreamBox" style="display:none;">
               <view class="chat-container" id="zwChatContainer"></view>
             </view>
             <view class="chat-input-bar" id="zwChatInputBar" style="display:none;">
               <input class="chat-input" id="zwChatInput" placeholder="继续追问..." />
-              <view class="chat-send-btn">发送</view>
+              <view class="chat-send-btn" data-zw-action="aiFollowUp">发送</view>
             </view>
-            <view class="privacy-note incognito-status">✅ 无痕模式已开启 · 本地计算 · 不上传数据 · 退出自动清空</view>
           </view>
         </view>
       </section>
     </view>
-    <view class="site-footer"><view class="footer-disclaimer">⚠️ 本站所有内容仅为民俗文化与传统命理科普参考，不构成任何决策建议</view><view class="footer-grid"><view class="footer-col"><view class="footer-col-title">平台信息</view><navigator url="/package-info/about/index">关于我们</navigator></view><view class="footer-col"><view class="footer-col-title">快捷导航</view><navigator url="/pages/qimen/index" open-type="switchTab">奇门遁甲</navigator><navigator url="/pages/bazi-index/index" open-type="switchTab">八字排盘</navigator><navigator url="/pages/ziwei/index" open-type="switchTab">紫微斗数</navigator><navigator url="/pages/calendar/index" open-type="switchTab">专属日历</navigator></view><view class="footer-col"><view class="footer-col-title">备案与版权</view><view class="footer-icp">ICP备案号：京ICP备2026050601号-1</view><view class="footer-icp">© 2026 时安解忧屋 版权所有</view></view></view></view>
+
   </view>
 </template>
 
@@ -106,14 +104,7 @@ const mobileMenuOpen = ref(false); const submenuOpen = reactive({ qimen: false, 
 function openMobileMenu() { mobileMenuOpen.value = true }; function closeMobileMenu() { mobileMenuOpen.value = false }; function toggleSubmenu(k) { submenuOpen[k] = !submenuOpen[k] }
 const isLoggedIn = ref(!!uni.getStorageSync('xc_token'))
 window.addEventListener('xc-session-expired', function() { isLoggedIn.value = false })
-const incognito = ref(true); const activeTab = ref('pan')
-
-// ═══ 修复模式：DOM原生控件操作 ═══
-function toggleZwIncognito() {
-  incognito.value = !incognito.value
-  var el = document.getElementById('zwIncognitoChk')
-  if (el) el.classList.toggle('active')
-}
+const activeTab = ref('pan')
 
 function switchZwTab(tab) {
   activeTab.value = tab
@@ -164,13 +155,15 @@ async function zwAiAsk() {
   var gender = ['男', '女'][zwAiGenderIdx.value]
   var date_type = ['solar', 'lunar'][zwAiDateTypeIdx.value]
 
-  // 清理
+  // 清理 — 先设 loading
+  zwAiLoading.value = true
   zwAiResult.value = ''; window._zwChatHistory = []
+  var streamBox = document.getElementById('zwStreamBox')
+  if (streamBox) streamBox.style.display = 'block'
   var chatContainer = document.getElementById('zwChatContainer')
   if (chatContainer) chatContainer.innerHTML = ''
   var inputBar = document.getElementById('zwChatInputBar')
   if (inputBar) inputBar.style.display = 'none'
-  zwAiLoading.value = true
 
   var bubbleId = 'zwBubble_' + Date.now()
   var bubbleHTML = '<div class="chat-bubble-ai" id="' + bubbleId + '">' +
@@ -196,10 +189,8 @@ function _zwDoStreamSSE(opts) {
   var bubble = document.getElementById(opts.bubbleId); if (!bubble) return
   var stageEl = bubble.querySelector('.ai-stage'); var barEl = bubble.querySelector('.ai-progress-fill')
   var contentEl = bubble.querySelector('.chat-bubble-content')
-  var xhr = new XMLHttpRequest(); xhr.open('POST', opts.url, true); xhr.setRequestHeader('Content-Type', 'application/json')
   var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
-  if (token) xhr.setRequestHeader('Authorization', 'Bearer ' + token)
-  var lastIndex = 0, fullText = '', charQueue = '', typeTimer = null, doneReceived = false
+  var fullText = '', charQueue = '', typeTimer = null, doneReceived = false
   function startTypewriter() {
     if (typeTimer) return
     typeTimer = setInterval(function() {
@@ -208,60 +199,96 @@ function _zwDoStreamSSE(opts) {
         if (stageEl) stageEl.style.display = 'none'
         var barWrap = bubble.querySelector('.ai-progress-bar'); if (barWrap) barWrap.style.display = 'none'
         if (contentEl) contentEl.innerHTML = _zwRenderCards(fullText)
+        zwAiLoading.value = false
         if (opts.onDone) opts.onDone(fullText); return
       }
       if (charQueue.length === 0) return
       var take = charQueue.length > 3 ? 2 : 1
       fullText += charQueue.substring(0, take); charQueue = charQueue.substring(take)
-      if (contentEl) contentEl.innerHTML = fullText.replace(/\n/g, '<br>')
+      if (contentEl) contentEl.innerHTML = _stripMarkdown(fullText).replace(/\n/g, '<br>')
     }, 35)
   }
-  xhr.onprogress = function() {
-    var newText = xhr.responseText.substring(lastIndex); lastIndex = xhr.responseText.length
-    var lines = newText.split('\n'), eventType = ''
-    for (var i = 0; i < lines.length; i++) {
-      var line = lines[i]
-      if (line.indexOf('event:') === 0) { eventType = line.replace('event:', '').trim(); continue }
-      if (line.indexOf('data:') !== 0) continue
-      try {
-        var data = JSON.parse(line.replace('data:', '').trim())
-        if (eventType === 'progress') {
-          if (data.stage === 'connecting' && stageEl) stageEl.innerHTML = '🔗 正在连接...'
-          else if (data.stage === 'analyzing' && stageEl) stageEl.innerHTML = '🧠 排盘分析中...'
-          else if (data.stage === 'generating' && stageEl) { stageEl.innerHTML = '✍️ 正在生成解读...'; startTypewriter() }
-          if (barEl) barEl.style.width = '60%'
-        } else if (eventType === 'chunk') { charQueue += data.content }
-        else if (eventType === 'done') { doneReceived = true; zwAiLoading.value = false }
-        else if (eventType === 'error') { if (stageEl) stageEl.innerHTML = '⚠️ ' + data.message; if (opts.onError) opts.onError() }
-        eventType = ''
-      } catch(_) {}
+  // 使用 Fetch + ReadableStream（比 XHR onprogress 更可靠）
+  fetch(opts.url, {
+    method: 'POST',
+    headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+    body: JSON.stringify(opts.body)
+  }).then(function(resp) {
+    if (!resp.ok) { if (opts.onError) opts.onError(); return }
+    var reader = resp.body.getReader(); var decoder = new TextDecoder()
+    var buffer = ''
+    function pump() {
+      reader.read().then(function(r) {
+        if (r.done) { doneReceived = true; return }
+        buffer += decoder.decode(r.value, { stream: true })
+        var lines = buffer.split('\n')
+        buffer = lines.pop()
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i]
+          if (line.indexOf('data:') !== 0) continue
+          try {
+            var data = JSON.parse(line.replace('data:', '').trim())
+            if (data.type === 'progress') {
+              if (data.stage === 'connecting' && stageEl) stageEl.innerHTML = '🔗 正在连接...'
+              else if (data.stage === 'analyzing' && stageEl) stageEl.innerHTML = '🧠 排盘分析中...'
+              else if (data.stage === 'generating' && stageEl) { stageEl.innerHTML = '<img class="ai-stage-logo" src="/static/images/logo.webp?v=2">正在生成解读...'; startTypewriter() }
+              if (barEl) barEl.style.width = '60%'
+            } else if (data.type === 'chunk' || data.type === 'delta') { if (!typeTimer) startTypewriter(); charQueue += data.content }
+            else if (data.type === 'done') { doneReceived = true }
+            else if (data.type === 'error') { if (stageEl) stageEl.innerHTML = '⚠️ ' + data.message; if (opts.onError) opts.onError() }
+          } catch(_) {}
+        }
+        pump()
+      }).catch(function() { if (opts.onError) opts.onError() })
     }
-  }
-  xhr.onerror = function() { if (stageEl) stageEl.innerHTML = '⚠️ 网络错误'; if (opts.onError) opts.onError() }
-  xhr.send(JSON.stringify(opts.body))
+    pump()
+  }).catch(function() { if (opts.onError) opts.onError() })
+}
+
+function _stripMarkdown(s) {
+  if (!s) return ''
+  return s.replace(/^#{1,6}\s*/gm, '').replace(/\*\*/g, '').replace(/^[-*]\s+/gm, '')
 }
 
 function _zwRenderCards(text) {
-  var sections = text.split(/\n(?=#{2,3} )/), html = ''
+  text = _stripMarkdown(text)
+  // 同时支持 ## 标题 和 数字编号+粗体（如 "1. **卦象解读**：..."）
+  var sections = text.split(/\n(?=#{2,} |\d+\.\s+\*\*)/)
+  var html = ''
   sections.forEach(function(sec) {
-    var m = sec.match(/^(#{2,3})\s+(.+)/); var title = m ? m[2] : ''
-    var body = m ? sec.substring(m[0].length).trim() : sec
-    body = body.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')
+    var title = ''
+    var body = sec
+    var m = sec.match(/^(#{2,})\s+(.+)/)
+    if (m) {
+      title = m[2]
+      body = sec.substring(m[0].length).trim()
+    } else {
+      var m2 = sec.match(/^(\d+\.)\s+\*\*(.+?)\*\*[：:]\s*/)
+      if (m2) {
+        title = m2[2]
+        body = sec.substring(m2[0].length).trim()
+      }
+    }
+    body = body.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')
     if (!body) body = '&nbsp;'
-    if (title) html += '<div class="qai-card-item"><div class="qai-card-title">' + title + '</div><div class="qai-card-body"><p>' + body + '</p></div></div>'
+    if (title) {
+      html += '<div class="qai-card-item"><div class="qai-card-title">' + title + '</div><div class="qai-card-body"><p>' + body + '</p></div></div>'
+    } else {
+      html += '<div class="qai-card-item"><div class="qai-card-body"><p>' + body + '</p></div></div>'
+    }
   })
   return html
 }
 
 function zwSendFollowUp() {
-  var input = document.getElementById('zwChatInput'); if (!input) return
+  var input = document.querySelector('#zwChatInput input') || document.getElementById('zwChatInput'); if (!input) return
   var question = input.value.trim(); if (!question) return; input.value = ''
   var chatContainer = document.getElementById('zwChatContainer'); if (!chatContainer) return
   var userBubble = document.createElement('view'); userBubble.className = 'chat-bubble-user'; userBubble.textContent = question
   chatContainer.appendChild(userBubble)
   var bubbleId = 'zwFollow_' + Date.now()
   var aiBubble = document.createElement('view'); aiBubble.className = 'chat-bubble-ai'; aiBubble.id = bubbleId
-  aiBubble.innerHTML = '<div class="ai-stage">✍️ 正在生成回复...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div><div class="chat-bubble-content"></div>'
+  aiBubble.innerHTML = '<div class="ai-stage"><img class="ai-stage-logo" src="/static/images/logo.webp?v=2">正在生成回复...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div><div class="chat-bubble-content"></div>'
   chatContainer.appendChild(aiBubble); chatContainer.scrollIntoView({ behavior: 'smooth', block: 'end' })
   var history = window._zwChatHistory || []; history.push({ role: 'user', content: question })
   _zwDoStreamSSE({
@@ -392,7 +419,7 @@ function renderZiweiPan(d) {
     })
     html += '</table></div>'
   }
-  html += '<div class="privacy-note" style="margin-top:16px;">⚠️ 以上内容仅为民俗文化与传统命理科普参考，不构成任何决策建议</div>'
+  html += '<div class="disclaimer-note" style="margin-top:16px;">⚠️ 以上内容仅为民俗文化与传统命理科普参考，不构成任何决策建议</div>'
   html += '</div>'
   return html
 }
@@ -433,7 +460,7 @@ function renderZiweiHoroscope(d) {
     html += '</div>'
   })
   html += '</div>'
-  html += '<div class="privacy-note" style="margin-top:16px;">⚠️ 以上内容仅为民俗文化与传统命理科普参考，不构成任何决策建议</div>'
+  html += '<div class="disclaimer-note" style="margin-top:16px;">⚠️ 以上内容仅为民俗文化与传统命理科普参考，不构成任何决策建议</div>'
   html += '</div>'
   return html
 }
@@ -533,35 +560,10 @@ onMounted(() => {
     }
   }
   
-  // DOM click 绑定（uni-view 的 @tap/@click 不生效，用 DOM 事件代理）
-  setTimeout(function() {
-    var aiContent = document.getElementById('zwTabAiContent')
-    if (aiContent) {
-      aiContent.addEventListener('click', function(e) {
-        var target = e.target
-        // 查找最近的 .submit-btn
-        var btn = target.closest ? target.closest('.submit-btn') : null
-        if (!btn) { btn = target; while (btn && !btn.classList.contains('submit-btn')) btn = btn.parentElement }
-        if (btn && btn.textContent.indexOf('AI 深度解读') !== -1) {
-          zwAiAsk()
-          return
-        }
-        // 查找最近的 .chat-send-btn
-        var sendBtn = target.closest ? target.closest('.chat-send-btn') : null
-        if (!sendBtn) { sendBtn = target; while (sendBtn && !sendBtn.classList.contains('chat-send-btn')) sendBtn = sendBtn.parentElement }
-        if (sendBtn) { zwSendFollowUp(); return }
-        // 分析类型按钮
-        var typeBtn = target.closest ? target.closest('.analysis-type-btn') : null
-        if (!typeBtn) { typeBtn = target; while (typeBtn && !typeBtn.classList.contains('analysis-type-btn')) typeBtn = typeBtn.parentElement }
-        if (typeBtn) {
-          var texts = ['命盘总览', '事业财运', '姻缘感情', '健康运势', '大限流年']
-          for (var i = 0; i < texts.length; i++) {
-            if (typeBtn.textContent.indexOf(texts[i]) !== -1) { zwAiAnalysisTypeIdx.value = i; return }
-          }
-        }
-      })
-    }
-  }, 300)
+  // 导出AI函数到window
+	  window._zwAiAsk = zwAiAsk
+	  window._zwSendFollowUp = zwSendFollowUp
+
 
   // DOM事件委托：修复<view onclick>在uni-app H5中不生效的问题
   try {
@@ -574,17 +576,25 @@ onMounted(() => {
         target = target.parentElement; depth--
       }
     })
-    document.querySelector('.btn-row')?.addEventListener('click', function(e) {
-      var target = e.target; var depth = 8
-      while (target && target !== this && depth > 0) {
-        if (target.dataset && target.dataset.zwAction) {
-          var action = target.dataset.zwAction
-          if (action === 'freePan') window._xc_ziweiFreePan()
-          else if (action === 'resetPan') window._xc_zwResetPan()
-          return
+    document.querySelectorAll('.btn-row').forEach(function(btnRow) {
+      btnRow.addEventListener('click', function(e) {
+        var target = e.target; var depth = 8
+        while (target && target !== this && depth > 0) {
+          if (target.dataset && target.dataset.zwAction) {
+            var action = target.dataset.zwAction
+            if (action === 'freePan') window._xc_ziweiFreePan()
+            else if (action === 'resetPan') window._xc_zwResetPan()
+            else if (action === 'aiAsk' && window._zwAiAsk) window._zwAiAsk()
+            else if (action === 'aiFollowUp' && window._zwSendFollowUp) window._zwSendFollowUp()
+            else if (action === 'aiType') {
+              var idx = parseInt(target.dataset.zwTypeIdx)
+              if (!isNaN(idx)) zwAiAnalysisTypeIdx.value = idx
+            }
+            return
+          }
+          target = target.parentElement; depth--
         }
-        target = target.parentElement; depth--
-      }
+      })
     })
     // 推运按钮行（在zwHoroContent内）
     var horoContent = document.getElementById('zwHoroContent')
@@ -672,9 +682,6 @@ onMounted(() => {
 .tool-hero-title { font-family: var(--font-serif); font-size: 2rem; font-weight: 400; letter-spacing: 4px; color: var(--text-1); margin-bottom: 12px; }
 .tool-hero-desc { font-size: 0.9375rem; color: var(--text-3); letter-spacing: 2px; }
 .tool-container { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; backdrop-filter: blur(20px); box-shadow: var(--card-shadow); max-width: 720px; margin: 0 auto; }
-.incognito-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-radius: 12px; background: rgba(110,195,135,0.06); border: 1px solid rgba(110,195,135,0.12); margin-bottom: 24px; }
-.incognito-toggle { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--success); }
-.incognito-desc { font-size: 0.6875rem; color: var(--success); opacity: 0.7; }
 .tool-tabs { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid var(--card-border); }
 .tool-tab { padding: 12px 20px; border-radius: 10px 10px 0 0; font-size: 0.875rem; cursor: pointer; border: 1px solid transparent; border-bottom: none; color: var(--text-3); background: transparent; }
 .tool-tab.active { color: var(--accent); background: var(--accent-glow); border-color: var(--accent); font-weight: 600; }
@@ -688,7 +695,7 @@ onMounted(() => {
 .btn-row { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
 .btn-row .submit-btn { flex: 1; margin-top: 0; }
 .btn-ghost { background: transparent; border: 1px solid var(--card-border); color: var(--text-3); padding: 7px 18px; border-radius: 10px; font-size: 0.8125rem; }
-.privacy-note { margin-top: 16px; padding: 10px 14px; border-radius: 10px; background: rgba(110,195,135,0.08); border: 1px solid rgba(110,195,135,0.15); font-size: 0.75rem; color: var(--success); text-align: center; }
+.disclaimer-note { margin-top: 16px; padding: 10px 14px; border-radius: 10px; background: rgba(110,195,135,0.08); border: 1px solid rgba(110,195,135,0.15); font-size: 0.75rem; color: var(--success); text-align: center; }
 .zw-form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
 .zw-result { margin-top: 16px; }
 .zw-result-card { background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid var(--card-border); }
@@ -770,12 +777,6 @@ onMounted(() => {
   .zw-period-mutagen { font-size: 0.62rem; }
   .zw-palace-badge { font-size: 0.5rem; padding: 0 4px; }
 }
-.site-footer { background: var(--nav-bg); border-top: 1px solid var(--card-border); padding: 48px 32px 24px; margin-top: 80px; }
-.footer-disclaimer { max-width: var(--max-w); margin: 0 auto 32px; padding: 14px 20px; border-radius: 10px; background: rgba(215,125,110,0.08); border: 1px solid rgba(215,125,110,0.15); font-size: 0.75rem; color: var(--danger); line-height: 1.6; text-align: center; }
-.footer-grid { max-width: var(--max-w); margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; }
-.footer-col-title { font-size: 0.8125rem; color: var(--text-2); margin-bottom: 12px; }
-.footer-col navigator { display: block; font-size: 0.75rem; color: var(--text-3); text-decoration: none; padding: 3px 0; }
-.footer-icp { font-size: 0.6875rem; color: var(--text-3); margin-top: 8px; }
 .modal-overlay { display: none; position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.55); backdrop-filter: blur(8px); align-items: center; justify-content: center; }
 .modal-overlay.open { display: flex; }
 .modal-box { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; width: 360px; backdrop-filter: blur(40px); }
@@ -786,7 +787,7 @@ onMounted(() => {
 .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
 .modal-btns .btn { flex: 1; text-align: center; }
 .modal-error { color: var(--danger); font-size: 0.75rem; text-align: center; margin-top: 10px; min-height: 18px; }
-@media (max-width: 768px) { .tool-hero { padding: 40px 16px 24px; } .tool-hero-title { font-size: 1.5rem; } .tool-container { padding: 20px 16px; } .section { padding: 48px 16px; } .footer-grid { grid-template-columns: 1fr; gap: 24px; } .zw-form-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 768px) { .tool-hero { padding: 40px 16px 24px; } .tool-hero-title { font-size: 1.5rem; } .tool-container { padding: 20px 16px; } .section { padding: 48px 16px; } .zw-form-grid { grid-template-columns: 1fr 1fr; } }
 
 /* ═══ 流式解读 + 对话气泡 ═══ */
 .qai-stream-box { margin-top: 20px; padding: 16px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; }

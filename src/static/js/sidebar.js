@@ -129,6 +129,10 @@
         var text = escHtml(r.question || '(无问题)')
         var clickAction = r._tarotConvId
           ? 'onclick="window._showTarotConv(' + r._tarotConvId + ')"'
+          : r._baziConvId
+          ? 'onclick="window._showBaziConvDetail(' + r._baziConvId + ')"'
+          : r.id && String(r.id).indexOf('bazih_') === 0
+          ? 'onclick="window._showBaziRecordDetail(' + parseInt(r.id.replace('bazih_', '')) + ')"'
           : 'onclick="window._showHistoryDetail(' + r.id + ')"'
         h += '<div class="sidebar-item" ' + clickAction + '>'
           + '<div class="sidebar-item-body">'
@@ -196,10 +200,10 @@
       try {
         var data = JSON.parse(xhr.responseText)
         var items = data.records || []
-        function onTarotDone(tarotItems) {
-          tarotItems.forEach(function(c) {
-            items.push({ id: 'tarot_' + c.id, app_type: 'tarot', question: c.title || c.spread_name || '塔罗解读', created_at: c.updated_at || c.created_at, _tarotConvId: c.id })
-          })
+        var pending = 3
+        function onAllDone() {
+          pending--
+          if (pending > 0) return
           if (!items.length) { listEl.innerHTML = '<div class="sidebar-empty">暂无历史记录</div>'; return }
           var groups = groupRecords(items)
           window.__sidebarCache = { ts: Date.now(), groups: groups }
@@ -211,10 +215,42 @@
         tarotXhr.onload = function() {
           var t = []
           try { t = JSON.parse(tarotXhr.responseText); if (!Array.isArray(t)) t = [] } catch(e) {}
-          onTarotDone(t)
+          t.forEach(function(c) {
+            items.push({ id: 'tarot_' + c.id, app_type: 'tarot', question: c.title || c.spread_name || '塔罗解读', created_at: c.updated_at || c.created_at, _tarotConvId: c.id })
+          })
+          onAllDone()
         }
-        tarotXhr.onerror = function() { onTarotDone([]) }
+        tarotXhr.onerror = function() { onAllDone() }
         tarotXhr.send()
+        var baziXhr = new XMLHttpRequest()
+        baziXhr.open('GET', '/api/bazi/conversations')
+        baziXhr.setRequestHeader('Accept', 'application/json')
+        baziXhr.onload = function() {
+          var b = []
+          try { b = JSON.parse(baziXhr.responseText); if (!Array.isArray(b)) b = [] } catch(e) {}
+          b.forEach(function(c) {
+            items.push({ id: 'bazi_' + c.id, app_type: 'bazi', question: c.title || '八字AI解读', created_at: c.updated_at || c.created_at, _baziConvId: c.id })
+          })
+          onAllDone()
+        }
+        baziXhr.onerror = function() { onAllDone() }
+        baziXhr.send()
+        var baziHxhr = new XMLHttpRequest()
+        baziHxhr.open('GET', '/api/bazi/history')
+        baziHxhr.setRequestHeader('Accept', 'application/json')
+        baziHxhr.onload = function() {
+          var bh = []
+          try { bh = JSON.parse(baziHxhr.responseText); if (!Array.isArray(bh)) bh = [] } catch(e) {}
+          bh.forEach(function(r) {
+            var label = (r.name || '').trim() || '匿名'
+            var pillarStr = (r.pillars || '').trim() ? ' [' + r.pillars + ']' : ''
+            var birthStr = (r.birth_time || '').substring(0, 12)
+            items.push({ id: 'bazih_' + r.id, app_type: 'paipan', question: label + ' ' + birthStr + pillarStr, created_at: r.created_at })
+          })
+          onAllDone()
+        }
+        baziHxhr.onerror = function() { onAllDone() }
+        baziHxhr.send()
       } catch(e) {
         listEl.innerHTML = '<div class="sidebar-empty">解析失败</div>'
       }

@@ -42,12 +42,15 @@
       <!-- 积分明细 -->
       <view class="section">
         <view class="section-title">积分明细</view>
+        <view class="dp-tabs">
+          <view class="dp-tab active" id="dpTabAll" onclick="window._switchDpTab('all')">全部</view>
+          <view class="dp-tab" id="dpTabPlus" onclick="window._switchDpTab('plus')">获取</view>
+          <view class="dp-tab" id="dpTabMinus" onclick="window._switchDpTab('minus')">消耗</view>
+        </view>
         <view id="pointsLogList">
           <view class="log-empty" id="logEmpty">暂无记录</view>
         </view>
-        <view class="load-more" id="loadMore" @click="loadMoreLogs" style="display:none;">
-          加载更多
-        </view>
+        <view class="dp-pager" id="dpPager"></view>
       </view>
     </view>
 
@@ -98,8 +101,78 @@ export default {
       { id: 'vip',      name: '尊享包',  points: 2000, price: 198 },
     ]
 
-    var logPage = 1
-    var hasMoreLogs = true
+    var dpFilter = 'all'
+    var dpLogs = []
+    var dpPage = 1
+    var dpPerPage = 5
+
+    function renderDpLogs() {
+      var filtered = dpLogs
+      if (dpFilter === 'plus') filtered = dpLogs.filter(function(l) { return l.points >= 0 })
+      else if (dpFilter === 'minus') filtered = dpLogs.filter(function(l) { return l.points < 0 })
+      var totalPages = Math.ceil(filtered.length / dpPerPage) || 1
+      if (dpPage > totalPages) dpPage = totalPages
+      var start = (dpPage - 1) * dpPerPage
+      var pageItems = filtered.slice(start, start + dpPerPage)
+
+      var el = document.getElementById('pointsLogList')
+      if (!el) return
+      if (!pageItems.length) {
+        el.innerHTML = '<view class="log-empty">暂无记录</view>'
+        document.getElementById('dpPager').innerHTML = ''
+        return
+      }
+      var h = '<view class="dp-list">'
+      pageItems.forEach(function(log) {
+        var date = log.createdAt ? log.createdAt.substring(0, 16).replace('T', ' ') : ''
+        var sign = log.points >= 0 ? '+' : ''
+        var cls = log.points >= 0 ? 'dp-plus' : 'dp-minus'
+        h += '<view class="dp-item">'
+          + '<view class="dp-left">'
+          + '<text class="dp-desc">' + (log.description || log.action) + '</text>'
+          + '<text class="dp-date">' + date + '</text>'
+          + '</view>'
+          + '<text class="dp-points ' + cls + '">' + sign + log.points + '</text>'
+          + '</view>'
+      })
+      h += '</view>'
+      el.innerHTML = h
+
+      var pagerHtml = ''
+      if (totalPages > 1) {
+        if (dpPage > 1) pagerHtml += '<view class="dp-page-btn" onclick="window._dpGo(' + (dpPage - 1) + ')">‹</view>'
+        for (var i = 1; i <= totalPages; i++) {
+          pagerHtml += '<view class="dp-page-num' + (i === dpPage ? ' dp-page-cur' : '') + '" onclick="window._dpGo(' + i + ')">' + i + '</view>'
+        }
+        if (dpPage < totalPages) pagerHtml += '<view class="dp-page-btn" onclick="window._dpGo(' + (dpPage + 1) + ')">›</view>'
+      }
+      document.getElementById('dpPager').innerHTML = pagerHtml
+    }
+
+    window._dpGo = function(p) { dpPage = p; renderDpLogs() }
+
+    window._switchDpTab = function(t) {
+      dpFilter = t; dpPage = 1
+      document.querySelectorAll('.dp-tab').forEach(function(el) { el.classList.remove('active') })
+      var tabMap = { all: 'dpTabAll', plus: 'dpTabPlus', minus: 'dpTabMinus' }
+      var target = document.getElementById(tabMap[t])
+      if (target) target.classList.add('active')
+      renderDpLogs()
+    }
+
+    function loadLogs() {
+      if (!isLoggedIn.value) return
+      uni.request({
+        url: '/api/points/log?page=1&per_page=50', method: 'GET',
+        success: function(res) {
+          var d = res.data
+          dpLogs = (d && d.logs) || []
+          renderDpLogs()
+        }
+      })
+    }
+
+    function loadMoreLogs() {} // no longer used
 
     function goBack() {
       uni.switchTab({ url: '/pages/index/index' })
@@ -143,11 +216,8 @@ export default {
             var txt = document.getElementById('signinText')
             if (txt) txt.textContent = '已签到'
             uni.showToast({ title: '签到成功 +' + d.added, icon: 'success' })
-            // 通知所有 TopNav 实例更新积分 badge
             try { window.dispatchEvent(new CustomEvent('xc-points-updated', { detail: { points: d.points } })) } catch(_) {}
-            // 刷新积分明细
-            logPage = 1; hasMoreLogs = true
-            loadLogs(true)
+            loadLogs()
           } else if (d && d.error) {
             uni.showToast({ title: d.error, icon: 'none' })
           }
@@ -156,52 +226,6 @@ export default {
           uni.showToast({ title: '签到失败', icon: 'none' })
         }
       })
-    }
-
-    function loadLogs(replace) {
-      if (!isLoggedIn.value) return
-      uni.request({
-        url: '/api/points/log?page=' + logPage + '&per_page=20', method: 'GET',
-        success: function(res) {
-          var d = res.data
-          if (!d || !d.logs || !d.logs.length) {
-            if (replace) {
-              var el = document.getElementById('pointsLogList')
-              if (el) el.innerHTML = '<view class="log-empty">暂无记录</view>'
-            }
-            hasMoreLogs = false
-            var lm = document.getElementById('loadMore')
-            if (lm) lm.style.display = 'none'
-            return
-          }
-          var el = document.getElementById('pointsLogList')
-          if (!el) return
-          if (replace) el.innerHTML = ''
-          var html = ''
-          d.logs.forEach(function(log) {
-            var date = log.createdAt ? log.createdAt.substring(0, 10) : ''
-            var sign = log.points >= 0 ? '+' : ''
-            var cls = log.points >= 0 ? 'log-plus' : 'log-minus'
-            html += '<view class="log-item">' +
-              '<view class="log-left">' +
-              '<text class="log-desc">' + (log.description || log.action) + '</text>' +
-              '<text class="log-date">' + date + '</text>' +
-              '</view>' +
-              '<text class="log-points ' + cls + '">' + sign + log.points + '</text>' +
-              '</view>'
-          })
-          el.innerHTML = (replace ? '' : el.innerHTML) + html
-          hasMoreLogs = d.has_next
-          var lm = document.getElementById('loadMore')
-          if (lm) lm.style.display = d.has_next ? '' : 'none'
-        }
-      })
-    }
-
-    function loadMoreLogs() {
-      if (!hasMoreLogs) return
-      logPage++
-      loadLogs(false)
     }
 
     function selectPackage(pkg) {
@@ -241,7 +265,7 @@ export default {
 
     onMounted(function() {
       loadPoints()
-      loadLogs(true)
+      loadLogs()
     })
 
     return { theme, isLoggedIn, toggleTheme, packages, goBack, doSignin, loadMoreLogs, selectPackage, closeRechargeModal, payByTransfer }
@@ -249,7 +273,7 @@ export default {
 }
 </script>
 
-<style scoped>
+<style>
 .page-root { min-height: 100vh; background: var(--bg); }
 .page { max-width: 640px; margin: 0 auto; padding: 10px 16px 40px; }
 
@@ -325,23 +349,13 @@ export default {
 .pkg-price { font-size: 1rem; font-weight: 700; color: var(--text-1); margin-bottom: 4px; }
 .pkg-name { font-size: 0.72rem; color: var(--text-3); }
 
-/* 积分明细 */
-.log-item {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 14px; border-bottom: 1px solid var(--card-border);
-}
-.log-left { display: flex; flex-direction: column; gap: 2px; }
-.log-desc { font-size: 0.82rem; color: var(--text-2); }
-.log-date { font-size: 0.7rem; color: var(--text-3); }
-.log-points { font-size: 0.9rem; font-weight: 700; min-width: 60px; text-align: right; }
-.log-plus { color: var(--accent); }
-.log-minus { color: var(--danger); }
+/* 积分明细 — 时光轴 */
 .log-empty { text-align: center; padding: 40px 0; color: var(--text-3); font-size: 0.85rem; }
 .load-more {
-  text-align: center; padding: 14px; color: var(--accent); font-size: 0.82rem;
-  cursor: pointer;
+  text-align: center; padding: 16px; color: var(--accent); font-size: 0.82rem;
+  cursor: pointer; margin-top: 8px;
 }
-.load-more:hover { text-decoration: underline; }
+.load-more:hover { opacity: 0.7; }
 
 /* 弹窗遮罩 */
 .modal-overlay {

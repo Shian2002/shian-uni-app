@@ -16,14 +16,6 @@
       <!-- 工具面板 -->
       <section class="section">
         <view class="tool-container">
-          <!-- 无痕模式 -->
-          <view class="incognito-bar">
-            <label class="incognito-toggle">
-              <view id="qi-incognito-chk" class="toggle-visual" :class="{ active: incognito }" @tap="toggleQiIncognito"></view>
-              <text>{{ incognito ? '🔒 无痕模式' : '🔓 有痕模式' }}</text>
-            </label>
-            <text class="incognito-desc">本地计算 · 不上传数据 · 退出自动清空</text>
-          </view>
 
           <!-- Tab 切换 -->
           <view class="tool-tabs">
@@ -74,7 +66,6 @@
 
             <view class="submit-btn" @tap="qimenFreePaipan" style="margin-top:14px;">☯️ 免费排盘</view>
             <text class="form-hint" style="text-align:center;display:block;margin-top:10px;">本地精准排盘，不含解读。如需深度解读请使用时安奇门系统。</text>
-            <view class="privacy-note">✅ 本地计算 · 不上传数据 · 秒出结果</view>
 
             <!-- 排盘结果 -->
             <view class="qf-result" v-if="qfResult" v-html="qfResult"></view>
@@ -82,109 +73,85 @@
 
           <!-- ══ 奇门AI系统 ══ -->
           <view class="tool-tab-content" id="qiTabAiContent" v-show="activeTab === 'ai'">
-            <view class="form-group">
-              <text class="form-label">问事类型</text>
-              <select id="qai-type" class="form-select-picker"></select>
-            </view>
-
-            <view class="qf-datetime-section">
-              <view class="qf-section-header">
-                <text class="form-label">🕐 起局时间</text>
-                <view class="qf-now-btn-sm" @tap="qaiSetNow">今</view>
+            <view id="qiAiFormArea">
+              <view class="form-group">
+                <text class="form-label">问事类型</text>
+                <select id="qai-type" class="form-select-picker"></select>
               </view>
-              <view class="qf-datetime-row">
-                <view class="qf-dt-col">
-                  <select id="qai-year" class="qf-datetime-select"></select>
-                </view>
-                <view class="qf-dt-col">
-                  <select id="qai-month" class="qf-datetime-select"></select>
-                </view>
-                <view class="qf-dt-col">
-                  <select id="qai-day" class="qf-datetime-select"></select>
-                </view>
-                <view class="qf-dt-col">
-                  <select id="qai-hour" class="qf-datetime-select"></select>
-                </view>
-                <view class="qf-dt-col qf-dt-col-narrow">
-                  <select id="qai-minute" class="qf-datetime-select"></select>
-                </view>
-              </view>
-            </view>
 
-            <view class="form-group">
-              <text class="form-label">你的问题（选填）</text>
-              <view id="qaiQuestion-wrap" class="dom-input-wrap"></view>
-            </view>
-
-            <view class="advanced-fields" :class="{ show: showAdvanced }">
-              <view class="form-row">
-                <view class="form-group">
-                  <text class="form-label">局法</text>
-                  <select id="qai-ju" class="form-select-picker"></select>
+              <view class="qf-datetime-section">
+                <view class="qf-section-header">
+                  <text class="form-label">🕐 起局时间</text>
+                  <view class="qf-now-btn-sm" @tap="qaiSetNow">今</view>
                 </view>
-                <view class="form-group">
-                  <text class="form-label">排盘流派</text>
-                  <select id="qai-school" class="form-select-picker"></select>
+                <view class="qf-datetime-row">
+                  <view class="qf-dt-col">
+                    <select id="qai-year" class="qf-datetime-select"></select>
+                  </view>
+                  <view class="qf-dt-col">
+                    <select id="qai-month" class="qf-datetime-select"></select>
+                  </view>
+                  <view class="qf-dt-col">
+                    <select id="qai-day" class="qf-datetime-select"></select>
+                  </view>
+                  <view class="qf-dt-col">
+                    <select id="qai-hour" class="qf-datetime-select"></select>
+                  </view>
+                  <view class="qf-dt-col qf-dt-col-narrow">
+                    <select id="qai-minute" class="qf-datetime-select"></select>
+                  </view>
                 </view>
               </view>
-            </view>
-            <view class="advanced-toggle" @tap="showAdvanced = !showAdvanced">{{ showAdvanced ? '▼ 收起高级选项' : '▶ 高级选项' }}</view>
 
-            <!-- 深度分析开关 -->
-            <view class="qai-deep-row">
-              <label class="qai-deep-toggle" id="qiDeepToggle" :class="{ active: deepMode }" @tap="toggleQiDeepMode()">
-                <text class="qai-toggle-label">深度分析</text>
-                <view class="qai-toggle-track"><view class="qai-toggle-knob"></view></view>
-              </label>
-            </view>
+              <view class="form-group">
+                <text class="form-label">你的问题（选填）</text>
+                <view id="qaiQuestion-wrap" class="dom-input-wrap"></view>
+              </view>
 
-            <view class="btn-row">
-              <view class="submit-btn" :class="{ disabled: qaiLoading }" @click="qimenAskPaipan" @tap="qimenAskPaipan">🔮 一键起局 · 深度解读</view>
-              <view class="btn btn-ghost" @tap="qaiReset">🔄 重新问策</view>
+              <view class="advanced-fields" :class="{ show: showAdvanced }">
+                <view class="form-row">
+                  <view class="form-group">
+                    <text class="form-label">局法</text>
+                    <select id="qai-ju" class="form-select-picker"></select>
+                  </view>
+                  <view class="form-group">
+                    <text class="form-label">排盘流派</text>
+                    <select id="qai-school" class="form-select-picker"></select>
+                  </view>
+                </view>
+              </view>
+              <view class="advanced-toggle" @tap="showAdvanced = !showAdvanced">{{ showAdvanced ? '▼ 收起高级选项' : '▶ 高级选项' }}</view>
+
+              <view class="qai-deep-row">
+                <label class="qai-deep-toggle" id="qiDeepToggle" :class="{ active: deepMode }" @tap="toggleQiDeepMode()">
+                  <text class="qai-toggle-label">深度分析</text>
+                  <view class="qai-toggle-track"><view class="qai-toggle-knob"></view></view>
+                </label>
+              </view>
+
+              <view class="btn-row">
+                <view class="submit-btn" :class="{ disabled: qaiLoading }" @click="qimenAskPaipan" @tap="qimenAskPaipan">🔮 一键起局 · 深度解读</view>
+                <view class="btn btn-ghost" @tap="qaiReset">🔄 重新问策</view>
+              </view>
             </view>
 
             <!-- 流式解读区域 -->
-            <view class="qai-stream-box" v-if="qaiLoading || qaiResult">
-              <!-- 对话容器 -->
+            <view class="qai-stream-box" id="qiStreamBox" style="display:none;">
               <view class="chat-container" id="qaiChatContainer"></view>
             </view>
 
             <!-- 追问输入栏 -->
             <view class="chat-input-bar" id="qaiChatInputBar" style="display:none;">
               <input class="chat-input" id="qaiChatInput" placeholder="继续追问..." />
-              <view class="chat-send-btn" @tap="qaiSendFollowUp">发送</view>
+              <view class="chat-send-btn" onclick="window.qaiSendFollowUp()">发送</view>
             </view>
-            <view class="privacy-note incognito-status">✅ 无痕模式已开启 · 本地计算 · 不上传数据 · 退出自动清空</view>
+
           </view>
         </view>
       </section>
     </view>
 
-    <!-- 页脚 -->
-    <view class="site-footer">
-      <view class="footer-disclaimer">⚠️ 本站所有内容仅为民俗文化与传统命理科普参考，不构成任何决策建议，严禁利用本站内容从事封建迷信及违法违规活动，本站不对任何用户基于本站内容做出的决策承担任何责任</view>
-      <view class="footer-grid">
-        <view class="footer-col">
-          <view class="footer-col-title">平台信息</view>
-          <navigator url="/package-info/about/index">关于我们</navigator>
-        </view>
-        <view class="footer-col">
-          <view class="footer-col-title">快捷导航</view>
-          <navigator url="/pages/qimen/index" open-type="switchTab">奇门遁甲</navigator>
-          <navigator url="/pages/bazi-index/index" open-type="switchTab">八字排盘</navigator>
-          <navigator url="/pages/calendar/index" open-type="switchTab">专属日历</navigator>
-          <navigator url="/pages/community/index" open-type="switchTab">社区</navigator>
-        </view>
-        <view class="footer-col">
-          <view class="footer-col-title">备案与版权</view>
-          <view class="footer-icp">ICP备案号：京ICP备2026050601号-1</view>
-          <view class="footer-icp">© 2026 时安解忧屋 版权所有</view>
-        </view>
-      </view>
-      <view class="footer-bottom">
-        <text class="footer-bottom-text">时安解忧屋 · 看得懂用得上的民俗命理参考平台</text>
-      </view>
-    </view>
+
 
   </view>
 </template>
@@ -217,9 +184,6 @@ function toggleSubmenu(key) { submenuOpen.value[key] = !submenuOpen.value[key] }
 const isLoggedIn = ref(!!uni.getStorageSync('xc_token'))
 window.addEventListener('xc-session-expired', function() { isLoggedIn.value = false })
 
-// 无痕模式
-const incognito = ref(true)
-
 // Tab切换
 const activeTab = ref('free')
 
@@ -241,8 +205,9 @@ function getDayLabels(year, month) {
   return getDayOptions(year, month).map(d => d + '日')
 }
 
-// 时辰选项（与Flask home.js一致）
-const hourOptions = ['23时', '01时', '03时', '05时', '07时', '09时', '11时', '13时', '15时', '17时', '19时', '21时']
+// 时辰选项（子时=23-1点、丑时=1-3点...）
+const hourOptions = ['子时', '丑时', '寅时', '卯时', '辰时', '巳时', '午时', '未时', '申时', '酉时', '戌时', '亥时']
+const hourValues = [23, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21]
 const minuteOptions = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0') + '分')
 
 // 免费排盘 - 5个独立picker（默认当前时间）
@@ -301,7 +266,7 @@ async function qimenFreePaipan() {
   const y = yearOptions[qfYearIdx.value]
   const m = monthOptions[qfMonthIdx.value]
   const d = qfDayOptions.value[qfDayIdx.value]
-  const hourVal = hourOptions[qfHourIdx.value]; const h = parseInt(hourVal)
+  const h = hourValues[qfHourIdx.value]
   const min = parseInt(minuteOptions[qfMinuteIdx.value] || '0')
   const panType = [2, 3][qfPanTypeIdx.value]
   try {
@@ -543,9 +508,11 @@ function qfReset() {
 }
 
 function qaiReset() {
-  // 清理轮询定时器（1:1复刻Flask qimenReset）
+  // 清理轮询定时器 / 历史
   if (qaiPollTimer) { clearInterval(qaiPollTimer); qaiPollTimer = null }
   qaiPollCount = 0
+  window._qaiChatHistory = []
+  window._qaiPanTime = null
   const now = new Date()
   const y = now.getFullYear(); const m = now.getMonth() + 1
   qaiYearIdx.value = yearOptions.indexOf(y)
@@ -558,6 +525,12 @@ function qaiReset() {
   deepMode.value = false; resultMode.value = 'simple'
   var qaiInp = document.getElementById('qaiQuestion')
   if (qaiInp) qaiInp.value = ''
+  var streamBox = document.getElementById('qiStreamBox')
+  if (streamBox) streamBox.style.display = 'none'
+  var chatContainer = document.getElementById('qaiChatContainer')
+  if (chatContainer) chatContainer.innerHTML = ''
+  var inputBar = document.getElementById('qaiChatInputBar')
+  if (inputBar) inputBar.style.display = 'none'
   var deepEl = document.getElementById('qiDeepToggle')
   if (deepEl) deepEl.classList.remove('active')
   var simpleEl = document.getElementById('qiResultSimple')
@@ -577,6 +550,7 @@ function qaiReset() {
 
 // ═══ 奇门 SSE 流式解读 + 追问 ═══
 window._qaiChatHistory = []
+window._qaiPanTime = null
 
 async function qimenAskPaipan() {
   if (qaiLoading.value) return
@@ -590,13 +564,15 @@ async function qimenAskPaipan() {
   }
 
   // 清理旧状态
+  qaiLoading.value = true
   qaiResult.value = ''
   window._qaiChatHistory = []
+  var streamBox = document.getElementById('qiStreamBox')
+  if (streamBox) streamBox.style.display = ''
   var chatContainer = document.getElementById('qaiChatContainer')
   if (chatContainer) chatContainer.innerHTML = ''
   var inputBar = document.getElementById('qaiChatInputBar')
   if (inputBar) inputBar.style.display = 'none'
-  qaiLoading.value = true
 
   // 创建 AI 气泡
   var bubbleId = 'qaiBubble_' + Date.now()
@@ -610,10 +586,11 @@ async function qimenAskPaipan() {
   var y = yearOptions[qaiYearIdx.value]
   var m = monthOptions[qaiMonthIdx.value]
   var d = qaiDayOptions.value[qaiDayIdx.value]
-  var hourVal = hourOptions[qaiHourIdx.value]; var h = parseInt(hourVal)
+  var h = hourValues[qaiHourIdx.value]
   var min = parseInt(minuteOptions[qaiMinuteIdx.value] || '0')
   var panType = [2, 3][qaiJuIdx.value]
   var type = qaiTypeValues[qaiTypeIdx.value] || 'general'
+  window._qaiPanTime = { year: y, month: m, day: d, hour: h, minute: min, panType: panType }
 
   _qaiDoStreamSSE({
     bubbleId: bubbleId,
@@ -626,6 +603,7 @@ async function qimenAskPaipan() {
         { role: 'assistant', content: fullText }
       ]
       qaiResult.value = fullText
+      _saveQiConversation(q)
       var bar = document.getElementById('qaiChatInputBar')
       if (bar) bar.style.display = 'flex'
     },
@@ -635,27 +613,15 @@ async function qimenAskPaipan() {
   })
 }
 
-// 通用 SSE XHR（奇门专用，适配 /api/qimen/ask/stream 端点）
+// 通用 SSE（奇门专用，Fetch + ReadableStream）
 function _qaiDoStreamSSE(opts) {
   var bubble = document.getElementById(opts.bubbleId)
   if (!bubble) return
   var stageEl = bubble.querySelector('.ai-stage')
   var barEl = bubble.querySelector('.ai-progress-fill')
   var contentEl = bubble.querySelector('.chat-bubble-content')
-
-  var xhr = new XMLHttpRequest()
-  xhr.open('POST', opts.url, true)
-  xhr.setRequestHeader('Content-Type', 'application/json')
-  // 带 token
-  var token = ''
-  try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
-  if (token) xhr.setRequestHeader('Authorization', 'Bearer ' + token)
-
-  var lastIndex = 0
-  var fullText = ''
-  var charQueue = ''
-  var typeTimer = null
-  var doneReceived = false
+  var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
+  var fullText = '', charQueue = '', typeTimer = null, doneReceived = false
 
   function startTypewriter() {
     if (typeTimer) return
@@ -665,7 +631,6 @@ function _qaiDoStreamSSE(opts) {
         if (stageEl) stageEl.style.display = 'none'
         var barWrap = bubble.querySelector('.ai-progress-bar')
         if (barWrap) barWrap.style.display = 'none'
-        // 将原始文本转为卡片渲染
         if (contentEl) contentEl.innerHTML = renderQimenCards(fullText)
         if (opts.onDone) opts.onDone(fullText)
         return
@@ -674,51 +639,59 @@ function _qaiDoStreamSSE(opts) {
       var take = charQueue.length > 3 ? 2 : 1
       fullText += charQueue.substring(0, take)
       charQueue = charQueue.substring(take)
-      if (contentEl) contentEl.innerHTML = fullText.replace(/\n/g, '<br>')
+      if (contentEl) contentEl.innerHTML = _stripMarkdown(fullText).replace(/\n/g, '<br>')
     }, 35)
   }
 
-  xhr.onprogress = function() {
-    var newText = xhr.responseText.substring(lastIndex)
-    lastIndex = xhr.responseText.length
-    var lines = newText.split('\n')
-    var eventType = ''
-    for (var i = 0; i < lines.length; i++) {
-      var line = lines[i]
-      if (line.indexOf('event:') === 0) { eventType = line.replace('event:', '').trim(); continue }
-      if (line.indexOf('data:') !== 0) continue
-      try {
-        var data = JSON.parse(line.replace('data:', '').trim())
-        if (eventType === 'progress') {
-          if (data.stage === 'connecting' && stageEl) stageEl.innerHTML = '🔗 正在连接...'
-          else if (data.stage === 'analyzing' && stageEl) stageEl.innerHTML = '🧠 排盘分析中...'
-          else if (data.stage === 'generating' && stageEl) { stageEl.innerHTML = '✍️ 正在生成解读...'; startTypewriter() }
-          if (barEl) barEl.style.width = '60%'
-        } else if (eventType === 'chunk') {
-          charQueue += data.content
-        } else if (eventType === 'done') {
-          doneReceived = true
-          qaiLoading.value = false
-        } else if (eventType === 'error') {
-          if (stageEl) stageEl.innerHTML = '⚠️ ' + data.message
-          if (barEl) barEl.style.display = 'none'
-          if (opts.onError) opts.onError()
+  // 使用 Fetch + ReadableStream（比 XHR onprogress 更可靠）
+  fetch(opts.url, {
+    method: 'POST',
+    headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+    body: JSON.stringify(opts.body)
+  }).then(function(resp) {
+    if (!resp.ok) { if (opts.onError) opts.onError(); return }
+    var reader = resp.body.getReader(); var decoder = new TextDecoder()
+    var buffer = '', eventType = ''
+    function pump() {
+      reader.read().then(function(r) {
+        if (r.done) { doneReceived = true; qaiLoading.value = false; return }
+        buffer += decoder.decode(r.value, { stream: true })
+        var lines = buffer.split('\n')
+        buffer = lines.pop()
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i]
+          if (line.indexOf('event:') === 0) { eventType = line.replace('event:', '').trim(); continue }
+          if (line.indexOf('data:') !== 0) continue
+          try {
+            var data = JSON.parse(line.replace('data:', '').trim())
+            if (eventType === 'progress') {
+              if (data.stage === 'connecting' && stageEl) stageEl.innerHTML = '🔗 正在连接...'
+              else if (data.stage === 'analyzing' && stageEl) stageEl.innerHTML = '🧠 排盘分析中...'
+              else if (data.stage === 'generating' && stageEl) { stageEl.innerHTML = '<img class="ai-stage-logo" src="/static/images/logo.webp?v=2">正在生成解读...'; startTypewriter() }
+              if (barEl) barEl.style.width = '60%'
+            } else if (eventType === 'chunk') {
+              if (!typeTimer) startTypewriter()
+              charQueue += data.content
+            } else if (eventType === 'done') {
+              doneReceived = true; qaiLoading.value = false
+            } else if (eventType === 'error') {
+              if (stageEl) stageEl.innerHTML = '⚠️ ' + data.message
+              if (barEl) barEl.style.display = 'none'
+              if (opts.onError) opts.onError()
+            }
+            eventType = ''
+          } catch(_) {}
         }
-        eventType = ''
-      } catch(_) {}
+        pump()
+      }).catch(function() { if (opts.onError) opts.onError() })
     }
-  }
-  xhr.onerror = function() {
-    if (stageEl) stageEl.innerHTML = '⚠️ 网络错误，请重试'
-    if (opts.onError) opts.onError()
-  }
-
-  xhr.send(JSON.stringify(opts.body))
+    pump()
+  }).catch(function() { if (opts.onError) opts.onError() })
 }
 
 // ═══ 追问 ═══
 function qaiSendFollowUp() {
-  var input = document.getElementById('qaiChatInput')
+  var input = document.querySelector('#qaiChatInput input') || document.getElementById('qaiChatInput')
   if (!input) return
   var question = input.value.trim()
   if (!question) return
@@ -726,6 +699,9 @@ function qaiSendFollowUp() {
 
   var chatContainer = document.getElementById('qaiChatContainer')
   if (!chatContainer) return
+
+  // 追问沿用初始起局时间（当时的局）
+  var pt = window._qaiPanTime || {}
 
   // 添加用户气泡
   var userBubble = document.createElement('view')
@@ -738,7 +714,7 @@ function qaiSendFollowUp() {
   var aiBubble = document.createElement('view')
   aiBubble.className = 'chat-bubble-ai'
   aiBubble.id = bubbleId
-  aiBubble.innerHTML = '<div class="ai-stage">✍️ 正在生成回复...</div>' +
+  aiBubble.innerHTML = '<div class="ai-stage"><img class="ai-stage-logo" src="/static/images/logo.webp?v=2">正在生成回复...</div>' +
     '<div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div>' +
     '<div class="chat-bubble-content"></div>'
   chatContainer.appendChild(aiBubble)
@@ -750,27 +726,43 @@ function qaiSendFollowUp() {
 
   _qaiDoStreamSSE({
     bubbleId: bubbleId,
-    askUrl: '/api/qimen/ask',
-    askBody: { question: question, history: history },
-    streamUrl: '/api/qimen/ask/stream',
+    url: '/api/qimen/ask/stream',
+    body: {
+      question: question,
+      history: history,
+      year: pt.year || yearOptions[qaiYearIdx.value],
+      month: pt.month || monthOptions[qaiMonthIdx.value],
+      day: pt.day || qaiDayOptions.value[qaiDayIdx.value],
+      hour: pt.hour != null ? pt.hour : hourValues[qaiHourIdx.value],
+      minute: pt.minute != null ? pt.minute : parseInt(minuteOptions[qaiMinuteIdx.value] || '0'),
+      panType: pt.panType || [2, 3][qaiJuIdx.value]
+    },
     question: question,
     onDone: function(fullText) {
       history.push({ role: 'assistant', content: fullText })
       window._qaiChatHistory = history
+      if (_qaiCurrentConvId) {
+        _updateQiConversation()
+      } else {
+        _saveQiConversation(question)
+      }
     },
-    onError: function() {}
+    onError: function() {
+      var eb = document.getElementById(bubbleId)
+      if (eb) { var es = eb.querySelector('.ai-stage'); if (es) es.innerHTML = '⚠️ 追问失败，请重试' }
+    }
   })
 }
+window.qaiSendFollowUp = qaiSendFollowUp
 
 // ═══ DOM直操作辅助函数（绕过Vue 3.4.21 render effect bug） ═══
-function toggleQiIncognito() {
-  incognito.value = !incognito.value
-  var el = document.getElementById('qi-incognito-chk')
-  if (el) el.classList.toggle('active')
-}
-
 function switchQiTab(tab) {
   activeTab.value = tab
+  // DOM直操作确保显示（防御Vue render滞后）
+  var free = document.getElementById('qiTabFreeContent')
+  var ai = document.getElementById('qiTabAiContent')
+  if (free) free.style.display = tab === 'free' ? 'block' : 'none'
+  if (ai) ai.style.display = tab === 'ai' ? 'block' : 'none'
 }
 
 function toggleQiDeepMode() {
@@ -892,6 +884,17 @@ onShow(() => {
     var q = sessionStorage.getItem('_nav_query')
     if (q) { sessionStorage.removeItem('_nav_query'); applyNavQuery(q) }
   } catch(_) {}
+  try { _checkQiRestore() } catch(_) {}
+  // 每次页面显示时确保 tab DOM 状态正确
+  var free = document.getElementById('qiTabFreeContent')
+  var ai = document.getElementById('qiTabAiContent')
+  if (activeTab.value === 'free') {
+    if (free) free.style.display = 'block'
+    if (ai) ai.style.display = 'none'
+  } else {
+    if (free) free.style.display = 'none'
+    if (ai) ai.style.display = 'block'
+  }
   var t = uni.getStorageSync('xc_theme')
   if (t && t !== theme.value) {
     theme.value = t
@@ -974,25 +977,145 @@ onMounted(() => {
   }
   // #endif
 
+  // 监听对话恢复事件
+  uni.$on('xc-restore', _checkQiRestore)
+  _checkQiRestore()
+  window._xc_restoreQimen = _checkQiRestore
+  setInterval(function() {
+    var rd = window.__xc_restoreData
+    if (rd && rd.type === 'qimen') _checkQiRestore()
+  }, 500)
 })
 
 // ═══ 卡片式渲染 ═══
 function renderQimenCards(text) {
-  var sections = text.split(/\n(?=#{2,3} )/)
+  text = _stripMarkdown(text)
+  var sections = text.split(/\n(?=#{2,} |\d+\.\s+\*\*)/)
   var html = ''
   sections.forEach(function(sec) {
-    var m = sec.match(/^(#{2,3})\s+(.+)/)
-    var title = m ? m[2] : ''
-    var body = m ? sec.substring(m[0].length).trim() : sec
-    body = body.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    var title = ''
+    var body = sec
+    var m = sec.match(/^(#{2,})\s+(.+)/)
+    if (m) {
+      title = m[2]
+      body = sec.substring(m[0].length).trim()
+    } else {
+      var m2 = sec.match(/^(\d+\.)\s+\*\*(.+?)\*\*[：:]\s*/)
+      if (m2) {
+        title = m2[2]
+        body = sec.substring(m2[0].length).trim()
+      }
+    }
+    body = body.replace(/\*\*(.+?)\*\*/g, '$1')
       .replace(/\n\n/g, '</p><p>')
       .replace(/\n/g, '<br>')
     if (!body) body = '&nbsp;'
     if (title) {
       html += '<div class="qai-card-item"><div class="qai-card-title">' + title + '</div><div class="qai-card-body"><p>' + body + '</p></div></div>'
+    } else {
+      html += '<div class="qai-card-item"><div class="qai-card-body"><p>' + body + '</p></div></div>'
     }
   })
   return html
+}
+// ═══ 奇门对话保存 ═══
+var _qaiCurrentConvId = null
+
+function _saveQiConversation(question) {
+  var title = (question || '奇门遁甲').substring(0, 50)
+  uni.request({
+    url: '/api/qimen/conversations', method: 'POST',
+    data: {
+      title: title,
+      question: question,
+      messages: window._qaiChatHistory || [],
+      pan_data: window._qaiPanTime || {}
+    },
+    success: function(res) {
+      if (res.data && res.data.id) _qaiCurrentConvId = res.data.id
+      window.__sidebarCache = null
+    },
+    fail: function(err) { console.error('[qimen] 保存对话失败:', err) }
+  })
+}
+
+function _updateQiConversation() {
+  if (!_qaiCurrentConvId) return
+  uni.request({
+    url: '/api/qimen/conversations', method: 'POST',
+    data: { id: _qaiCurrentConvId, messages: window._qaiChatHistory || [] },
+    success: function() { window.__sidebarCache = null },
+    fail: function(err) { console.error('[qimen] 更新对话失败:', err) }
+  })
+}
+
+function _stripMarkdown(s) {
+  if (!s) return ''
+  return s.replace(/^#{1,6}\s*/gm, '').replace(/\*\*/g, '').replace(/^[-*]\s+/gm, '')
+}
+
+// 滚动到追问输入框
+function _qiScrollToChat() {
+  setTimeout(function() {
+    var el = document.getElementById('qaiChatInputBar')
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, 100)
+}
+
+function _checkQiRestore() {
+  var d = window.__xc_restoreData
+  if (!d || d.type !== 'qimen') return
+  switchQiTab('ai')
+  var chatContainer = document.getElementById('qaiChatContainer')
+  var inputBar = document.getElementById('qaiChatInputBar')
+  if (!chatContainer) return
+  window.__xc_restoreData = null
+  var streamBox = document.getElementById('qiStreamBox')
+  if (streamBox) streamBox.style.display = ''
+  chatContainer.innerHTML = ''
+  if (d.rawHtml) {
+    // 旧记录：先去除 markdown 格式，再渲染
+    if (d.question) {
+      var ub2 = document.createElement('view')
+      ub2.className = 'chat-bubble-user'
+      ub2.textContent = d.question
+      chatContainer.appendChild(ub2)
+    }
+    // 先去除 HTML 标签，再去除 markdown 格式，最后转成 HTML
+    var cleanHtml = _stripMarkdown(d.rawHtml.replace(/<[^>]+>/g, '')).replace(/\n/g, '<br>')
+    var ab2 = document.createElement('view')
+    ab2.className = 'chat-bubble-ai'
+    ab2.innerHTML = '<div class="chat-bubble-content">' + cleanHtml + '</div>'
+    chatContainer.appendChild(ab2)
+    // 模拟旧记录为可追问的history
+    window._qaiChatHistory = [
+      { role: 'user', content: d.question || '' },
+      { role: 'assistant', content: cleanHtml.replace(/<[^>]+>/g, '').substring(0, 200) + '...' }
+    ]
+    _qaiCurrentConvId = null
+    window._qaiPanTime = null
+  } else {
+    // 新记录：按messages渲染
+    var messages = d.messages || []
+    window._qaiChatHistory = messages.slice()
+    _qaiCurrentConvId = d.id || null
+    window._qaiPanTime = d.pan_data || null
+    messages.forEach(function(m) {
+      if (m.role === 'user') {
+        var ub = document.createElement('view')
+        ub.className = 'chat-bubble-user'
+        ub.textContent = m.content
+        chatContainer.appendChild(ub)
+      } else if (m.role === 'assistant') {
+        var ab = document.createElement('view')
+        ab.className = 'chat-bubble-ai'
+        ab.innerHTML = '<div class="chat-bubble-content">' + renderQimenCards(m.content) + '</div>'
+        chatContainer.appendChild(ab)
+      }
+    })
+  }
+  if (inputBar) inputBar.style.display = 'flex'
+  _qiScrollToChat()
 }
 </script>
 
@@ -1019,9 +1142,6 @@ function renderQimenCards(text) {
 
 /* 工具容器 */
 .tool-container { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; backdrop-filter: blur(20px); box-shadow: var(--card-shadow); max-width: 720px; margin: 0 auto; }
-.incognito-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-radius: 12px; background: rgba(110,195,135,0.06); border: 1px solid rgba(110,195,135,0.12); margin-bottom: 24px; }
-.incognito-toggle { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--success); }
-.incognito-desc { font-size: 0.6875rem; color: var(--success); opacity: 0.7; }
 .tool-tabs { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid var(--card-border); }
 .tool-tab { padding: 12px 20px; border-radius: 10px 10px 0 0; font-size: 0.875rem; cursor: pointer; border: 1px solid transparent; border-bottom: none; color: var(--text-3); background: transparent; }
 .tool-tab.active { color: var(--accent); background: var(--accent-glow); border-color: var(--accent); font-weight: 600; }
@@ -1046,7 +1166,6 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .btn-ghost { background: transparent; border: 1.5px solid var(--card-border-hover, var(--card-border)); color: var(--text-2); padding: 12px 18px; border-radius: 30px; font-size: 0.875rem; font-weight: 600; cursor: pointer; letter-spacing: 1px; transition: all 0.2s; text-align: center; }
 .btn-ghost:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
 .btn-row .btn-ghost { flex: 15; }
-.privacy-note { margin-top: 16px; padding: 10px 14px; border-radius: 10px; background: rgba(110,195,135,0.08); border: 1px solid rgba(110,195,135,0.15); font-size: 0.75rem; color: var(--success); text-align: center; }
 
 /* 奇门免费版表单 */
 .qf-form { padding: 4px 0; }
@@ -1085,16 +1204,6 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .result-mode-btn { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--card-border); background: transparent; color: var(--text-3); font-size: 0.75rem; cursor: pointer; text-align: center; }
 .result-mode-btn.active { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); }
 
-/* 页脚 */
-.site-footer { background: var(--nav-bg); border-top: 1px solid var(--card-border); padding: 48px 32px 24px; margin-top: 80px; }
-.footer-disclaimer { max-width: var(--max-w); margin: 0 auto 32px; padding: 14px 20px; border-radius: 10px; background: rgba(215,125,110,0.08); border: 1px solid rgba(215,125,110,0.15); font-size: 0.75rem; color: var(--danger); line-height: 1.6; text-align: center; }
-.footer-grid { max-width: var(--max-w); margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; }
-.footer-col-title { font-size: 0.8125rem; color: var(--text-2); margin-bottom: 12px; letter-spacing: 1px; }
-.footer-col navigator { display: block; font-size: 0.75rem; color: var(--text-3); text-decoration: none; padding: 3px 0; }
-.footer-icp { font-size: 0.6875rem; color: var(--text-3); margin-top: 8px; }
-.footer-bottom { max-width: var(--max-w); margin: 24px auto 0; padding-top: 16px; border-top: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center; }
-.footer-bottom-text { font-size: 0.6875rem; color: var(--text-3); }
-
 /* 弹窗 */
 .modal-overlay { display: none; position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.55); backdrop-filter: blur(8px); align-items: center; justify-content: center; }
 .modal-overlay.open { display: flex; }
@@ -1108,7 +1217,7 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .modal-error { color: var(--danger); font-size: 0.75rem; text-align: center; margin-top: 10px; min-height: 18px; }
 
 /* 响应式 */
-@media (max-width: 1024px) { .footer-grid { grid-template-columns: 1fr; gap: 24px; } }
+
 @media (max-width: 768px) {
   .tool-hero { padding: 40px 16px 24px; }
   .tool-hero-title { font-size: 1.5rem; letter-spacing: 2px; }
@@ -1124,7 +1233,6 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   .qf-dt-col { flex: 1 1 calc(50% - 6px); min-width: 50px; }
   .qf-datetime-select { font-size: 0.78rem; padding: 7px 4px; }
   .tool-tab { padding: 8px 10px; font-size: 0.75rem; }
-  .incognito-bar { flex-direction: column; text-align: center; font-size: 0.6875rem; }
   .submit-btn { font-size: 0.875rem; padding: 12px 16px; }
   .btn-row { flex-direction: column; }
 }

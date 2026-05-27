@@ -2,7 +2,7 @@
   <view class="page-root" :data-theme="theme">
     <!-- 视频背景层（H5 only） -->
     <!-- #ifdef H5 -->
-    <view class="video-bg" :class="{ 'video-fallback': videoFallback }" id="videoBg">
+    <view class="video-bg" :class="{ 'video-fallback': videoFallback, 'video-visible': videoVisible }" id="videoBg">
       <video
         class="video-bg-video"
         id="heroVideo"
@@ -11,6 +11,7 @@
         loop
         playsinline
         @error="onVideoError"
+        @loadeddata="onVideoReady"
       >
         <source src="https://assets.mixkit.co/videos/preview/mixkit-abstract-technology-white-lines-2826-large.mp4" type="video/mp4" />
       </video>
@@ -28,7 +29,7 @@
         <view class="hero-home-content">
           <!-- LOGO 和品牌 -->
           <view class="hero-brand">
-            <view class="hero-brand-icon-wrap"><image class="hero-brand-icon" src="/static/images/logo.png" mode="aspectFit" /></view>
+            <view class="hero-brand-icon-wrap"><img class="hero-brand-icon" src="/static/images/logo.webp?v=2" alt="时安解忧屋" /></view>
             <view class="hero-brand-name">时安解忧屋</view>
             <view class="hero-brand-divider"></view>
             <view class="hero-brand-slogan">八字定终身格局 · 奇门断当下决策</view>
@@ -279,8 +280,13 @@ function toggleTheme() {
 
 // ── 视频背景（H5 only）──
 const videoFallback = ref(false)
+const videoVisible = ref(false)
 function onVideoError() {
   videoFallback.value = true
+  videoVisible.value = true
+}
+function onVideoReady() {
+  videoVisible.value = true
 }
 
 // ── 移动端菜单 ──
@@ -302,7 +308,6 @@ const features = [
   { icon: '📜', title: '古籍加持', desc: '融合《渊海子平》《奇门旨归》等经典古籍，以古法为基，以今用为归' },
   { icon: '📱', title: '全端适配', desc: '桌面端、平板、手机全端适配，随时随地查排盘' },
   { icon: '🎯', title: '场景化问事', desc: '面试能否通过、项目能否回款、感情复合时机等快速场景一键起局' },
-  { icon: '🔒', title: '无痕模式', desc: '默认开启，所有排盘计算在本地完成，不上传任何数据，退出自动清空' },
 ]
 
 // ── 场景快速入口 ──
@@ -388,7 +393,6 @@ function toggleFaqPanel() {
 const faqs = reactive([
   { q: '排盘时间怎么选？', a: '新手模式下默认使用当前时间，这也是最常用的起局方式。奇门遁甲讲究"当时当刻"，用问事时刻起局即可。', open: false },
   { q: '解读结果怎么看？', a: '建议新手先看"小白极简版"，只保留核心结论和行动建议。有基础后可切换"专业深度版"。', open: false },
-  { q: '无痕模式怎么用？', a: '无痕模式默认开启，所有排盘计算在本地完成，不上传任何数据。关闭页面后数据自动清空。', open: false },
   { q: '八字和奇门该用哪个？', a: '看整体运势用八字，看具体事件用奇门。两者结合使用效果更全面。', open: false },
 ])
 
@@ -434,13 +438,22 @@ onShow(() => {
 // ── 视频加载超时处理（H5 only）──
 onMounted(() => {
   // #ifdef H5
+  // 视频加载超时处理：3秒后如果视频还没准备好，显示fallback背景
   setTimeout(() => {
     const v = document.getElementById('heroVideo')
     if (v && v.readyState < 2) {
       videoFallback.value = true
+      videoVisible.value = true
       v.style.display = 'none'
     }
   }, 3000)
+  
+  // 即使视频还没加载好，也在页面渲染完成后1秒显示视频背景层（避免刷新时的闪烁）
+  setTimeout(() => {
+    if (!videoVisible.value) {
+      videoVisible.value = true
+    }
+  }, 1000)
   // #endif
 })
 </script>
@@ -504,7 +517,8 @@ onMounted(() => {
 .page-wrap { position: relative; z-index: 1; }
 
 /* ═══ 视频背景 ═══ */
-.video-bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
+.video-bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; opacity: 0; visibility: hidden; transition: opacity 0.4s ease, visibility 0.4s ease; }
+.video-bg.video-visible { opacity: 1; visibility: visible; }
 .video-bg-video { width: 100%; height: 100%; object-fit: cover; opacity: 0.15; filter: blur(2px) saturate(0.5); }
 [data-theme="light"] .video-bg-video { opacity: 0.08; }
 .video-bg-overlay { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 0%, var(--bg-grad-1) 85%); }
@@ -528,7 +542,7 @@ onMounted(() => {
 .hero-brand { margin-bottom: 60px; }
 .hero-brand-icon-wrap { position: relative; display: flex; align-items: center; justify-content: center; width: 160px; height: 160px; margin: 0 auto 20px; animation: float 6s ease-in-out infinite; }
 .hero-brand-icon-wrap::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--hero-logo-backdrop); box-shadow: var(--hero-logo-backdrop-shadow); z-index: 0; }
-.hero-brand-icon { width: 140px; height: 140px; position: relative; z-index: 1; display: block; }
+.hero-brand-icon { width: 140px; height: 140px; object-fit: cover; position: relative; z-index: 1; display: block; }
 @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 .hero-brand-name { font-family: var(--font-serif); font-size: 3.2rem; font-weight: 400; letter-spacing: 12px; color: var(--text-1); margin-bottom: 16px; background: linear-gradient(135deg, var(--text-1), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-indent: 12px; }
 .hero-brand-divider { width: 60px; height: 2px; background: var(--accent); margin: 16px auto; border-radius: 1px; box-shadow: 0 0 12px var(--accent-glow); }
@@ -626,7 +640,7 @@ onMounted(() => {
 .faq-a.open { max-height: 200px; padding: 14px 20px; }
 
 /* ═══ 页脚 ═══ */
-.site-footer { background: var(--nav-bg); border-top: 1px solid var(--card-border); padding: 48px 32px 24px; margin-top: 80px; }
+.site-footer { background: var(--nav-bg); border-top: 1px solid var(--card-border); padding: 48px 32px 24px; margin-top: 0; }
 .footer-disclaimer { max-width: var(--max-w); margin: 0 auto 32px; padding: 14px 20px; border-radius: 10px; background: rgba(215,125,110,0.08); border: 1px solid rgba(215,125,110,0.15); font-size: 0.75rem; color: var(--danger); line-height: 1.6; text-align: center; }
 .footer-grid { max-width: var(--max-w); margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; }
 .footer-col-title { font-size: 0.8125rem; color: var(--text-2); margin-bottom: 12px; letter-spacing: 1px; }
@@ -749,7 +763,7 @@ onMounted(() => {
   .faq-panel { margin-bottom: 0; }
   .footer-grid { grid-template-columns: 1fr 1fr; }
   .footer-col:nth-child(3) { grid-column: 1 / -1; }
-  .site-footer { padding: 32px 16px 24px; margin-top: 24px; }
+  .site-footer { padding: 32px 16px 24px; margin-top: 0; }
   .footer-bottom { flex-direction: column; gap: 8px; text-align: center; }
 }
 </style>

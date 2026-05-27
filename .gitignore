@@ -7,3 +7,9 @@ dist/
 .claude/
 .git-claude-workspace/
 src/static/uploads/
+backend/venv/
+backend/.secret_key
+backend/tianji.db
+backend/static/uploads/
+*.pyc
+__pycache__/

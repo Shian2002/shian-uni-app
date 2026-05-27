@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<script>;(function(){var t=localStorage.getItem("xc_theme");if(t)document.documentElement.setAttribute("data-theme",t);else document.documentElement.setAttribute("data-theme","dark")})()</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>紫微斗数排盘 - 时安解忧屋</title>
+    <meta name="description" content="紫微斗数排盘 — 输入出生信息自动生成十二宫命盘，包含大限流年，直观展示星曜分布。">
+    <meta name="keywords" content="紫微斗数,紫微排盘,十二宫,大限流年,星曜">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tool-pages.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ziwei.css') }}">
+</head>
+<body>
+<div class="bg-layer"></div>
+
+<!-- 移动端菜单 -->
+<div class="mobile-menu" id="mobileMenu">
+    <button class="close-btn" onclick="closeMobileMenu()">✕</button>
+    <a href="/">首页</a>
+    <div class="mobile-submenu">
+        <span class="mobile-submenu-title" onclick="this.parentElement.classList.toggle('open')">奇门遁甲 ▾</span>
+        <div class="mobile-submenu-items">
+            <a href="/qimen">时安奇门系统</a>
+            <a href="/qimen#free">奇门排盘免费版</a>
+        </div>
+    </div>
+    <div class="mobile-submenu">
+        <span class="mobile-submenu-title" onclick="this.parentElement.classList.toggle('open')">八字排盘 ▾</span>
+        <div class="mobile-submenu-items">
+            <a href="/bazi-page#free">八字排盘免费版</a>
+            <a href="/bazi-page#ai">时安八字系统</a>
+            <a href="/bazi-page#records">📋 排盘记录</a>
+        </div>
+    </div>
+    <div class="mobile-submenu">
+        <span class="mobile-submenu-title" onclick="this.parentElement.classList.toggle('open')">更多工具 ▾</span>
+        <div class="mobile-submenu-items">
+            <a href="/liuyao">六爻排盘</a>
+            <a href="/meihua">梅花易数</a>
+            <a href="/ziwei" style="color:var(--accent);">紫微斗数</a>
+            <a href="/tarot">塔罗牌</a>
+            <a href="/zeji">择吉工具</a>
+        </div>
+    </div>
+    <a href="/calendar">专属日历</a>
+    <a href="/community">社区</a>
+    <a href="/about">关于我们</a>
+</div>
+
+<!-- 顶部导航 -->
+<nav class="topnav">
+    <button class="hamburger" onclick="openMobileMenu()">☰</button>
+    <a href="/" class="topnav-logo">
+        <span class="logo-icon">☯️</span>
+        <span>时安解忧屋</span>
+    </a>
+    <span class="topnav-slogan">八字定终身格局 奇门断当下决策 看得懂用得上的民俗命理参考平台</span>
+    <div class="topnav-menu">
+        <a href="/">首页</a>
+        <div class="nav-dropdown">
+            <a href="/qimen">奇门遁甲</a>
+            <div class="nav-dropdown-menu">
+                <a href="/qimen">🔮 时安奇门系统</a>
+                <a href="/qimen#free">☯️ 奇门排盘免费版</a>
+            </div>
+        </div>
+        <div class="nav-dropdown">
+            <a href="/bazi-page">八字排盘</a>
+            <div class="nav-dropdown-menu">
+                <a href="/bazi-page#free">📜 八字排盘免费版</a>
+                <a href="/bazi-page#ai">🤖 时安八字系统</a>
+                <a href="/bazi-page#records">📋 排盘记录</a>
+            </div>
+        </div>
+        <div class="nav-dropdown">
+            <a href="javascript:void(0)" class="core" style="color:var(--accent);">更多</a>
+            <div class="nav-dropdown-menu">
+                <a href="/liuyao">🧭 六爻排盘</a>
+                <a href="/meihua">🌸 梅花易数</a>
+                <a href="/ziwei" style="color:var(--accent);font-weight:600;">⭐ 紫微斗数</a>
+                <a href="/tarot">🃏 塔罗牌</a>
+                <a href="/zeji">📅 择吉工具</a>
+            </div>
+        </div>
+        <a href="/calendar">专属日历</a>
+        <a href="/community">社区</a>
+        <a href="/about">关于我们</a>
+    </div>
+    <div class="topnav-right">
+        <input type="text" class="topnav-search" placeholder="搜索排盘、术语、案例...">
+        <a href="/profile" class="nav-profile-btn" title="个人中心">个人中心</a>
+        <button class="theme-toggle-nav" onclick="toggleTheme()" id="themeBtn" title="切换主题">🌙</button>
+        <span class="nav-auth-btns" id="navAuthBtns">
+            <button class="btn btn-outline btn-sm" onclick="showLogin()">登录</button>
+            <button class="btn btn-accent btn-sm" onclick="showRegister()">注册</button>
+        </span>
+    </div>
+</nav>
+
+<!-- 移动端核心导航 -->
+<div class="mobile-core-nav">
+    <a href="/qimen">奇门遁甲</a>
+    <a href="/bazi-page">八字排盘</a>
+    <a href="/ziwei" style="color:var(--accent);">紫微</a>
+    <a href="/calendar">日历</a>
+    <a href="/community">社区</a>
+</div>
+
+<div class="page-wrap">
+
+<!-- 页面头部 -->
+<section class="tool-hero">
+    <div class="tool-hero-content">
+        <span class="section-tag">紫微斗数</span>
+        <h1 class="tool-hero-title">紫微斗数 · 十二宫排盘</h1>
+        <p class="tool-hero-desc">出生时间排盘 · 十二宫星曜 · 四化飞星 · 大限流年推运</p>
+    </div>
+</section>
+
+<!-- 工具面板 -->
+<section class="section">
+    <div class="tool-container">
+        <!-- 无痕模式 -->
+        <div class="incognito-bar">
+            <label class="incognito-toggle">
+                <input type="checkbox" checked id="incognitoCheck" onchange="toggleIncognito()">
+                <span id="incognitoLabel">🔒 无痕模式</span>
+            </label>
+            <span class="incognito-desc">本地计算 · 不上传数据 · 退出自动清空</span>
+        </div>
+
+        <!-- Tab 切换 -->
+        <div class="tool-tabs">
+            <button class="tool-tab active" data-tab="ziwei-pan" onclick="switchZiweiTab(this)">⭐ 排盘<span class="tab-badge free">免费</span></button>
+            <button class="tool-tab" data-tab="ziwei-horoscope" onclick="switchZiweiTab(this)">📅 推运<span class="tab-badge">PRO</span></button>
+        </div>
+
+        <!-- ══ 排盘面板 ══ -->
+        <div class="tool-tab-content" id="tab-ziwei-pan">
+            <div class="zw-form-grid">
+                <div class="form-group">
+                    <label class="form-label">出生年</label>
+                    <input type="number" class="form-input" id="zw-year" value="2000" min="1900" max="2100">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">出生月</label>
+                    <input type="number" class="form-input" id="zw-month" value="8" min="1" max="12">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">出生日</label>
+                    <input type="number" class="form-input" id="zw-day" value="16" min="1" max="31">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">出生时(0-23)</label>
+                    <input type="number" class="form-input" id="zw-hour" value="12" min="0" max="23">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">出生分(可选)</label>
+                    <input type="number" class="form-input" id="zw-minute" value="0" min="0" max="59">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">性别</label>
+                    <select class="form-select" id="zw-gender">
+                        <option value="男">男</option>
+                        <option value="女">女</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">历法类型</label>
+                    <select class="form-select" id="zw-datetype">
+                        <option value="solar">阳历(公历)</option>
+                        <option value="lunar">农历(阴历)</option>
+                    </select>
+                </div>
+            </div>
+            <button class="submit-btn" id="zwPanBtn" onclick="ziweiFreePan()">⭐ 免费排盘</button>
+            <p class="form-hint" style="text-align:center;margin-top:12px;">基于iztro-py精确排盘，十二宫、主星辅星、四化飞星全展示。如需推运请使用推运功能。</p>
+            <div class="privacy-note">✅ 本地计算 · 不上传数据 · 秒出结果</div>
+            <div id="zwPanResult" style="display:none;"></div>
+        </div>
+
+        <!-- ══ 推运面板 ══ -->
+        <div class="tool-tab-content" id="tab-ziwei-horoscope" style="display:none">
+            <div class="zw-form-grid">
+                <div class="form-group">
+                    <label class="form-label">出生年</label>
+                    <input type="number" class="form-input" id="zw-h-year" value="2000" min="1900" max="2100">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">出生月</label>
+                    <input type="number" class="form-input" id="zw-h-month" value="8" min="1" max="12">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">出生日</label>
+                    <input type="number" class="form-input" id="zw-h-day" value="16" min="1" max="31">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">出生时(0-23)</label>
+                    <input type="number" class="form-input" id="zw-h-hour" value="12" min="0" max="23">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">性别</label>
+                    <select class="form-select" id="zw-h-gender">
+                        <option value="男">男</option>
+                        <option value="女">女</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">历法类型</label>
+                    <select class="form-select" id="zw-h-datetype">
+                        <option value="solar">阳历(公历)</option>
+                        <option value="lunar">农历(阴历)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group" style="margin-top:12px;">
+                <label class="form-label">🕐 推运日期</label>
+                <div class="qf-datetime-row">
+                    <div class="qf-dt-col">
+                        <select id="zwTargetYear" class="qf-datetime-select" onchange="zwTargetDateChange()">
+                            <option value="" selected disabled>年</option>
+                        </select>
+                    </div>
+                    <div class="qf-dt-col">
+                        <select id="zwTargetMonth" class="qf-datetime-select" onchange="zwTargetDateChange()">
+                            <option value="" selected disabled>月</option>
+                        </select>
+                    </div>
+                    <div class="qf-dt-col">
+                        <select id="zwTargetDay" class="qf-datetime-select">
+                            <option value="" selected disabled>日</option>
+                        </select>
+                    </div>
+                    <div class="qf-dt-col">
+                        <select id="zwTargetHour" class="qf-datetime-select">
+                            <option value="" disabled selected>时</option>
+                        </select>
+                    </div>
+                    <div class="qf-dt-col qf-dt-col-narrow">
+                        <select id="zwTargetMinute" class="qf-datetime-select">
+                            <option value="" disabled selected>分</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <button class="submit-btn" onclick="ziweiHoroscope()">📅 推运排盘</button>
+            <div id="zwHoroscopeResult" style="display:none;"></div>
+        </div>
+    </div>
+</section>
+
+</div><!-- page-wrap -->
+
+<!-- 页脚 -->
+<footer class="site-footer">
+    <div class="footer-disclaimer">
+        ⚠️ 本站所有内容仅为民俗文化与传统命理科普参考，不构成任何决策建议，严禁利用本站内容从事封建迷信及违法违规活动，本站不对任何用户基于本站内容做出的决策承担任何责任
+    </div>
+    <div class="footer-grid">
+        <div class="footer-col">
+            <h5>平台信息</h5>
+            <a href="/about">关于我们</a>
+            <a href="javascript:void(0)" onclick="showFooterInfo('contact')">联系方式</a>
+            <a href="javascript:void(0)" onclick="showFooterInfo('terms')">用户协议</a>
+            <a href="javascript:void(0)" onclick="showFooterInfo('privacy')">隐私政策</a>
+        </div>
+        <div class="footer-col">
+            <h5>快捷导航</h5>
+            <a href="/qimen">奇门遁甲</a>
+            <a href="/bazi-page">八字排盘</a>
+            <a href="/ziwei">紫微斗数</a>
+            <a href="/calendar">专属日历</a>
+        </div>
+        <div class="footer-col">
+            <h5>备案与版权</h5>
+            <span style="display:block;font-size:0.75rem;color:var(--text-3);padding:3px 0;">ICP备案号：京ICP备2026050601号-1</span>
+            <div class="icp">© 2026 时安解忧屋 版权所有</div>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        <span>时安解忧屋 · 看得懂用得上的民俗命理参考平台</span>
+    </div>
+</footer>
+
+<!-- 登录/注册弹窗 -->
+<div class="modal-overlay" id="loginModal">
+    <div class="modal-box">
+        <h3>登录</h3>
+        <div class="field"><label>用户名</label><input type="text" id="loginUser"></div>
+        <div class="field"><label>密码</label><input type="password" id="loginPass"></div>
+        <div class="modal-error" id="loginError"></div>
+        <div class="modal-btns">
+            <button class="btn btn-outline" onclick="closeModal('loginModal')">取消</button>
+            <button class="btn btn-accent" onclick="doLogin()">登录</button>
+        </div>
+    </div>
+</div>
+<div class="modal-overlay" id="registerModal">
+    <div class="modal-box">
+        <h3>注册</h3>
+        <div class="field"><label>用户名</label><input type="text" id="regUser"></div>
+        <div class="field"><label>密码</label><input type="password" id="regPass"></div>
+        <div class="field"><label>确认密码</label><input type="password" id="regPass2"></div>
+        <div class="modal-error" id="regError"></div>
+        <div class="modal-btns">
+            <button class="btn btn-outline" onclick="closeModal('registerModal')">取消</button>
+            <button class="btn btn-accent" onclick="doRegister()">注册</button>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/api-client.js') }}?v=20260512a"></script><script src="{{ url_for('static', filename='js/home.js') }}?v=20260512a"></script>
+<script src="{{ url_for('static', filename='js/tool-pages.js') }}?v=20260512a"></script>
+<script src="{{ url_for('static', filename='js/ziwei.js') }}?v=20260512b"></script>
+<script>
+document.getElementById('zw-target-date').value = new Date().toISOString().slice(0,10);
+// 排盘出生信息同步到推运面板
+document.querySelectorAll('#tab-ziwei-pan .form-input, #tab-ziwei-pan .form-select').forEach(el => {
+    el.addEventListener('change', syncZiweiForm);
+    el.addEventListener('input', syncZiweiForm);
+});
+function syncZiweiForm() {
+    ['year','month','day','hour','gender','datetype'].forEach(f => {
+        const src = document.getElementById('zw-' + f);
+        const dst = document.getElementById('zw-h-' + f);
+        if (src && dst) dst.value = src.value;
+    });
+}
+</script>
+</body>
+</html>

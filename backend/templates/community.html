@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<script>;(function(){var t=localStorage.getItem("xc_theme");if(t)document.documentElement.setAttribute("data-theme",t);else document.documentElement.setAttribute("data-theme","dark")})()</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>社区 - 时安解忧屋</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tool-pages.css') }}">
+</head>
+<body>
+<div class="bg-layer"></div>
+
+<!-- 移动端菜单 -->
+<div class="mobile-menu" id="mobileMenu">
+    <button class="close-btn" onclick="closeMobileMenu()">✕</button>
+    <a href="/">首页</a>
+    <div class="mobile-submenu">
+        <span class="mobile-submenu-title" onclick="this.parentElement.classList.toggle('open')">奇门遁甲 ▾</span>
+        <div class="mobile-submenu-items">
+            <a href="/qimen">时安奇门系统</a>
+            <a href="/qimen#free">奇门排盘免费版</a>
+        </div>
+    </div>
+    <div class="mobile-submenu">
+        <span class="mobile-submenu-title" onclick="this.parentElement.classList.toggle('open')">八字排盘 ▾</span>
+        <div class="mobile-submenu-items">
+            <a href="/bazi-page#free">八字排盘免费版</a>
+            <a href="/bazi-page#ai">时安八字系统</a>
+            <a href="/bazi-page#records">📋 排盘记录</a>
+        </div>
+    </div>
+    <div class="mobile-submenu">
+        <span class="mobile-submenu-title" onclick="this.parentElement.classList.toggle('open')">更多工具 ▾</span>
+        <div class="mobile-submenu-items">
+            <a href="/liuyao">六爻排盘</a>
+            <a href="/meihua">梅花易数</a>
+            <a href="/ziwei">紫微斗数</a>
+            <a href="/tarot">塔罗牌</a>
+            <a href="/zeji">择吉工具</a>
+        </div>
+    </div>
+    <a href="/calendar">专属日历</a>
+    <a href="/community">社区</a>
+    <a href="/about">关于我们</a>
+</div>
+
+<!-- 顶部导航 -->
+<nav class="topnav">
+    <button class="hamburger" onclick="openMobileMenu()">☰</button>
+    <a href="/" class="topnav-logo">
+        <span class="logo-icon">☯️</span>
+        <span>时安解忧屋</span>
+    </a>
+    <span class="topnav-slogan">八字定终身格局 奇门断当下决策 看得懂用得上的民俗命理参考平台</span>
+    <div class="topnav-menu">
+        <a href="/">首页</a>
+        <div class="nav-dropdown">
+            <a href="/qimen" class="core">奇门遁甲</a>
+            <div class="nav-dropdown-menu">
+                <a href="/qimen">🔮 时安奇门系统</a>
+                <a href="/qimen#free">☯️ 奇门排盘免费版</a>
+            </div>
+        </div>
+        <div class="nav-dropdown">
+            <a href="/bazi-page" class="core">八字排盘</a>
+            <div class="nav-dropdown-menu">
+                <a href="/bazi-page#free">📜 八字排盘免费版</a>
+                <a href="/bazi-page#ai">🤖 时安八字系统</a>
+                <a href="/bazi-page#records">📋 排盘记录</a>
+            </div>
+        </div>
+        <div class="nav-dropdown">
+            <a href="javascript:void(0)">更多</a>
+            <div class="nav-dropdown-menu">
+                <a href="/liuyao">🧭 六爻排盘</a>
+                <a href="/meihua">🌸 梅花易数</a>
+                <a href="/ziwei">⭐ 紫微斗数</a>
+                <a href="/tarot">🃏 塔罗牌</a>
+                <a href="/zeji">📅 择吉工具</a>
+            </div>
+        </div>
+        <a href="/calendar">专属日历</a>
+        <a href="/community" class="current">社区</a>
+        <a href="/about">关于我们</a>
+    </div>
+    <div class="topnav-right">
+        <a href="/profile" class="nav-profile-btn" title="个人中心">个人中心</a>
+        <button class="theme-toggle-nav" onclick="toggleTheme()" id="themeBtn" title="切换主题">🌙</button>
+        <span class="nav-auth-btns" id="navAuthBtns">
+            <button class="btn btn-outline btn-sm" onclick="showLogin()">登录</button>
+            <button class="btn btn-accent btn-sm" onclick="showRegister()">注册</button>
+        </span>
+    </div>
+</nav>
+
+<!-- 移动端核心导航 -->
+<div class="mobile-core-nav">
+    <a href="/qimen">奇门遁甲</a>
+    <a href="/bazi-page">八字排盘</a>
+    <a href="/liuyao">六爻</a>
+    <a href="/calendar">日历</a>
+    <a href="/community">社区</a>
+</div>
+
+<div class="page-wrap">
+
+<!-- 社区头部 -->
+<section class="tool-hero">
+    <div class="tool-hero-content">
+        <span class="section-tag">交流社区</span>
+        <h1 class="tool-hero-title">民俗文化探讨 · 同好交流</h1>
+        <span id="notifBell" style="position:relative;cursor:pointer;font-size:1.25rem;margin-left:12px;" onclick="toggleNotifPanel()">🔔<span id="notifBadge" style="display:none;position:absolute;top:-4px;right:-6px;background:var(--danger);color:#fff;font-size:0.5625rem;min-width:16px;height:16px;border-radius:8px;text-align:center;line-height:16px;">0</span></span>
+        <span id="adminPanelBtn" style="display:none;cursor:pointer;font-size:1rem;margin-left:8px;" onclick="showAdminPanel()">⚙️</span>
+        <div id="notifPanel" style="display:none;position:absolute;top:60px;right:20px;width:360px;max-height:480px;overflow-y:auto;background:var(--card-bg);border:1px solid var(--card-border);border-radius:var(--radius-md);backdrop-filter:blur(16px);z-index:200;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:16px;border-bottom:1px solid var(--card-border);">
+                <span style="font-weight:600;color:var(--text-1);">通知</span>
+                <span style="font-size:0.75rem;color:var(--accent);cursor:pointer;" onclick="markAllNotifRead()">全部已读</span>
+            </div>
+            <div id="notifList" style="padding:8px;"></div>
+        </div>
+        <p class="tool-hero-desc">分享排盘心得 · 交流应验经验 · 共同学习进步</p>
+    </div>
+</section>
+
+<section class="section">
+    <div class="compliance-notice" style="background:var(--accent-glow);border:1px solid var(--card-border);border-radius:var(--radius-md);padding:12px 18px;margin-bottom:24px;font-size:0.8125rem;color:var(--text-2);text-align:center;letter-spacing:1px;">
+        民俗文化探讨，不构成命运预测承诺
+    </div>
+
+    <!-- 搜索 + 发帖 -->
+    <div style="display:flex;gap:10px;margin-bottom:20px;align-items:center;">
+        <div class="search-box" style="flex:1;padding:0;">
+            <span class="search-icon">🔍</span>
+            <input type="text" class="form-input" id="communitySearch" placeholder="搜索帖子..." style="padding-left:32px;">
+        </div>
+        <button class="btn btn-accent" style="white-space:nowrap;" onclick="showCommunityPost()">✎ 发帖</button>
+    </div>
+
+    <!-- 分类tab -->
+    <div class="category-tab" id="communityTabs" style="display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;">
+        <span class="ctab active" data-cat="all" onclick="switchCommunityTab('all')" style="padding:6px 16px;border-radius:20px;font-size:0.8125rem;cursor:pointer;background:var(--accent-glow);color:var(--accent);border:1px solid var(--accent);">全部</span>
+        <span class="ctab" data-cat="share" onclick="switchCommunityTab('share')" style="padding:6px 16px;border-radius:20px;font-size:0.8125rem;cursor:pointer;background:transparent;color:var(--text-3);border:1px solid var(--card-border);">分享</span>
+        <span class="ctab" data-cat="discuss" onclick="switchCommunityTab('discuss')" style="padding:6px 16px;border-radius:20px;font-size:0.8125rem;cursor:pointer;background:transparent;color:var(--text-3);border:1px solid var(--card-border);">讨论</span>
+        <span class="ctab" data-cat="ask" onclick="switchCommunityTab('ask')" style="padding:6px 16px;border-radius:20px;font-size:0.8125rem;cursor:pointer;background:transparent;color:var(--text-3);border:1px solid var(--card-border);">求助</span>
+        <span class="ctab" data-cat="experience" onclick="switchCommunityTab('experience')" style="padding:6px 16px;border-radius:20px;font-size:0.8125rem;cursor:pointer;background:transparent;color:var(--text-3);border:1px solid var(--card-border);">心得</span>
+    </div>
+
+    <div id="communitySort" style="display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap;">
+        <span class="ctab active" data-sort="latest" onclick="switchSort('latest')" style="padding:4px 12px;border-radius:16px;font-size:0.75rem;cursor:pointer;background:var(--accent-glow);color:var(--accent);border:1px solid var(--accent);">最新</span>
+        <span class="ctab" data-sort="hot" onclick="switchSort('hot')" style="padding:4px 12px;border-radius:16px;font-size:0.75rem;cursor:pointer;background:transparent;color:var(--text-3);border:1px solid var(--card-border);">最热</span>
+        <span class="ctab" data-sort="featured" onclick="switchSort('featured')" style="padding:4px 12px;border-radius:16px;font-size:0.75rem;cursor:pointer;background:transparent;color:var(--text-3);border:1px solid var(--card-border);">精华</span>
+    </div>
+
+    <!-- 帖子列表 -->
+    <div id="communityPostList" style="display:grid;gap:16px;">
+        <div style="color:var(--text-3);font-size:0.8125rem;text-align:center;padding:40px;">加载中...</div>
+    </div>
+
+    <!-- 帖子详情 -->
+    <div id="communityPostDetail" style="display:none;max-width:720px;"></div>
+
+    <div id="communityUserProfile" style="display:none;max-width:720px;">
+        <div style="display:inline-block;padding:8px 16px;margin-bottom:16px;font-size:0.875rem;color:var(--accent);cursor:pointer;border-radius:8px;background:var(--accent-glow);" onclick="closeUserProfile()">← 返回列表</div>
+        <div id="userProfileHeader" style="display:flex;align-items:center;gap:16px;margin-bottom:24px;padding:24px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:var(--radius-md);backdrop-filter:blur(16px);"></div>
+        <div id="userProfilePosts" style="display:grid;gap:16px;"></div>
+        <div id="userProfileFooter" style="text-align:center;margin-top:16px;"></div>
+    </div>
+
+    <div id="communityFooter" style="text-align:center;margin-top:32px;">
+        <p style="font-size:0.8125rem;color:var(--text-3);"></p>
+    </div>
+</section>
+
+</div><!-- page-wrap -->
+
+<!-- 页脚 -->
+<footer class="site-footer">
+    <div class="footer-disclaimer">
+        ⚠️ 本站所有内容仅为民俗文化与传统命理科普参考，不构成任何决策建议
+    </div>
+    <div class="footer-grid">
+        <div class="footer-col">
+            <h5>平台信息</h5>
+            <a href="/about">关于我们</a>
+            <a href="javascript:void(0)" onclick="showFooterInfo('contact')">联系方式</a>
+            <a href="javascript:void(0)" onclick="showFooterInfo('privacy')">隐私政策</a>
+        </div>
+        <div class="footer-col">
+            <h5>快捷导航</h5>
+            <a href="/qimen">奇门遁甲</a>
+            <a href="/bazi-page">八字排盘</a>
+            <a href="/calendar">专属日历</a>
+            <a href="/community">社区</a>
+        </div>
+        <div class="footer-col">
+            <h5>备案与版权</h5>
+            <span style="display:block;font-size:0.75rem;color:var(--text-3);padding:3px 0;">ICP备案号：京ICP备2026050601号-1</span>
+            <div class="icp">© 2026 时安解忧屋 版权所有</div>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        <span>时安解忧屋 · 看得懂用得上的民俗命理参考平台</span>
+    </div>
+</footer>
+
+<!-- 登录/注册弹窗 -->
+<div class="modal-overlay" id="loginModal">
+    <div class="modal-box">
+        <h3>登录</h3>
+        <div class="field"><label>用户名</label><input type="text" id="loginUser"></div>
+        <div class="field"><label>密码</label><input type="password" id="loginPass"></div>
+        <div class="modal-error" id="loginError"></div>
+        <div class="modal-btns">
+            <button class="btn btn-outline" onclick="closeModal('loginModal')">取消</button>
+            <button class="btn btn-accent" onclick="doLogin()">登录</button>
+        </div>
+    </div>
+</div>
+<div class="modal-overlay" id="registerModal">
+    <div class="modal-box">
+        <h3>注册</h3>
+        <div class="field"><label>用户名</label><input type="text" id="regUser"></div>
+        <div class="field"><label>密码</label><input type="password" id="regPass"></div>
+        <div class="field"><label>确认密码</label><input type="password" id="regPass2"></div>
+        <div class="modal-error" id="regError"></div>
+        <div class="modal-btns">
+            <button class="btn btn-outline" onclick="closeModal('registerModal')">取消</button>
+            <button class="btn btn-accent" onclick="doRegister()">注册</button>
+        </div>
+    </div>
+</div>
+
+<!-- 发帖弹窗 -->
+<div class="modal-overlay" id="newPostModal">
+    <div class="modal-box">
+        <h3>发帖</h3>
+        <div class="field"><label>标题</label><input type="text" id="newPostTitle" placeholder="帖子标题"></div>
+        <div class="field"><label>内容</label><textarea id="newPostContent" style="width:100%;min-height:100px;padding:10px 14px;border-radius:10px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--text-1);font-size:0.875rem;outline:none;box-sizing:border-box;resize:vertical;" placeholder="分享你的见解..."></textarea></div>
+        <div class="field">
+            <label>图片（选填）</label>
+            <div style="margin-top:6px;">
+                <input type="file" id="newPostImage" accept="image/*" onchange="previewPostImage(this)" style="display:none;">
+                <button class="btn btn-outline" style="font-size:0.8125rem;" onclick="$('newPostImage').click()">📷 选择图片</button>
+                <span id="newPostImageName" style="font-size:0.75rem;color:var(--text-3);margin-left:8px;"></span>
+                <div id="newPostImagePreview" style="display:none;margin-top:8px;position:relative;display:inline-block;">
+                    <img id="newPostImageThumb" style="width:80px;height:80px;border-radius:10px;object-fit:cover;">
+                    <button onclick="removePostImage()" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--danger);color:#fff;font-size:0.625rem;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+                </div>
+            </div>
+        </div>
+        <div class="field" style="display:flex;gap:12px;">
+            <div style="flex:1;"><label>分类</label>
+                <select id="newPostCategory" style="width:100%;padding:9px 12px;border:1.5px solid var(--card-border);border-radius:10px;font-size:0.85rem;background:var(--card-bg);color:var(--text-1);">
+                    <option value="share">分享</option>
+                    <option value="discuss">讨论</option>
+                    <option value="ask">求助</option>
+                    <option value="experience">心得</option>
+                </select>
+            </div>
+            <div style="flex:1;"><label>标签</label><input type="text" id="newPostTags" placeholder="逗号分隔" style="width:100%;padding:9px 12px;border:1.5px solid var(--card-border);border-radius:10px;font-size:0.85rem;background:var(--input-bg);color:var(--text-1);outline:none;box-sizing:border-box;"></div>
+        </div>
+        <div class="modal-error" id="newPostError"></div>
+        <div class="modal-btns">
+            <button class="btn btn-outline" onclick="closeModal('newPostModal')">取消</button>
+            <button class="btn btn-accent" onclick="submitNewPost()">发布</button>
+        </div>
+    </div>
+</div>
+
+<!-- 免责声明弹窗 -->
+<div class="modal-overlay" id="disclaimerModal">
+    <div class="modal-box" style="max-width:420px;">
+        <h3>⚠️ 免责声明</h3>
+        <div style="font-size:0.8125rem;color:var(--text-2);line-height:1.8;margin-bottom:16px;padding:12px;background:var(--input-bg);border-radius:10px;">本站内容仅为民俗文化与传统命理科普参考，不构成任何决策建议。严禁利用本站内容从事封建迷信及违法违规活动。发布内容需遵守法律法规，不得含有封建迷信、违法违规信息。</div>
+        <label style="display:block;text-align:center;font-size:0.875rem;color:var(--text-2);margin-bottom:12px;padding:8px;cursor:pointer;">
+            <input type="checkbox" id="disclaimerAgree" style="margin-right:6px;"> 我已阅读并同意以上声明
+        </label>
+        <div class="modal-btns">
+            <button class="btn btn-outline" onclick="closeModal('disclaimerModal')">取消</button>
+            <button class="btn btn-accent" id="disclaimerConfirmBtn" style="opacity:0.5;cursor:not-allowed;" onclick="confirmDisclaimer()">确认发布</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="editPostModal">
+    <div class="modal-box">
+        <h3>编辑帖子</h3>
+        <div class="field"><label>标题</label><input type="text" id="editPostTitle" placeholder="帖子标题"></div>
+        <div class="field"><label>内容</label><textarea id="editPostContent" style="width:100%;min-height:100px;padding:10px 14px;border-radius:10px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--text-1);font-size:0.875rem;outline:none;box-sizing:border-box;resize:vertical;" placeholder="分享你的见解..."></textarea></div>
+        <div class="field" style="display:flex;gap:12px;">
+            <div style="flex:1;"><label>分类</label>
+                <select id="editPostCategory" style="width:100%;padding:9px 12px;border:1.5px solid var(--card-border);border-radius:10px;font-size:0.85rem;background:var(--card-bg);color:var(--text-1);">
+                    <option value="share">分享</option>
+                    <option value="discuss">讨论</option>
+                    <option value="ask">求助</option>
+                    <option value="experience">心得</option>
+                </select>
+            </div>
+            <div style="flex:1;"><label>标签</label><input type="text" id="editPostTags" placeholder="逗号分隔" style="width:100%;padding:9px 12px;border:1.5px solid var(--card-border);border-radius:10px;font-size:0.85rem;background:var(--input-bg);color:var(--text-1);outline:none;box-sizing:border-box;"></div>
+        </div>
+        <div class="modal-error" id="editPostError"></div>
+        <div class="modal-btns">
+            <button class="btn btn-outline" onclick="closeModal('editPostModal')">取消</button>
+            <button class="btn btn-accent" onclick="submitEditPost()">保存</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="reportModal">
+    <div class="modal-box">
+        <h3>举报内容</h3>
+        <p style="font-size:0.8125rem;color:var(--text-3);margin-bottom:12px;">请选择举报原因：</p>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--text-1);font-size:0.875rem;"><input type="radio" name="reportReason" value="spam"> 垃圾广告</label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--text-1);font-size:0.875rem;"><input type="radio" name="reportReason" value="abuse"> 辱骂/骚扰</label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--text-1);font-size:0.875rem;"><input type="radio" name="reportReason" value="misinformation"> 虚假信息</label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--text-1);font-size:0.875rem;"><input type="radio" name="reportReason" value="illegal"> 违法违规</label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--text-1);font-size:0.875rem;"><input type="radio" name="reportReason" value="other"> 其他</label>
+        </div>
+        <div class="modal-error" id="reportError"></div>
+        <div class="modal-btns">
+            <button class="btn btn-outline" onclick="closeModal('reportModal')">取消</button>
+            <button class="btn btn-accent" onclick="submitReport()">提交举报</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="adminPanelModal">
+    <div class="modal-box" style="max-width:800px;">
+        <h3>管理面板</h3>
+        <div style="margin-bottom:16px;">
+            <span style="font-size:0.875rem;color:var(--text-3);">举报审核</span>
+        </div>
+        <div id="adminReportList" style="max-height:400px;overflow-y:auto;"></div>
+        <div class="modal-btns"><button class="btn btn-outline" onclick="closeModal('adminPanelModal')">关闭</button></div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/api-client.js') }}"></script>
+<script>
+// ═══ 社区页面独立脚本 ═══
+var communityCategory='all';
+var communityPage=1;
+var communitySearchQuery='';
+var currentPostId=null;
+var currentUser=null;
+var _pendingPostData=null;
+var communitySort='latest';
+var _editPostId=null;
+var _reportTarget={type:null,id:null};
+var _pendingNotifTimer=null;
+
+function toggleTheme(){
+    var html=document.documentElement;
+    var current=html.getAttribute('data-theme')||'dark';
+    var next=current==='dark'?'light':'dark';
+    html.setAttribute('data-theme',next);
+    localStorage.setItem('xc_theme',next);
+    var btn=document.getElementById('themeBtn');
+    if(btn)btn.textContent=next==='dark'?'🌙':'☀️';
+}
+function openMobileMenu(){var m=document.getElementById('mobileMenu');if(m)m.classList.add('open');}
+function closeMobileMenu(){var m=document.getElementById('mobileMenu');if(m)m.classList.remove('open');}
+
+var CATEGORY_LABELS={share:'分享',discuss:'讨论',ask:'求助',experience:'心得'};
+
+function showModal(id){var m=$(id);if(m)m.classList.add('open');}
+function closeModal(id){var m=$(id);if(m)m.classList.remove('open');}
+
+function showFooterInfo(type){
+    var info={contact:'客服邮箱：support@shian.com',privacy:'我们重视您的隐私，所有命盘数据仅存储在您的设备本地，不会上传至服务器。'};
+    alert(type==='contact'?'联系方式：'+info.contact:'隐私政策：'+info.privacy);
+}
+
+function _showLogin(){showModal('loginModal');$('loginError').textContent='';}
+function _showRegister(){showModal('registerModal');$('regError').textContent='';}
+
+async function doLogin(){
+    var u=$('loginUser').value.trim(),p=$('loginPass').value;
+    if(!u||!p){$('loginError').textContent='请填写用户名和密码';return;}
+    try{
+        var res=await apiFetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+        var d=await res.json();
+        if(d.error){$('loginError').textContent=d.error;return;}
+        closeModal('loginModal');
+        currentUser=d.user||{id:d.userId,username:u};
+        updateAuthUI();
+        loadCommunityPosts();
+        startNotifPolling();
+        if(currentUser.is_admin){var ab=$('adminPanelBtn');if(ab)ab.style.display='inline';}
+    }catch(e){$('loginError').textContent='登录失败';}
+}
+
+async function doRegister(){
+    var u=$('regUser').value.trim(),p=$('regPass').value,p2=$('regPass2').value;
+    if(!u||!p){$('regError').textContent='请填写用户名和密码';return;}
+    if(p!==p2){$('regError').textContent='两次密码不一致';return;}
+    try{
+        var res=await apiFetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+        var d=await res.json();
+        if(d.error){$('regError').textContent=d.error;return;}
+        closeModal('registerModal');
+        currentUser=d.user||{id:d.userId,username:u};
+        updateAuthUI();
+    }catch(e){$('regError').textContent='注册失败';}
+}
+
+function updateAuthUI(){
+    var authEl=$('navAuthBtns');
+    if(currentUser&&authEl){
+        authEl.innerHTML='<span style="font-size:0.8125rem;color:var(--text-2);">👋 '+esc(currentUser.username||'用户')+'</span>';
+    }
+}
+
+function switchCommunityTab(cat){
+    communityCategory=cat; communityPage=1;
+    document.querySelectorAll('#communityTabs .ctab').forEach(function(t){
+        var isCurrent=t.getAttribute('data-cat')===cat;
+        t.classList.toggle('active',isCurrent);
+        t.style.background=isCurrent?'var(--accent-glow)':'transparent';
+        t.style.color=isCurrent?'var(--accent)':'var(--text-3)';
+        t.style.borderColor=isCurrent?'var(--accent)':'var(--card-border)';
+    });
+    loadCommunityPosts();
+}
+
+function searchPosts(){
+    communitySearchQuery=$('communitySearch').value.trim();
+    communityPage=1;
+    loadCommunityPosts();
+}
+
+async function loadCommunityPosts(){
+    var list=$('communityPostList');
+    var footer=$('communityFooter');
+    list.style.display='grid';
+    $('communityPostDetail').style.display='none';
+    $('communityUserProfile').style.display='none';
+    list.innerHTML='<div style="color:var(--text-3);font-size:0.8125rem;text-align:center;padding:40px;">加载中...</div>';
+    try{
+        var url='/api/posts?page='+communityPage+'&sort='+communitySort;
+        if(communityCategory!=='all') url+='&category='+communityCategory;
+        if(communitySearchQuery) url+='&tag='+encodeURIComponent(communitySearchQuery);
+        var res=await apiFetch(url);
+        var d=await res.json();
+        if(!d.posts||d.posts.length===0){
+            list.innerHTML='<div style="color:var(--text-3);font-size:0.8125rem;text-align:center;padding:40px;">暂无帖子，快来发第一篇吧~</div>';
+            footer.querySelector('p').textContent='';
+            return;
+        }
+        list.innerHTML=d.posts.map(function(p){
+            var isHot=(p.likesCount||0)>20;
+            return '<div class="community-post-card" style="cursor:pointer;" onclick="openPostDetail('+p.id+')">'
+                +(p.imageUrl?'<div style="margin-bottom:8px;border-radius:8px;overflow:hidden;"><img src="'+p.imageUrl+'" style="width:100%;max-height:200px;object-fit:cover;" alt="帖子图片"></div>':'')
+                +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">'
+                +'<div style="width:40px;height:40px;border-radius:50%;background:var(--accent-glow);display:flex;align-items:center;justify-content:center;font-size:1rem;">👤</div>'
+                +'<div>'
+                +'<div style="font-size:0.875rem;font-weight:500;color:var(--text-1);cursor:pointer;" onclick="event.stopPropagation();openUserProfile('+p.userId+')">'+esc(p.username||'匿名')+'</div>'
+                +'<div style="font-size:0.6875rem;color:var(--text-3);">'+formatTime(p.createdAt)+' · '+(CATEGORY_LABELS[p.category]||p.category)+'</div>'
+                +'</div>'
+                +((p.isFeatured)?'<span style="margin-left:auto;padding:3px 10px;border-radius:12px;font-size:0.625rem;background:var(--accent-glow);color:var(--accent);border:1px solid var(--accent);">精华</span>':'')
+                +(p.isPinned?'<span style="margin-left:4px;padding:3px 10px;border-radius:12px;font-size:0.625rem;background:rgba(115,192,115,0.12);color:#73c073;border:1px solid #73c073;">置顶</span>':'')
+                +((!p.isFeatured&&isHot)?'<span style="margin-left:auto;padding:3px 10px;border-radius:12px;font-size:0.625rem;background:rgba(215,125,110,0.12);color:var(--danger);border:1px solid var(--danger);">热门</span>':'')
+                +'</div>'
+                +'<h4 style="font-size:1rem;margin-bottom:8px;color:var(--text-1);">'+esc(p.title)+'</h4>'
+                +(p.contentPreview?'<p style="font-size:0.8125rem;color:var(--text-3);line-height:1.6;margin-bottom:12px;">'+esc(p.contentPreview)+'</p>':'')
+                +'<div style="display:flex;gap:16px;font-size:0.75rem;color:var(--text-3);">'
+                +'<span>❤️ '+(p.likesCount||0)+'</span><span>💬 '+(p.commentsCount||0)+'</span>'
+                +'</div></div>';
+        }).join('');
+        var info='共 '+d.total+' 篇帖子';
+        if(d.has_next) info+=' · <a href="javascript:void(0)" onclick="communityPage++;loadCommunityPosts()" style="color:var(--accent);">加载更多</a>';
+        footer.querySelector('p').innerHTML=info;
+    }catch(e){
+        list.innerHTML='<div style="color:var(--danger);font-size:0.8125rem;text-align:center;padding:40px;">加载失败</div>';
+    }
+}
+
+function formatTime(iso){
+    if(!iso)return '';
+    var d=new Date(iso),now=new Date(),diff=now-d;
+    if(diff<60000)return '刚刚';
+    if(diff<3600000)return Math.floor(diff/60000)+'分钟前';
+    if(diff<86400000)return Math.floor(diff/3600000)+'小时前';
+    if(diff<604800000)return Math.floor(diff/86400000)+'天前';
+    return d.toLocaleDateString('zh-CN');
+}
+
+async function openPostDetail(id){
+    currentPostId=id;
+    $('communityPostList').style.display='none';
+    $('communityFooter').style.display='none';
+    var detail=$('communityPostDetail');
+    detail.style.display='block';
+    detail.innerHTML='<div style="color:var(--text-3);text-align:center;padding:40px;">加载中...</div>';
+    try{
+        var res=await apiFetch('/api/posts/'+id);
+        var p=await res.json();
+        var isLiked=p.liked;
+        detail.innerHTML='<div style="display:inline-block;padding:8px 16px;margin-bottom:16px;font-size:0.875rem;color:var(--accent);cursor:pointer;border-radius:8px;background:var(--accent-glow);" onclick="closePostDetail()">← 返回列表</div>'
+            +'<div class="community-post-card">'
+            +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">'
+            +'<div style="width:40px;height:40px;border-radius:50%;background:var(--accent-glow);display:flex;align-items:center;justify-content:center;font-size:1rem;">👤</div>'
+            +'<div><div style="font-size:0.875rem;font-weight:500;color:var(--text-1);cursor:pointer;" onclick="openUserProfile('+p.userId+')">'+esc(p.username||'匿名')+'</div>'
+            +'<div style="font-size:0.6875rem;color:var(--text-3);">'+formatTime(p.createdAt)+' · '+(CATEGORY_LABELS[p.category]||p.category)+'</div></div>'
+            +(p.isFeatured?'<span style="margin-left:auto;padding:3px 10px;border-radius:12px;font-size:0.625rem;background:var(--accent-glow);color:var(--accent);border:1px solid var(--accent);">精华</span>':'')
+            +'</div>'
+            +'<h4 style="font-size:1.125rem;margin-bottom:8px;color:var(--text-1);">'+esc(p.title)+'</h4>'
+            +'<div style="font-size:0.875rem;color:var(--text-2);line-height:1.8;white-space:pre-wrap;margin-bottom:12px;">'+esc(p.content)+'</div>'
+            +(p.imageUrl?'<div style="margin-bottom:12px;border-radius:10px;overflow:hidden;"><img src="'+p.imageUrl+'" style="width:100%;max-height:400px;object-fit:cover;border-radius:10px;" alt="帖子图片"></div>':'')
+            +'<div style="display:flex;gap:16px;align-items:center;margin-top:16px;padding-top:12px;border-top:1px solid var(--card-border);">'
+            +'<button class="like-btn" id="likeBtn_'+id+'" style="padding:6px 14px;border-radius:8px;font-size:0.875rem;cursor:pointer;background:var(--accent-glow);color:var(--text-2);border:1px solid var(--card-border);'+(isLiked?'background:rgba(215,125,110,0.12);color:var(--danger);border-color:var(--danger);':'')+'" onclick="togglePostLike('+id+',this)">'+(isLiked?'❤️':'🤍')+' '+(p.likesCount||0)+'</button>'
+            +(currentUser&&(p.userId===currentUser.id)?'<button style="padding:6px 14px;border-radius:8px;font-size:0.75rem;color:var(--danger);cursor:pointer;background:none;border:none;" onclick="deletePost('+id+')">删除</button>':'')
+            +(currentUser&&(p.userId===currentUser.id)?'<button style="padding:6px 14px;border-radius:8px;font-size:0.75rem;color:var(--accent);cursor:pointer;background:var(--accent-glow);border:1px solid var(--accent);" onclick="openEditPost('+id+',\''+esc(p.title).replace(/'/g,"\\'")+'\',\''+esc(p.content).replace(/'/g,"\\'").replace(/\n/g,"\\n")+'\',\''+p.category+'\',\''+((p.tags||[]).join(','))+'\')">编辑</button>':'')
+            +'<button style="padding:6px 14px;border-radius:8px;font-size:0.75rem;color:var(--text-3);cursor:pointer;background:var(--card-bg);border:1px solid var(--card-border);" onclick="showReportModal(\'post\','+id+')">举报</button>'
+            +'<button style="padding:6px 14px;border-radius:8px;font-size:0.75rem;color:var(--accent);cursor:pointer;background:var(--accent-glow);border:1px solid var(--accent);" onclick="sharePost('+id+')">分享</button>'
+            +(currentUser&&currentUser.is_admin?'<button style="padding:6px 14px;border-radius:8px;font-size:0.75rem;color:var(--text-3);cursor:pointer;background:var(--card-bg);border:1px solid var(--card-border);" onclick="adminPinPost('+id+','+(!p.isPinned)+')">'+(p.isPinned?'取消置顶':'置顶')+'</button><button style="padding:6px 14px;border-radius:8px;font-size:0.75rem;color:var(--text-3);cursor:pointer;background:var(--card-bg);border:1px solid var(--card-border);" onclick="adminFeaturePost('+id+','+(!p.isFeatured)+')">'+(p.isFeatured?'取消加精':'加精')+'</button><button style="padding:6px 14px;border-radius:8px;font-size:0.75rem;color:var(--text-3);cursor:pointer;background:var(--card-bg);border:1px solid var(--card-border);" onclick="adminHidePost('+id+',true)">隐藏</button>':'')
+            +'</div></div>'
+            +'<div style="margin-top:24px;"><div style="font-size:0.9375rem;font-weight:600;color:var(--text-1);margin-bottom:12px;">评论 ('+((p.comments||[]).length)+')</div>'
+            +(p.comments||[]).map(function(c){
+                return '<div style="padding:12px 0;border-bottom:1px solid var(--card-border);">'
+                    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">'
+                    +'<span style="font-size:0.8125rem;font-weight:500;color:var(--text-1);cursor:pointer;" onclick="openUserProfile('+c.userId+')">'+esc(c.username||'匿名')+'</span>'
+                    +'<span style="font-size:0.6875rem;color:var(--text-3);">'+formatTime(c.createdAt)+'</span>'
+                    +'<span class="comment-like-btn" id="commentLike_'+c.id+'" style="font-size:0.6875rem;color:'+(c.liked?'var(--accent)':'var(--text-3)')+';cursor:pointer;margin-left:auto;padding:2px 6px;border-radius:4px;'+(c.liked?'background:var(--accent-glow);':'')+'" onclick="toggleCommentLike('+c.id+',this)">👍 '+(c.likesCount||0)+'</span>'
+                    +(currentUser&&(c.userId===currentUser.id)?'<button style="font-size:0.6875rem;color:var(--danger);background:none;border:none;cursor:pointer;" onclick="deleteComment('+c.id+','+id+')">删除</button>':'')
+                    +'<span style="font-size:0.6875rem;color:var(--text-3);cursor:pointer;margin-left:8px;" onclick="showReportModal(\'comment\','+c.id+')">举报</span>'
+                    +'</div>'
+                    +'<div style="font-size:0.8125rem;color:var(--text-2);line-height:1.6;">'+esc(c.content)+'</div>'
+                    +((c.replies||[]).map(function(r){
+                        return '<div style="margin-left:20px;margin-top:8px;padding-top:8px;border-top:1px solid var(--card-border);">'
+                            +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">'
+                            +'<span style="font-size:0.8125rem;font-weight:500;color:var(--text-1);cursor:pointer;" onclick="openUserProfile('+r.userId+')">'+esc(r.username||'匿名')+'</span>'
+                            +'<span style="font-size:0.6875rem;color:var(--text-3);">'+formatTime(r.createdAt)+'</span>'
+                            +'<span class="comment-like-btn" id="commentLike_'+r.id+'" style="font-size:0.6875rem;color:'+(r.liked?'var(--accent)':'var(--text-3)')+';cursor:pointer;margin-left:auto;padding:2px 6px;border-radius:4px;'+(r.liked?'background:var(--accent-glow);':'')+'" onclick="toggleCommentLike('+r.id+',this)">👍 '+(r.likesCount||0)+'</span>'
+                            +(currentUser&&(r.userId===currentUser.id)?'<button style="font-size:0.6875rem;color:var(--danger);background:none;border:none;cursor:pointer;" onclick="deleteComment('+r.id+','+id+')">删除</button>':'')
+                            +'</div>'
+                            +'<div style="font-size:0.8125rem;color:var(--text-2);line-height:1.6;">'+esc(r.content)+'</div></div>';
+                    }).join(''))
+                    +'</div>';
+            }).join('')
+            +((!p.comments||!p.comments.length)?'<div style="text-align:center;padding:24px;font-size:0.8125rem;color:var(--text-3);">暂无评论，来说点什么吧~</div>':'')
+            +'<div style="display:flex;gap:8px;margin-top:20px;">'
+            +'<input type="text" id="commentInput" placeholder="发表评论..." style="flex:1;padding:10px 14px;border:1.5px solid var(--card-border);border-radius:10px;font-size:0.85rem;background:var(--input-bg);color:var(--text-1);outline:none;box-sizing:border-box;">'
+            +'<button class="btn btn-accent" style="padding:10px 18px;font-size:0.85rem;white-space:nowrap;" onclick="submitComment('+id+')">发送</button>'
+            +'</div></div>';
+    }catch(e){
+        detail.innerHTML='<div style="color:var(--danger);text-align:center;padding:40px;">加载失败</div>';
+    }
+}
+
+function closePostDetail(){
+    $('communityPostDetail').style.display='none';
+    $('communityPostList').style.display='grid';
+    $('communityFooter').style.display='block';
+    currentPostId=null;
+}
+
+async function togglePostLike(id,btn){
+    if(!currentUser){showModal('loginModal');$('loginError').textContent='';return;}
+    try{
+        var res=await apiFetch('/api/posts/'+id+'/like',{method:'POST'});
+        var d=await res.json();
+        if(d.liked!==undefined){
+            btn.innerHTML=(d.liked?'❤️':'🤍')+' '+(d.likesCount||0);
+            if(d.liked){btn.style.background='rgba(215,125,110,0.12)';btn.style.color='var(--danger)';btn.style.borderColor='var(--danger)';}
+            else{btn.style.background='var(--accent-glow)';btn.style.color='var(--text-2)';btn.style.borderColor='var(--card-border)';}
+        }
+    }catch(e){console.error('like error',e);}
+}
+
+async function submitComment(postId){
+    var input=$('commentInput');
+    var content=input.value.trim();
+    if(!content)return;
+    if(!currentUser){showModal('loginModal');$('loginError').textContent='';return;}
+    try{
+        var res=await apiFetch('/api/posts/'+postId+'/comments',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({content:content})
+        });
+        var d=await res.json();
+        if(d.error){alert(d.error);return;}
+        openPostDetail(postId);
+    }catch(e){alert('评论失败，请重试');}
+}
+
+async function deleteComment(commentId,postId){
+    if(!confirm('确定删除该评论？'))return;
+    try{
+        await apiFetch('/api/comments/'+commentId,{method:'DELETE'});
+        openPostDetail(postId);
+    }catch(e){alert('删除失败');}
+}
+
+async function deletePost(id){
+    if(!confirm('确定删除该帖子？'))return;
+    try{
+        await apiFetch('/api/posts/'+id,{method:'DELETE'});
+        closePostDetail();
+        loadCommunityPosts();
+    }catch(e){alert('删除失败');}
+}
+
+function showCommunityPost(){
+    if(!currentUser){showModal('loginModal');$('loginError').textContent='';return;}
+    $('newPostTitle').value='';$('newPostContent').value='';
+    $('newPostCategory').value='share';$('newPostTags').value='';
+    $('newPostError').textContent='';
+    if($('newPostImage'))$('newPostImage').value='';
+    if($('newPostImageName'))$('newPostImageName').textContent='';
+    if($('newPostImagePreview'))$('newPostImagePreview').style.display='none';
+    showModal('newPostModal');
+}
+
+function previewPostImage(input){
+    var file=input.files&&input.files[0];
+    if(!file)return;
+    if(file.size>5*1024*1024){alert('图片不能超过5MB');input.value='';return;}
+    var nameEl=$('newPostImageName');
+    if(nameEl)nameEl.textContent=file.name;
+    var reader=new FileReader();
+    reader.onload=function(e){
+        var thumb=$('newPostImageThumb');
+        var preview=$('newPostImagePreview');
+        if(thumb&&preview){thumb.src=e.target.result;preview.style.display='inline-block';}
+    };
+    reader.readAsDataURL(file);
+}
+
+function removePostImage(){
+    var input=$('newPostImage');
+    if(input)input.value='';
+    var nameEl=$('newPostImageName');
+    if(nameEl)nameEl.textContent='';
+    var preview=$('newPostImagePreview');
+    if(preview)preview.style.display='none';
+}
+
+document.addEventListener('DOMContentLoaded',function(){
+    var cb=$('disclaimerAgree');
+    var btn=$('disclaimerConfirmBtn');
+    if(cb&&btn){
+        cb.addEventListener('change',function(){
+            btn.style.opacity=this.checked?'1':'0.5';
+            btn.style.cursor=this.checked?'pointer':'not-allowed';
+        });
+    }
+});
+
+function confirmDisclaimer(){
+    var cb=$('disclaimerAgree');
+    if(!cb||!cb.checked)return;
+    closeModal('disclaimerModal');
+    cb.checked=false;
+    if($('disclaimerConfirmBtn')){$('disclaimerConfirmBtn').style.opacity='0.5';$('disclaimerConfirmBtn').style.cursor='not-allowed';}
+    if(_pendingPostData){
+        doSubmitNewPost(_pendingPostData);
+        _pendingPostData=null;
+    }
+}
+
+async function submitNewPost(){
+    var title=$('newPostTitle').value.trim();
+    var content=$('newPostContent').value.trim();
+    var category=$('newPostCategory').value;
+    var tagsStr=$('newPostTags').value.trim();
+    if(!title||!content){$('newPostError').textContent='标题和内容不能为空';return;}
+    _pendingPostData={title:title,content:content,category:category,tagsStr:tagsStr};
+    showModal('disclaimerModal');
+}
+
+async function doSubmitNewPost(data){
+    var tags=data.tagsStr?data.tagsStr.split(/[,，]/).map(function(t){return t.trim()}).filter(Boolean):[];
+    var imageInput=$('newPostImage');
+    var hasImage=imageInput&&imageInput.files&&imageInput.files[0];
+    try{
+        var postResult;
+        if(hasImage){
+            var imgForm=new FormData();
+            imgForm.append('file',imageInput.files[0]);
+            var upRes=await apiFetch('/api/upload',{method:'POST',body:imgForm});
+            var upData=await upRes.json();
+            if(upData.error){$('newPostError').textContent=upData.error;return;}
+            var res=await apiFetch('/api/posts',{
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({title:data.title,content:data.content,category:data.category,tags:tags,imageUrl:upData.url})
+            });
+            postResult=await res.json();
+        }else{
+            var res=await apiFetch('/api/posts',{
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({title:data.title,content:data.content,category:data.category,tags:tags})
+            });
+            postResult=await res.json();
+        }
+        if(postResult.error){$('newPostError').textContent=postResult.error;return;}
+        closeModal('newPostModal');
+        loadCommunityPosts();
+    }catch(e){$('newPostError').textContent='发布失败，请重试';}
+}
+
+function toggleNotifPanel(){
+    var panel=$('notifPanel');
+    if(panel.style.display==='none'){
+        panel.style.display='block';
+        loadNotifications();
+    }else{
+        panel.style.display='none';
+    }
+}
+
+async function loadNotifications(){
+    if(!currentUser){$('notifList').innerHTML='<div style="padding:20px;text-align:center;color:var(--text-3);">请先登录</div>';return;}
+    $('notifList').innerHTML='<div style="padding:20px;text-align:center;color:var(--text-3);">加载中...</div>';
+    try{
+        var res=await apiFetch('/api/notifications');
+        var d=await res.json();
+        if(d.error){$('notifList').innerHTML='<div style="padding:20px;color:var(--danger);">'+esc(d.error)+'</div>';return;}
+        var badge=$('notifBadge');
+        if(d.unreadCount>0){badge.style.display='inline';badge.textContent=d.unreadCount;}
+        else{badge.style.display='none';}
+        if(!d.notifications||!d.notifications.length){
+            $('notifList').innerHTML='<div style="padding:20px;text-align:center;color:var(--text-3);">暂无通知</div>';
+            return;
+        }
+        $('notifList').innerHTML=d.notifications.map(function(n){
+            var icon=n.type==='like'?'❤️':n.type==='comment'?'💬':n.type==='reply'?'↩️':'📢';
+            var bg=n.isRead?'transparent':'var(--accent-glow)';
+            return '<div style="padding:12px;border-radius:8px;margin-bottom:4px;cursor:pointer;background:'+bg+';border:1px solid var(--card-border);" onclick="readNotifAndGo('+n.id+','+(n.postId||0)+')">'
+                +'<div style="display:flex;align-items:center;gap:8px;">'
+                +'<span>'+icon+'</span>'
+                +'<span style="font-size:0.8125rem;color:var(--text-1);flex:1;">'+esc(n.content||'新通知')+'</span>'
+                +'<span style="font-size:0.6875rem;color:var(--text-3);">'+formatTime(n.createdAt)+'</span>'
+                +'</div></div>';
+        }).join('');
+    }catch(e){$('notifList').innerHTML='<div style="padding:20px;color:var(--danger);">加载失败</div>';}
+}
+
+async function markAllNotifRead(){
+    if(!currentUser)return;
+    try{
+        await apiFetch('/api/notifications/read',{method:'POST'});
+        loadNotifications();
+    }catch(e){console.error('markAllNotifRead error',e);}
+}
+
+async function readNotifAndGo(nid,postId){
+    try{await apiFetch('/api/notifications/'+nid+'/read',{method:'POST'});}catch(e){}
+    $('notifPanel').style.display='none';
+    if(postId)openPostDetail(postId);
+    else loadNotifications();
+}
+
+function startNotifPolling(){
+    if(_pendingNotifTimer)clearInterval(_pendingNotifTimer);
+    if(!currentUser)return;
+    loadNotifBadge();
+    _pendingNotifTimer=setInterval(loadNotifBadge,30000);
+}
+
+async function loadNotifBadge(){
+    if(!currentUser)return;
+    try{
+        var res=await apiFetch('/api/notifications');
+        var d=await res.json();
+        var badge=$('notifBadge');
+        if(d.unreadCount>0){badge.style.display='inline';badge.textContent=d.unreadCount;}
+        else{badge.style.display='none';}
+    }catch(e){}
+}
+
+function showReportModal(type,id){
+    _reportTarget={type:type,id:id};
+    var radios=document.querySelectorAll('input[name="reportReason"]');
+    radios.forEach(function(r){r.checked=false;});
+    $('reportError').textContent='';
+    showModal('reportModal');
+}
+
+async function submitReport(){
+    var reason=document.querySelector('input[name="reportReason"]:checked');
+    if(!reason){$('reportError').textContent='请选择举报原因';return;}
+    try{
+        var res=await apiFetch('/api/reports',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({targetType:_reportTarget.type,targetId:_reportTarget.id,reason:reason.value})
+        });
+        var d=await res.json();
+        if(d.error){$('reportError').textContent=d.error;return;}
+        closeModal('reportModal');
+        alert('举报已提交，我们会尽快处理');
+    }catch(e){$('reportError').textContent='提交失败，请重试';}
+}
+
+function showAdminPanel(){
+    loadAdminReports();
+    showModal('adminPanelModal');
+}
+
+async function loadAdminReports(){
+    $('adminReportList').innerHTML='<div style="padding:20px;text-align:center;color:var(--text-3);">加载中...</div>';
+    try{
+        var res=await apiFetch('/api/admin/reports?status=pending');
+        var d=await res.json();
+        if(d.error){$('adminReportList').innerHTML='<div style="color:var(--danger);">'+esc(d.error)+'</div>';return;}
+        if(!d.reports||!d.reports.length){
+            $('adminReportList').innerHTML='<div style="padding:20px;text-align:center;color:var(--text-3);">暂无待处理举报</div>';
+            return;
+        }
+        $('adminReportList').innerHTML=d.reports.map(function(r){
+            return '<div style="padding:12px;border:1px solid var(--card-border);border-radius:8px;margin-bottom:8px;">'
+                +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">'
+                +'<span style="font-size:0.8125rem;color:var(--text-1);">'+esc(r.reporterName)+' 举报了 '+esc(r.targetType)+'#'+r.targetId+'</span>'
+                +'<span style="font-size:0.6875rem;color:var(--text-3);">'+formatTime(r.createdAt)+'</span>'
+                +'</div>'
+                +'<div style="font-size:0.75rem;color:var(--text-3);margin-bottom:8px;">原因: '+esc(r.reason)+'</div>'
+                +'<div style="display:flex;gap:8px;">'
+                +'<button style="padding:4px 12px;border-radius:6px;font-size:0.75rem;background:var(--danger);color:#fff;border:none;cursor:pointer;" onclick="resolveReport('+r.id+',\'resolve\')">确认处理</button>'
+                +'<button style="padding:4px 12px;border-radius:6px;font-size:0.75rem;background:var(--card-bg);color:var(--text-3);border:1px solid var(--card-border);cursor:pointer;" onclick="resolveReport('+r.id+',\'dismiss\')">驳回</button>'
+                +'</div></div>';
+        }).join('');
+    }catch(e){$('adminReportList').innerHTML='<div style="color:var(--danger);">加载失败</div>';}
+}
+
+async function resolveReport(rid,action){
+    try{
+        var res=await apiFetch('/api/admin/reports/'+rid+'/resolve',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({action:action})
+        });
+        var d=await res.json();
+        if(d.error){alert(d.error);return;}
+        loadAdminReports();
+    }catch(e){alert('操作失败');}
+}
+
+async function adminPinPost(pid,pinned){
+    try{
+        var res=await apiFetch('/api/admin/posts/'+pid+'/pin',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({pinned:pinned})
+        });
+        var d=await res.json();
+        if(d.error){alert(d.error);return;}
+        loadCommunityPosts();
+    }catch(e){alert('操作失败');}
+}
+
+async function adminFeaturePost(pid,featured){
+    try{
+        var res=await apiFetch('/api/admin/posts/'+pid+'/feature',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({featured:featured})
+        });
+        var d=await res.json();
+        if(d.error){alert(d.error);return;}
+        loadCommunityPosts();
+    }catch(e){alert('操作失败');}
+}
+
+async function adminHidePost(pid,hidden){
+    try{
+        var res=await apiFetch('/api/admin/posts/'+pid+'/hide',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({hidden:hidden})
+        });
+        var d=await res.json();
+        if(d.error){alert(d.error);return;}
+        loadCommunityPosts();
+    }catch(e){alert('操作失败');}
+}
+
+async function sharePost(pid){
+    try{
+        var res=await apiFetch('/api/posts/'+pid+'/share',{method:'POST'});
+        var d=await res.json();
+        if(d.error){alert(d.error);return;}
+        if(navigator.clipboard){
+            await navigator.clipboard.writeText(d.shareUrl);
+            alert('链接已复制到剪贴板！');
+        }else{
+            prompt('复制分享链接:',d.shareUrl);
+        }
+    }catch(e){alert('分享失败');}
+}
+
+// ═══ 初始化 ═══
+
+function switchSort(sort){
+    communitySort=sort;
+    communityPage=1;
+    document.querySelectorAll('#communitySort .ctab').forEach(function(t){
+        var isCurrent=t.getAttribute('data-sort')===sort;
+        t.classList.toggle('active',isCurrent);
+        t.style.background=isCurrent?'var(--accent-glow)':'transparent';
+        t.style.color=isCurrent?'var(--accent)':'var(--text-3)';
+        t.style.borderColor=isCurrent?'var(--accent)':'var(--card-border)';
+    });
+    loadCommunityPosts();
+}
+
+async function openUserProfile(uid){
+    $('communityPostList').style.display='none';
+    $('communityPostDetail').style.display='none';
+    $('communityFooter').style.display='none';
+    var profile=$('communityUserProfile');
+    profile.style.display='block';
+    $('userProfileHeader').innerHTML='<div style="color:var(--text-3);">加载中...</div>';
+    $('userProfilePosts').innerHTML='';
+    try{
+        var res=await apiFetch('/api/users/'+uid+'/posts');
+        var d=await res.json();
+        if(d.error){$('userProfileHeader').innerHTML='<div style="color:var(--danger);">'+esc(d.error)+'</div>';return;}
+        $('userProfileHeader').innerHTML='<div style="width:56px;height:56px;border-radius:50%;background:var(--accent-glow);display:flex;align-items:center;justify-content:center;font-size:1.5rem;">👤</div>'
+            +'<div><div style="font-size:1.125rem;font-weight:600;color:var(--text-1);">'+esc(d.user.username)+'</div>'
+            +'<div style="font-size:0.8125rem;color:var(--text-3);margin-top:4px;">发布了 '+d.total+' 篇帖子</div></div>';
+        $('userProfilePosts').innerHTML=d.posts.map(function(p){
+            return '<div class="community-post-card" style="cursor:pointer;" onclick="openPostDetail('+p.id+')">'
+                +'<h4 style="font-size:1rem;margin-bottom:8px;color:var(--text-1);">'+esc(p.title)+'</h4>'
+                +(p.contentPreview?'<p style="font-size:0.8125rem;color:var(--text-3);line-height:1.6;margin-bottom:12px;">'+esc(p.contentPreview)+'</p>':'')
+                +'<div style="display:flex;gap:16px;font-size:0.75rem;color:var(--text-3);">'
+                +'<span>❤️ '+(p.likesCount||0)+'</span><span>💬 '+(p.commentsCount||0)+'</span>'
+                +(p.isFeatured?'<span style="color:var(--accent);">精华</span>':'')
+                +'</div></div>';
+        }).join('');
+        var footer=$('userProfileFooter');
+        if(d.has_next) footer.innerHTML='<a href="javascript:void(0)" onclick="loadMoreUserPosts('+uid+')" style="color:var(--accent);font-size:0.8125rem;">加载更多</a>';
+        else footer.innerHTML='';
+    }catch(e){
+        $('userProfileHeader').innerHTML='<div style="color:var(--danger);">加载失败</div>';
+    }
+}
+
+function closeUserProfile(){
+    $('communityUserProfile').style.display='none';
+    $('communityPostList').style.display='grid';
+    $('communityFooter').style.display='block';
+}
+
+function loadMoreUserPosts(uid){
+    openUserProfile(uid);
+}
+
+function openEditPost(postId,title,content,category,tags){
+    _editPostId=postId;
+    $('editPostTitle').value=title;
+    $('editPostContent').value=content;
+    $('editPostCategory').value=category;
+    $('editPostTags').value=tags||'';
+    $('editPostError').textContent='';
+    showModal('editPostModal');
+}
+
+async function submitEditPost(){
+    var title=$('editPostTitle').value.trim();
+    var content=$('editPostContent').value.trim();
+    var category=$('editPostCategory').value;
+    var tagsStr=$('editPostTags').value.trim();
+    if(!title||!content){$('editPostError').textContent='标题和内容不能为空';return;}
+    var tags=tagsStr?tagsStr.split(/[,，]/).map(function(t){return t.trim()}).filter(Boolean):[];
+    try{
+        var res=await apiFetch('/api/posts/'+_editPostId,{
+            method:'PUT',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({title:title,content:content,category:category,tags:tags})
+        });
+        var d=await res.json();
+        if(d.error){$('editPostError').textContent=d.error;return;}
+        closeModal('editPostModal');
+        openPostDetail(_editPostId);
+    }catch(e){$('editPostError').textContent='编辑失败，请重试';}
+}
+
+async function toggleCommentLike(commentId,btn){
+    if(!currentUser){showModal('loginModal');$('loginError').textContent='';return;}
+    try{
+        var res=await apiFetch('/api/comments/'+commentId+'/like',{method:'POST'});
+        var d=await res.json();
+        if(d.liked!==undefined){
+            btn.innerHTML=(d.liked?'👍':'👍')+' '+(d.likesCount||0);
+            btn.style.color=d.liked?'var(--accent)':'var(--text-3)';
+            btn.style.background=d.liked?'var(--accent-glow)':'transparent';
+        }
+    }catch(e){console.error('comment like error',e);}
+}
+
+// ═══ 初始化原 ═══
+(function(){
+    apiFetch('/api/me').then(function(r){return r.json()}).then(function(d){
+        if(d&&d.id){currentUser=d;updateAuthUI();startNotifPolling();if(currentUser.is_admin){var ab=$('adminPanelBtn');if(ab)ab.style.display='inline';}}
+    }).catch(function(){});
+    var si=$('communitySearch');
+    if(si){
+        var _st=null;
+        si.addEventListener('input',function(){
+            clearTimeout(_st);
+            _st=setTimeout(function(){searchPosts()},500);
+        });
+        si.addEventListener('keydown',function(e){if(e.key==='Enter'){clearTimeout(_st);searchPosts();}});
+    }
+    loadCommunityPosts();
+    document.addEventListener('click',function(e){
+        var panel=$('notifPanel');
+        var bell=$('notifBell');
+        if(panel&&bell&&panel.style.display!=='none'&&!panel.contains(e.target)&&!bell.contains(e.target)){
+            panel.style.display='none';
+        }
+    });
+})();
+</script>
+</body>
+</html>

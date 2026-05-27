@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<script>;(function(){var t=localStorage.getItem("xc_theme");if(t)document.documentElement.setAttribute("data-theme",t);else document.documentElement.setAttribute("data-theme","dark")})()</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>奇门遁甲 - 时安解忧屋</title>
+    <meta name="description" content="奇门遁甲排盘 — 提供时家奇门排盘、拆补法/置闰法、免费排盘与AI问策，九宫格布局清晰展示天盘地盘人盘神盘。">
+    <meta name="keywords" content="奇门遁甲,奇门排盘,时家奇门,九宫格,拆补法,置闰法,AI问策">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tool-pages.css') }}">
+</head>
+<body>
+<div class="bg-layer"></div>
+
+<!-- 移动端菜单 -->
+<div class="mobile-menu" id="mobileMenu">
+    <button class="close-btn" onclick="closeMobileMenu()">✕</button>
+    <a href="/">首页</a>
+    <div class="mobile-submenu">
+        <span class="mobile-submenu-title" onclick="this.parentElement.classList.toggle('open')">奇门遁甲 ▾</span>
+        <div class="mobile-submenu-items">
+            <a href="/qimen#free">奇门排盘免费版</a>
+            <a href="/qimen">时安奇门系统</a>
+        </div>
+    </div>
+    <div class="mobile-submenu">
+        <span class="mobile-submenu-title" onclick="this.parentElement.classList.toggle('open')">八字排盘 ▾</span>
+        <div class="mobile-submenu-items">
+            <a href="/bazi-page#free">八字排盘免费版</a>
+            <a href="/bazi-page#ai">时安八字系统</a>
+            <a href="/bazi-page#records">📋 排盘记录</a>
+        </div>
+    </div>
+    <div class="mobile-submenu">
+        <span class="mobile-submenu-title" onclick="this.parentElement.classList.toggle('open')">更多工具 ▾</span>
+        <div class="mobile-submenu-items">
+            <a href="/liuyao">六爻排盘</a>
+            <a href="/meihua">梅花易数</a>
+            <a href="/ziwei">紫微斗数</a>
+            <a href="/tarot">塔罗牌</a>
+            <a href="/zeji">择吉工具</a>
+        </div>
+    </div>
+    <a href="/calendar">专属日历</a>
+    <a href="/community">社区</a>
+    <a href="/about">关于我们</a>
+</div>
+
+<!-- 顶部导航 -->
+<nav class="topnav">
+    <button class="hamburger" onclick="openMobileMenu()">☰</button>
+    <a href="/" class="topnav-logo">
+        <span class="logo-icon">☯️</span>
+        <span>时安解忧屋</span>
+    </a>
+    <span class="topnav-slogan">八字定终身格局 奇门断当下决策 看得懂用得上的民俗命理参考平台</span>
+    <div class="topnav-menu">
+        <a href="/">首页</a>
+        <div class="nav-dropdown">
+            <a href="/qimen" class="core">奇门遁甲</a>
+            <div class="nav-dropdown-menu">
+            <a href="/qimen#free">☯️ 奇门排盘免费版</a>
+            <a href="/qimen">🔮 时安奇门系统</a>
+            </div>
+        </div>
+        <div class="nav-dropdown">
+            <a href="/bazi-page" class="core">八字排盘</a>
+            <div class="nav-dropdown-menu">
+                <a href="/bazi-page#free">📜 八字排盘免费版</a>
+                <a href="/bazi-page#ai">🤖 时安八字系统</a>
+                <a href="/bazi-page#records">📋 排盘记录</a>
+            </div>
+        </div>
+        <div class="nav-dropdown">
+            <a href="javascript:void(0)">更多</a>
+            <div class="nav-dropdown-menu">
+                <a href="/liuyao">🧭 六爻排盘</a>
+                <a href="/meihua">🌸 梅花易数</a>
+                <a href="/ziwei">⭐ 紫微斗数</a>
+                <a href="/tarot">🃏 塔罗牌</a>
+                <a href="/zeji">📅 择吉工具</a>
+            </div>
+        </div>
+        <a href="/calendar">专属日历</a>
+        <a href="/community">社区</a>
+        <a href="/about">关于我们</a>
+    </div>
+    <div class="topnav-right">
+        <input type="text" class="topnav-search" placeholder="搜索排盘、术语、案例...">
+        <a href="/profile" class="nav-profile-btn" title="个人中心">个人中心</a>
+        <button class="theme-toggle-nav" onclick="toggleTheme()" id="themeBtn" title="切换主题">🌙</button>
+        <span class="nav-auth-btns" id="navAuthBtns">
+            <button class="btn btn-outline btn-sm" onclick="showLogin()">登录</button>
+            <button class="btn btn-accent btn-sm" onclick="showRegister()">注册</button>
+        </span>
+    </div>
+</nav>
+
+<!-- 移动端核心导航 -->
+<div class="mobile-core-nav">
+    <a href="/qimen">奇门遁甲</a>
+    <a href="/bazi-page">八字排盘</a>
+    <a href="/liuyao">六爻</a>
+    <a href="/calendar">日历</a>
+    <a href="/community">社区</a>
+</div>
+
+<div class="page-wrap">
+
+<!-- 页面头部 -->
+<section class="tool-hero">
+    <div class="tool-hero-content">
+        <span class="section-tag">奇门遁甲</span>
+        <h1 class="tool-hero-title">奇门遁甲 · 预判当下事件与吉凶走向</h1>
+        <p class="tool-hero-desc">一事一断 · 吉凶预判 · 择时择方 · 趋吉避凶</p>
+    </div>
+</section>
+
+<!-- 工具面板 -->
+<section class="section">
+    <div class="tool-container">
+        <!-- 无痕模式 -->
+        <div class="incognito-bar">
+            <label class="incognito-toggle">
+                <input type="checkbox" checked id="incognitoCheck" onchange="toggleIncognito()">
+                <span id="incognitoLabel">🔒 无痕模式</span>
+            </label>
+            <span class="incognito-desc">本地计算 · 不上传数据 · 退出自动清空</span>
+        </div>
+
+        <!-- Tab 切换 -->
+        <div class="tool-tabs">
+            <button class="tool-tab active" data-tab="qimen-free" onclick="switchToolTab(this)">☯️ 奇门排盘<span class="tab-badge free">免费</span></button>
+            <button class="tool-tab" data-tab="qimen-ai" onclick="switchToolTab(this)">🔮 时安奇门系统<span class="tab-badge">PRO</span></button>
+        </div>
+
+        <!-- ══ 奇门排盘（免费） ══ -->
+        <div class="tool-tab-content" id="tab-qimen-free">
+            <div class="qf-form">
+                <!-- 起局时间 -->
+                <div class="qf-datetime-section">
+                    <div class="qf-section-header">
+                        <label class="form-label">🕐 起局时间</label>
+                        <button type="button" class="qf-now-btn-sm" onclick="qfSetNow()" title="设为当前时间">今</button>
+                    </div>
+                    <div class="qf-datetime-row">
+                        <div class="qf-dt-col">
+                            <select id="qfYear" class="qf-datetime-select" onchange="qfOnDateChange()">
+                                <option value="" selected disabled>年</option>
+                            </select>
+                        </div>
+                        <div class="qf-dt-col">
+                            <select id="qfMonth" class="qf-datetime-select" onchange="qfOnDateChange()">
+                                <option value="" selected disabled>月</option>
+                            </select>
+                        </div>
+                        <div class="qf-dt-col">
+                            <select id="qfDay" class="qf-datetime-select">
+                                <option value="" selected disabled>日</option>
+                            </select>
+                        </div>
+                        <div class="qf-dt-col">
+                            <select id="qfHour" class="qf-datetime-select">
+                                <option value="" disabled selected>时</option>
+                            </select>
+                        </div>
+                        <div class="qf-dt-col qf-dt-col-narrow">
+                            <select id="qfMinute" class="qf-datetime-select">
+                                <option value="" disabled selected>分</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 排盘方式 -->
+                <div class="qf-options-row">
+                    <div class="form-group">
+                        <label class="form-label">排盘方式</label>
+                        <select class="qf-pantype-select" id="qfPantype">
+                            <option value="3" selected>拆补法</option>
+                            <option value="2">置闰法</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <button class="submit-btn" onclick="qimenFreePaipan()" style="margin-top:14px;width:100%;">☯️ 免费排盘</button>
+            <p class="form-hint" style="text-align:center;margin-top:10px;">本地精准排盘，不含解读。如需深度解读请使用时安奇门系统。</p>
+            <div class="privacy-note">✅ 本地计算 · 不上传数据 · 秒出结果</div>
+            <div id="qfResult" style="display:none;margin-top:16px;"></div>
+        </div>
+
+        <!-- ══ 奇门AI系统 ══ -->
+        <div class="tool-tab-content" id="tab-qimen-ai" style="display:none">
+            <div class="form-group">
+                <label class="form-label">问事类型</label>
+                <select class="form-select" id="qai-type" onchange="onQaiTypeChange(this)">
+                    <optgroup label="── 基础分类 ──">
+                        <option value="career">事业财运</option>
+                        <option value="love">姻缘感情</option>
+                        <option value="study">学业考试</option>
+                        <option value="health">健康出行</option>
+                        <option value="general">百事占断</option>
+                    </optgroup>
+                    <optgroup label="── 快速场景 ──">
+                        <option value="s_interview">💼 面试能否通过</option>
+                        <option value="s_project">💰 项目能否回款</option>
+                        <option value="s_loveback">💕 感情复合时机</option>
+                        <option value="s_house">🏠 买房租房吉凶</option>
+                        <option value="s_travel">✈️ 出行安全预判</option>
+                        <option value="s_lawsuit">⚖️ 官司诉讼参考</option>
+                        <option value="s_business">🏪 开业签约择吉</option>
+                        <option value="s_wedding">💍 结婚搬家择吉</option>
+                    </optgroup>
+                </select>
+            </div>
+            <div class="qf-datetime-section">
+                <div class="qf-section-header">
+                    <label class="form-label">🕐 起局时间</label>
+                    <button type="button" class="qf-now-btn-sm" onclick="qaiSetNow()" title="设为当前时间">今</button>
+                </div>
+                <div class="qf-datetime-row">
+                    <div class="qf-dt-col">
+                        <select id="qaiYear" class="qf-datetime-select" onchange="qaiOnDateChange()">
+                            <option value="" selected disabled>年</option>
+                        </select>
+                    </div>
+                    <div class="qf-dt-col">
+                        <select id="qaiMonth" class="qf-datetime-select" onchange="qaiOnDateChange()">
+                            <option value="" selected disabled>月</option>
+                        </select>
+                    </div>
+                    <div class="qf-dt-col">
+                        <select id="qaiDay" class="qf-datetime-select">
+                            <option value="" selected disabled>日</option>
+                        </select>
+                    </div>
+                    <div class="qf-dt-col">
+                        <select id="qaiHour" class="qf-datetime-select">
+                            <option value="" disabled selected>时</option>
+                        </select>
+                    </div>
+                    <div class="qf-dt-col qf-dt-col-narrow">
+                        <select id="qaiMinute" class="qf-datetime-select">
+                            <option value="" disabled selected>分</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">你的问题（选填）</label>
+                <input type="text" class="form-input" id="qai-question" placeholder="如：这个项目能不能做？">
+            </div>
+            <div class="advanced-fields" id="qai-advanced">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">局法</label>
+                        <select class="form-select" id="qai-ju"><option value="3" selected>拆补法</option><option value="2">置闰法</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">排盘流派</label>
+                        <select class="form-select" id="qai-school"><option>时家奇门</option><option>日家奇门</option></select>
+                    </div>
+                </div>
+            </div>
+            <button class="advanced-toggle" onclick="toggleAdvanced('qai-advanced')">▶ 高级选项</button>
+
+            <!-- 深度分析开关 -->
+            <div style="display:flex;align-items:center;gap:8px;margin:8px 0;">
+                <label class="qai-deep-toggle" id="qaiDeepToggle">
+                    <input type="checkbox" id="qaiDeepMode" style="display:none;">
+                    <span class="qai-toggle-label">深度分析</span>
+                    <span class="qai-toggle-track"><span class="qai-toggle-knob"></span></span>
+                </label>
+            </div>
+
+            <button class="submit-btn" onclick="qimenAskPaipan()" id="qaiAskBtn">🔮 一键起局 · 深度解读</button>
+
+            <!-- 进度条 + 步骤提示 -->
+            <div id="qaiProgress" style="display:none;margin-top:16px;">
+                <div class="qai-progress-bar"><div class="qai-progress-fill" id="qaiProgressFill" style="width:0%;"></div></div>
+                <div class="qai-step-text" id="qaiStepText">起局中...</div>
+            </div>
+
+            <!-- AI 解答结果 -->
+            <div id="qaiResult" style="display:none;margin-top:16px;" class="qai-result"></div>
+            <div class="result-mode-switch">
+                <button class="result-mode-btn active" onclick="switchResult(this,'simple')">小白极简版</button>
+                <button class="result-mode-btn" onclick="switchResult(this,'pro')">专业深度版</button>
+            </div>
+            <div class="privacy-note incognito-status">✅ 无痕模式已开启 · 本地计算 · 不上传数据 · 退出自动清空</div>
+        </div>
+    </div>
+</section>
+
+</div><!-- page-wrap -->
+
+<!-- 页脚 -->
+<footer class="site-footer">
+    <div class="footer-disclaimer">
+        ⚠️ 本站所有内容仅为民俗文化与传统命理科普参考，不构成任何决策建议，严禁利用本站内容从事封建迷信及违法违规活动，本站不对任何用户基于本站内容做出的决策承担任何责任
+    </div>
+    <div class="footer-grid">
+        <div class="footer-col">
+            <h5>平台信息</h5>
+            <a href="/about">关于我们</a>
+            <a href="javascript:void(0)" onclick="showFooterInfo('contact')">联系方式</a>
+            <a href="javascript:void(0)" onclick="showFooterInfo('terms')">用户协议</a>
+            <a href="javascript:void(0)" onclick="showFooterInfo('privacy')">隐私政策</a>
+        </div>
+        <div class="footer-col">
+            <h5>快捷导航</h5>
+            <a href="/qimen">奇门遁甲</a>
+            <a href="/bazi-page">八字排盘</a>
+            <a href="/calendar">专属日历</a>
+            <a href="/community">社区</a>
+        </div>
+        <div class="footer-col">
+            <h5>备案与版权</h5>
+            <span style="display:block;font-size:0.75rem;color:var(--text-3);padding:3px 0;">ICP备案号：京ICP备2026050601号-1</span>
+            <div class="icp">© 2026 时安解忧屋 版权所有</div>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        <span>时安解忧屋 · 看得懂用得上的民俗命理参考平台</span>
+    </div>
+</footer>
+
+<!-- 登录/注册弹窗 -->
+<div class="modal-overlay" id="loginModal">
+    <div class="modal-box">
+        <h3>登录</h3>
+        <div class="field"><label>用户名</label><input type="text" id="loginUser"></div>
+        <div class="field"><label>密码</label><input type="password" id="loginPass"></div>
+        <div class="modal-error" id="loginError"></div>
+        <div class="modal-btns">
+            <button class="btn btn-outline" onclick="closeModal('loginModal')">取消</button>
+            <button class="btn btn-accent" onclick="doLogin()">登录</button>
+        </div>
+    </div>
+</div>
+<div class="modal-overlay" id="registerModal">
+    <div class="modal-box">
+        <h3>注册</h3>
+        <div class="field"><label>用户名</label><input type="text" id="regUser"></div>
+        <div class="field"><label>密码</label><input type="password" id="regPass"></div>
+        <div class="field"><label>确认密码</label><input type="password" id="regPass2"></div>
+        <div class="modal-error" id="regError"></div>
+        <div class="modal-btns">
+            <button class="btn btn-outline" onclick="closeModal('registerModal')">取消</button>
+            <button class="btn btn-accent" onclick="doRegister()">注册</button>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/api-client.js') }}?v=20260511p"></script><script src="{{ url_for('static', filename='js/home.js') }}?v=20260511p"></script>
+<script src="{{ url_for('static', filename='js/tool-pages.js') }}?v=20260511p"></script>
+<script>document.addEventListener('DOMContentLoaded',function(){try{if(typeof qfInitDatePicker==='function')qfInitDatePicker();if(typeof qaiInitDatePicker==='function')qaiInitDatePicker();var t=document.getElementById('qaiDeepToggle'),c=document.getElementById('qaiDeepMode');if(t&&c){c.addEventListener('change',function(){t.classList.toggle('active',this.checked)});if(c.checked)t.classList.add('active')}}catch(e){console.warn('qimen init:',e)}});</script>
+</body>
+</html>

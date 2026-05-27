@@ -20,11 +20,19 @@ export default {
     // uni-app 内置 useRem() 会设 html font-size = width / 23.4375，
     // 桌面端 800px+ 视口下导致全局放大 2 倍以上。
     // 必须在 load/resize 事件后也覆盖，因为 useRem() 也监听了这些事件。
-    function _fixRem() { var w = window.innerWidth; var fs = '16px'; if (w >= 1920) fs = '18px'; else if (w >= 1400) fs = '17px'; document.documentElement.style.fontSize = fs }
+    // 仅在桌面端（>768px）启用覆盖，手机端由 uni-app 原生 rem 计算管理
+    function _fixRem() { var w = window.innerWidth; if (w <= 768) return; var fs = '16px'; if (w >= 1920) fs = '18px'; else if (w >= 1400) fs = '17px'; document.documentElement.style.fontSize = fs }
     _fixRem()
     window.addEventListener('load', _fixRem)
     var _fixRemTimer
     window.addEventListener('resize', function() { clearTimeout(_fixRemTimer); _fixRemTimer = setTimeout(_fixRem, 120) })
+    // 后备：移除 overlay 并强制显示 #app
+    setTimeout(function() {
+      var o = document.getElementById('xc-overlay')
+      if (o) o.style.display = 'none'
+      var a = document.getElementById('app')
+      if (a) a.style.setProperty('visibility', 'visible', 'important')
+    }, 5000)
     // #endif
     var TAB_PAGES = ['/pages/index/index', '/pages/qimen/index', '/pages/bazi-index/index', '/pages/tarot/index', '/pages/liuyao/index', '/pages/meihua/index', '/pages/ziwei/index', '/pages/zeji/index', '/pages/calendar/index', '/pages/community/index', '/pages/profile/index']
     document.addEventListener('click', function(e) {
@@ -120,6 +128,8 @@ html, body {
   background: #161a2a;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 html[data-theme="light"], html[data-theme="light"] body {
   background: #f7f2ea;
@@ -158,10 +168,17 @@ uni-tabbar, .uni-tabbar, .uni-tabbar-bottom {
 /* ═══ 全局侧边栏样式（DOM 在 document.body 上，不受 scoped 限制） ═══ */
 .tarot-sidebar {
   position:fixed; top:0; left:0; bottom:0; width:300px; z-index:400;
-  background:var(--nav-bg); border-right:1px solid var(--card-border);
+  background:rgba(22, 26, 42, 0.94); border-right:1px solid rgba(255,255,255,0.1);
   transform:translateX(-100%); transition:transform .3s ease;
-  box-shadow:4px 0 24px rgba(0,0,0,.15);
+  box-shadow:4px 0 24px rgba(0,0,0,.2);
   display:flex; flex-direction:column;
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  backdrop-filter: blur(20px) saturate(1.6);
+}
+[data-theme="light"] .tarot-sidebar {
+  background: rgba(247, 242, 234, 0.94);
+  border-right: 1px solid rgba(0,0,0,0.05);
+  box-shadow: 4px 0 24px rgba(0,0,0,0.08);
 }
 .tarot-sidebar.open { transform:translateX(0); }
 .sidebar-overlay { position:fixed; inset:0; z-index:399; background:rgba(0,0,0,.4); display:none; }
@@ -174,6 +191,9 @@ uni-tabbar, .uni-tabbar, .uni-tabbar-bottom {
 .sidebar-header { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; }
 .sidebar-title { font-size:0.8rem; color:var(--text-4); letter-spacing:1px; }
 .sidebar-close { font-size:1.2rem; color:var(--text-3); cursor:pointer; padding:4px; }
+.sidebar-tabs { display:flex; gap:4px; padding:0 20px 8px; }
+.sidebar-tab { font-size:0.75rem; padding:4px 12px; border-radius:12px; cursor:pointer; color:var(--text-3); background:transparent; transition:all .2s; }
+.sidebar-tab.active { color:var(--accent); background:var(--accent-glow); }
 /* 内容区（可滚动） */
 .sidebar-content { flex:1; overflow-y:auto; min-height:0; }
 .sidebar-empty { text-align:center; color:var(--text-4); font-size:.85rem; padding:40px 20px; }
@@ -192,16 +212,31 @@ uni-tabbar, .uni-tabbar, .uni-tabbar-bottom {
 .sidebar-group.collapsed .sidebar-group-items { display:none; }
 .sidebar-group-items { padding:0 8px 4px; }
 /* 列表项 */
-.sidebar-item { display:flex; align-items:center; gap:10px; padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--card-border); transition:background .15s; }
-.sidebar-item:hover { background:var(--accent-glow); }
-.sidebar-item:last-child { border-bottom:none; }
+.sidebar-item { display:flex; align-items:center; gap:8px; padding:0; border-bottom:1px solid var(--card-border); transition:background .15s; }
+.sidebar-item-body { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; padding:10px 14px; cursor:pointer; }
+.sidebar-item-body:hover { background:var(--accent-glow); }
 .sidebar-item-icon { font-size:1.3rem; flex-shrink:0; }
-.sidebar-item-body { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
-.sidebar-item-type { font-size:.7rem; color:var(--accent); }
 .sidebar-item-text { font-size:.82rem; color:var(--text-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .sidebar-item-time { font-size:.68rem; color:var(--text-3); }
+.sidebar-item-del { padding:8px 10px; font-size:.7rem; color:var(--text-4); cursor:pointer; flex-shrink:0; opacity:0; transition:opacity .15s,color .15s; }
+.sidebar-item:hover .sidebar-item-del { opacity:1; }
+.sidebar-item-del:hover { color:var(--danger); }
+.sidebar-item:last-child { border-bottom:none; }
 /* 底部用户面板 */
 .sidebar-user-panel { flex-shrink:0; border-top:1px solid var(--card-border); padding:12px 16px; background:var(--nav-bg); }
+/* 侧边栏内详情面板 */
+.sidebar-detail { flex:1; overflow-y:auto; min-height:0; display:flex; flex-direction:column; }
+.sidebar-detail-back { font-size:.78rem; color:var(--accent); cursor:pointer; padding:10px 16px 6px; flex-shrink:0; }
+.sidebar-detail-back:hover { opacity:.8; }
+.sidebar-detail-title { font-size:.85rem; font-weight:700; color:var(--text-1); padding:0 16px 12px; flex-shrink:0; border-bottom:1px solid var(--card-border); }
+.sidebar-detail-body { flex:1; overflow-y:auto; padding:16px; }
+.sidebar-detail-body .tarot-detail-user,
+.sidebar-detail-body .tarot-detail-ai { padding:8px 0; }
+.sidebar-detail-body .tarot-detail-label { font-size:.7rem; color:var(--text-4); margin-bottom:4px; }
+.sidebar-detail-body .tarot-detail-body { font-size:.82rem; color:var(--text-2); line-height:1.8; white-space:pre-wrap; word-break:break-word; }
+.sidebar-detail-body .tarot-detail-ai .tarot-detail-body { color:var(--text-1); }
+.sidebar-detail-body .history-markdown { font-size:.82rem; color:var(--text-2); line-height:1.8; }
+.sidebar-detail-body .history-markdown p { margin-bottom:8px; }
 .sidebar-user-logged { display:flex; align-items:center; gap:10px; }
 .sidebar-user-avatar-wrap { width:36px; height:36px; border-radius:50%; background:var(--accent-glow); overflow:hidden; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .sidebar-user-avatar { width:100%; height:100%; object-fit:cover; display:none; }
@@ -217,11 +252,19 @@ uni-tabbar, .uni-tabbar, .uni-tabbar-bottom {
 .sidebar-guest-text { font-size:.75rem; color:var(--text-3); }
 .sidebar-guest-btn { font-size:.75rem; color:var(--accent); cursor:pointer; padding:4px 14px; border-radius:8px; border:1px solid var(--accent); transition:.2s; }
 .sidebar-guest-btn:hover { background:var(--accent); color:#fff; }
-/* 历史详情弹窗 */
-.history-detail-box { max-width:600px; max-height:70vh; overflow-y:auto; }
-.history-detail-content { font-size:.85rem; color:var(--text-2); line-height:1.8; }
 .history-markdown h2, .history-markdown h3 { color:var(--accent); margin:14px 0 8px; }
 .history-markdown strong { color:var(--text-1); }
 .history-markdown p { margin-bottom:6px; }
+/* 塔罗对话详情 */
+.tarot-detail-user { margin-bottom:12px; padding:12px 14px; border-radius:10px; background:var(--accent-glow); }
+.tarot-detail-ai { margin-bottom:16px; padding:12px 14px; border-radius:10px; background:var(--card-bg); border:1px solid var(--card-border); }
+.tarot-detail-label { font-size:.7rem; color:var(--accent); margin-bottom:6px; letter-spacing:1px; }
+.tarot-detail-body { font-size:.82rem; color:var(--text-2); line-height:1.7; white-space:pre-wrap; word-break:break-word; }
 @media (max-width: 480px) { .tarot-sidebar { width:260px; } }
+.ai-stage-logo{display:inline-block;width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:3px;object-fit:cover;animation:ai-logo-spin 1s linear infinite}.ai-stage-logo-box{display:inline-block;width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:3px;background:url(/static/images/logo.webp?v=2) center/cover no-repeat;animation:ai-logo-spin 1s linear infinite}@keyframes ai-logo-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.site-footer{margin-top:0!important;padding:16px 32px 12px!important}.site-footer .footer-disclaimer{margin-bottom:0!important}@media(max-width:768px){.site-footer{padding:12px 16px 10px!important}}
+uni-page-wrapper{min-height:0!important}
+.page-root{padding-top:60px!important}@media(max-width:768px){.page-root{padding-top:56px!important}}
+.dp-list{border:1px solid var(--card-border);border-radius:12px;overflow:hidden}.dp-item{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--card-border);transition:background .12s}.dp-item:last-child{border-bottom:none}.dp-item:hover{background:var(--accent-glow)}.dp-left{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}.dp-desc{font-size:.85rem;color:var(--text-1);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dp-date{font-size:.7rem;color:var(--text-3)}.dp-points{font-size:1rem;font-weight:700;flex-shrink:0;min-width:60px;text-align:right}.dp-plus{color:var(--accent)}.dp-minus{color:var(--danger)}
+.dp-tabs{display:flex;gap:8px;margin-bottom:12px}.dp-tab{padding:6px 18px;border-radius:18px;font-size:.8rem;color:var(--text-3);background:var(--card-bg);border:1px solid var(--card-border);cursor:pointer;transition:all .15s}.dp-tab.active{background:var(--accent-glow);color:var(--accent);border-color:var(--accent)}.dp-tab:hover{background:var(--accent-glow)}.dp-pager{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px}.dp-page-btn{padding:4px 12px;border-radius:8px;font-size:.85rem;color:var(--accent);cursor:pointer;background:var(--card-bg);border:1px solid var(--card-border);transition:all .12s}.dp-page-btn:hover{background:var(--accent-glow)}.dp-page-num{padding:4px 10px;border-radius:6px;font-size:.78rem;color:var(--text-3);cursor:pointer;transition:all .12s;min-width:28px;text-align:center}.dp-page-num:hover{background:var(--accent-glow)}.dp-page-cur{background:var(--accent-glow);color:var(--accent);font-weight:600}
 </style>

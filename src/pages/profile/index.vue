@@ -252,33 +252,7 @@
       </section>
     </view>
 
-    <!-- 页脚 -->
-    <view class="site-footer">
-      <view class="footer-disclaimer">⚠️ 本站所有内容仅为民俗文化与传统命理科普参考，不构成任何决策建议，严禁利用本站内容从事封建迷信及违法违规活动，本站不对任何用户基于本站内容做出的决策承担任何责任</view>
-      <view class="footer-grid">
-        <view class="footer-col">
-          <view class="footer-col-title">平台信息</view>
-          <view class="footer-link" @tap="goNav('/package-info/about/index')">关于我们</view>
-          <view class="footer-link" @tap="showFooterInfo('contact')">联系方式</view>
-          <view class="footer-link" @tap="showFooterInfo('privacy')">隐私政策</view>
-        </view>
-        <view class="footer-col">
-          <view class="footer-col-title">快捷导航</view>
-          <view class="footer-link" @tap="goNav('/pages/qimen/index', 'switchTab')">奇门遁甲</view>
-          <view class="footer-link" @tap="goNav('/pages/bazi-index/index')">八字排盘</view>
-          <view class="footer-link" @tap="goNav('/pages/calendar/index')">专属日历</view>
-          <view class="footer-link" @tap="goNav('/pages/community/index', 'switchTab')">社区</view>
-        </view>
-        <view class="footer-col">
-          <view class="footer-col-title">备案与版权</view>
-          <view class="footer-icp">ICP备案号：京ICP备2026050601号-1</view>
-          <view class="footer-icp">© 2026 时安解忧屋 版权所有</view>
-        </view>
-      </view>
-      <view class="footer-bottom">
-        <text class="footer-bottom-text">时安解忧屋 · 看得懂用得上的民俗命理参考平台</text>
-      </view>
-    </view>
+
   </view>
 </template>
 
@@ -1059,17 +1033,6 @@ onShow(function() {
 .account-info-label { color: var(--text-3); font-size: 0.875rem; }
 .account-info-value { color: var(--text-1); font-weight: 500; font-size: 0.875rem; }
 
-/* 页脚 */
-.site-footer { background: var(--nav-bg); border-top: 1px solid var(--card-border); padding: 48px 32px 24px; margin-top: 80px; }
-.footer-disclaimer { max-width: var(--max-w); margin: 0 auto 32px; padding: 14px 20px; border-radius: 10px; background: rgba(215,125,110,0.08); border: 1px solid rgba(215,125,110,0.15); font-size: 0.75rem; color: var(--danger); line-height: 1.6; text-align: center; }
-.footer-grid { max-width: var(--max-w); margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; }
-.footer-col-title { font-size: 0.8125rem; color: var(--text-2); margin-bottom: 12px; }
-.footer-link { font-size: 0.75rem; color: var(--text-3); padding: 3px 0; cursor: pointer; }
-.footer-link:active { color: var(--accent); }
-.footer-icp { font-size: 0.6875rem; color: var(--text-3); margin-top: 8px; }
-.footer-bottom { max-width: var(--max-w); margin: 24px auto 0; padding-top: 16px; border-top: 1px solid var(--card-border); }
-.footer-bottom-text { font-size: 0.6875rem; color: var(--text-3); }
-
 /* 绑定信息样式 */
 .bind-info { margin-bottom: 8px; }
 .bind-row { display: flex; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--card-border); font-size: 0.8125rem; gap: 8px; }
@@ -1084,6 +1047,6 @@ onShow(function() {
   .profile-search-row { flex-direction: column; }
   .profile-grid { grid-template-columns: 1fr; }
   .form-row { grid-template-columns: 1fr; gap: 0; }
-  .footer-grid { grid-template-columns: 1fr; gap: 24px; }
+
 }
 </style>

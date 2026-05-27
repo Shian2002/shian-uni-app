@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<script>;(function(){var t=localStorage.getItem("xc_theme");if(t)document.documentElement.setAttribute("data-theme",t);else document.documentElement.setAttribute("data-theme","dark")})()</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% if code == 404 %}页面不存在{% elif code == 500 %}服务器错误{% else %}请求错误{% endif %} — 时安解忧屋</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+<style>
+    .error-page {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 60vh;
+        text-align: center;
+        padding: 60px 20px;
+    }
+    .error-code {
+        font-size: 120px;
+        font-weight: 800;
+        line-height: 1;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2, #a855f7));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 16px;
+    }
+    .error-message {
+        font-size: 1.5rem;
+        color: var(--text-1, #e2e8f0);
+        margin-bottom: 12px;
+    }
+    .error-detail {
+        font-size: 0.9rem;
+        color: var(--text-3, #94a3b8);
+        margin-bottom: 32px;
+        max-width: 480px;
+    }
+    .error-actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    .error-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 24px;
+        border-radius: 12px;
+        font-size: 0.95rem;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+    .error-btn-primary {
+        background: var(--accent, #6366f1);
+        color: #fff;
+    }
+    .error-btn-primary:hover {
+        filter: brightness(1.1);
+        transform: translateY(-1px);
+    }
+    .error-btn-secondary {
+        background: var(--bg-3, rgba(255,255,255,0.05));
+        color: var(--text-2, #cbd5e1);
+        border: 1px solid var(--border, rgba(255,255,255,0.1));
+    }
+    .error-btn-secondary:hover {
+        background: var(--bg-4, rgba(255,255,255,0.08));
+    }
+    @media (max-width: 640px) {
+        .error-code { font-size: 72px; }
+        .error-message { font-size: 1.2rem; }
+    }
+</style>
+</head>
+<body>
+<div class="bg-layer"></div>
+
+<!-- 导航栏 -->
+<nav class="topnav">
+    <a href="/" class="topnav-logo">
+        <span class="logo-icon">☯️</span>
+        <span>时安解忧屋</span>
+    </a>
+</nav>
+
+<div class="error-page">
+    <div class="error-code">{{ code }}</div>
+    <div class="error-message">{{ message }}</div>
+    {% if detail %}
+    <div class="error-detail">{{ detail }}</div>
+    {% endif %}
+    <div class="error-actions">
+        <a href="/" class="error-btn error-btn-primary">🏠 返回首页</a>
+        <a href="javascript:history.back()" class="error-btn error-btn-secondary">← 返回上页</a>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/api-client.js') }}"></script>
+</body>
+</html>

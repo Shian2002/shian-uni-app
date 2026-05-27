@@ -7,22 +7,9 @@
       <view class="nav-btn-bar" id="navBtnBar">
         <view class="nav-btn" data-href="#/" @click="go('#/')">首页</view>
 
-        <view class="nav-btn nav-btn-has-drop" data-href="#/pages/qimen/index" @click="go('#/pages/qimen/index')">
-          奇门遁甲 ▾
-          <view class="nav-btn-drop-menu">
-            <view class="nav-btn-drop-item" data-href="#/pages/qimen/index?tab=ai" @click.stop="go('#/pages/qimen/index?tab=ai')">🔮 时安奇门系统</view>
-            <view class="nav-btn-drop-item" data-href="#/pages/qimen/index?tab=free" @click.stop="go('#/pages/qimen/index?tab=free')">☯️ 奇门排盘免费版</view>
-          </view>
-        </view>
+        <view class="nav-btn" data-href="#/pages/qimen/index?tab=free" onclick="window.__topNavGo('#/pages/qimen/index?tab=free')">奇门遁甲</view>
 
-        <view class="nav-btn nav-btn-has-drop" data-href="#/pages/bazi-index/index" @click="go('#/pages/bazi-index/index')">
-          八字排盘 ▾
-          <view class="nav-btn-drop-menu">
-            <view class="nav-btn-drop-item" data-href="#/pages/bazi-index/index?tab=free" @click.stop="go('#/pages/bazi-index/index?tab=free')">📜 八字排盘免费版</view>
-            <view class="nav-btn-drop-item" data-href="#/pages/bazi-index/index?tab=ai" @click.stop="go('#/pages/bazi-index/index?tab=ai')">🤖 时安八字系统</view>
-            <view class="nav-btn-drop-item" data-href="#/package-user/history/index" @click.stop="go('#/package-user/history/index')">📋 排盘记录</view>
-          </view>
-        </view>
+        <view class="nav-btn" data-href="#/pages/bazi-index/index?tab=free" onclick="window.__topNavGo('#/pages/bazi-index/index?tab=free')">八字排盘</view>
 
         <view class="nav-btn" data-href="#/pages/liuyao/index" @click="go('#/pages/liuyao/index')">六爻排盘</view>
         <view class="nav-btn" data-href="#/pages/meihua/index" @click="go('#/pages/meihua/index')">梅花易数</view>
@@ -34,7 +21,7 @@
         <view class="nav-btn" data-href="#/package-info/about/index" @click="go('#/package-info/about/index')">关于我们</view>
 
         <!-- 溢出"更多"按钮（JS 控制显示） -->
-        <view class="nav-btn nav-btn-more" id="navBtnMore" style="display:none;" @click.stop="toggleMoreMenu($event)">
+        <view class="nav-btn nav-btn-more" id="navBtnMore" style="display:none;" onclick="window._xc_toggleMore(event)">
           更多 ▾
           <view class="nav-btn-drop-menu" id="navBtnMoreMenu"></view>
         </view>
@@ -149,9 +136,14 @@ function ensureGlobalSidebar() {
   var sidebar = document.createElement('div')
   sidebar.className = 'tarot-sidebar'
   sidebar.id = 'tarotSidebarGlobal'
-  sidebar.innerHTML = '<div class="sidebar-brand"><span class="sidebar-brand-icon-wrap"><img class="sidebar-brand-icon" src="/static/images/logo.png"></span><span class="sidebar-brand-name">时安解忧屋</span></div>'
-    + '<div class="sidebar-header"><span class="sidebar-title">对话历史</span><div class="sidebar-close" id="sidebarCloseGlobal">✕</div></div>'
+  sidebar.innerHTML = '<div class="sidebar-brand"><span class="sidebar-brand-icon-wrap"><img class="sidebar-brand-icon" src="/static/images/logo.webp?v=2"></span><span class="sidebar-brand-name">时安解忧屋</span></div>'
+    + '<div class="sidebar-header"><span class="sidebar-title">对话历史</span></div>'
+    + '<div class="sidebar-tabs"><span class="sidebar-tab" id="sidebarTabFlat" onclick="window._xc_setSidebarView(\'flat\')">全部</span><span class="sidebar-tab" id="sidebarTabGrouped" onclick="window._xc_setSidebarView(\'grouped\')">分类</span></div>'
     + '<div class="sidebar-content" id="sidebarListGlobal"><div class="sidebar-empty">加载中...</div></div>'
+    + '<div class="sidebar-detail" id="sidebarDetailGlobal" style="display:none;">'
+    + '<div class="sidebar-detail-back" onclick="window._xc_backToSidebarList()">← 返回</div>'
+    + '<div class="sidebar-detail-title" id="sidebarDetailTitle">历史记录</div>'
+    + '<div class="sidebar-detail-body" id="sidebarDetailBody"></div></div>'
     + '<div class="sidebar-user-panel" id="sidebarUserPanel">'
     + '<div class="sidebar-user-logged" id="sidebarUserLogged" style="display:none;">'
     + '<div class="sidebar-user-avatar-wrap"><img class="sidebar-user-avatar" id="sidebarUserAvatar" src=""><span class="sidebar-user-avatar-letter" id="sidebarUserLetter">U</span></div>'
@@ -163,23 +155,14 @@ function ensureGlobalSidebar() {
     + '<span class="sidebar-guest-btn" id="sidebarGuestLogin">登录</span>'
     + '</div>'
     + '</div>'
-  sidebar.querySelector('#sidebarCloseGlobal').onclick = function() { toggleSidebar() }
   sidebar.querySelector('#sidebarUserSetting').onclick = function() { toggleSidebar(); go('#/pages/profile/index') }
   sidebar.querySelector('#sidebarUserLogout').onclick = function() { if (window._xc_doLogout) window._xc_doLogout() }
   sidebar.querySelector('#sidebarGuestLogin').onclick = function() { if (window._openLoginModal) window._openLoginModal() }
 
-  var detailOverlay = document.createElement('div')
-  detailOverlay.className = 'modal-overlay'
-  detailOverlay.id = 'historyDetailOverlayGlobal'
-  detailOverlay.onclick = function(e) { if (e.target === detailOverlay) window._closeHistoryDetail() }
-  detailOverlay.innerHTML = '<div class="modal-box history-detail-box" onclick="event.stopPropagation()">'
-    + '<div class="modal-title" id="historyDetailTitle">历史记录</div>'
-    + '<div class="history-detail-content" id="historyDetailContent"></div>'
-    + '<div class="modal-btns"><div class="btn btn-outline" onclick="window._closeHistoryDetail()">关闭</div></div></div>'
-
   document.body.appendChild(overlay)
   document.body.appendChild(sidebar)
-  document.body.appendChild(detailOverlay)
+  // 恢复上次的视图选择
+  _restoreSidebarView()
 }
 
 onMounted(function() {
@@ -324,7 +307,21 @@ onMounted(function() {
   })
 
 window._xc_toggleSidebar = function() { toggleSidebar() }
-window._xc_toggleGroup = function(headerEl) { var g = headerEl.parentElement; if (g) g.classList.toggle('collapsed') }
+window._xc_toggleGroup = function(headerEl) {
+  var g = headerEl.parentElement
+  if (!g) return
+  g.classList.toggle('collapsed')
+  // 持久化分组折叠状态到 localStorage
+  var type = g.getAttribute('data-type')
+  if (type) {
+    var collapsed = g.classList.contains('collapsed')
+    try {
+      var state = JSON.parse(localStorage.getItem('xc_sidebar_group_state') || '{}')
+      state[type] = collapsed ? 1 : 0
+      localStorage.setItem('xc_sidebar_group_state', JSON.stringify(state))
+    } catch(_) {}
+  }
+}
 
 // 从共享模块获取分组数据和工具函数，未加载时自动初始化
 if (!window.__sidebarTypes) {
@@ -421,21 +418,43 @@ function toggleSidebar() {
   // 30 秒内缓存
   var now = Date.now()
   if (window.__sidebarCache && (now - window.__sidebarCache.ts) < 30000) {
-    _renderSidebarGroups(window.__sidebarCache.groups, listEl)
+    _restoreSidebarView()
+    var ft = document.getElementById('sidebarTabFlat')
+    if (ft && ft.classList.contains('active')) {
+      window._xc_setSidebarView('flat')
+    } else {
+      _renderSidebarGroups(window.__sidebarCache.groups, listEl)
+    }
     return
   }
   listEl.innerHTML = '<div class="sidebar-empty">加载中...</div>'
-  var recordsLoaded = false, tarotLoaded = false
-  var allRecords = [], tarotItems = []
+  var recordsLoaded = false, tarotLoaded = false, lyConvLoaded = false, mhConvLoaded = false, qiConvLoaded = false
+  var allRecords = [], tarotItems = [], lyConvItems = [], mhConvItems = [], qiConvItems = []
   function _renderMerged() {
-    if (!recordsLoaded || !tarotLoaded) return
+    if (!recordsLoaded || !tarotLoaded || !lyConvLoaded || !mhConvLoaded || !qiConvLoaded) return
     tarotItems.forEach(function(c) {
       allRecords.push({ id: 'tarot_' + c.id, app_type: 'tarot', question: c.title || c.spread_name || '塔罗解读', created_at: c.updated_at || c.created_at, _tarotConvId: c.id })
     })
+    lyConvItems.forEach(function(c) {
+      allRecords.push({ id: 'ly_' + c.id, app_type: 'liuyao', question: c.title || '六爻占卜', created_at: c.updated_at || c.created_at, _lyConvId: c.id })
+    })
+    mhConvItems.forEach(function(c) {
+      allRecords.push({ id: 'mh_' + c.id, app_type: 'meihua', question: c.title || '梅花易数', created_at: c.updated_at || c.created_at, _mhConvId: c.id })
+    })
+    qiConvItems.forEach(function(c) {
+      allRecords.push({ id: 'qi_' + c.id, app_type: 'qimen', question: c.title || '奇门遁甲', created_at: c.updated_at || c.created_at, _qaiConvId: c.id })
+    })
     if (!allRecords.length) { listEl.innerHTML = '<div class="sidebar-empty">暂无历史记录</div>'; return }
     var groups = _groupRecords(allRecords)
-    window.__sidebarCache = { ts: Date.now(), groups: groups }
-    _renderSidebarGroups(groups, listEl)
+    window.__sidebarCache = { ts: Date.now(), groups: groups, flat: allRecords }
+    // 恢复用户上次的视图选择，再渲染对应视图
+    _restoreSidebarView()
+    var flatTab = document.getElementById('sidebarTabFlat')
+    if (flatTab && flatTab.classList.contains('active')) {
+      window._xc_setSidebarView('flat')
+    } else {
+      _renderSidebarGroups(groups, listEl)
+    }
   }
   uni.request({ url: '/api/records?per_page=50', method: 'GET', success: function(res) {
     allRecords = res.data.records || []; recordsLoaded = true; _renderMerged()
@@ -443,13 +462,26 @@ function toggleSidebar() {
   uni.request({ url: '/api/tarot/conversations', method: 'GET', success: function(res) {
     tarotItems = res.data || []; if (!Array.isArray(tarotItems)) tarotItems = []; tarotLoaded = true; _renderMerged()
   }, fail: function() { tarotLoaded = true; _renderMerged() }})
+  uni.request({ url: '/api/liuyao/conversations', method: 'GET', success: function(res) {
+    lyConvItems = res.data || []; if (!Array.isArray(lyConvItems)) lyConvItems = []; lyConvLoaded = true; _renderMerged()
+  }, fail: function() { lyConvLoaded = true; _renderMerged() }})
+  uni.request({ url: '/api/meihua/conversations', method: 'GET', success: function(res) {
+    mhConvItems = res.data || []; if (!Array.isArray(mhConvItems)) mhConvItems = []; mhConvLoaded = true; _renderMerged()
+  }, fail: function() { mhConvLoaded = true; _renderMerged() }})
+  uni.request({ url: '/api/qimen/conversations', method: 'GET', success: function(res) {
+    qiConvItems = res.data || []; if (!Array.isArray(qiConvItems)) qiConvItems = []; qiConvLoaded = true; _renderMerged()
+  }, fail: function() { qiConvLoaded = true; _renderMerged() }})
 }
 
 // 渲染分组历史（共享函数，避免与 sidebar.js 重复）
 function _renderSidebarGroups(groups, listEl) {
+  // 读取持久化的分组折叠状态
+  var savedState = {}
+  try { savedState = JSON.parse(localStorage.getItem('xc_sidebar_group_state') || '{}') } catch(_) {}
   var h = ''
   groups.forEach(function(g) {
-    h += '<div class="sidebar-group" data-type="' + g.type + '">'
+    var collapsed = savedState[g.type] === 1 ? ' collapsed' : ''
+    h += '<div class="sidebar-group' + collapsed + '" data-type="' + g.type + '">'
       + '<div class="sidebar-group-header" onclick="window._xc_toggleGroup(this)">'
       + '<span class="sidebar-group-icon">' + g.icon + '</span>'
       + '<span class="sidebar-group-label">' + g.label + '</span>'
@@ -457,58 +489,284 @@ function _renderSidebarGroups(groups, listEl) {
       + '<span class="sidebar-group-arrow">▾</span>'
       + '</div><div class="sidebar-group-items">'
     g.records.forEach(function(r) {
-      var time = r.created_at ? r.created_at.substring(0, 16).replace('T', ' ') : ''
-      var text = _escHtml(r.question || '(无问题)')
-      var clickAction = r._tarotConvId
-        ? 'onclick="window._showTarotConv(' + r._tarotConvId + ')"'
-        : 'onclick="window._showHistoryDetail(' + r.id + ')"'
-      h += '<div class="sidebar-item" ' + clickAction + '>'
-        + '<div class="sidebar-item-body">'
-        + '<span class="sidebar-item-text">' + text + '</span>'
-        + '<span class="sidebar-item-time">' + time + '</span>'
-        + '</div></div>'
+      h += _renderSidebarItem(r)
     })
     h += '</div></div>'
   })
   listEl.innerHTML = h
 }
 
-// 塔罗对话查看（挂在 window 上避免 tree-shaking）
+function _renderSidebarItem(r) {
+  var time = _formatSidebarTime(r.created_at)
+  var text = _escHtml(r.question || '(无问题)')
+  var realId = r._tarotConvId || r._lyConvId || r._mhConvId || r._qaiConvId || r.id
+  var appType = r.app_type || ''
+  var deleteConfirm = 'if(confirm(\'确定要删除这条记录吗？\'))window._xc_deleteHistoryItem(\'' + appType + '\',\'' + realId + '\',this)'
+  var clickAction = r._tarotConvId
+    ? 'onclick="window._showTarotConv(' + r._tarotConvId + ')"'
+    : r.app_type === 'tarot'
+    ? 'onclick="window._showTarotRecordDetail(' + r.id + ')"'
+    : r._lyConvId
+    ? 'onclick="window._showLyConvDetail(' + r._lyConvId + ')"'
+    : r._mhConvId
+    ? 'onclick="window._showMhConvDetail(' + r._mhConvId + ')"'
+    : r._qaiConvId
+    ? 'onclick="window._showQiConvDetail(' + r._qaiConvId + ')"'
+    : r.app_type === 'liuyao'
+    ? 'onclick="window._showLyRecordDetail(' + r.id + ')"'
+    : r.app_type === 'qimen'
+    ? 'onclick="window._showQiRecordDetail(' + r.id + ')"'
+    : 'onclick="window._showHistoryDetail(' + r.id + ')"'
+  return '<div class="sidebar-item">'
+    + '<div class="sidebar-item-body" ' + clickAction + '>'
+    + '<span class="sidebar-item-text">' + text + '</span>'
+    + '<span class="sidebar-item-time">' + time + '</span>'
+    + '</div>'
+    + '<span class="sidebar-item-del" onclick="' + deleteConfirm + '" title="删除">✕</span>'
+    + '</div>'
+}
+
+// 返回侧边栏列表
+window._xc_backToSidebarList = function() {
+  var list = document.getElementById('sidebarListGlobal')
+  var detail = document.getElementById('sidebarDetailGlobal')
+  if (list) list.style.display = ''
+  if (detail) detail.style.display = 'none'
+}
+
+function _showSidebarDetail(title, html) {
+  var list = document.getElementById('sidebarListGlobal')
+  var detail = document.getElementById('sidebarDetailGlobal')
+  var detailTitle = document.getElementById('sidebarDetailTitle')
+  var detailBody = document.getElementById('sidebarDetailBody')
+  if (list) list.style.display = 'none'
+  if (detail) detail.style.display = ''
+  if (detailTitle) detailTitle.textContent = title
+  if (detailBody) detailBody.innerHTML = html
+}
+
+// 塔罗对话查看 — 跳转到塔罗页面恢复对话
 window._showTarotConv = function(cid) {
   uni.request({ url: '/api/tarot/conversations/' + cid, method: 'GET', success: function(res) {
     var d = res.data
     if (!d) return
-    var overlay = document.getElementById('historyDetailOverlayGlobal')
-    var title = document.getElementById('historyDetailTitle')
-    var content = document.getElementById('historyDetailContent')
-    if (overlay) overlay.classList.add('open')
-    if (title) title.textContent = d.title || d.spread_name || '塔罗解读'
-    // 解析对话消息，显示最后一条 AI 回复
-    var msgs = []
-    try { msgs = JSON.parse(d.messages_json || '[]') } catch(_) {}
-    var aiMsgs = msgs.filter(function(m) { return m.role === 'assistant' })
-    var lastMsg = aiMsgs.length ? aiMsgs[aiMsgs.length - 1].content : ''
-    if (content) content.innerHTML = '<div class="history-markdown">' + _escHtml(lastMsg || '无解读内容') + '</div>'
+    window.__xc_restoreData = { type: 'tarot', messages: d.messages || [], title: d.title || d.spread_name || '塔罗解读', id: d.id }
     window._xc_toggleSidebar()
+    uni.switchTab({ url: '/pages/tarot/index', success: function() { setTimeout(function() { uni.$emit('xc-restore') }, 200) } })
   }})
 }
 
-// 历史详情弹窗（挂在 window 上避免 tree-shaking）
+// 塔罗旧记录跳转（从/api/records获取数据并恢复）
+window._showTarotRecordDetail = function(rid) {
+  uni.request({ url: '/api/records/' + rid, method: 'GET', success: function(res) {
+    var d = res.data
+    if (!d) { window._xc_toggleSidebar(); uni.switchTab({ url: '/pages/tarot/index' }); return }
+    window.__xc_restoreData = { type: 'tarot', title: d.question || '塔罗解读', question: d.question || '', rawHtml: d.result_html || '', id: d.id }
+    window._xc_toggleSidebar()
+    uni.switchTab({ url: '/pages/tarot/index', success: function() { setTimeout(function() { uni.$emit('xc-restore') }, 200) } })
+  }})
+}
+
+function _isOnPage(route) {
+  // 使用 location.hash 判断当前页面（比 getCurrentPages 在 H5 tabBar 下更可靠）
+  try { return location.hash.indexOf(route) !== -1 } catch(e) {}
+  return false
+}
+
+// 六爻对话查看 — 跳转到六爻页面恢复对话
+window._showLyConvDetail = function(cid) {
+  uni.request({ url: '/api/liuyao/conversations/' + cid, method: 'GET', success: function(res) {
+    var d = res.data
+    if (!d) return
+    window.__xc_restoreData = { type: 'liuyao', messages: d.messages || [], title: d.title || '六爻占卜', id: d.id }
+    window._xc_toggleSidebar()
+    if (_isOnPage('pages/liuyao/index')) {
+      setTimeout(function() { if (window._xc_restoreLiuyao) window._xc_restoreLiuyao() }, 100)
+    } else {
+      uni.switchTab({ url: '/pages/liuyao/index', success: function() {
+        setTimeout(function() { if (window._xc_restoreLiuyao) window._xc_restoreLiuyao() }, 400)
+      } })
+    }
+  }})
+}
+
+// 六爻旧记录跳转（从/api/records获取数据并恢复）
+window._showLyRecordDetail = function(rid) {
+  uni.request({ url: '/api/records/' + rid, method: 'GET', success: function(res) {
+    var d = res.data
+    if (!d) { window._xc_toggleSidebar(); return }
+    window.__xc_restoreData = { type: 'liuyao', title: d.question || '六爻占卜', question: d.question || '', rawHtml: d.result_html || '', id: d.id }
+    window._xc_toggleSidebar()
+    if (_isOnPage('pages/liuyao/index')) {
+      setTimeout(function() { if (window._xc_restoreLiuyao) window._xc_restoreLiuyao() }, 100)
+    } else {
+      uni.switchTab({ url: '/pages/liuyao/index', success: function() {
+        setTimeout(function() { if (window._xc_restoreLiuyao) window._xc_restoreLiuyao() }, 400)
+      } })
+    }
+  }})
+}
+
+// 梅花对话查看 — 跳转到梅花页面恢复对话
+window._showMhConvDetail = function(cid) {
+  uni.request({ url: '/api/meihua/conversations/' + cid, method: 'GET', success: function(res) {
+    var d = res.data
+    if (!d) return
+    window.__xc_restoreData = { type: 'meihua', messages: d.messages || [], title: d.title || '梅花易数', id: d.id }
+    window._xc_toggleSidebar()
+    uni.switchTab({ url: '/pages/meihua/index', success: function() {
+      setTimeout(function() { uni.$emit('xc-restore') }, 200)
+      setTimeout(function() { if (window._xc_restoreMeihua) window._xc_restoreMeihua() }, 400)
+    } })
+  }})
+}
+
+// 奇门遁甲对话查看 — 跳转到奇门页面恢复对话
+window._showQiConvDetail = function(cid) {
+  uni.request({ url: '/api/qimen/conversations/' + cid, method: 'GET', success: function(res) {
+    var d = res.data
+    if (!d) return
+    window.__xc_restoreData = { type: 'qimen', messages: d.messages || [], title: d.title || '奇门遁甲', id: d.id }
+    window._xc_toggleSidebar()
+    try { sessionStorage.setItem('_nav_query', 'tab=ai') } catch(_) {}
+    if (_isOnPage('pages/qimen/index')) {
+      setTimeout(function() { if (window._xc_restoreQimen) window._xc_restoreQimen() }, 100)
+    } else {
+      uni.switchTab({ url: '/pages/qimen/index', success: function() {
+        setTimeout(function() { if (window._xc_restoreQimen) window._xc_restoreQimen() }, 400)
+      } })
+    }
+  }})
+}
+
+// 奇门遁甲旧记录跳转（从/api/records获取数据并恢复）
+window._showQiRecordDetail = function(rid) {
+  uni.request({ url: '/api/records/' + rid, method: 'GET', success: function(res) {
+    var d = res.data
+    if (!d) { window._xc_toggleSidebar(); return }
+    window.__xc_restoreData = { type: 'qimen', title: d.question || '奇门遁甲', question: d.question || '', rawHtml: d.result_html || '', id: d.id }
+    window._xc_toggleSidebar()
+    try { sessionStorage.setItem('_nav_query', 'tab=ai') } catch(_) {}
+    if (_isOnPage('pages/qimen/index')) {
+      setTimeout(function() { if (window._xc_restoreQimen) window._xc_restoreQimen() }, 100)
+    } else {
+      uni.switchTab({ url: '/pages/qimen/index', success: function() {
+        setTimeout(function() { if (window._xc_restoreQimen) window._xc_restoreQimen() }, 400)
+      } })
+    }
+  }})
+}
+
+window._showBaziConvDetail = function(cid) {
+  if (window._xc_closeSidebar) window._xc_closeSidebar()
+  var xhr = new XMLHttpRequest()
+  xhr.open('GET', '/api/bazi/conversations/' + cid)
+  xhr.setRequestHeader('Accept', 'application/json')
+  xhr.onload = function() {
+    var d = JSON.parse(xhr.responseText)
+    if (!d || !d.id) { uni.showToast({ title: '对话不存在', icon: 'none' }); return }
+    window.__xc_restoreData = { type: 'bazi', id: d.id, title: d.title, messages: d.messages, birth_data: d.birth_data }
+    try { sessionStorage.setItem('_nav_query', 'tab=ai') } catch(_) {}
+    if (_isOnPage('pages/bazi-index/index')) {
+      setTimeout(function() { if (window._xc_restoreBazi) window._xc_restoreBazi() }, 100)
+    } else {
+      uni.navigateTo({ url: '/pages/bazi-index/index', success: function() {
+        setTimeout(function() { if (window._xc_restoreBazi) window._xc_restoreBazi() }, 400)
+      } })
+    }
+  }
+  xhr.send()
+}
+
+window._showBaziRecordDetail = function(rid) {
+  if (window._xc_closeSidebar) window._xc_closeSidebar()
+  uni.navigateTo({ url: '/pages/bazi-result/index?id=' + rid })
+}
+
+// 恢复上次使用的视图选择
+function _restoreSidebarView() {
+  var flatTab = document.getElementById('sidebarTabFlat')
+  var groupedTab = document.getElementById('sidebarTabGrouped')
+  if (!flatTab || !groupedTab) return
+  var saved = ''
+  try { saved = localStorage.getItem('xc_sidebar_view') || '' } catch(_) {}
+  if (saved === 'grouped') {
+    groupedTab.classList.add('active')
+    flatTab.classList.remove('active')
+  } else {
+    // 默认 flat
+    flatTab.classList.add('active')
+    groupedTab.classList.remove('active')
+  }
+}
+
+// 侧边栏视图切换（分类/全部）
+window._xc_setSidebarView = function(view) {
+  var groupedTab = document.getElementById('sidebarTabGrouped')
+  var flatTab = document.getElementById('sidebarTabFlat')
+  var listEl = document.getElementById('sidebarListGlobal')
+  if (!groupedTab || !flatTab || !listEl) return
+  var cache = window.__sidebarCache
+  if (!cache || !cache.groups) return
+  // 持久化用户选择的视图
+  try { localStorage.setItem('xc_sidebar_view', view) } catch(_) {}
+  if (view === 'grouped') {
+    groupedTab.classList.add('active')
+    flatTab.classList.remove('active')
+    _renderSidebarGroups(cache.groups, listEl)
+  } else {
+    flatTab.classList.add('active')
+    groupedTab.classList.remove('active')
+    // 全部：展平按时间倒序排列
+    var flat = cache.flat || []
+    flat.sort(function(a, b) { return (b.created_at || '').localeCompare(a.created_at || '') })
+    var h = ''
+    flat.forEach(function(r) {
+      h += _renderSidebarItem(r)
+    })
+    if (!flat.length) h = '<div class="sidebar-empty">暂无历史记录</div>'
+    listEl.innerHTML = h
+  }
+}
+
+function _formatSidebarTime(created_at) {
+  if (!created_at) return ''
+  var t = new Date(created_at)
+  if (isNaN(t.getTime())) return ''
+  var offset = 8 * 60
+  var local = new Date(t.getTime() + offset * 60 * 1000)
+  var y = local.getUTCFullYear()
+  var M = ('0' + (local.getUTCMonth() + 1)).slice(-2)
+  var d = ('0' + local.getUTCDate()).slice(-2)
+  var hh = ('0' + local.getUTCHours()).slice(-2)
+  var mm = ('0' + local.getUTCMinutes()).slice(-2)
+  return y + '-' + M + '-' + d + ' ' + hh + ':' + mm
+}
+
+// 删除历史记录项（支持 records/tarot/liuyao/meihua/qimen）
+window._xc_deleteHistoryItem = function(appType, realId, el) {
+  if (!realId) return
+  var urlMap = {
+    tarot: '/api/tarot/conversations/',
+    liuyao: '/api/liuyao/conversations/',
+    meihua: '/api/meihua/conversations/',
+    qimen: '/api/qimen/conversations/'
+  }
+  var url = urlMap[appType] || '/api/records/'
+  var sidebarItem = el && el.closest ? el.closest('.sidebar-item') : null
+  uni.request({ url: url + realId, method: 'DELETE', success: function() {
+    if (sidebarItem) sidebarItem.remove()
+    window.__sidebarCache = null
+  }, fail: function(err) { console.error('删除失败:', err) }})
+}
+
+// 历史详情弹窗（在侧边栏内展开）
 window._showHistoryDetail = function(rid) {
   uni.request({ url: '/api/records/' + rid, method: 'GET', success: function(res) {
     var d = res.data
-    var overlay = document.getElementById('historyDetailOverlayGlobal')
-    var title = document.getElementById('historyDetailTitle')
-    var content = document.getElementById('historyDetailContent')
-    if (overlay) overlay.classList.add('open')
-    if (title) title.textContent = d.question || '历史记录'
-    if (content) content.innerHTML = '<div class="history-markdown">' + (d.result_html || '') + '</div>'
-    window._xc_toggleSidebar()
+    var html = '<div class="history-markdown">' + (d.result_html || '') + '</div>'
+    _showSidebarDetail(d.question || '历史记录', html)
   }})
-}
-window._closeHistoryDetail = function() {
-  var overlay = document.getElementById('historyDetailOverlayGlobal')
-  if (overlay) overlay.classList.remove('open')
 }
 
 function onShowLogin() {
@@ -771,10 +1029,16 @@ function updateNavOverflow() {
     // ⚠️ 不能用 bar.getBoundingClientRect().right 作为阈值，
     // 移动端 nav-btn-bar 可能宽于视口（flex-shrink:0），
     // 导致所有按钮都在 bar 内部不溢出，但实际上已经超出屏幕
+    var sidebarBtn = bar.parentNode ? bar.parentNode.querySelector('.topnav-sidebar-btn') : null
+    var topnavRight = bar.parentNode ? bar.parentNode.querySelector('.topnav-right') : null
+    var rightWidth = topnavRight ? topnavRight.getBoundingClientRect().width : 0
+    var sidebarWidth = sidebarBtn ? sidebarBtn.getBoundingClientRect().width : 0
     var viewportWidth = window.innerWidth
+    // 右侧区域和侧边栏按钮是必须保留的，按钮栏可用宽度 = 视口 - 侧边栏 - 右侧 - padding
+    var barMaxRight = viewportWidth - Math.max(rightWidth, 0) - 8
     var overflow = []
     bar.querySelectorAll('.nav-btn:not(.nav-btn-more)').forEach(function(btn) {
-      if (btn.getBoundingClientRect().right > viewportWidth - 10) overflow.push(btn)
+      if (btn.getBoundingClientRect().right > barMaxRight) overflow.push(btn)
     })
 
     if (overflow.length > 0) {
@@ -785,11 +1049,18 @@ function updateNavOverflow() {
         clone.className = 'nav-btn-drop-item'
         clone.setAttribute('data-href', btn.getAttribute('data-href'))
         clone.textContent = btn.textContent.replace(' ▾','').trim()
+        clone.style.cssText = 'display:block;padding:8px 16px;font-size:0.78rem;color:var(--text-2);cursor:pointer;white-space:nowrap;transition:background 0.15s,color 0.15s'
+        clone.onmouseenter = function() { this.style.background = 'var(--accent-glow)'; this.style.color = 'var(--accent)' }
+        clone.onmouseleave = function() { this.style.background = ''; this.style.color = 'var(--text-2)' }
         clone.onclick = function(e) {
-          e.stopPropagation()
           var href = clone.getAttribute('data-href')
-          if (href) go(href)
-          more.classList.remove('open')
+          if (window._xc_dropItemGo) {
+            window._xc_dropItemGo(e, href)
+          } else {
+            e.stopPropagation()
+            more.classList.remove('open')
+            if (href) go(href)
+          }
         }
         moreMenu.appendChild(clone)
       })
@@ -858,6 +1129,69 @@ onMounted(() => {
   // 暴露 go 到 window 方便调试
   window.__topNavGo = go
   window.__topNavGo.avatarLoad = loadAvatar
+  // 注册全局下拉切换函数
+  if (!window.__xcDropInited) {
+    window.__xcDropInited = true
+
+    function _xc_closeAllDropdowns() {
+      document.querySelectorAll('.nav-btn-has-drop.open, .nav-btn-more.open').forEach(function(d) {
+        d.classList.remove('open')
+      })
+    }
+
+    window._xc_toggleDrop = function(event) {
+      event.stopPropagation()
+      event.preventDefault()
+      var el = event.currentTarget
+      var wasOpen = el.classList.contains('open')
+      _xc_closeAllDropdowns()
+      if (!wasOpen) el.classList.add('open')
+    }
+
+    window._xc_toggleMore = function(event) {
+      event.stopPropagation()
+      event.preventDefault()
+      var el = event.currentTarget
+      var wasOpen = el.classList.contains('open')
+      _xc_closeAllDropdowns()
+      if (!wasOpen) el.classList.add('open')
+    }
+
+    window._xc_dropItemGo = function(event, href) {
+      event.stopPropagation()
+      event.preventDefault()
+      _xc_closeAllDropdowns()
+      if (href) go(href)
+    }
+
+    document.addEventListener('click', function(e) {
+      var el = e.target
+      for (var d = 10; el && d > 0; d--) {
+        if (el.classList && (el.classList.contains('nav-btn-has-drop') || el.classList.contains('nav-btn-more'))) return
+        if (el.classList && el.classList.contains('nav-btn-drop-menu')) return
+        if (el.id === 'navBtnMore') return
+        if (el.dataset && el.dataset.href) {
+          e.preventDefault()
+          e.stopPropagation()
+          _xc_closeAllDropdowns()
+          go(el.dataset.href)
+          return
+        }
+        el = el.parentElement
+      }
+      _xc_closeAllDropdowns()
+    }, true)
+
+    document.addEventListener('touchstart', function(e) {
+      var el = e.target
+      for (var d = 10; el && d > 0; d--) {
+        if (el.classList && (el.classList.contains('nav-btn-has-drop') || el.classList.contains('nav-btn-more'))) return
+        if (el.classList && el.classList.contains('nav-btn-drop-menu')) return
+        el = el.parentElement
+      }
+      _xc_closeAllDropdowns()
+    }, true)
+  }
   // 初始路由高亮同步
   nextTick(() => { syncNavHighlight(); updateNavOverflow() })
   // 等布局稳定后再检测一次，防止字体加载导致的测量偏差
@@ -875,48 +1209,6 @@ onMounted(() => {
     var icon = document.getElementById('themeToggleIcon')
     if (icon) icon.textContent = props.theme === 'dark' ? '🌙' : '☀️'
   } catch(_) {}
-  // 给所有导航元素添加 data-href 属性
-  try {
-    var wrap = document.querySelector('.topnav-wrap')
-    if (wrap) {
-      // 事件委托: 在 topnav-wrap 上监听所有 click，找到有 data-href 的元素
-      // ⚠️ 跳过 data-action="auth" 的元素（登录/注册按钮），避免拦截 emit 事件
-      wrap.addEventListener('click', function(e) {
-        var target = e.target
-        var maxDepth = 10
-        // 先检查是否点击了 auth 按钮（有 data-action="auth" 的元素），如果是则不拦截
-        var checkTarget = target
-        while (checkTarget && checkTarget !== wrap && maxDepth > 0) {
-          if (checkTarget.dataset && checkTarget.dataset.action === 'auth') return // 不拦截
-          checkTarget = checkTarget.parentElement
-          maxDepth--
-        }
-        // 重置 maxDepth，查找 data-href 导航元素
-        maxDepth = 10
-        target = e.target
-        while (target && target !== wrap && maxDepth > 0) {
-          if (target.dataset && target.dataset.href) {
-            // 找到了带 data-href 的元素
-            e.preventDefault()
-            e.stopPropagation()
-            go(target.dataset.href)
-            // 如果移动端菜单打开，关闭它（capture阶段stopPropagation阻止了@click中的closeMobileMenu）
-            var menuEl = document.getElementById('mobileMenu')
-            if (menuEl && menuEl.classList.contains('open')) {
-              menuEl.classList.remove('open')
-              ;['mobileSubQimen', 'mobileSubBazi', 'mobileSubMore'].forEach(function(id) {
-                var sub = document.getElementById(id)
-                if (sub) sub.classList.remove('open')
-              })
-            }
-            return
-          }
-          target = target.parentElement
-          maxDepth--
-        }
-      }, true) // capture phase — 比 Vue 的事件代理更早执行
-    }
-  } catch (_) {}
   // #endif
   // 加载头像
   loadAvatar()
@@ -1030,11 +1322,10 @@ onMounted(() => {
 
 <style scoped>
 /* ═══ 容器 ═══ */
-.topnav-wrap { position: relative; z-index: 100; }
+.topnav-wrap { position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
 
 /* ═══ 顶部导航栏 ═══ */
 .topnav {
-  position: sticky;
   top: 0;
   z-index: 100;
   background: var(--nav-bg);
@@ -1127,17 +1418,23 @@ onMounted(() => {
   left: 50%;
   transform: translateX(-50%) translateY(4px);
   min-width: 160px;
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
+  background: rgba(48, 53, 76, 0.94);
+  border: 1px solid rgba(255,255,255,0.14);
   border-radius: 10px;
   padding: 6px 0;
   z-index: 200;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
   pointer-events: none;
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  backdrop-filter: blur(20px) saturate(1.6);
   transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
 }
-.nav-btn-has-drop:hover .nav-btn-drop-menu,
-.nav-btn-has-drop:active .nav-btn-drop-menu,
+[data-theme="light"] .nav-btn-drop-menu {
+  background: rgba(255, 253, 248, 0.94);
+  border: 1px solid rgba(0,0,0,0.07);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+}
+.nav-btn-has-drop.open .nav-btn-drop-menu,
 .nav-btn-more.open .nav-btn-drop-menu {
   visibility: visible;
   opacity: 1;
@@ -1196,13 +1493,24 @@ onMounted(() => {
 
 /* ═══ 响应式 ═══ */
 @media (max-width: 768px) {
-  .topnav { padding: 0 10px; }
+  .topnav { padding: 0 8px; }
   .nav-btn { padding: 3px 7px; font-size: 0.7rem; }
-  .topnav-right { margin-left: 0; }
+  .topnav-right { margin-left: 0; flex-shrink: 1; gap: 4px; }
   .nav-btn-bar { flex-shrink: 1; }
+  .nav-profile-btn { font-size: 0.72rem; padding: 3px 6px; }
+  .theme-toggle-nav { font-size: 1rem; padding: 2px 4px; }
+  .nav-auth-btns .btn-sm { font-size: 0.7rem; padding: 4px 8px; }
 }
 @media (max-width: 480px) {
   .nav-btn { padding: 3px 6px; font-size: 0.65rem; }
+  .topnav-right { gap: 2px; }
+  .nav-profile-btn { font-size: 0.65rem; padding: 2px 4px; }
+  .theme-toggle-nav { font-size: 0.9rem; padding: 1px 2px; }
+  .nav-auth-btns .btn-sm { font-size: 0.65rem; padding: 3px 6px; }
+}
+@media (max-width: 360px) {
+  .nav-profile-btn { letter-spacing: -0.5px; }
+  .topnav-right { gap: 0; }
 }
 
 /* ═══ 用户头像 ═══ */
@@ -1210,7 +1518,8 @@ onMounted(() => {
 .nav-avatar-inner { width: 38px; height: 38px; border-radius: 50%; overflow: hidden; background: var(--accent-glow); display: flex; align-items: center; justify-content: center; }
 .nav-avatar-img { width: 100%; height: 100%; object-fit: cover; }
 .nav-avatar-text { font-size: 0.95rem; font-weight: 700; color: var(--accent); }
-.nav-avatar-dropdown { position: absolute; top: 100%; right: 0; margin-top: 8px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 4px 0; min-width: 120px; display: none; box-shadow: var(--card-shadow); z-index: 200; }
+.nav-avatar-dropdown { position: absolute; top: 100%; right: 0; margin-top: 8px; background: rgba(48, 53, 76, 0.94); border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; padding: 4px 0; min-width: 120px; display: none; box-shadow: 0 8px 32px rgba(0,0,0,0.25); z-index: 200; -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6); }
+[data-theme="light"] .nav-avatar-dropdown { background: rgba(255, 253, 248, 0.94); border: 1px solid rgba(0,0,0,0.07); box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
 .nav-avatar-dropdown.open { display: block; }
 .avatar-dropdown-item { padding: 10px 16px; font-size: 0.78rem; color: var(--text-2); cursor: pointer; white-space: nowrap; }
 .avatar-dropdown-item:hover { background: var(--accent-glow); color: var(--accent); }
@@ -1221,9 +1530,10 @@ onMounted(() => {
 .avatar-dropdown-divider { height: 1px; background: var(--card-border); margin: 2px 0; }
 
 /* ═══ 登录/注册弹窗 ═══ */
-.modal-overlay { position: fixed; inset: 0; z-index: 999; background: rgba(0,0,0,0.55); display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+.modal-overlay { position: fixed; inset: 0; z-index: 999; background: rgba(0,0,0,0.45); display: none; align-items: center; justify-content: center; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 .modal-overlay.open { display: flex; }
-.modal-box { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 20px; padding: 28px 32px; max-width: 400px; width: 90%; box-shadow: var(--card-shadow); }
+.modal-box { background: rgba(48, 53, 76, 0.94); border: 1px solid rgba(255,255,255,0.14); border-radius: 20px; padding: 28px 32px; max-width: 400px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.35); -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6); }
+[data-theme="light"] .modal-box { background: rgba(255, 253, 248, 0.94); border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 20px 60px rgba(0,0,0,0.12); }
 .modal-title { font-family: var(--font-serif); font-size: 1.2rem; text-align: center; color: var(--text-1); margin-bottom: 20px; }
 .field { margin-bottom: 14px; }
 .field-label { font-size: 0.75rem; color: var(--text-3); margin-bottom: 4px; display: block; }
