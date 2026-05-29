@@ -4171,7 +4171,7 @@ def api_comprehensive_ask_stream():
     question = (data.get('question') or '').strip()
     history = data.get('history') or []
     tool_models = normalize_tool_models(data.get('tool_models') or [])
-    model_id = data.get('llm_model') or 'free'
+    model_id = data.get('llm_model') or 'basic'
     is_followup = bool(history)
     cost = calculate_cost(model_id, tool_models, is_followup=is_followup)
 
@@ -9329,10 +9329,10 @@ def api_points_use():
 # ═══════════════════════════════════════════════════════════════
 
 RECHARGE_PACKAGES = [
-    {'id': 'starter',  'name': '体验包',  'points': 50,   'price': 9.9},
-    {'id': 'standard', 'name': '标准包',  'points': 200,  'price': 29.9},
-    {'id': 'premium',  'name': '畅享包',  'points': 500,  'price': 68},
-    {'id': 'vip',      'name': '尊享包',  'points': 2000, 'price': 198},
+    {'id': 'starter',  'name': '体验包',  'points': 60,   'price': 9.9},
+    {'id': 'standard', 'name': '标准包',  'points': 240,  'price': 29.9},
+    {'id': 'premium',  'name': '畅享包',  'points': 650,  'price': 68},
+    {'id': 'vip',      'name': '尊享包',  'points': 2200, 'price': 198},
 ]
 
 @app.route('/api/recharge/packages', methods=['GET'])
@@ -9359,8 +9359,10 @@ def api_recharge_create_order():
 
     order = RechargeOrder(
         user_id=current_user.id,
-        points_amount=pkg['points'],
-        price=pkg['price'],
+        package_id=pkg['id'],
+        package_name=pkg['name'],
+        points=pkg['points'],
+        amount=pkg['price'],
         pay_method=pay_method,
         status='pending',
     )
@@ -9386,12 +9388,12 @@ def api_recharge_orders():
         .paginate(page=page, per_page=per_page, error_out=False)
     orders = [{
         'id': o.id,
-        'points_amount': o.points_amount,
-        'price': o.price,
+        'points_amount': o.points,
+        'price': o.amount,
         'status': o.status,
         'pay_method': o.pay_method,
         'created_at': o.created_at.isoformat() if o.created_at else None,
-        'paid_at': o.paid_at.isoformat() if o.paid_at else None,
+        'paid_at': o.updated_at.isoformat() if o.status == 'paid' and o.updated_at else None,
     } for o in pagination.items]
     return jsonify({'orders': orders, 'total': pagination.total, 'page': page, 'has_next': pagination.has_next})
 
@@ -9426,12 +9428,12 @@ def api_admin_confirm_recharge():
         return jsonify({'error': '订单状态错误', 'status': order.status}), 400
 
     order.status = 'paid'
-    order.paid_at = datetime.utcnow()
-    new_total = add_points(order.user_id, 'recharge', order.points_amount,
-                          f'充值到账: +{order.points_amount}分 (¥{order.price})')
+    order.updated_at = datetime.utcnow()
+    new_total = add_points(order.user_id, 'recharge', order.points,
+                          f'充值到账: +{order.points}分 (¥{order.amount})')
     db.session.commit()
     return jsonify({'ok': True, 'order_id': order.id, 'user_id': order.user_id,
-                    'points': new_total, 'added': order.points_amount})
+                    'points': new_total, 'added': order.points})
 
 @app.route('/api/paid-contents', methods=['GET'])
 def api_paid_contents_list():

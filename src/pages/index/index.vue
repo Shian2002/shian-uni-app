@@ -38,13 +38,6 @@
 
           <view class="home-ai-console">
             <view class="home-ai-main">
-              <view class="profile-picker" @tap="openProfilePicker">
-                <text class="profile-plus">＋</text>
-                <view class="profile-picked">
-                  <text class="profile-name">{{ selectedProfileName || '选择命盘' }}</text>
-                  <text class="profile-meta">{{ selectedProfileMeta || '全部 / 客户 / 用户' }}</text>
-                </view>
-              </view>
               <textarea
                 class="home-ai-input"
                 v-model="comprehensiveQuestion"
@@ -52,24 +45,29 @@
                 maxlength="800"
                 placeholder="输入你的问题，选择术数模型后开始综合解读..."
               />
-              <picker :range="llmModelNames" :value="llmModelIdx" @change="onLlmModelChange">
-                <view class="llm-picker">{{ selectedLlmModel.name || '免费模型' }}</view>
-              </picker>
-              <view class="home-ai-send" :class="{ disabled: comprehensiveLoading }" @tap="startComprehensiveAsk">
-                {{ comprehensiveLoading ? '生成中' : '发送' }}
+              <view class="home-ai-toolbar">
+                <view class="home-ai-tools-left">
+                  <view class="profile-picker" @tap="openProfilePicker">
+                    <text class="profile-plus">＋</text>
+                    <text class="profile-name">{{ selectedProfileName || '选择命盘' }}</text>
+                  </view>
+                  <view class="tool-picker" @tap="openToolPicker">
+                    <text class="tool-picker-icon">☷</text>
+                    <text>{{ selectedToolSummary }}</text>
+                  </view>
+                </view>
+                <view class="home-ai-tools-right">
+                  <text class="points-hint">{{ estimatedCost }} 积分 · 余额 {{ currentPoints }}</text>
+                  <picker :range="llmModelNames" :value="llmModelIdx" @change="onLlmModelChange">
+                    <view class="llm-picker">{{ selectedLlmModel.name || '基础模型' }}</view>
+                  </picker>
+                  <view class="home-ai-send" :class="{ disabled: comprehensiveLoading }" @tap="startComprehensiveAsk">
+                    {{ comprehensiveLoading ? '…' : '↑' }}
+                  </view>
+                </view>
               </view>
             </view>
-
-            <view class="tool-model-row">
-              <view
-                class="tool-model-chip"
-                v-for="tool in toolModels"
-                :key="tool.id"
-                :class="{ active: selectedToolModels.includes(tool.id) }"
-                @tap="toggleToolModel(tool.id)"
-              >{{ tool.name }}</view>
-            </view>
-            <view class="points-hint">预计消耗 {{ estimatedCost }} 积分 · 当前 {{ currentPoints }} 积分 · 六爻/梅花/奇门按提问时间起盘，追问沿用同一盘面</view>
+            <view class="home-ai-subhint">六爻 / 梅花 / 奇门按提问时间起盘，追问沿用同一盘面</view>
 
             <view class="home-ai-chat" v-if="comprehensiveMessages.length">
               <view
@@ -152,6 +150,31 @@
       </view>
     </view>
 
+    <view class="profile-sheet" v-if="toolSheetOpen">
+      <view class="profile-sheet-mask" @tap="toolSheetOpen = false"></view>
+      <view class="profile-sheet-panel tool-sheet-panel">
+        <view class="profile-sheet-head">
+          <text class="profile-sheet-title">选择术数模型</text>
+          <text class="profile-sheet-close" @tap="toolSheetOpen = false">×</text>
+        </view>
+        <view class="tool-options">
+          <view
+            class="tool-option"
+            v-for="tool in toolModels"
+            :key="tool.id"
+            :class="{ active: selectedToolModels.includes(tool.id) }"
+            @tap="toggleToolModel(tool.id)"
+          >
+            <view>
+              <text class="tool-option-name">{{ tool.name }}</text>
+              <text class="tool-option-meta">{{ tool.cost }} 积分 · 可复选</text>
+            </view>
+            <text class="tool-option-check">{{ selectedToolModels.includes(tool.id) ? '✓' : '' }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
   </view>
 </template>
 
@@ -202,15 +225,16 @@ const comprehensiveLoading = ref(false)
 const profiles = ref([])
 const selectedProfile = ref(null)
 const profileSheetOpen = ref(false)
+const toolSheetOpen = ref(false)
 const profileTab = ref('全部')
 const profileTabs = ['全部', '客户', '用户']
-const llmModels = ref([{ id: 'free', name: '免费模型', strength: '基础', cost_base: 0, cost_per_tool: 0, followup_cost: 0 }])
+const llmModels = ref([{ id: 'basic', name: '基础模型', strength: '基础', cost_base: 2, cost_multiplier: 1, followup_cost: 1 }])
 const toolModels = ref([
-  { id: 'bazi', name: '八字', cost: 1 },
-  { id: 'ziwei', name: '紫微斗数', cost: 1 },
-  { id: 'qimen', name: '奇门遁甲', cost: 1 },
-  { id: 'liuyao', name: '六爻', cost: 1 },
-  { id: 'meihua', name: '梅花易数', cost: 1 },
+  { id: 'bazi', name: '八字', cost: 2 },
+  { id: 'ziwei', name: '紫微斗数', cost: 3 },
+  { id: 'qimen', name: '奇门遁甲', cost: 3 },
+  { id: 'liuyao', name: '六爻', cost: 2 },
+  { id: 'meihua', name: '梅花易数', cost: 2 },
 ])
 const llmModelIdx = ref(0)
 const selectedToolModels = ref(['bazi'])
@@ -224,7 +248,18 @@ const selectedLlmModel = computed(() => llmModels.value[llmModelIdx.value] || ll
 const llmModelNames = computed(() => llmModels.value.map(m => m.name + ' · ' + (m.strength || '基础')))
 const estimatedCost = computed(() => {
   if (comprehensiveMessages.value.length > 0) return selectedLlmModel.value.followup_cost || 0
-  return (selectedLlmModel.value.cost_base || 0) + selectedToolModels.value.length * (selectedLlmModel.value.cost_per_tool || 0)
+  const selected = selectedToolModels.value || []
+  const toolsCost = selected.reduce((sum, id) => {
+    const tool = toolModels.value.find(t => t.id === id)
+    return sum + (tool ? Number(tool.cost || 0) : 0)
+  }, 0)
+  return Math.round((selectedLlmModel.value.cost_base || 0) + toolsCost * (selectedLlmModel.value.cost_multiplier || 1))
+})
+const selectedToolSummary = computed(() => {
+  const names = toolModels.value.filter(t => selectedToolModels.value.includes(t.id)).map(t => t.name)
+  if (!names.length) return '选择术数'
+  if (names.length <= 2) return names.join(' + ')
+  return names.slice(0, 2).join(' + ') + ' 等' + names.length + '项'
 })
 const selectedProfileName = computed(() => selectedProfile.value ? selectedProfile.value.name : '')
 const selectedProfileMeta = computed(() => {
@@ -273,6 +308,10 @@ function openProfilePicker() {
   }
   profileSheetOpen.value = true
   loadProfiles()
+}
+
+function openToolPicker() {
+  toolSheetOpen.value = true
 }
 
 function selectProfile(p) {
@@ -345,7 +384,7 @@ async function startComprehensiveAsk() {
       body: JSON.stringify({
         question,
         profile_id: selectedProfile.value.id,
-        llm_model: selectedLlmModel.value.id || 'free',
+        llm_model: selectedLlmModel.value.id || 'basic',
         tool_models: selectedToolModels.value,
         history,
         paipan: currentPaipanContext.value,
@@ -402,7 +441,7 @@ async function restoreComprehensiveConversation(id) {
     currentPaipanContext.value = data.paipan || {}
     selectedToolModels.value = data.models && data.models.length ? data.models : ['bazi']
     comprehensiveMessages.value = data.messages || []
-    const mid = data.model_id || 'free'
+    const mid = data.model_id || 'basic'
     const mi = llmModels.value.findIndex(m => m.id === mid)
     if (mi >= 0) llmModelIdx.value = mi
     const p = data.profile_data || {}
@@ -596,22 +635,21 @@ onMounted(() => {
 
 /* ═══ 首页综合 AI 输入框 ═══ */
 .home-ai-console { max-width: 920px; margin: -20px auto 0; text-align: left; }
-.home-ai-main { display: grid; grid-template-columns: 190px 1fr 132px 78px; gap: 10px; align-items: stretch; padding: 10px; border: 1px solid var(--card-border); border-radius: 18px; background: rgba(255,255,255,0.055); backdrop-filter: blur(28px) saturate(140%); box-shadow: 0 18px 60px rgba(0,0,0,0.20); }
+.home-ai-main { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--card-border); border-radius: 18px; background: rgba(255,255,255,0.055); backdrop-filter: blur(28px) saturate(140%); box-shadow: 0 18px 60px rgba(0,0,0,0.20); }
 [data-theme="light"] .home-ai-main { background: rgba(255,253,248,0.68); box-shadow: 0 12px 36px rgba(60,40,15,0.08); }
-.profile-picker, .llm-picker, .home-ai-send { min-height: 52px; border-radius: 12px; border: 1px solid var(--card-border); background: var(--input-bg); color: var(--text-1); display: flex; align-items: center; justify-content: center; cursor: pointer; box-sizing: border-box; }
-.profile-picker { justify-content: flex-start; gap: 10px; padding: 8px 12px; min-width: 0; }
-.profile-plus { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-glow); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
-.profile-picked { min-width: 0; }
-.profile-name { display: block; font-size: 0.84rem; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-ai-input { width: 100%; min-height: 92px; max-height: 180px; padding: 8px 4px 2px; color: var(--text-1); font-size: 0.94rem; line-height: 1.6; background: transparent; border: none; outline: none; box-sizing: border-box; }
+.home-ai-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 40px; }
+.home-ai-tools-left, .home-ai-tools-right { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.profile-picker, .tool-picker, .llm-picker, .home-ai-send { min-height: 36px; border-radius: 999px; border: 1px solid var(--card-border); background: var(--input-bg); color: var(--text-1); display: flex; align-items: center; justify-content: center; cursor: pointer; box-sizing: border-box; }
+.profile-picker, .tool-picker { justify-content: flex-start; gap: 8px; padding: 0 12px; max-width: 220px; min-width: 0; }
+.profile-plus, .tool-picker-icon { width: 22px; height: 22px; border-radius: 50%; background: var(--accent-glow); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 0.88rem; flex-shrink: 0; }
+.profile-name, .tool-picker text:last-child { display: block; font-size: 0.78rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .profile-meta { display: block; margin-top: 2px; font-size: 0.66rem; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.home-ai-input { width: 100%; min-height: 52px; max-height: 132px; padding: 15px 6px; color: var(--text-1); font-size: 0.92rem; line-height: 1.55; background: transparent; border: none; outline: none; box-sizing: border-box; }
-.llm-picker { padding: 0 12px; font-size: 0.78rem; color: var(--text-2); white-space: nowrap; }
-.home-ai-send { background: var(--accent); border-color: var(--accent); color: #fff; font-size: 0.86rem; font-weight: 600; }
+.llm-picker { padding: 0 12px; font-size: 0.76rem; color: var(--text-2); white-space: nowrap; }
+.home-ai-send { width: 36px; height: 36px; min-height: 36px; background: var(--accent); border-color: var(--accent); color: #fff; font-size: 1.1rem; font-weight: 700; line-height: 1; }
 .home-ai-send.disabled { opacity: 0.55; pointer-events: none; }
-.tool-model-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 10px 0; }
-.tool-model-chip { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--card-border); background: var(--tag-bg); color: var(--text-3); font-size: 0.74rem; cursor: pointer; }
-.tool-model-chip.active { border-color: var(--accent); background: var(--accent-glow); color: var(--accent); }
-.points-hint { margin: 8px 12px 0; color: var(--text-3); font-size: 0.72rem; }
+.points-hint { color: var(--text-3); font-size: 0.72rem; white-space: nowrap; }
+.home-ai-subhint { margin: 8px 12px 0; color: var(--text-3); font-size: 0.72rem; }
 .home-ai-chat { margin-top: 16px; border: 1px solid var(--card-border); border-radius: 16px; background: var(--card-bg); backdrop-filter: blur(18px); padding: 14px; max-height: 420px; overflow-y: auto; }
 .home-ai-message { padding: 12px 14px; border-radius: 12px; margin-bottom: 10px; border: 1px solid var(--card-border); }
 .home-ai-message.user { margin-left: 72px; background: var(--accent-glow); border-color: rgba(178,149,93,0.26); }
@@ -635,6 +673,13 @@ onMounted(() => {
 .profile-option-meta { display: block; margin-top: 4px; color: var(--text-3); font-size: 0.72rem; }
 .profile-option-type { color: var(--accent); font-size: 0.72rem; white-space: nowrap; }
 .profile-empty { padding: 28px; text-align: center; color: var(--text-3); font-size: 0.84rem; }
+.tool-sheet-panel { width: min(520px, calc(100vw - 28px)); }
+.tool-options { display: grid; gap: 8px; }
+.tool-option { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 58px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.035); cursor: pointer; box-sizing: border-box; }
+.tool-option.active { border-color: rgba(178,149,93,0.62); background: var(--accent-glow); }
+.tool-option-name { display: block; color: var(--text-1); font-size: 0.88rem; }
+.tool-option-meta { display: block; margin-top: 4px; color: var(--text-3); font-size: 0.72rem; }
+.tool-option-check { width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--card-border); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 0.86rem; font-weight: 700; flex-shrink: 0; }
 
 /* 滚动提示 */
 .scroll-hint { position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%); text-align: center; color: var(--text-3); font-size: 0.75rem; letter-spacing: 2px; animation: fadeInUp 1s ease 1.5s both; }
@@ -667,8 +712,11 @@ onMounted(() => {
 
 /* ═══ 响应式 ═══ */
 @media (max-width: 1024px) {
-  .home-ai-main { grid-template-columns: 1fr; }
-  .profile-picker, .llm-picker, .home-ai-send { min-height: 46px; }
+  .home-ai-toolbar { align-items: stretch; flex-direction: column; }
+  .home-ai-tools-left, .home-ai-tools-right { width: 100%; }
+  .home-ai-tools-left { display: grid; grid-template-columns: 1fr 1fr; }
+  .home-ai-tools-right { justify-content: flex-end; }
+  .profile-picker, .tool-picker { max-width: none; }
   .footer-grid { grid-template-columns: 1fr; gap: 24px; }
 }
 @media (max-width: 768px) {
@@ -677,6 +725,8 @@ onMounted(() => {
   .hero-brand-name { font-size: 2rem; letter-spacing: 6px; }
   .hero-brand-slogan { font-size: 0.875rem; letter-spacing: 3px; }
   .home-ai-console { margin-top: -8px; }
+  .home-ai-tools-right { flex-wrap: wrap; }
+  .points-hint { width: 100%; text-align: right; }
   .home-ai-message.user, .home-ai-message.assistant { margin-left: 0; margin-right: 0; }
   .section { padding: 48px 16px; }
   .scroll-hint { display: none; }

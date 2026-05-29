@@ -4,24 +4,24 @@ import json
 
 COMPREHENSIVE_LLM_MODELS = [
     {
-        "id": "free",
-        "name": "免费模型",
+        "id": "basic",
+        "name": "基础模型",
         "provider": "deepseek",
         "strength": "基础",
-        "cost_base": 0,
-        "cost_per_tool": 0,
-        "followup_cost": 0,
+        "cost_base": 2,
+        "cost_multiplier": 1,
+        "followup_cost": 1,
         "enabled": True,
     }
 ]
 
 
 COMPREHENSIVE_TOOL_MODELS = [
-    {"id": "bazi", "name": "八字", "cost": 1},
-    {"id": "ziwei", "name": "紫微斗数", "cost": 1},
-    {"id": "qimen", "name": "奇门遁甲", "cost": 1},
-    {"id": "liuyao", "name": "六爻", "cost": 1},
-    {"id": "meihua", "name": "梅花易数", "cost": 1},
+    {"id": "bazi", "name": "八字", "cost": 2},
+    {"id": "ziwei", "name": "紫微斗数", "cost": 3},
+    {"id": "qimen", "name": "奇门遁甲", "cost": 3},
+    {"id": "liuyao", "name": "六爻", "cost": 2},
+    {"id": "meihua", "name": "梅花易数", "cost": 2},
 ]
 
 
@@ -44,8 +44,12 @@ def normalize_tool_models(tool_models):
 def calculate_cost(model_id, tool_models, is_followup=False):
     model = get_llm_model(model_id)
     if is_followup:
-        return int(model.get("followup_cost", 0))
-    return int(model.get("cost_base", 0)) + len(normalize_tool_models(tool_models)) * int(model.get("cost_per_tool", 0))
+        return int(model.get("followup_cost", 1))
+    selected = normalize_tool_models(tool_models)
+    tool_cost_map = {item["id"]: int(item.get("cost", 0)) for item in COMPREHENSIVE_TOOL_MODELS}
+    tools_cost = sum(tool_cost_map.get(item, 0) for item in selected)
+    multiplier = float(model.get("cost_multiplier", 1))
+    return int(round(int(model.get("cost_base", 0)) + tools_cost * multiplier))
 
 
 def build_comprehensive_messages(question, profile, tool_models, paipan_context, history=None):

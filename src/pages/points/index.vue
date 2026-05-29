@@ -95,10 +95,10 @@ export default {
     var toggleTheme = inject('toggleTheme', function() {})
 
     var packages = [
-      { id: 'starter',  name: '体验包',  points: 50,   price: 9.9 },
-      { id: 'standard', name: '标准包',  points: 200,  price: 29.9 },
-      { id: 'premium',  name: '畅享包',  points: 500,  price: 68 },
-      { id: 'vip',      name: '尊享包',  points: 2000, price: 198 },
+      { id: 'starter',  name: '体验包',  points: 60,   price: 9.9 },
+      { id: 'standard', name: '标准包',  points: 240,  price: 29.9 },
+      { id: 'premium',  name: '畅享包',  points: 650,  price: 68 },
+      { id: 'vip',      name: '尊享包',  points: 2200, price: 198 },
     ]
 
     var dpFilter = 'all'
