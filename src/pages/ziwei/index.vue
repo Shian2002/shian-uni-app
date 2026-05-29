@@ -798,7 +798,7 @@ function renderZiweiPan(d) {
   html += zwPalaceCell(palaces[5])
   html += zwPalaceCell(palaces[6])
   html += zwPalaceCell(palaces[2])
-  html += '<div class="zw-center-info"><div class="zw-center-title">紫微斗数命盘</div><div class="zw-center-wuxing">' + (cp.five_elements_class || '') + '</div><div class="zw-center-soul">命主: ' + (cp.soul_star || '') + '</div><div class="zw-center-soul">身主: ' + (cp.body_star || '') + '</div><div class="zw-center-date">' + (bi.solar_date || '') + ' ' + (bi.shichen || '') + '</div></div>'
+  html += '<div class="zw-center-info"><div class="zw-center-title">紫微斗数命盘</div><div class="zw-center-wuxing">' + (bi.five_elements_class || '') + '</div><div class="zw-center-soul">命主: ' + (cp.soul_star || '') + '</div><div class="zw-center-soul">身主: ' + (cp.body_star || '') + '</div><div class="zw-center-date">' + (bi.solar_date || '') + ' ' + (bi.shichen || '') + '</div></div>'
   html += zwPalaceCell(palaces[7])
   html += zwPalaceCell(palaces[1])
   html += zwPalaceCell(palaces[8])
@@ -869,7 +869,7 @@ function renderZiweiHoroscopeWithPan(d) {
     html += zwBasicItem('时辰', (bi.shichen || '') + ' ' + (bi.shichen_range || ''))
     html += zwBasicItem('生肖', bi.zodiac)
     html += zwBasicItem('星座', bi.sign)
-    html += zwBasicItem('五行局', cp.five_elements_class)
+    html += zwBasicItem('五行局', bi.five_elements_class)
     html += zwBasicItem('命主', cp.soul_star)
     html += zwBasicItem('身主', cp.body_star)
     html += '</div></div>'
@@ -880,7 +880,7 @@ function renderZiweiHoroscopeWithPan(d) {
     html += zwPalaceCell(palaces[5])
     html += zwPalaceCell(palaces[6])
     html += zwPalaceCell(palaces[2])
-    html += '<div class="zw-center-info"><div class="zw-center-title">紫微斗数命盘</div><div class="zw-center-wuxing">' + (cp.five_elements_class || '') + '</div><div class="zw-center-soul">命主: ' + (cp.soul_star || '') + '</div><div class="zw-center-soul">身主: ' + (cp.body_star || '') + '</div><div class="zw-center-date">' + (bi.solar_date || '') + ' ' + (bi.shichen || '') + '</div></div>'
+    html += '<div class="zw-center-info"><div class="zw-center-title">紫微斗数命盘</div><div class="zw-center-wuxing">' + (bi.five_elements_class || '') + '</div><div class="zw-center-soul">命主: ' + (cp.soul_star || '') + '</div><div class="zw-center-soul">身主: ' + (cp.body_star || '') + '</div><div class="zw-center-date">' + (bi.solar_date || '') + ' ' + (bi.shichen || '') + '</div></div>'
     html += zwPalaceCell(palaces[7])
     html += zwPalaceCell(palaces[1])
     html += zwPalaceCell(palaces[8])
@@ -899,7 +899,7 @@ function renderZiweiHoroscopeWithPan(d) {
     html += zwBasicItem('时辰', (bi.shichen || '') + ' ' + (bi.shichen_range || ''))
     html += zwBasicItem('生肖', bi.zodiac)
     html += zwBasicItem('星座', bi.sign)
-    html += zwBasicItem('五行局', cp.five_elements_class)
+    html += zwBasicItem('五行局', bi.five_elements_class)
     html += zwBasicItem('命主', cp.soul_star)
     html += zwBasicItem('身主', cp.body_star)
     html += '</div></div>'
@@ -910,7 +910,7 @@ function renderZiweiHoroscopeWithPan(d) {
     html += zwPalaceCell(palaces[5])
     html += zwPalaceCell(palaces[6])
     html += zwPalaceCell(palaces[2])
-    html += '<div class="zw-center-info"><div class="zw-center-title">紫微斗数命盘</div><div class="zw-center-wuxing">' + (cp.five_elements_class || '') + '</div><div class="zw-center-soul">命主: ' + (cp.soul_star || '') + '</div><div class="zw-center-soul">身主: ' + (cp.body_star || '') + '</div><div class="zw-center-date">' + (bi.solar_date || '') + ' ' + (bi.shichen || '') + '</div></div>'
+    html += '<div class="zw-center-info"><div class="zw-center-title">紫微斗数命盘</div><div class="zw-center-wuxing">' + (bi.five_elements_class || '') + '</div><div class="zw-center-soul">命主: ' + (cp.soul_star || '') + '</div><div class="zw-center-soul">身主: ' + (cp.body_star || '') + '</div><div class="zw-center-date">' + (bi.solar_date || '') + ' ' + (bi.shichen || '') + '</div></div>'
     html += zwPalaceCell(palaces[7])
     html += zwPalaceCell(palaces[1])
     html += zwPalaceCell(palaces[8])
@@ -1043,6 +1043,54 @@ onMounted(function() {
 .zw-period-range { font-size: 0.75rem; color: var(--text-4); margin-top: 2px; }
 .zw-period-mutagen { font-size: 0.75rem; color: var(--text-3); margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
 
+/* v-html 插入的命盘节点不会带页面 scope 属性，必须用 deep 才能保留卡片样式 */
+.zw-result :deep(.zw-result-wrap) { margin-top: 24px; }
+.zw-result :deep(.zw-basic-card) { background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+.zw-result :deep(.zw-basic-grid) { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.zw-result :deep(.zw-basic-item) { display: flex; flex-direction: column; gap: 2px; }
+.zw-result :deep(.zw-basic-label) { font-size: 0.75rem; color: var(--text-4); letter-spacing: 1px; }
+.zw-result :deep(.zw-basic-value) { font-size: 0.9375rem; font-weight: 600; color: var(--accent); }
+.zw-result :deep(.zw-palace-grid) { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 20px; }
+.zw-result :deep(.zw-palace-cell) { background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; min-height: 110px; position: relative; transition: all 0.2s; cursor: default; }
+.zw-result :deep(.zw-palace-cell:hover) { border-color: var(--accent); box-shadow: 0 0 20px rgba(212,168,71,0.08); }
+.zw-result :deep(.zw-palace-cell.is-soul) { border-color: var(--accent); box-shadow: 0 0 16px rgba(212,168,71,0.12); }
+.zw-result :deep(.zw-palace-cell.is-body) { border-color: var(--danger); }
+.zw-result :deep(.zw-palace-header) { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.zw-result :deep(.zw-palace-name) { font-size: 0.875rem; font-weight: 700; color: var(--accent); }
+.zw-result :deep(.zw-palace-ganzhi) { font-size: 0.6875rem; color: var(--text-4); }
+.zw-result :deep(.zw-palace-badge) { font-size: 0.5625rem; padding: 1px 5px; border-radius: 3px; position: absolute; top: 5px; right: 5px; }
+.zw-result :deep(.zw-badge-soul) { background: rgba(212,168,71,0.15); color: var(--accent); }
+.zw-result :deep(.zw-badge-body) { background: rgba(231,76,60,0.12); color: var(--danger); }
+.zw-result :deep(.zw-palace-stars) { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 3px; }
+.zw-result :deep(.zw-star-major) { display: inline-block; padding: 2px 7px; background: rgba(212,168,71,0.1); color: var(--accent); border-radius: 4px; font-size: 0.8125rem; font-weight: 600; }
+.zw-result :deep(.zw-star-minor) { display: inline-block; padding: 1px 6px; background: rgba(41,128,185,0.08); color: #5dade2; border-radius: 4px; font-size: 0.75rem; }
+.zw-result :deep(.zw-star-adj) { display: inline-block; padding: 1px 4px; color: #7dcea0; font-size: 0.6875rem; }
+.zw-result :deep(.zw-mutagen) { font-size: 0.625rem; padding: 1px 4px; border-radius: 3px; margin-left: 2px; font-weight: 600; }
+.zw-result :deep(.zw-mutagen-lu) { background: rgba(39,174,96,0.15); color: #27ae60; }
+.zw-result :deep(.zw-mutagen-quan) { background: rgba(231,76,60,0.12); color: #e74c3c; }
+.zw-result :deep(.zw-mutagen-ke) { background: rgba(52,152,219,0.12); color: #3498db; }
+.zw-result :deep(.zw-mutagen-ji) { background: rgba(142,68,173,0.12); color: #8e44ad; }
+.zw-result :deep(.zw-palace-decadal) { margin-top: 6px; font-size: 0.6875rem; color: var(--text-4); border-top: 1px solid var(--border); padding-top: 4px; }
+.zw-result :deep(.zw-center-info) { grid-column: 2 / 4; grid-row: 2 / 4; background: var(--bg-2); border: 2px solid var(--accent); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.zw-result :deep(.zw-center-title) { font-size: 1.125rem; color: var(--accent); font-weight: 700; letter-spacing: 3px; margin-bottom: 8px; }
+.zw-result :deep(.zw-center-wuxing) { font-size: 1rem; color: #c39bd3; font-weight: 600; margin-bottom: 6px; }
+.zw-result :deep(.zw-center-soul) { font-size: 0.8125rem; color: var(--text-3); margin: 2px 0; }
+.zw-result :deep(.zw-center-date) { font-size: 0.75rem; color: var(--text-4); margin-top: 6px; }
+.zw-result :deep(.zw-decadal-card) { background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+.zw-result :deep(.zw-decadal-title) { font-size: 0.9375rem; font-weight: 600; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+.zw-result :deep(.zw-decadal-table) { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+.zw-result :deep(.zw-decadal-table th), .zw-result :deep(.zw-decadal-table td) { padding: 8px 10px; text-align: center; border-bottom: 1px solid var(--border); }
+.zw-result :deep(.zw-decadal-table th) { color: var(--text-4); font-weight: 500; font-size: 0.75rem; letter-spacing: 1px; }
+.zw-result :deep(.zw-decadal-table td) { color: var(--text-2); }
+.zw-result :deep(.zw-horoscope-title) { font-size: 0.9375rem; font-weight: 600; color: #c39bd3; margin-bottom: 16px; }
+.zw-result :deep(.zw-period-grid) { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.zw-result :deep(.zw-period-card) { background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; transition: all 0.2s; }
+.zw-result :deep(.zw-period-card:hover) { border-color: #c39bd3; box-shadow: 0 0 12px rgba(155,89,182,0.08); }
+.zw-result :deep(.zw-period-name) { font-weight: 600; color: var(--accent); margin-bottom: 4px; font-size: 0.875rem; }
+.zw-result :deep(.zw-period-ganzhi) { font-size: 0.875rem; color: #c39bd3; }
+.zw-result :deep(.zw-period-range) { font-size: 0.75rem; color: var(--text-4); margin-top: 2px; }
+.zw-result :deep(.zw-period-mutagen) { font-size: 0.75rem; color: var(--text-3); margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
+
 .qai-stream-box { margin-top: 20px; padding: 16px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; }
 .qai-card-item { background: var(--section-alt); border: 1px solid var(--card-border); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
 .qai-card-title { font-size: 0.9rem; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
@@ -1085,19 +1133,33 @@ onMounted(function() {
   .tool-tabs { overflow-x: auto; gap: 2px; }
   .tool-tab { padding: 10px 14px; font-size: 0.8125rem; white-space: nowrap; }
   .zw-result-wrap { overflow-x: hidden; }
+  .zw-result :deep(.zw-result-wrap) { overflow-x: hidden; }
   .zw-palace-grid { grid-template-columns: repeat(4, 1fr); gap: 3px; }
+  .zw-result :deep(.zw-palace-grid) { grid-template-columns: repeat(4, 1fr); gap: 3px; }
   .zw-palace-cell { min-height: 70px; padding: 5px; }
+  .zw-result :deep(.zw-palace-cell) { min-height: 70px; padding: 5px; }
   .zw-star-major { font-size: 0.625rem; padding: 1px 3px; }
+  .zw-result :deep(.zw-star-major) { font-size: 0.625rem; padding: 1px 3px; }
   .zw-star-minor { font-size: 0.5625rem; padding: 1px 3px; }
+  .zw-result :deep(.zw-star-minor) { font-size: 0.5625rem; padding: 1px 3px; }
   .zw-star-adj { font-size: 0.5rem; }
+  .zw-result :deep(.zw-star-adj) { font-size: 0.5rem; }
   .zw-palace-name { font-size: 0.7rem; }
+  .zw-result :deep(.zw-palace-name) { font-size: 0.7rem; }
   .zw-palace-ganzhi { font-size: 0.5rem; }
+  .zw-result :deep(.zw-palace-ganzhi) { font-size: 0.5rem; }
   .zw-center-info { padding: 8px; }
+  .zw-result :deep(.zw-center-info) { padding: 8px; }
   .zw-center-title { font-size: 0.875rem; letter-spacing: 2px; }
+  .zw-result :deep(.zw-center-title) { font-size: 0.875rem; letter-spacing: 2px; }
   .zw-center-wuxing { font-size: 0.75rem; }
+  .zw-result :deep(.zw-center-wuxing) { font-size: 0.75rem; }
   .zw-center-soul { font-size: 0.625rem; }
+  .zw-result :deep(.zw-center-soul) { font-size: 0.625rem; }
   .zw-center-date { font-size: 0.5625rem; }
+  .zw-result :deep(.zw-center-date) { font-size: 0.5625rem; }
   .zw-period-grid { grid-template-columns: 1fr 1fr; }
+  .zw-result :deep(.zw-period-grid) { grid-template-columns: 1fr 1fr; }
   .zw-form-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
   .zw-birth-time-group { padding: 10px; }
   .zw-birth-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
@@ -1109,7 +1171,10 @@ onMounted(function() {
   .qf-dt-col-narrow { flex: 0 0 55px; }
   .qf-datetime-select { padding: 8px 10px; font-size: 0.8125rem; }
   .zw-palace-decadal { font-size: 0.5rem; padding-top: 2px; }
+  .zw-result :deep(.zw-palace-decadal) { font-size: 0.5rem; padding-top: 2px; }
   .zw-palace-badge { font-size: 0.4375rem; padding: 1px 2px; }
+  .zw-result :deep(.zw-palace-badge) { font-size: 0.4375rem; padding: 1px 2px; }
   .zw-mutagen { font-size: 0.5rem; padding: 1px 2px; }
+  .zw-result :deep(.zw-mutagen) { font-size: 0.5rem; padding: 1px 2px; }
 }
 </style>
