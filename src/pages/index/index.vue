@@ -291,6 +291,7 @@ function goToPage(url) {
 function profileTypeLabel(type) {
   if (type === 'customer') return '客户'
   if (type === 'collect') return '收藏'
+  if (type === 'bazi_record') return '八字记录'
   return '用户'
 }
 
@@ -345,14 +346,51 @@ async function loadComprehensiveOptions() {
 async function loadProfiles() {
   if (!isLoggedIn.value) return
   try {
-    const res = await uni.request({ url: '/api/profiles?sort=last_used' })
-    const data = res.data || {}
-    profiles.value = data.profiles || []
+    const results = await Promise.all([
+      uni.request({ url: '/api/profiles?sort=last_used' }).catch(function() { return { data: {} } }),
+      uni.request({ url: '/api/bazi/history' }).catch(function() { return { data: {} } }),
+    ])
+    const profileData = results[0].data || {}
+    const baziData = results[1].data || {}
+    const profileList = (profileData.profiles || []).map(function(p) {
+      return Object.assign({ source: 'profile' }, p)
+    })
+    const baziList = (baziData.history || [])
+      .filter(function(r) { return r && r.type !== 'hepan' && r.birth_time })
+      .map(function(r) {
+        return {
+          id: 'bazi-' + r.id,
+          source: 'bazi_record',
+          recordId: r.id,
+          name: r.name || '八字记录',
+          gender: r.gender || '男',
+          calType: r.cal_type || '公历',
+          birthTime: r.birth_time || '',
+          birthAddr: r.birth_addr || '',
+          profileType: 'bazi_record',
+          createdAt: r.created_at,
+          pillars: r.pillars || '',
+        }
+      })
+    profiles.value = profileList.concat(baziList)
     if (!selectedProfile.value && profiles.value.length) {
-      selectedProfile.value = profiles.value.find(p => p.isDefault) || profiles.value[0]
+      selectedProfile.value = profiles.value.find(p => p.source === 'profile' && p.isDefault) || profiles.value[0]
     }
   } catch (_) {
     profiles.value = []
+  }
+}
+
+function comprehensiveProfilePayload(p) {
+  return {
+    name: p.name || '未命名',
+    gender: p.gender || '男',
+    cal_type: p.cal_type || p.calType || '公历',
+    birth_time: p.birth_time || p.birthTime || '',
+    birth_addr: p.birth_addr || p.birthAddr || '',
+    profile_type: p.profile_type || p.profileType || 'self',
+    source: p.source || 'profile',
+    record_id: p.recordId || null,
   }
 }
 
@@ -378,18 +416,20 @@ async function startComprehensiveAsk() {
   comprehensiveMessages.value.push(aiMsg)
 
   try {
+    const requestBody = {
+      question,
+      profile_id: selectedProfile.value.source === 'profile' ? selectedProfile.value.id : undefined,
+      profile: comprehensiveProfilePayload(selectedProfile.value),
+      llm_model: selectedLlmModel.value.id || 'basic',
+      tool_models: selectedToolModels.value,
+      history,
+      paipan: currentPaipanContext.value,
+      conversation_id: currentComprehensiveConvId.value,
+    }
     const resp = await fetch('/api/comprehensive/ask/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        question,
-        profile_id: selectedProfile.value.id,
-        llm_model: selectedLlmModel.value.id || 'basic',
-        tool_models: selectedToolModels.value,
-        history,
-        paipan: currentPaipanContext.value,
-        conversation_id: currentComprehensiveConvId.value,
-      })
+      body: JSON.stringify(requestBody)
     })
     if (!resp.ok || !resp.body) throw new Error('连接失败')
     const reader = resp.body.getReader()
