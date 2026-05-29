@@ -21,25 +21,35 @@
           <!-- 排盘面板 -->
           <view class="tool-tab-content" v-show="activeTab === 'pan'">
             <view class="zw-form-grid">
-              <view class="form-group">
-                <text class="form-label">出生年</text>
-                <input type="number" class="form-input" v-model="zwForm.year" placeholder="yyyy">
-              </view>
-              <view class="form-group">
-                <text class="form-label">出生月</text>
-                <input type="number" class="form-input" v-model="zwForm.month" placeholder="1-12">
-              </view>
-              <view class="form-group">
-                <text class="form-label">出生日</text>
-                <input type="number" class="form-input" v-model="zwForm.day" placeholder="1-31">
-              </view>
-              <view class="form-group">
-                <text class="form-label">出生时(0-23)</text>
-                <input type="number" class="form-input" v-model="zwForm.hour" placeholder="0-23">
-              </view>
-              <view class="form-group">
-                <text class="form-label">出生分(可选)</text>
-                <input type="number" class="form-input" v-model="zwForm.minute" placeholder="0-59">
+              <view class="form-group zw-birth-time-group">
+                <text class="form-label">出生时间</text>
+                <view class="zw-birth-row">
+                  <view class="zw-birth-col zw-birth-col-year">
+                    <picker :range="birthYearOptions" :value="birthYearIndex(zwForm)" @change="setBirthPart(zwForm, 'year', $event)">
+                      <view class="zw-birth-select">{{ zwForm.year }}年</view>
+                    </picker>
+                  </view>
+                  <view class="zw-birth-col">
+                    <picker :range="birthMonthOptions" :value="birthMonthIndex(zwForm)" @change="setBirthPart(zwForm, 'month', $event)">
+                      <view class="zw-birth-select">{{ zwForm.month }}月</view>
+                    </picker>
+                  </view>
+                  <view class="zw-birth-col">
+                    <picker :range="birthDayOptions(zwForm)" :value="birthDayIndex(zwForm)" @change="setBirthPart(zwForm, 'day', $event)">
+                      <view class="zw-birth-select">{{ zwForm.day }}日</view>
+                    </picker>
+                  </view>
+                  <view class="zw-birth-col">
+                    <picker :range="birthHourOptions" :value="birthHourIndex(zwForm)" @change="setBirthPart(zwForm, 'hour', $event)">
+                      <view class="zw-birth-select">{{ pad2(zwForm.hour) }}时</view>
+                    </picker>
+                  </view>
+                  <view class="zw-birth-col zw-birth-col-minute">
+                    <picker :range="birthMinuteOptions" :value="birthMinuteIndex(zwForm)" @change="setBirthPart(zwForm, 'minute', $event)">
+                      <view class="zw-birth-select">{{ pad2(zwForm.minute) }}分</view>
+                    </picker>
+                  </view>
+                </view>
               </view>
               <view class="form-group">
                 <text class="form-label">性别</text>
@@ -61,25 +71,35 @@
           <!-- AI解读面板 -->
           <view class="tool-tab-content" v-show="activeTab === 'ai'">
             <view class="zw-form-grid">
-              <view class="form-group">
-                <text class="form-label">出生年</text>
-                <input type="number" class="form-input" v-model="zwAiForm.year" placeholder="yyyy">
-              </view>
-              <view class="form-group">
-                <text class="form-label">出生月</text>
-                <input type="number" class="form-input" v-model="zwAiForm.month" placeholder="1-12">
-              </view>
-              <view class="form-group">
-                <text class="form-label">出生日</text>
-                <input type="number" class="form-input" v-model="zwAiForm.day" placeholder="1-31">
-              </view>
-              <view class="form-group">
-                <text class="form-label">出生时(0-23)</text>
-                <input type="number" class="form-input" v-model="zwAiForm.hour" placeholder="0-23">
-              </view>
-              <view class="form-group">
-                <text class="form-label">出生分(可选)</text>
-                <input type="number" class="form-input" v-model="zwAiForm.minute" placeholder="0-59">
+              <view class="form-group zw-birth-time-group">
+                <text class="form-label">出生时间</text>
+                <view class="zw-birth-row">
+                  <view class="zw-birth-col zw-birth-col-year">
+                    <picker :range="birthYearOptions" :value="birthYearIndex(zwAiForm)" @change="setBirthPart(zwAiForm, 'year', $event)">
+                      <view class="zw-birth-select">{{ zwAiForm.year }}年</view>
+                    </picker>
+                  </view>
+                  <view class="zw-birth-col">
+                    <picker :range="birthMonthOptions" :value="birthMonthIndex(zwAiForm)" @change="setBirthPart(zwAiForm, 'month', $event)">
+                      <view class="zw-birth-select">{{ zwAiForm.month }}月</view>
+                    </picker>
+                  </view>
+                  <view class="zw-birth-col">
+                    <picker :range="birthDayOptions(zwAiForm)" :value="birthDayIndex(zwAiForm)" @change="setBirthPart(zwAiForm, 'day', $event)">
+                      <view class="zw-birth-select">{{ zwAiForm.day }}日</view>
+                    </picker>
+                  </view>
+                  <view class="zw-birth-col">
+                    <picker :range="birthHourOptions" :value="birthHourIndex(zwAiForm)" @change="setBirthPart(zwAiForm, 'hour', $event)">
+                      <view class="zw-birth-select">{{ pad2(zwAiForm.hour) }}时</view>
+                    </picker>
+                  </view>
+                  <view class="zw-birth-col zw-birth-col-minute">
+                    <picker :range="birthMinuteOptions" :value="birthMinuteIndex(zwAiForm)" @change="setBirthPart(zwAiForm, 'minute', $event)">
+                      <view class="zw-birth-select">{{ pad2(zwAiForm.minute) }}分</view>
+                    </picker>
+                  </view>
+                </view>
               </view>
               <view class="form-group">
                 <text class="form-label">性别</text>
@@ -119,21 +139,30 @@
           <!-- 推运面板 -->
           <view class="tool-tab-content" v-show="activeTab === 'horoscope'">
             <view class="zw-form-grid">
-              <view class="form-group">
-                <text class="form-label">出生年</text>
-                <input type="number" class="form-input" v-model="zwHoroForm.year" placeholder="yyyy">
-              </view>
-              <view class="form-group">
-                <text class="form-label">出生月</text>
-                <input type="number" class="form-input" v-model="zwHoroForm.month" placeholder="1-12">
-              </view>
-              <view class="form-group">
-                <text class="form-label">出生日</text>
-                <input type="number" class="form-input" v-model="zwHoroForm.day" placeholder="1-31">
-              </view>
-              <view class="form-group">
-                <text class="form-label">出生时(0-23)</text>
-                <input type="number" class="form-input" v-model="zwHoroForm.hour" placeholder="0-23">
+              <view class="form-group zw-birth-time-group">
+                <text class="form-label">出生时间</text>
+                <view class="zw-birth-row zw-birth-row-compact">
+                  <view class="zw-birth-col zw-birth-col-year">
+                    <picker :range="birthYearOptions" :value="birthYearIndex(zwHoroForm)" @change="setBirthPart(zwHoroForm, 'year', $event)">
+                      <view class="zw-birth-select">{{ zwHoroForm.year }}年</view>
+                    </picker>
+                  </view>
+                  <view class="zw-birth-col">
+                    <picker :range="birthMonthOptions" :value="birthMonthIndex(zwHoroForm)" @change="setBirthPart(zwHoroForm, 'month', $event)">
+                      <view class="zw-birth-select">{{ zwHoroForm.month }}月</view>
+                    </picker>
+                  </view>
+                  <view class="zw-birth-col">
+                    <picker :range="birthDayOptions(zwHoroForm)" :value="birthDayIndex(zwHoroForm)" @change="setBirthPart(zwHoroForm, 'day', $event)">
+                      <view class="zw-birth-select">{{ zwHoroForm.day }}日</view>
+                    </picker>
+                  </view>
+                  <view class="zw-birth-col">
+                    <picker :range="birthHourOptions" :value="birthHourIndex(zwHoroForm)" @change="setBirthPart(zwHoroForm, 'hour', $event)">
+                      <view class="zw-birth-select">{{ pad2(zwHoroForm.hour) }}时</view>
+                    </picker>
+                  </view>
+                </view>
               </view>
               <view class="form-group">
                 <text class="form-label">性别</text>
@@ -242,6 +271,63 @@ const zwHoroForm = reactive({
   genderIdx: 0, dateTypeIdx: 0
 })
 
+const birthYearOptions = ref([])
+const birthMonthOptions = Array.from({ length: 12 }, (_, i) => (i + 1) + '月')
+const birthHourOptions = Array.from({ length: 24 }, (_, i) => pad2(i) + '时')
+const birthMinuteOptions = Array.from({ length: 60 }, (_, i) => pad2(i) + '分')
+
+function pad2(v) {
+  return String(parseInt(v) || 0).padStart(2, '0')
+}
+
+function clampNumber(v, min, max) {
+  const n = parseInt(v)
+  if (isNaN(n)) return min
+  return Math.min(max, Math.max(min, n))
+}
+
+function daysInBirthMonth(form) {
+  const y = clampNumber(form.year, 1920, new Date().getFullYear() + 3)
+  const m = clampNumber(form.month, 1, 12)
+  return new Date(y, m, 0).getDate()
+}
+
+function birthDayOptions(form) {
+  return Array.from({ length: daysInBirthMonth(form) }, (_, i) => (i + 1) + '日')
+}
+
+function birthYearIndex(form) {
+  return Math.max(0, birthYearOptions.value.indexOf((parseInt(form.year) || 2000) + '年'))
+}
+
+function birthMonthIndex(form) {
+  return clampNumber(form.month, 1, 12) - 1
+}
+
+function birthDayIndex(form) {
+  return clampNumber(form.day, 1, daysInBirthMonth(form)) - 1
+}
+
+function birthHourIndex(form) {
+  return clampNumber(form.hour, 0, 23)
+}
+
+function birthMinuteIndex(form) {
+  return clampNumber(form.minute, 0, 59)
+}
+
+function setBirthPart(form, part, e) {
+  const idx = parseInt(e.detail.value) || 0
+  if (part === 'year') form.year = parseInt(birthYearOptions.value[idx]) || form.year
+  if (part === 'month') form.month = idx + 1
+  if (part === 'day') form.day = idx + 1
+  if (part === 'hour') form.hour = idx
+  if (part === 'minute') form.minute = idx
+  if (part === 'year' || part === 'month') {
+    form.day = clampNumber(form.day, 1, daysInBirthMonth(form))
+  }
+}
+
 // 推运日期选择器相关
 const zwTargetYearIdx = ref(0)
 const zwTargetMonthIdx = ref(0)
@@ -265,6 +351,9 @@ const zwTargetMinuteDisplay = computed(() => zwMinuteOptions.value[zwTargetMinut
 function initDatePickers() {
   const now = new Date()
   const curYear = now.getFullYear()
+  
+  birthYearOptions.value = []
+  for (let y = curYear + 3; y >= 1920; y--) birthYearOptions.value.push(y + '年')
   
   zwYearOptions.value = []
   for (let y = curYear + 3; y >= 1920; y--) zwYearOptions.value.push(y + '年')
@@ -886,6 +975,12 @@ onMounted(function() {
 .btn-ghost { background: transparent; border: 1px solid var(--card-border); color: var(--text-3); padding: 7px 18px; border-radius: 10px; font-size: 0.8125rem; }
 .privacy-note { margin-top: 12px; padding: 10px 14px; border-radius: 10px; background: rgba(110,195,135,0.08); border: 1px solid rgba(110,195,135,0.15); font-size: 0.75rem; color: var(--success); text-align: center; }
 .zw-form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.zw-birth-time-group { grid-column: 1 / -1; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--card-border); background: var(--section-alt); margin-bottom: 4px; }
+.zw-birth-row { display: grid; grid-template-columns: minmax(104px, 1.25fr) repeat(4, minmax(64px, 1fr)); gap: 8px; align-items: center; }
+.zw-birth-row-compact { grid-template-columns: minmax(104px, 1.25fr) repeat(3, minmax(64px, 1fr)); }
+.zw-birth-col { min-width: 0; }
+.zw-birth-select { width: 100%; min-height: 40px; padding: 9px 22px 9px 10px; border: 1.5px solid var(--card-border); border-radius: 8px; background-color: var(--card-bg); color: var(--text-1); font-size: 0.85rem; font-weight: 600; line-height: 20px; text-align: center; box-sizing: border-box; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M5 7L1 3h8z' fill='%23999'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; transition: border-color 0.18s, background-color 0.18s, box-shadow 0.18s; }
+.zw-birth-select:hover { border-color: var(--accent); background-color: var(--input-bg); }
 .zw-result { margin-top: 16px; }
 .zw-result-card { background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid var(--card-border); }
 .zw-result-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 10px; color: var(--accent); letter-spacing: 2px; }
@@ -968,6 +1063,11 @@ onMounted(function() {
   .tool-hero-title { font-size: 1.5rem; }
   .tool-container { padding: 20px 16px; }
   .zw-form-grid { grid-template-columns: 1fr 1fr; }
+  .zw-birth-time-group { padding: 12px; }
+  .zw-birth-row,
+  .zw-birth-row-compact { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .zw-birth-col-year { grid-column: span 1; }
+  .zw-birth-col-minute { grid-column: span 1; }
   .zw-basic-grid { grid-template-columns: 1fr 1fr; }
   .zw-palace-grid { grid-template-columns: repeat(4, 1fr); }
   .zw-center-info { grid-column: 2 / 4; grid-row: 2 / 4; }
@@ -994,6 +1094,11 @@ onMounted(function() {
   .zw-center-date { font-size: 0.5625rem; }
   .zw-period-grid { grid-template-columns: 1fr 1fr; }
   .zw-form-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .zw-birth-time-group { padding: 10px; }
+  .zw-birth-row,
+  .zw-birth-row-compact { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .zw-birth-col-year { grid-column: span 2; }
+  .zw-birth-select { min-height: 38px; padding: 8px 20px 8px 8px; font-size: 0.8125rem; }
   .zw-basic-grid { grid-template-columns: 1fr 1fr; }
   .qf-datetime-row { gap: 4px; }
   .qf-dt-col { min-width: 50px; }
