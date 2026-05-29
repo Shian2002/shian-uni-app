@@ -19,6 +19,9 @@ COMPREHENSIVE_LLM_MODELS = [
 COMPREHENSIVE_TOOL_MODELS = [
     {"id": "bazi", "name": "八字", "cost": 1},
     {"id": "ziwei", "name": "紫微斗数", "cost": 1},
+    {"id": "qimen", "name": "奇门遁甲", "cost": 1},
+    {"id": "liuyao", "name": "六爻", "cost": 1},
+    {"id": "meihua", "name": "梅花易数", "cost": 1},
 ]
 
 
@@ -41,8 +44,8 @@ def normalize_tool_models(tool_models):
 def calculate_cost(model_id, tool_models, is_followup=False):
     model = get_llm_model(model_id)
     if is_followup:
-        return int(model.get("followup_cost", 1))
-    return int(model.get("cost_base", 2)) + len(normalize_tool_models(tool_models)) * int(model.get("cost_per_tool", 1))
+        return int(model.get("followup_cost", 0))
+    return int(model.get("cost_base", 0)) + len(normalize_tool_models(tool_models)) * int(model.get("cost_per_tool", 0))
 
 
 def build_comprehensive_messages(question, profile, tool_models, paipan_context, history=None):

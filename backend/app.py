@@ -3946,7 +3946,126 @@ def build_ziwei_context_from_profile(profile):
     }
 
 
-def build_comprehensive_paipan_context(profile, tool_models):
+def _compress_qimen_value(value):
+    if isinstance(value, list):
+        return '、'.join([str(item) for item in value if item])
+    return value
+
+
+def build_qimen_context_from_question(question=''):
+    now = datetime.now()
+    result = _qimen_paipan(now.year, now.month, now.day, now.hour, now.minute, 1)
+    if result.get('error'):
+        return {'error': result.get('error')}
+    palaces = []
+    for palace in result.get('palaces') or []:
+        markers = []
+        if palace.get('isKong'):
+            markers.append('空亡')
+        if palace.get('isMa'):
+            markers.append('驿马')
+        if palace.get('isJiXing'):
+            markers.append('天盘击刑')
+        if palace.get('isDiJiXing'):
+            markers.append('地盘击刑')
+        if palace.get('isRuMu'):
+            markers.append('天盘入墓')
+        if palace.get('isDiRuMu'):
+            markers.append('地盘入墓')
+        if palace.get('isMenPo'):
+            markers.append('门迫')
+        palaces.append({
+            'gong': palace.get('gong'),
+            'name': palace.get('name'),
+            'bagua': palace.get('bagua'),
+            'tian_gan': _compress_qimen_value(palace.get('tianGan')),
+            'di_gan': _compress_qimen_value(palace.get('diGan')),
+            'yin_gan': _compress_qimen_value(palace.get('yinGan')),
+            'men': _compress_qimen_value(palace.get('menFull') or palace.get('men')),
+            'xing': _compress_qimen_value(palace.get('xingFull') or palace.get('xing')),
+            'shen': _compress_qimen_value(palace.get('shenFull') or palace.get('shen')),
+            'tian_changsheng': palace.get('tianCs'),
+            'di_changsheng': palace.get('diCs'),
+            'markers': markers,
+        })
+    return {
+        'question': question or '',
+        'solar_date': result.get('solarDate'),
+        'four_pillars': result.get('fourPillars'),
+        'ju': result.get('ju'),
+        'solar_term': result.get('solarTerm'),
+        'xun_shou': result.get('xunShou'),
+        'xun_kong': result.get('xunKong'),
+        'zhi_fu': result.get('zhiFu'),
+        'zhi_shi': result.get('zhiShi'),
+        'zhi_fu_star': result.get('zhiFuStar'),
+        'zhi_shi_men': result.get('zhiShiMen'),
+        'tian_yi': result.get('tianYi'),
+        'pan_type': result.get('panType'),
+        'palaces': palaces,
+    }
+
+
+def build_liuyao_context_from_question(question=''):
+    result = _liuyao_paipan(mode='auto', question=question or '')
+    if result.get('error'):
+        return {'error': result.get('error')}
+
+    def _compress_yao(items):
+        compressed = []
+        for item in items or []:
+            compressed.append({
+                'position': item.get('position'),
+                'name': item.get('name'),
+                'yao_type': item.get('yao_type'),
+                'is_yang': item.get('is_yang'),
+                'is_moving': item.get('is_moving'),
+                'liuqin': item.get('liuqin'),
+                'liushen': item.get('liushen'),
+                'naja': item.get('naja'),
+                'dizhi_element': item.get('dizhi_element'),
+                'is_shi': item.get('is_shi'),
+                'is_ying': item.get('is_ying'),
+            })
+        return compressed
+
+    return {
+        'question': result.get('question') or question or '',
+        'method': result.get('method'),
+        'timestamp': result.get('timestamp'),
+        'ben_gua': result.get('本卦'),
+        'bian_gua': result.get('变卦'),
+        'shi_yao': result.get('世爻'),
+        'ying_yao': result.get('应爻'),
+        'liu_qin': result.get('六亲'),
+        'liu_shen': result.get('六神'),
+        'palace_name': result.get('palace_name'),
+        'palace_element': result.get('palace_element'),
+        'day_ganzhi': result.get('day_ganzhi'),
+        'month_ganzhi': result.get('month_ganzhi'),
+        'details': _compress_yao(result.get('details')),
+        'bian_details': _compress_yao(result.get('bian_details')),
+    }
+
+
+def build_meihua_context_from_question(question=''):
+    result = _meihua_paipan(method='time')
+    if result.get('error'):
+        return {'error': result.get('error')}
+    return {
+        'question': question or '',
+        'method_label': result.get('methodLabel'),
+        'paipan_time': result.get('paipanTime'),
+        'ganzhi': result.get('ganzhi'),
+        'dong_yao': result.get('dongYao'),
+        'ben_gua': result.get('benGua'),
+        'hu_gua': result.get('huGua'),
+        'bian_gua': result.get('bianGua'),
+        'ti_yong': result.get('tiYong'),
+    }
+
+
+def build_comprehensive_paipan_context(profile, tool_models, question=''):
     context = {}
     for tool in tool_models:
         try:
@@ -3954,6 +4073,12 @@ def build_comprehensive_paipan_context(profile, tool_models):
                 context['bazi'] = build_bazi_context_from_profile(profile)
             elif tool == 'ziwei':
                 context['ziwei'] = build_ziwei_context_from_profile(profile)
+            elif tool == 'qimen':
+                context['qimen'] = build_qimen_context_from_question(question)
+            elif tool == 'liuyao':
+                context['liuyao'] = build_liuyao_context_from_question(question)
+            elif tool == 'meihua':
+                context['meihua'] = build_meihua_context_from_question(question)
         except Exception as exc:
             context[tool] = {'error': str(exc)}
     return context
@@ -4068,8 +4193,8 @@ def api_comprehensive_ask_stream():
             profile = resolve_comprehensive_profile(data)
             paipan_context = data.get('paipan') or {}
             if not is_followup or not paipan_context:
-                yield _event({'stage': 'paipan', 'message': '正在生成八字与紫微盘...'})
-                paipan_context = build_comprehensive_paipan_context(profile, tool_models)
+                yield _event({'stage': 'paipan', 'message': '正在生成所选术数盘面...'})
+                paipan_context = build_comprehensive_paipan_context(profile, tool_models, question)
             add_points(current_user.id, 'comprehensive_ai', -cost, '综合 AI ' + ('追问' if is_followup else '解读'))
             messages = build_comprehensive_messages(question, profile, tool_models, paipan_context, history)
             full_text = ''

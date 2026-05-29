@@ -69,7 +69,7 @@
                 @tap="toggleToolModel(tool.id)"
               >{{ tool.name }}</view>
             </view>
-            <view class="points-hint">预计消耗 {{ estimatedCost }} 积分 · 当前 {{ currentPoints }} 积分</view>
+            <view class="points-hint">预计消耗 {{ estimatedCost }} 积分 · 当前 {{ currentPoints }} 积分 · 六爻/梅花/奇门按提问时间起盘，追问沿用同一盘面</view>
 
             <view class="home-ai-chat" v-if="comprehensiveMessages.length">
               <view
@@ -205,7 +205,13 @@ const profileSheetOpen = ref(false)
 const profileTab = ref('全部')
 const profileTabs = ['全部', '客户', '用户']
 const llmModels = ref([{ id: 'free', name: '免费模型', strength: '基础', cost_base: 0, cost_per_tool: 0, followup_cost: 0 }])
-const toolModels = ref([{ id: 'bazi', name: '八字', cost: 1 }, { id: 'ziwei', name: '紫微斗数', cost: 1 }])
+const toolModels = ref([
+  { id: 'bazi', name: '八字', cost: 1 },
+  { id: 'ziwei', name: '紫微斗数', cost: 1 },
+  { id: 'qimen', name: '奇门遁甲', cost: 1 },
+  { id: 'liuyao', name: '六爻', cost: 1 },
+  { id: 'meihua', name: '梅花易数', cost: 1 },
+])
 const llmModelIdx = ref(0)
 const selectedToolModels = ref(['bazi'])
 const currentPoints = ref(0)
