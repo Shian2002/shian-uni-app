@@ -36,93 +36,52 @@
             <view class="hero-brand-sub">看得懂用得上的民俗命理参考平台</view>
           </view>
 
-          <!-- 产品卡片 -->
-          <view class="hero-cards">
-            <view @tap="goToPage('/pages/qimen/index')" class="hero-card hero-card-primary">
-              <view class="hero-card-glow"></view>
-              <view class="hero-card-content">
-                <view class="hero-card-icon">🔮</view>
-                <view class="hero-card-title">奇门遁甲</view>
-                <view class="hero-card-desc">一事一断 · 吉凶预判 · 择时择方</view>
-                <view class="hero-card-features">
-                  <view class="hero-card-tag">时安奇门系统</view>
-                  <view class="hero-card-tag free">免费排盘</view>
+          <view class="home-ai-console">
+            <view class="home-ai-main">
+              <view class="profile-picker" @tap="openProfilePicker">
+                <text class="profile-plus">＋</text>
+                <view class="profile-picked">
+                  <text class="profile-name">{{ selectedProfileName || '选择命盘' }}</text>
+                  <text class="profile-meta">{{ selectedProfileMeta || '全部 / 客户 / 用户' }}</text>
                 </view>
-                <view class="hero-card-arrow">→</view>
+              </view>
+              <textarea
+                class="home-ai-input"
+                v-model="comprehensiveQuestion"
+                auto-height
+                maxlength="800"
+                placeholder="输入你的问题，选择术数模型后开始综合解读..."
+              />
+              <picker :range="llmModelNames" :value="llmModelIdx" @change="onLlmModelChange">
+                <view class="llm-picker">{{ selectedLlmModel.name || '免费模型' }}</view>
+              </picker>
+              <view class="home-ai-send" :class="{ disabled: comprehensiveLoading }" @tap="startComprehensiveAsk">
+                {{ comprehensiveLoading ? '生成中' : '发送' }}
               </view>
             </view>
 
-            <view @tap="goToPage('/pages/bazi-index/index')" class="hero-card hero-card-primary">
-              <view class="hero-card-glow"></view>
-              <view class="hero-card-content">
-                <view class="hero-card-icon">📜</view>
-                <view class="hero-card-title">八字排盘</view>
-                <view class="hero-card-desc">定格局 · 看喜忌 · 断大运 · 知财运</view>
-                <view class="hero-card-features">
-                  <view class="hero-card-tag">时安八字系统</view>
-                  <view class="hero-card-tag free">免费排盘</view>
-                </view>
-                <view class="hero-card-arrow">→</view>
-              </view>
+            <view class="tool-model-row">
+              <view
+                class="tool-model-chip"
+                v-for="tool in toolModels"
+                :key="tool.id"
+                :class="{ active: selectedToolModels.includes(tool.id) }"
+                @tap="toggleToolModel(tool.id)"
+              >{{ tool.name }}</view>
             </view>
+            <view class="points-hint">预计消耗 {{ estimatedCost }} 积分 · 当前 {{ currentPoints }} 积分</view>
 
-            <!-- 更多工具小卡片 -->
-            <view class="hero-mini-scroll">
-              <view @tap="goToPage('/pages/liuyao/index')" class="hero-card hero-card-mini">
-              <view class="hero-card-content">
-                <view class="hero-card-icon">🧭</view>
-                <view class="hero-card-title">六爻排盘</view>
-                <view class="hero-card-arrow">→</view>
+            <view class="home-ai-chat" v-if="comprehensiveMessages.length">
+              <view
+                v-for="(msg, idx) in comprehensiveMessages"
+                :key="idx"
+                class="home-ai-message"
+                :class="msg.role === 'user' ? 'user' : 'assistant'"
+              >
+                <text class="home-ai-role">{{ msg.role === 'user' ? '你' : '时安综合 AI' }}</text>
+                <text class="home-ai-stage" v-if="msg.stage">{{ msg.stage }}</text>
+                <text class="home-ai-content" v-if="msg.content">{{ msg.content }}</text>
               </view>
-            </view>
-
-            <view @tap="goToPage('/pages/meihua/index')" class="hero-card hero-card-mini">
-              <view class="hero-card-content">
-                <view class="hero-card-icon">🌸</view>
-                <view class="hero-card-title">梅花易数</view>
-                <view class="hero-card-arrow">→</view>
-              </view>
-            </view>
-
-            <view @tap="goToPage('/pages/ziwei/index')" class="hero-card hero-card-mini">
-              <view class="hero-card-content">
-                <view class="hero-card-icon">⭐</view>
-                <view class="hero-card-title">紫微斗数</view>
-                <view class="hero-card-arrow">→</view>
-              </view>
-            </view>
-
-            <view @tap="goToPage('/pages/tarot/index')" class="hero-card hero-card-mini">
-              <view class="hero-card-content">
-                <view class="hero-card-icon">🃏</view>
-                <view class="hero-card-title">塔罗牌</view>
-                <view class="hero-card-arrow">→</view>
-              </view>
-            </view>
-
-            <view @tap="goToPage('/pages/zeji/index')" class="hero-card hero-card-mini">
-              <view class="hero-card-content">
-                <view class="hero-card-icon">📅</view>
-                <view class="hero-card-title">择吉工具</view>
-                <view class="hero-card-arrow">→</view>
-              </view>
-            </view>
-
-            <view @tap="goToPage('/pages/calendar/index')" class="hero-card hero-card-mini">
-              <view class="hero-card-content">
-                <view class="hero-card-icon">🗓️</view>
-                <view class="hero-card-title">专属日历</view>
-                <view class="hero-card-arrow">→</view>
-              </view>
-            </view>
-
-            <view @tap="goToPage('/pages/community/index')" class="hero-card hero-card-mini">
-              <view class="hero-card-content">
-                <view class="hero-card-icon">💬</view>
-                <view class="hero-card-title">交流社区</view>
-                <view class="hero-card-arrow">→</view>
-              </view>
-            </view>
             </view>
           </view>
         </view>
@@ -130,91 +89,6 @@
         <!-- 滚动提示 -->
         <view class="scroll-hint">
           <view class="scroll-arrow">↓</view>
-        </view>
-      </section>
-
-      <!-- ═══ 核心特色 ═══ -->
-      <section class="section">
-        <view class="section-tag">核心特色</view>
-        <view class="section-title">双术数融合 · 更全面的命理参考</view>
-        <view class="section-desc">以八字定先天根基与人生大势，以奇门断当下事件与具体决策</view>
-        <view class="feature-scroll-wrap">
-          <view class="feature-grid">
-            <view class="feature-card" v-for="f in features" :key="f.title">
-              <view class="feature-icon">{{ f.icon }}</view>
-              <view class="feature-card-title">{{ f.title }}</view>
-              <view class="feature-card-desc">{{ f.desc }}</view>
-            </view>
-          </view>
-        </view>
-      </section>
-
-      <!-- ═══ 场景快速入口 ═══ -->
-      <view class="section-alt">
-        <section class="section">
-          <view class="section-tag">快速场景</view>
-          <view class="section-title">针对具体事件精准起局</view>
-          <view class="section-desc">选择你的场景，一键获取专业解读参考</view>
-          <view class="scenario-scroll-wrap">
-            <view class="scenario-grid">
-              <view class="scenario-card" v-for="s in scenarios" :key="s.key" @tap="goScenario(s.key)">
-                <text class="scenario-emoji">{{ s.emoji }}</text>
-                <view class="scenario-card-title">{{ s.title }}</view>
-              </view>
-            </view>
-          </view>
-        </section>
-      </view>
-
-      <!-- ═══ 信任背书 ═══ -->
-      <section class="section">
-        <view class="section-tag">信任背书</view>
-        <view class="section-title">专业排盘体系 · 权威有据可依</view>
-        <view class="section-desc">透明公开排盘规则与算法依据，真实应验案例可查可验证</view>
-        <view class="trust-grid">
-          <view class="trust-authority">
-            <view class="trust-authority-title">📋 排盘内核权威说明</view>
-            <view class="auth-item" v-for="a in authorities" :key="a.title">
-              <view class="auth-item-title">{{ a.title }}</view>
-              <view class="auth-item-desc">{{ a.desc }}</view>
-            </view>
-          </view>
-          <view class="case-scroll-wrap">
-            <view class="section-tag">真实案例</view>
-            <view class="case-tabs">
-              <view class="case-tab" id="idxCaseAll" @tap="switchCaseFilter('all')">全部</view>
-              <view class="case-tab" id="idxCaseClassic" @tap="switchCaseFilter('classic')">经典案例</view>
-              <view class="case-tab" id="idxCaseReal" @tap="switchCaseFilter('real')">实战案例</view>
-            </view>
-            <view class="case-list">
-              <view class="case-card" v-for="c in filteredCases" :key="c.title" :data-source="c.source">
-                <view class="case-type">{{ c.type }}</view>
-                <view class="case-card-title">{{ c.title }}</view>
-                <view class="case-card-desc">{{ c.desc }}</view>
-                <view class="case-verified">✅ 已应验</view>
-                <view class="case-disclaimer">仅为民俗参考，不代表绝对结果</view>
-              </view>
-            </view>
-          </view>
-        </view>
-      </section>
-
-      <!-- ═══ FAQ ═══ -->
-      <section class="section">
-        <view class="faq-panel" id="faqPanel">
-          <view class="faq-panel-header" id="faqPanelHeader" @tap="toggleFaqPanel">
-            <view class="faq-panel-title">❓ 新手常见问题</view>
-            <view class="faq-panel-arrow" id="faqPanelArrow">▲</view>
-          </view>
-          <view class="faq-panel-body" id="faqPanelBody">
-            <view class="faq-item" v-for="(faq, idx) in faqs" :key="faq.q">
-              <view class="faq-q" :id="'faqQ' + idx" @tap="toggleFaq">
-                <text>{{ faq.q }}</text>
-                <text class="arrow">▼</text>
-              </view>
-              <view class="faq-a">{{ faq.a }}</view>
-            </view>
-          </view>
         </view>
       </section>
 
@@ -255,13 +129,35 @@
 
     </view><!-- page-wrap -->
 
+    <view class="profile-sheet" v-if="profileSheetOpen">
+      <view class="profile-sheet-mask" @tap="profileSheetOpen = false"></view>
+      <view class="profile-sheet-panel">
+        <view class="profile-sheet-head">
+          <text class="profile-sheet-title">选择命盘</text>
+          <text class="profile-sheet-close" @tap="profileSheetOpen = false">×</text>
+        </view>
+        <view class="profile-tabs">
+          <view v-for="tab in profileTabs" :key="tab" :class="{ active: profileTab === tab }" @tap="profileTab = tab">{{ tab }}</view>
+        </view>
+        <view class="profile-options">
+          <view v-if="profileGroups[profileTab].length === 0" class="profile-empty">暂无命盘档案</view>
+          <view class="profile-option" v-for="p in profileGroups[profileTab]" :key="p.id" @tap="selectProfile(p)">
+            <view>
+              <text class="profile-option-name">{{ p.name || '未命名' }}</text>
+              <text class="profile-option-meta">{{ p.gender }} · {{ formatBirthTime(p.birthTime || p.birth_time) }}</text>
+            </view>
+            <text class="profile-option-type">{{ profileTypeLabel(p.profileType || p.profile_type) }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
 
   </view>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import TopNav from '@/components/TopNav.vue'
 
 // ── 主题 ──
@@ -300,105 +196,221 @@ function toggleSubmenu(key) { submenuOpen[key] = !submenuOpen[key] }
 const isLoggedIn = ref(!!uni.getStorageSync('xc_token'))
 window.addEventListener('xc-session-expired', function() { isLoggedIn.value = false })
 
-// ── 核心特色数据 ──
-const features = [
-  { icon: '🔮', title: '时安深度解读', desc: '小白极简版 + 专业深度版，专业术语点击即弹出大白话释义' },
-  { icon: '⚡', title: '秒出排盘', desc: '本地精准排盘引擎，基于天文历表，节气精确到分钟级' },
-  { icon: '🔄', title: '双体系互补', desc: '八字看"命里有没有"，奇门看"现在该怎么做"，双体系结合更全面' },
-  { icon: '📜', title: '古籍加持', desc: '融合《渊海子平》《奇门旨归》等经典古籍，以古法为基，以今用为归' },
-  { icon: '📱', title: '全端适配', desc: '桌面端、平板、手机全端适配，随时随地查排盘' },
-  { icon: '🎯', title: '场景化问事', desc: '面试能否通过、项目能否回款、感情复合时机等快速场景一键起局' },
-]
+// ── 首页综合 AI ──
+const comprehensiveQuestion = ref('')
+const comprehensiveLoading = ref(false)
+const profiles = ref([])
+const selectedProfile = ref(null)
+const profileSheetOpen = ref(false)
+const profileTab = ref('全部')
+const profileTabs = ['全部', '客户', '用户']
+const llmModels = ref([{ id: 'free', name: '免费模型', strength: '基础', cost_base: 0, cost_per_tool: 0, followup_cost: 0 }])
+const toolModels = ref([{ id: 'bazi', name: '八字', cost: 1 }, { id: 'ziwei', name: '紫微斗数', cost: 1 }])
+const llmModelIdx = ref(0)
+const selectedToolModels = ref(['bazi'])
+const currentPoints = ref(0)
+const comprehensiveMessages = ref([])
+const currentComprehensiveConvId = ref(null)
+const currentPaipanContext = ref({})
+let pendingComprehensiveId = ''
 
-// ── 场景快速入口 ──
-const scenarios = [
-  { key: 's_interview', emoji: '💼', title: '面试能否通过' },
-  { key: 's_project', emoji: '💰', title: '项目能否回款' },
-  { key: 's_loveback', emoji: '💕', title: '感情复合时机' },
-  { key: 's_house', emoji: '🏠', title: '买房租房吉凶' },
-  { key: 's_travel', emoji: '✈️', title: '出行安全预判' },
-  { key: 's_business', emoji: '🏪', title: '开业签约择吉' },
-]
-
-function goToPage(url) {
-  uni.switchTab({ url: url })
-}
-
-function goScenario(key) {
-  try { sessionStorage.setItem('_nav_query', '?scenario=' + key) } catch(_) {}
-  uni.switchTab({
-    url: '/pages/qimen/index',
-    success: function() {
-      setTimeout(function() { try { uni.$emit('nav-query', '?scenario=' + key) } catch(_) {} }, 200)
-    }
-  })
-}
-
-// ── 信任背书 ──
-const authorities = [
-  { title: '奇门遁甲排盘规则', desc: '采用时家奇门拆补法起局，支持置闰法、茅山法切换。用神取日干/时干双参体系，值符值使自动推演。' },
-  { title: '八字排盘命理体系', desc: '基于子平术命理体系，支持真太阳时校正。四柱推排、十神分析、大运流年自动计算。' },
-  { title: '算法依据与数据源', desc: '历法数据对接天文历表，节气精确到分钟级。所有推算逻辑开源可审查。' },
-]
-
-const caseFilter = ref('all')
-
-// 模式B: DOM classList切换
-function switchCaseFilter(val) {
-  caseFilter.value = val
-  var all = document.getElementById('idxCaseAll')
-  var cls = document.getElementById('idxCaseClassic')
-  var real = document.getElementById('idxCaseReal')
-  if (all) { val === 'all' ? all.classList.add('active') : all.classList.remove('active') }
-  if (cls) { val === 'classic' ? cls.classList.add('active') : cls.classList.remove('active') }
-  if (real) { val === 'real' ? real.classList.add('active') : real.classList.remove('active') }
-}
-
-function toggleFaq(ev) {
-  var el = ev && ev.currentTarget  // .faq-q (guard against programmatic dispatch)
-  if (!el) return
-  el.classList.toggle('open')
-  // DOM操作 toggle .faq-a 和 .arrow（绕过Vue 3.4.21 render effect bug）
-  var item = el.parentNode  // .faq-item
-  if (item) {
-    var answer = item.querySelector('.faq-a')
-    if (answer) answer.classList.toggle('open')
-    var arrow = item.querySelector('.arrow')
-    if (arrow) arrow.classList.toggle('rotated')
+const selectedLlmModel = computed(() => llmModels.value[llmModelIdx.value] || llmModels.value[0] || {})
+const llmModelNames = computed(() => llmModels.value.map(m => m.name + ' · ' + (m.strength || '基础')))
+const estimatedCost = computed(() => {
+  if (comprehensiveMessages.value.length > 0) return selectedLlmModel.value.followup_cost || 0
+  return (selectedLlmModel.value.cost_base || 0) + selectedToolModels.value.length * (selectedLlmModel.value.cost_per_tool || 0)
+})
+const selectedProfileName = computed(() => selectedProfile.value ? selectedProfile.value.name : '')
+const selectedProfileMeta = computed(() => {
+  const p = selectedProfile.value
+  if (!p) return ''
+  return (p.gender || '') + ' · ' + formatBirthTime(p.birthTime || p.birth_time)
+})
+const profileGroups = computed(() => {
+  const list = profiles.value || []
+  return {
+    '全部': list,
+    '客户': list.filter(p => (p.profileType || p.profile_type) === 'customer'),
+    '用户': list.filter(p => (p.profileType || p.profile_type || 'self') !== 'customer'),
   }
-  // 备份同步Vue reactive数据（供非DOM操作场合使用）
-  var id = el.id
-  var idx = parseInt(id.replace('faqQ', ''))
-  if (!isNaN(idx) && faqs[idx]) {
-    faqs[idx].open = !faqs[idx].open
-  }
-}
-const cases = [
-  { source: 'classic', type: '事业 · 奇门遁甲', title: '求职面试能否通过', desc: '排盘解读结论为利东方方位、午时有利。后续果然调整时间后顺利通过。' },
-  { source: 'classic', type: '感情 · 奇门遁甲', title: '感情复合时机判断', desc: '排盘显示休门临宫、逢合期在秋分后。用户反馈秋分后确实关系缓和。' },
-  { source: 'real', type: '财运 · 八字命理', title: '投资理财方向参考', desc: '八字分析显示偏财星弱、正财为主，建议稳健理财。用户采纳后避免了高风险损失。' },
-]
-const filteredCases = computed(() => {
-  if (caseFilter.value === 'all') return cases
-  return cases.filter(c => c.source === caseFilter.value)
 })
 
-// ── FAQ ──
-const faqPanelOpen = ref(false)
-function toggleFaqPanel() {
-  faqPanelOpen.value = !faqPanelOpen.value
-  var panel = document.getElementById('faqPanel')
-  if (panel) panel.classList.toggle('open')
-  var body = document.getElementById('faqPanelBody')
-  if (body) body.classList.toggle('open')
-  var arrow = document.getElementById('faqPanelArrow')
-  if (arrow) arrow.classList.toggle('rotated')
+function goToPage(url) {
+  if (!url) return
+  if (url.indexOf('/pages/') === 0) {
+    uni.switchTab({
+      url,
+      fail: function() { uni.navigateTo({ url }) }
+    })
+  } else {
+    uni.navigateTo({ url })
+  }
 }
-const faqs = reactive([
-  { q: '排盘时间怎么选？', a: '新手模式下默认使用当前时间，这也是最常用的起局方式。奇门遁甲讲究"当时当刻"，用问事时刻起局即可。', open: false },
-  { q: '解读结果怎么看？', a: '建议新手先看"小白极简版"，只保留核心结论和行动建议。有基础后可切换"专业深度版"。', open: false },
-  { q: '八字和奇门该用哪个？', a: '看整体运势用八字，看具体事件用奇门。两者结合使用效果更全面。', open: false },
-])
+
+function profileTypeLabel(type) {
+  if (type === 'customer') return '客户'
+  if (type === 'collect') return '收藏'
+  return '用户'
+}
+
+function formatBirthTime(v) {
+  const s = String(v || '')
+  if (s.length >= 12) return s.slice(0,4) + '-' + s.slice(4,6) + '-' + s.slice(6,8) + ' ' + s.slice(8,10) + ':' + s.slice(10,12)
+  if (s.length >= 8) return s.slice(0,4) + '-' + s.slice(4,6) + '-' + s.slice(6,8)
+  return '未填写出生时间'
+}
+
+function openProfilePicker() {
+  if (!isLoggedIn.value) {
+    uni.showToast({ title: '请先登录后选择命盘', icon: 'none' })
+    return
+  }
+  profileSheetOpen.value = true
+  loadProfiles()
+}
+
+function selectProfile(p) {
+  selectedProfile.value = p
+  profileSheetOpen.value = false
+}
+
+function onLlmModelChange(e) {
+  llmModelIdx.value = Number(e.detail.value || 0)
+}
+
+function toggleToolModel(id) {
+  const list = selectedToolModels.value.slice()
+  const idx = list.indexOf(id)
+  if (idx >= 0) list.splice(idx, 1)
+  else list.push(id)
+  selectedToolModels.value = list
+}
+
+async function loadComprehensiveOptions() {
+  if (!isLoggedIn.value) return
+  try {
+    const res = await uni.request({ url: '/api/comprehensive/options' })
+    const data = res.data || {}
+    if (Array.isArray(data.llm_models) && data.llm_models.length) llmModels.value = data.llm_models
+    if (Array.isArray(data.tool_models) && data.tool_models.length) toolModels.value = data.tool_models
+    if (typeof data.points === 'number') currentPoints.value = data.points
+  } catch (_) {}
+}
+
+async function loadProfiles() {
+  if (!isLoggedIn.value) return
+  try {
+    const res = await uni.request({ url: '/api/profiles?sort=last_used' })
+    const data = res.data || {}
+    profiles.value = data.profiles || []
+    if (!selectedProfile.value && profiles.value.length) {
+      selectedProfile.value = profiles.value.find(p => p.isDefault) || profiles.value[0]
+    }
+  } catch (_) {
+    profiles.value = []
+  }
+}
+
+function normalizeMessageHistory() {
+  return comprehensiveMessages.value
+    .filter(m => m && (m.role === 'user' || m.role === 'assistant') && m.content)
+    .map(m => ({ role: m.role, content: m.content }))
+}
+
+async function startComprehensiveAsk() {
+  if (comprehensiveLoading.value) return
+  if (!isLoggedIn.value) return uni.showToast({ title: '请先登录', icon: 'none' })
+  const question = comprehensiveQuestion.value.trim()
+  if (!question) return uni.showToast({ title: '请输入问题', icon: 'none' })
+  if (!selectedProfile.value) return uni.showToast({ title: '请先选择命盘', icon: 'none' })
+  if (!selectedToolModels.value.length) return uni.showToast({ title: '请至少选择一个术数模型', icon: 'none' })
+  if (currentPoints.value < estimatedCost.value) return uni.showToast({ title: '积分不足', icon: 'none' })
+
+  const history = normalizeMessageHistory()
+  comprehensiveLoading.value = true
+  comprehensiveMessages.value.push({ role: 'user', content: question })
+  const aiMsg = { role: 'assistant', content: '', stage: '正在读取命盘档案...' }
+  comprehensiveMessages.value.push(aiMsg)
+
+  try {
+    const resp = await fetch('/api/comprehensive/ask/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question,
+        profile_id: selectedProfile.value.id,
+        llm_model: selectedLlmModel.value.id || 'free',
+        tool_models: selectedToolModels.value,
+        history,
+        paipan: currentPaipanContext.value,
+        conversation_id: currentComprehensiveConvId.value,
+      })
+    })
+    if (!resp.ok || !resp.body) throw new Error('连接失败')
+    const reader = resp.body.getReader()
+    const decoder = new TextDecoder('utf-8')
+    let buffer = ''
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const parts = buffer.split('\n\n')
+      buffer = parts.pop() || ''
+      parts.forEach(part => {
+        const line = part.split('\n').find(l => l.indexOf('data: ') === 0)
+        if (!line) return
+        const data = JSON.parse(line.slice(6))
+        if (data.error) {
+          aiMsg.stage = ''
+          aiMsg.content = data.error
+        }
+        if (data.message) aiMsg.stage = data.message
+        if (data.content) {
+          aiMsg.stage = ''
+          aiMsg.content += data.content
+        }
+        if (data.conversation_id) currentComprehensiveConvId.value = data.conversation_id
+        if (data.paipan) currentPaipanContext.value = data.paipan
+        if (typeof data.points_left === 'number') currentPoints.value = data.points_left
+        if (data.done) {
+          try { window.__sidebarCache = null } catch(_) {}
+        }
+      })
+    }
+    comprehensiveQuestion.value = ''
+  } catch (e) {
+    aiMsg.stage = ''
+    aiMsg.content = '生成失败，请稍后重试'
+  } finally {
+    comprehensiveLoading.value = false
+  }
+}
+
+async function restoreComprehensiveConversation(id) {
+  if (!id || !isLoggedIn.value) return
+  try {
+    const res = await uni.request({ url: '/api/comprehensive/conversations/' + id })
+    const data = res.data || {}
+    if (!data.id) return
+    currentComprehensiveConvId.value = data.id
+    currentPaipanContext.value = data.paipan || {}
+    selectedToolModels.value = data.models && data.models.length ? data.models : ['bazi']
+    comprehensiveMessages.value = data.messages || []
+    const mid = data.model_id || 'free'
+    const mi = llmModels.value.findIndex(m => m.id === mid)
+    if (mi >= 0) llmModelIdx.value = mi
+    const p = data.profile_data || {}
+    selectedProfile.value = {
+      id: p.id,
+      name: p.name,
+      gender: p.gender,
+      birthTime: p.birth_time,
+      calType: p.cal_type,
+      birthAddr: p.birth_addr,
+      profileType: p.profile_type,
+    }
+  } catch (_) {}
+}
 
 // ── 页脚 ──
 function showFooterInfo(type) {
@@ -428,6 +440,10 @@ function clearAllData() {
 }
 
 // ── Tab 切换回来时同步主题 ──
+onLoad((query) => {
+  pendingComprehensiveId = query && query.comprehensive_id ? String(query.comprehensive_id) : ''
+})
+
 onShow(() => {
   var t = uni.getStorageSync('xc_theme')
   if (t && t !== theme.value) {
@@ -437,10 +453,29 @@ onShow(() => {
       document.body.setAttribute('data-theme', t)
     } catch(_) {}
   }
+  // #ifdef H5
+  try {
+    const resumeId = sessionStorage.getItem('xc_comprehensive_resume_id')
+    if (resumeId) {
+      sessionStorage.removeItem('xc_comprehensive_resume_id')
+      pendingComprehensiveId = resumeId
+    }
+  } catch(_) {}
+  // #endif
+  loadComprehensiveOptions()
+  loadProfiles().then(function() {
+    if (pendingComprehensiveId) {
+      const id = pendingComprehensiveId
+      pendingComprehensiveId = ''
+      restoreComprehensiveConversation(id)
+    }
+  })
 })
 
 // ── 视频加载超时处理（H5 only）──
 onMounted(() => {
+  loadComprehensiveOptions()
+  loadProfiles()
   // #ifdef H5
   // 视频加载超时处理：3秒后如果视频还没准备好，显示fallback背景
   setTimeout(() => {
@@ -541,7 +576,7 @@ onMounted(() => {
 .section-desc { color: var(--text-3); font-size: 0.875rem; margin-bottom: 40px; max-width: 600px; }
 
 /* ═══ Hero ═══ */
-.hero-home { min-height: calc(100vh - 60px); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; position: relative; padding: 48px 32px 60px; }
+.hero-home { min-height: calc(100vh - 60px); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; position: relative; padding: 48px 32px 32px; }
 .hero-home-content { max-width: var(--max-w); width: 100%; margin: 0 auto; text-align: center; }
 .hero-brand { margin-bottom: 60px; }
 .hero-brand-icon-wrap { position: relative; display: flex; align-items: center; justify-content: center; width: 160px; height: 160px; margin: 0 auto 20px; animation: float 6s ease-in-out infinite; }
@@ -553,40 +588,47 @@ onMounted(() => {
 .hero-brand-slogan { font-family: var(--font-serif); font-size: 1.125rem; letter-spacing: 6px; color: var(--accent); margin-bottom: 8px; }
 .hero-brand-sub { font-size: 0.875rem; color: var(--text-3); letter-spacing: 2px; }
 
-/* ═══ 产品卡片网格 ═══ */
-.hero-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 20px; }
-.hero-card-primary { grid-column: span 2; background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.12); }
-.hero-card-primary:hover { border-color: var(--accent); }
-[data-theme="light"] .hero-card-primary { background: rgba(255, 253, 248, 0.55); }
-.hero-card { position: relative; display: block; text-decoration: none; color: inherit; background: rgba(255, 255, 255, 0.04); backdrop-filter: blur(30px) saturate(150%); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 20px; padding: 32px 24px; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); overflow: hidden; cursor: pointer; }
-[data-theme="light"] .hero-card { background: rgba(255, 253, 248, 0.45); border-color: rgba(0, 0, 0, 0.06); }
-.hero-card:hover { transform: translateY(-6px) scale(1.02); border-color: rgba(255, 255, 255, 0.18); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 40px var(--accent-glow); }
-[data-theme="light"] .hero-card:hover { border-color: rgba(0, 0, 0, 0.12); box-shadow: 0 20px 60px rgba(60, 40, 15, 0.1), 0 0 40px var(--accent-glow); }
-.hero-card-glow { position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle at center, var(--accent-glow) 0%, transparent 70%); opacity: 0; transition: opacity 0.4s; pointer-events: none; }
-.hero-card:hover .hero-card-glow { opacity: 1; }
-.hero-card-content { position: relative; z-index: 1; }
-.hero-card-icon { font-size: 2.5rem; margin-bottom: 16px; }
-.hero-card-title { font-family: var(--font-serif); font-size: 1.25rem; font-weight: 400; letter-spacing: 4px; color: var(--text-1); margin-bottom: 8px; }
-.hero-card-desc { font-size: 0.8125rem; color: var(--text-3); letter-spacing: 1px; margin-bottom: 16px; line-height: 1.6; }
-.hero-card-features { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
-.hero-card-tag { padding: 4px 12px; border-radius: 20px; font-size: 0.6875rem; background: var(--accent-glow); color: var(--accent); border: 1px solid rgba(255,255,255,0.06); letter-spacing: 1px; }
-[data-theme="light"] .hero-card-tag { border-color: rgba(0,0,0,0.04); }
-.hero-card-tag.free { background: rgba(110,195,135,0.1); color: var(--success); }
-.hero-card-arrow { font-size: 1.25rem; color: var(--accent); opacity: 0; transform: translateX(-8px); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-.hero-card:hover .hero-card-arrow { opacity: 1; transform: translateX(0); }
+/* ═══ 首页综合 AI 输入框 ═══ */
+.home-ai-console { max-width: 920px; margin: -20px auto 0; text-align: left; }
+.home-ai-main { display: grid; grid-template-columns: 190px 1fr 132px 78px; gap: 10px; align-items: stretch; padding: 10px; border: 1px solid var(--card-border); border-radius: 18px; background: rgba(255,255,255,0.055); backdrop-filter: blur(28px) saturate(140%); box-shadow: 0 18px 60px rgba(0,0,0,0.20); }
+[data-theme="light"] .home-ai-main { background: rgba(255,253,248,0.68); box-shadow: 0 12px 36px rgba(60,40,15,0.08); }
+.profile-picker, .llm-picker, .home-ai-send { min-height: 52px; border-radius: 12px; border: 1px solid var(--card-border); background: var(--input-bg); color: var(--text-1); display: flex; align-items: center; justify-content: center; cursor: pointer; box-sizing: border-box; }
+.profile-picker { justify-content: flex-start; gap: 10px; padding: 8px 12px; min-width: 0; }
+.profile-plus { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-glow); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+.profile-picked { min-width: 0; }
+.profile-name { display: block; font-size: 0.84rem; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.profile-meta { display: block; margin-top: 2px; font-size: 0.66rem; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-ai-input { width: 100%; min-height: 52px; max-height: 132px; padding: 15px 6px; color: var(--text-1); font-size: 0.92rem; line-height: 1.55; background: transparent; border: none; outline: none; box-sizing: border-box; }
+.llm-picker { padding: 0 12px; font-size: 0.78rem; color: var(--text-2); white-space: nowrap; }
+.home-ai-send { background: var(--accent); border-color: var(--accent); color: #fff; font-size: 0.86rem; font-weight: 600; }
+.home-ai-send.disabled { opacity: 0.55; pointer-events: none; }
+.tool-model-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 10px 0; }
+.tool-model-chip { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--card-border); background: var(--tag-bg); color: var(--text-3); font-size: 0.74rem; cursor: pointer; }
+.tool-model-chip.active { border-color: var(--accent); background: var(--accent-glow); color: var(--accent); }
+.points-hint { margin: 8px 12px 0; color: var(--text-3); font-size: 0.72rem; }
+.home-ai-chat { margin-top: 16px; border: 1px solid var(--card-border); border-radius: 16px; background: var(--card-bg); backdrop-filter: blur(18px); padding: 14px; max-height: 420px; overflow-y: auto; }
+.home-ai-message { padding: 12px 14px; border-radius: 12px; margin-bottom: 10px; border: 1px solid var(--card-border); }
+.home-ai-message.user { margin-left: 72px; background: var(--accent-glow); border-color: rgba(178,149,93,0.26); }
+.home-ai-message.assistant { margin-right: 72px; background: rgba(255,255,255,0.035); }
+.home-ai-role { display: block; font-size: 0.68rem; color: var(--text-3); margin-bottom: 6px; }
+.home-ai-stage { display: block; font-size: 0.82rem; color: var(--accent); }
+.home-ai-content { display: block; white-space: pre-wrap; font-size: 0.86rem; color: var(--text-2); line-height: 1.7; }
 
-.hero-mini-scroll { display: flex; flex-wrap: wrap; gap: 12px; grid-column: 1 / -1; position: relative; }
-/* 小卡片 */
-.hero-card-mini { background: rgba(255, 255, 255, 0.02); border-color: rgba(255, 255, 255, 0.05); padding: 16px 18px; border-radius: 14px; }
-.hero-card-mini:hover { transform: translateY(-3px) scale(1.01); border-color: rgba(255, 255, 255, 0.12); box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-[data-theme="light"] .hero-card-mini { background: rgba(255, 253, 248, 0.3); border-color: rgba(0,0,0,0.04); }
-.hero-card-mini .hero-card-content { display: flex; align-items: center; gap: 10px; }
-.hero-card-mini .hero-card-icon { font-size: 1.5rem; margin-bottom: 0; flex-shrink: 0; }
-.hero-card-mini .hero-card-title { font-size: 0.9375rem; letter-spacing: 2px; margin-bottom: 0; flex: 1; }
-.hero-card-mini .hero-card-arrow { font-size: 0.875rem; opacity: 0.5; transform: none; }
-.hero-card-mini:hover .hero-card-arrow { opacity: 1; transform: translateX(4px); }
-.hero-card-mini .hero-card-desc { display: none; }
-.hero-card-mini .hero-card-features { display: none; }
+.profile-sheet { position: fixed; inset: 0; z-index: 400; }
+.profile-sheet-mask { position: absolute; inset: 0; background: rgba(0,0,0,0.48); backdrop-filter: blur(8px); }
+.profile-sheet-panel { position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); width: min(640px, calc(100vw - 28px)); max-height: 72vh; overflow: hidden; border-radius: 18px; border: 1px solid var(--card-border); background: var(--nav-bg); box-shadow: var(--card-shadow); padding: 18px; box-sizing: border-box; }
+.profile-sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.profile-sheet-title { color: var(--text-1); font-size: 1rem; font-family: var(--font-serif); letter-spacing: 2px; }
+.profile-sheet-close { color: var(--text-3); font-size: 1.4rem; cursor: pointer; }
+.profile-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+.profile-tabs view { flex: 1; text-align: center; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--card-border); color: var(--text-3); font-size: 0.8rem; cursor: pointer; }
+.profile-tabs view.active { background: var(--accent-glow); border-color: var(--accent); color: var(--accent); }
+.profile-options { max-height: 48vh; overflow-y: auto; }
+.profile-option { display: flex; justify-content: space-between; gap: 16px; padding: 12px; border-radius: 12px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.035); margin-bottom: 8px; cursor: pointer; }
+.profile-option-name { display: block; color: var(--text-1); font-size: 0.88rem; }
+.profile-option-meta { display: block; margin-top: 4px; color: var(--text-3); font-size: 0.72rem; }
+.profile-option-type { color: var(--accent); font-size: 0.72rem; white-space: nowrap; }
+.profile-empty { padding: 28px; text-align: center; color: var(--text-3); font-size: 0.84rem; }
 
 /* 滚动提示 */
 .scroll-hint { position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%); text-align: center; color: var(--text-3); font-size: 0.75rem; letter-spacing: 2px; animation: fadeInUp 1s ease 1.5s both; }
@@ -594,57 +636,8 @@ onMounted(() => {
 @keyframes fadeInUp { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(8px); } }
 
-/* ═══ 核心特色 ═══ */
-.feature-scroll-wrap { position: relative; }
-.feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-.feature-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md); padding: 28px 24px; backdrop-filter: blur(20px); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); text-align: center; }
-.feature-icon { font-size: 2rem; margin-bottom: 12px; }
-.feature-card-title { font-family: var(--font-serif); font-size: 0.9375rem; letter-spacing: 2px; margin-bottom: 8px; color: var(--text-1); }
-.feature-card-desc { font-size: 0.8125rem; color: var(--text-3); line-height: 1.6; }
-
-/* ═══ 场景快速入口 ═══ */
-.scenario-scroll-wrap { position: relative; }
-.scenario-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; }
-.scenario-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md); padding: 24px 16px; backdrop-filter: blur(16px); text-align: center; cursor: pointer; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-.scenario-emoji { font-size: 2rem; display: block; margin-bottom: 8px; }
-.scenario-card-title { font-size: 0.8125rem; color: var(--text-2); letter-spacing: 1px; }
-
-/* ═══ 信任背书 ═══ */
-.trust-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
-.trust-authority { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; backdrop-filter: blur(16px); }
-.trust-authority-title { font-family: var(--font-serif); font-size: 1.1rem; letter-spacing: 2px; margin-bottom: 16px; }
-.auth-item { margin-bottom: 12px; }
-.auth-item-title { font-size: 0.8125rem; color: var(--accent); margin-bottom: 4px; }
-.auth-item-desc { font-size: 0.75rem; color: var(--text-3); line-height: 1.6; }
-.case-scroll-wrap { overflow: hidden; position: relative; }
-.case-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
-.case-tab { padding: 5px 14px; border-radius: 20px; font-size: 0.75rem; border: 1px solid var(--card-border); color: var(--text-3); cursor: pointer; background: transparent; }
-.case-tab.active { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); }
-.case-list { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 8px; }
-.case-card { flex: 0 0 300px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md); padding: 20px; backdrop-filter: blur(16px); }
-.case-type { font-size: 0.6875rem; color: var(--accent); margin-bottom: 8px; letter-spacing: 1px; }
-.case-card-title { font-size: 0.875rem; margin-bottom: 6px; color: var(--text-1); }
-.case-card-desc { font-size: 0.75rem; color: var(--text-3); line-height: 1.5; margin-bottom: 8px; }
-.case-verified { font-size: 0.6875rem; color: var(--success); }
-.case-disclaimer { font-size: 0.625rem; color: var(--text-3); margin-top: 8px; border-top: 1px dashed var(--card-border); padding-top: 8px; }
-
-/* ═══ FAQ ═══ */
-.faq-panel { max-width: var(--max-w); margin: 0 auto 32px; border: 1px solid var(--card-border); border-radius: var(--radius-md); overflow: hidden; background: var(--card-bg); backdrop-filter: blur(12px); }
-.faq-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; cursor: pointer; }
-.faq-panel-title { font-family: var(--font-serif); font-size: 0.9375rem; letter-spacing: 2px; color: var(--text-2); }
-.faq-panel-arrow { font-size: 0.75rem; color: var(--text-3); transition: transform 0.3s var(--ease); }
-.faq-panel-arrow.rotated { transform: rotate(180deg); }
-.faq-panel-body { max-height: 0; overflow: hidden; transition: max-height 0.4s var(--ease); padding: 0 20px; }
-.faq-panel-body.open { max-height: 600px; padding: 0 20px 16px; }
-.faq-item { border: 1px solid var(--card-border); border-radius: 10px; margin-bottom: 8px; overflow: hidden; }
-.faq-q { padding: 14px 20px; cursor: pointer; font-size: 0.875rem; color: var(--text-2); display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); }
-.faq-q .arrow { transition: transform 0.2s; }
-.faq-q .arrow.rotated { transform: rotate(180deg); }
-.faq-a { padding: 0 20px; max-height: 0; overflow: hidden; transition: max-height 0.3s var(--ease); font-size: 0.8125rem; color: var(--text-3); line-height: 1.7; }
-.faq-a.open { max-height: 200px; padding: 14px 20px; }
-
 /* ═══ 页脚 ═══ */
-.site-footer { background: var(--nav-bg); border-top: 1px solid var(--card-border); padding: 48px 32px 24px; margin-top: 0; }
+.site-footer { background: var(--nav-bg); border-top: 1px solid var(--card-border); padding: 24px 32px 24px; margin-top: 0; }
 .footer-disclaimer { max-width: var(--max-w); margin: 0 auto 32px; padding: 14px 20px; border-radius: 10px; background: rgba(215,125,110,0.08); border: 1px solid rgba(215,125,110,0.15); font-size: 0.75rem; color: var(--danger); line-height: 1.6; text-align: center; }
 .footer-grid { max-width: var(--max-w); margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; }
 .footer-col-title { font-size: 0.8125rem; color: var(--text-2); margin-bottom: 12px; letter-spacing: 1px; }
@@ -668,42 +661,21 @@ onMounted(() => {
 
 /* ═══ 响应式 ═══ */
 @media (max-width: 1024px) {
-  .hero-cards { grid-template-columns: repeat(2, 1fr); }
-  .hero-card-primary { grid-column: span 2; }
-  .feature-grid { grid-template-columns: repeat(2, 1fr); }
-  .scenario-grid { grid-template-columns: repeat(3, 1fr); }
-  .trust-grid { grid-template-columns: 1fr; }
+  .home-ai-main { grid-template-columns: 1fr; }
+  .profile-picker, .llm-picker, .home-ai-send { min-height: 46px; }
   .footer-grid { grid-template-columns: 1fr; gap: 24px; }
 }
 @media (max-width: 768px) {
   .hero-home { padding: 100px 16px 60px; min-height: auto; }
+  .hero-brand { margin-bottom: 38px; }
   .hero-brand-name { font-size: 2rem; letter-spacing: 6px; }
   .hero-brand-slogan { font-size: 0.875rem; letter-spacing: 3px; }
-  .hero-cards { grid-template-columns: 1fr 1fr; gap: 12px; }
-  .hero-card-primary { grid-column: span 2; }
-  .hero-card { padding: 20px 16px; }
+  .home-ai-console { margin-top: -8px; }
+  .home-ai-message.user, .home-ai-message.assistant { margin-left: 0; margin-right: 0; }
   .section { padding: 48px 16px; }
-  .feature-grid { grid-template-columns: 1fr 1fr; }
-  .scenario-grid { grid-template-columns: repeat(3, 1fr); }
   .scroll-hint { display: none; }
   .section-title { font-size: 1.35rem; }
   .section-desc { font-size: 0.8125rem; }
-  .feature-card-title { font-size: 0.875rem; }
-  .feature-card-desc { font-size: 0.75rem; }
-  .scenario-card-title { font-size: 0.75rem; }
-  .hero-card-title { font-size: 1.05rem; }
-  .hero-card-desc { font-size: 0.75rem; }
-  /* 案例卡片右侧淡出提示更多内容 */
-  .case-scroll-wrap::after {
-    content: '';
-    position: absolute;
-    top: 0; right: 0;
-    width: 60px;
-    height: 100%;
-    background: linear-gradient(to right, transparent, var(--bg));
-    pointer-events: none;
-    z-index: 1;
-  }
 }
 @media (max-width: 480px) {
   .hero-home { padding: 50px 16px 36px; }
@@ -712,59 +684,9 @@ onMounted(() => {
   .hero-brand-name { font-size: 1.6rem; letter-spacing: 4px; }
   .hero-brand-slogan { font-size: 0.75rem; letter-spacing: 3px; }
   .hero-brand-sub { font-size: 0.75rem; }
-  .hero-cards { grid-template-columns: 1fr; }
-  .hero-card-primary { grid-column: span 1; }
-  .hero-mini-scroll { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-bottom: 0; }
-  .hero-mini-scroll .hero-card-mini {
-    padding: 20px 12px;
-    border-radius: 12px;
-    flex-direction: column;
-    text-align: center;
-    gap: 6px;
-  }
-  .hero-mini-scroll .hero-card-mini .hero-card-content {
-    flex-direction: column;
-    gap: 6px;
-  }
-  .hero-mini-scroll .hero-card-mini .hero-card-arrow { display: none; }
-  .hero-mini-scroll .hero-card-mini .hero-card-icon { font-size: 1.5rem; margin-bottom: 0; }
-  .hero-mini-scroll .hero-card-mini .hero-card-title { font-size: 0.6875rem; letter-spacing: 1px; text-align: center; }
-  .feature-scroll-wrap { overflow: hidden; }
-  .feature-grid { display: flex; gap: 12px; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 8px; }
-  .feature-card { flex: 0 0 100px; min-height: auto; padding: 16px 10px; }
-  .feature-scroll-wrap::after {
-    content: '';
-    position: absolute;
-    top: 0; right: 0;
-    width: 48px;
-    height: 100%;
-    background: linear-gradient(to right, transparent, var(--bg));
-    pointer-events: none;
-    z-index: 1;
-  }
-  .scenario-scroll-wrap { overflow: hidden; }
-  .scenario-grid { display: flex; gap: 10px; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 8px; }
-  .scenario-card { flex: 0 0 100px; }
-  .scenario-scroll-wrap::after {
-    content: '';
-    position: absolute;
-    top: 0; right: 0;
-    width: 48px;
-    height: 100%;
-    background: linear-gradient(to right, transparent, var(--section-alt));
-    pointer-events: none;
-    z-index: 1;
-  }
   .section { padding: 32px 16px; }
   .section-title { font-size: 1.15rem; }
   .section-desc { font-size: 0.75rem; }
-  .feature-card .feature-icon { font-size: 1.5rem; margin-bottom: 6px; }
-  .feature-card-title { font-size: 0.6875rem; }
-  .feature-card-desc { font-size: 0.625rem; line-height: 1.3; max-height: 2.6em; overflow: hidden; }
-  .scenario-card-title { font-size: 0.6875rem; }
-  .hero-card-title { font-size: 0.9375rem; }
-  .case-card { flex: 0 0 240px; }
-  .faq-panel { margin-bottom: 0; }
   .footer-grid { grid-template-columns: 1fr 1fr; }
   .footer-col:nth-child(3) { grid-column: 1 / -1; }
   .site-footer { padding: 32px 16px 24px; margin-top: 0; }

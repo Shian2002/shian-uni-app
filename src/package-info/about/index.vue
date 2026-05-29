@@ -227,19 +227,19 @@ export default {
 .section-desc { color: var(--text-3); font-size: 0.875rem; margin-bottom: 40px; max-width: 600px; display: block; }
 
 /* 信任背书 */
-.trust-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
-.trust-authority { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; backdrop-filter: blur(16px); }
+.trust-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: stretch; }
+.trust-authority { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; backdrop-filter: blur(16px); height: 100%; box-sizing: border-box; }
 .trust-title { font-family: var(--font-serif); font-size: 1.1rem; letter-spacing: 2px; margin-bottom: 16px; display: block; color: var(--text-1); }
 .auth-item { margin-bottom: 12px; }
 .auth-item-title { font-size: 0.8125rem; color: var(--accent); margin-bottom: 4px; display: block; }
 .auth-item-desc { font-size: 0.75rem; color: var(--text-3); line-height: 1.6; display: block; }
 
 /* 案例卡片 */
-.case-scroll-wrap { overflow: hidden; }
+.case-scroll-wrap { overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; height: 100%; min-height: 0; }
 .case-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
 .case-tab { padding: 5px 14px; border-radius: 20px; font-size: 0.75rem; border: 1px solid var(--card-border); color: var(--text-3); cursor: pointer; background: transparent; }
 .case-tab.active { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); }
-.case-list { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 8px; white-space: nowrap; }
+.case-list { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 8px; white-space: nowrap; align-items: stretch; flex: 1; }
 .case-card { flex: 0 0 300px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md); padding: 20px; backdrop-filter: blur(16px); position: relative; }
 .case-badge { position: absolute; top: 10px; right: 10px; font-size: 0.5625rem; padding: 2px 6px; border-radius: 4px; color: #fff; }
 .case-badge.classic { background: var(--accent); }

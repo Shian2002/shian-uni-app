@@ -136,8 +136,15 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 3600  # 静态文件缓存1小时
 
 # ═══════ 导入数据模型（必须在 db.init_app 之后） ═══════
 from models import User, Record, UserProfile, FollowUp, Collection
-from models import Post, Comment, Master, PostLike, Membership, PointLog, PaidContent, Purchase, TarotConversation, LiuyaoConversation, MeihuaConversation, QimenConversation, BaziConversation
+from models import Post, Comment, Master, PostLike, Membership, PointLog, PaidContent, Purchase, TarotConversation, LiuyaoConversation, MeihuaConversation, QimenConversation, BaziConversation, ZiweiConversation, ComprehensiveConversation
 from models import BaziRecord
+from comprehensive_ai import (
+    COMPREHENSIVE_LLM_MODELS,
+    COMPREHENSIVE_TOOL_MODELS,
+    calculate_cost,
+    normalize_tool_models,
+    build_comprehensive_messages,
+)
 
 # ═══════ 农历转公历 ═══════
 def lunar_to_solar(birth_time, cal_type):
@@ -3760,6 +3767,331 @@ def api_bazi_conversation_delete(cid):
     return jsonify({'ok': True})
 
 
+# ─── 紫微斗数对话历史 API ───
+
+@app.route('/api/ziwei/conversations', methods=['GET'])
+@login_required
+def api_ziwei_conversations():
+    convs = ZiweiConversation.query.filter_by(user_id=current_user.id)\
+        .order_by(ZiweiConversation.updated_at.desc()).all()
+    return jsonify([{
+        'id': c.id, 'title': c.title,
+        'created_at': c.created_at.isoformat() if c.created_at else None,
+        'updated_at': c.updated_at.isoformat() if c.updated_at else None,
+    } for c in convs])
+
+
+@app.route('/api/ziwei/conversations', methods=['POST'])
+@login_required
+def api_ziwei_conversations_create():
+    data = request.get_json(silent=True) or {}
+    conv_id = data.get('id')
+    messages = data.get('messages') or []
+    if conv_id:
+        conv = ZiweiConversation.query.filter_by(id=conv_id, user_id=current_user.id).first()
+        if conv:
+            conv.messages_json = json.dumps(messages)
+            conv.updated_at = datetime.utcnow()
+            db.session.commit()
+            return jsonify({'id': conv.id, 'ok': True})
+    conv = ZiweiConversation(
+        user_id=current_user.id,
+        title=(data.get('title') or '')[:100],
+        birth_data=json.dumps(data.get('birth_data') or {}),
+        messages_json=json.dumps(messages),
+    )
+    db.session.add(conv)
+    db.session.commit()
+    return jsonify({'id': conv.id, 'ok': True})
+
+
+@app.route('/api/ziwei/conversations/<int:cid>', methods=['GET'])
+@login_required
+def api_ziwei_conversation_detail(cid):
+    conv = ZiweiConversation.query.filter_by(id=cid, user_id=current_user.id).first()
+    if not conv:
+        return jsonify({'error': '对话不存在'}), 404
+    return jsonify({
+        'id': conv.id, 'title': conv.title,
+        'birth_data': json.loads(conv.birth_data) if conv.birth_data else {},
+        'messages': json.loads(conv.messages_json) if conv.messages_json else [],
+        'created_at': conv.created_at.isoformat() if conv.created_at else None,
+        'updated_at': conv.updated_at.isoformat() if conv.updated_at else None,
+    })
+
+
+@app.route('/api/ziwei/conversations/<int:cid>', methods=['DELETE'])
+@login_required
+def api_ziwei_conversation_delete(cid):
+    conv = ZiweiConversation.query.filter_by(id=cid, user_id=current_user.id).first()
+    if not conv:
+        return jsonify({'error': '对话不存在'}), 404
+    db.session.delete(conv)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+# ─── 首页综合 AI 对话历史与流式问答 API ───
+
+def _json_loads_safe(text, default):
+    try:
+        return json.loads(text) if text else default
+    except Exception:
+        return default
+
+
+def _profile_to_comprehensive_dict(profile):
+    return {
+        'id': profile.id,
+        'name': profile.name,
+        'gender': profile.gender,
+        'cal_type': profile.cal_type,
+        'birth_time': profile.birth_time,
+        'birth_addr': profile.birth_addr,
+        'profile_type': profile.profile_type or 'self',
+    }
+
+
+def resolve_comprehensive_profile(data):
+    profile_id = data.get('profile_id')
+    if profile_id:
+        prof = UserProfile.query.filter_by(id=profile_id, user_id=current_user.id).first()
+        if not prof:
+            raise ValueError('命盘档案不存在')
+        prof.last_used_at = datetime.utcnow()
+        db.session.commit()
+        return _profile_to_comprehensive_dict(prof)
+
+    profile = data.get('profile') or {}
+    return {
+        'name': profile.get('name') or '未命名',
+        'gender': profile.get('gender') or '男',
+        'cal_type': profile.get('cal_type') or profile.get('calType') or '公历',
+        'birth_time': profile.get('birth_time') or profile.get('birthTime') or '',
+        'birth_addr': profile.get('birth_addr') or profile.get('birthAddr') or '',
+        'profile_type': profile.get('profile_type') or profile.get('profileType') or 'self',
+    }
+
+
+def _split_birth_time(birth_time):
+    raw = ''.join(ch for ch in str(birth_time or '') if ch.isdigit())
+    if len(raw) < 8:
+        raise ValueError('命盘档案缺少出生年月日')
+    return (
+        int(raw[0:4]),
+        int(raw[4:6]),
+        int(raw[6:8]),
+        int(raw[8:10]) if len(raw) >= 10 else 0,
+        int(raw[10:12]) if len(raw) >= 12 else 0,
+    )
+
+
+def build_bazi_context_from_profile(profile):
+    from bazi_engine import paipan as bazi_paipan
+    result = bazi_paipan(
+        profile.get('name') or '未命名',
+        profile.get('gender') or '男',
+        profile.get('birth_time') or '',
+        profile.get('cal_type') or '公历',
+        profile.get('birth_addr') or '',
+        use_solar_time=True,
+    )
+    if not result.get('success'):
+        return {'error': result.get('error') or '八字排盘失败'}
+    return {
+        'name': profile.get('name') or '未命名',
+        'gender': profile.get('gender') or '男',
+        'birth_time': profile.get('birth_time') or '',
+        'cal_type': profile.get('cal_type') or '公历',
+        'birth_addr': profile.get('birth_addr') or '',
+        'four_pillars': result.get('four_pillars') or {},
+        'day_master': result.get('day_master') or result.get('ri_gan') or '',
+        'wuxing_stats': result.get('wuxing_stats') or result.get('five_elements') or {},
+        'strength': result.get('strength') or result.get('day_master_strength') or '',
+        'yongshen': result.get('yongshen') or result.get('useful_god') or '',
+        'dayun': result.get('dayun') or result.get('luck_pillars') or [],
+    }
+
+
+def build_ziwei_context_from_profile(profile):
+    if not HAS_ZIWEI:
+        return {'error': '紫微斗数引擎不可用'}
+    year, month, day, hour, minute = _split_birth_time(profile.get('birth_time'))
+    date_type = 'lunar' if profile.get('cal_type') == '农历' else 'solar'
+    result = _zw_engine.calculate(
+        year=year,
+        month=month,
+        day=day,
+        hour=hour,
+        minute=minute,
+        gender=profile.get('gender') or '男',
+        date_type=date_type,
+    )
+    palaces = []
+    for palace in result.get('twelve_palaces') or []:
+        palaces.append({
+            'name': palace.get('name'),
+            'heavenly_stem': palace.get('heavenly_stem'),
+            'earthly_branch': palace.get('earthly_branch'),
+            'major_stars': [s.get('name') for s in palace.get('major_stars') or [] if s.get('name')],
+            'minor_stars': [s.get('name') for s in palace.get('minor_stars') or [] if s.get('name')][:8],
+            'is_body_palace': palace.get('is_body_palace'),
+            'is_original_palace': palace.get('is_original_palace'),
+            'decadal': palace.get('decadal'),
+        })
+    return {
+        'basic_info': result.get('basic_info') or {},
+        'core_palace': result.get('core_palace') or {},
+        'twelve_palaces': palaces,
+    }
+
+
+def build_comprehensive_paipan_context(profile, tool_models):
+    context = {}
+    for tool in tool_models:
+        try:
+            if tool == 'bazi':
+                context['bazi'] = build_bazi_context_from_profile(profile)
+            elif tool == 'ziwei':
+                context['ziwei'] = build_ziwei_context_from_profile(profile)
+        except Exception as exc:
+            context[tool] = {'error': str(exc)}
+    return context
+
+
+def save_comprehensive_conversation(data, question, profile, tool_models, paipan_context, model_id, cost, history, answer):
+    messages = list(history or [])
+    messages.append({'role': 'user', 'content': question})
+    messages.append({'role': 'assistant', 'content': answer})
+    conv_id = data.get('conversation_id')
+    conv = None
+    if conv_id:
+        conv = ComprehensiveConversation.query.filter_by(id=conv_id, user_id=current_user.id).first()
+    if not conv:
+        conv = ComprehensiveConversation(user_id=current_user.id, created_at=datetime.utcnow())
+        db.session.add(conv)
+    conv.title = (data.get('title') or question or '综合 AI 问答')[:100]
+    conv.profile_data = json.dumps(profile or {}, ensure_ascii=False)
+    conv.models_json = json.dumps(tool_models or [], ensure_ascii=False)
+    conv.paipan_json = json.dumps(paipan_context or {}, ensure_ascii=False)
+    conv.model_id = model_id
+    conv.points_cost = cost
+    conv.messages_json = json.dumps(messages, ensure_ascii=False)
+    conv.updated_at = datetime.utcnow()
+    db.session.commit()
+    return conv
+
+
+@app.route('/api/comprehensive/options')
+@login_required
+def api_comprehensive_options():
+    membership = get_or_create_membership(current_user.id)
+    return jsonify({
+        'llm_models': COMPREHENSIVE_LLM_MODELS,
+        'tool_models': COMPREHENSIVE_TOOL_MODELS,
+        'points': membership.points,
+    })
+
+
+@app.route('/api/comprehensive/conversations', methods=['GET'])
+@login_required
+def api_comprehensive_conversations():
+    convs = ComprehensiveConversation.query.filter_by(user_id=current_user.id)\
+        .order_by(ComprehensiveConversation.updated_at.desc()).all()
+    return jsonify([{
+        'id': c.id,
+        'title': c.title,
+        'model_id': c.model_id,
+        'models': _json_loads_safe(c.models_json, []),
+        'created_at': c.created_at.isoformat() if c.created_at else None,
+        'updated_at': c.updated_at.isoformat() if c.updated_at else None,
+    } for c in convs])
+
+
+@app.route('/api/comprehensive/conversations/<int:cid>', methods=['GET'])
+@login_required
+def api_comprehensive_conversation_detail(cid):
+    conv = ComprehensiveConversation.query.filter_by(id=cid, user_id=current_user.id).first()
+    if not conv:
+        return jsonify({'error': '对话不存在'}), 404
+    return jsonify({
+        'id': conv.id,
+        'title': conv.title,
+        'profile_data': _json_loads_safe(conv.profile_data, {}),
+        'models': _json_loads_safe(conv.models_json, []),
+        'paipan': _json_loads_safe(conv.paipan_json, {}),
+        'model_id': conv.model_id,
+        'points_cost': conv.points_cost,
+        'messages': _json_loads_safe(conv.messages_json, []),
+        'created_at': conv.created_at.isoformat() if conv.created_at else None,
+        'updated_at': conv.updated_at.isoformat() if conv.updated_at else None,
+    })
+
+
+@app.route('/api/comprehensive/conversations/<int:cid>', methods=['DELETE'])
+@login_required
+def api_comprehensive_conversation_delete(cid):
+    conv = ComprehensiveConversation.query.filter_by(id=cid, user_id=current_user.id).first()
+    if not conv:
+        return jsonify({'error': '对话不存在'}), 404
+    db.session.delete(conv)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/comprehensive/ask/stream', methods=['POST'])
+@login_required
+def api_comprehensive_ask_stream():
+    data = request.get_json(silent=True) or {}
+    question = (data.get('question') or '').strip()
+    history = data.get('history') or []
+    tool_models = normalize_tool_models(data.get('tool_models') or [])
+    model_id = data.get('llm_model') or 'free'
+    is_followup = bool(history)
+    cost = calculate_cost(model_id, tool_models, is_followup=is_followup)
+
+    def _event(payload):
+        return 'data: %s\n\n' % json.dumps(payload, ensure_ascii=False)
+
+    if not question:
+        return Response(_event({'error': '请输入问题'}), mimetype='text/event-stream')
+    if not tool_models and not is_followup:
+        return Response(_event({'error': '请至少选择一个术数模型'}), mimetype='text/event-stream')
+
+    membership = get_or_create_membership(current_user.id)
+    if membership.points < cost:
+        return Response(_event({'error': '积分不足', 'current': membership.points, 'required': cost}), mimetype='text/event-stream')
+
+    def generate():
+        try:
+            yield _event({'stage': 'profile', 'message': '正在读取命盘档案...'})
+            profile = resolve_comprehensive_profile(data)
+            paipan_context = data.get('paipan') or {}
+            if not is_followup or not paipan_context:
+                yield _event({'stage': 'paipan', 'message': '正在生成八字与紫微盘...'})
+                paipan_context = build_comprehensive_paipan_context(profile, tool_models)
+            add_points(current_user.id, 'comprehensive_ai', -cost, '综合 AI ' + ('追问' if is_followup else '解读'))
+            messages = build_comprehensive_messages(question, profile, tool_models, paipan_context, history)
+            full_text = ''
+            yield _event({'stage': 'generating', 'message': '正在生成综合解读...'})
+            for chunk, error in get_reading_stream(messages):
+                if error:
+                    yield _event({'error': error})
+                    return
+                if chunk:
+                    full_text += chunk
+                    yield _event({'content': chunk})
+            conv = save_comprehensive_conversation(data, question, profile, tool_models, paipan_context, model_id, cost, history, full_text)
+            points_left = get_or_create_membership(current_user.id).points
+            yield _event({'done': True, 'conversation_id': conv.id, 'points_left': points_left, 'paipan': paipan_context})
+        except Exception as exc:
+            logger.exception("综合 AI 生成失败")
+            yield _event({'error': '综合解读失败：' + str(exc)[:120]})
+
+    return Response(stream_with_context(generate()), mimetype='text/event-stream',
+                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+
+
 # ═══════════════════════════════════════════════════════════════
 # 紫微斗数 — SSE 流式 AI 解读
 # ═══════════════════════════════════════════════════════════════
@@ -3876,22 +4208,55 @@ def _ziwei_ask_task(run_id):
         palaces = []
         for p in (pan_data.get('twelve_palaces') or pan_data.get('palaces') or []):
             name = p.get('name', '')
-            stars = []
+            all_stars = []
+            for s in (p.get('major_stars') or []):
+                sn = s.get('name', '') if isinstance(s, dict) else str(s)
+                if sn:
+                    br = s.get('brightness', '') if isinstance(s, dict) else ''
+                    mut = s.get('mutagen', '') if isinstance(s, dict) else ''
+                    label = sn
+                    if br: label += '(' + br + ')'
+                    if mut: label += '[' + mut + ']'
+                    all_stars.append(label + '(主星)')
+            for s in (p.get('minor_stars') or []):
+                sn = s.get('name', '') if isinstance(s, dict) else str(s)
+                if sn:
+                    br = s.get('brightness', '') if isinstance(s, dict) else ''
+                    mut = s.get('mutagen', '') if isinstance(s, dict) else ''
+                    label = sn
+                    if br: label += '(' + br + ')'
+                    if mut: label += '[' + mut + ']'
+                    all_stars.append(label)
+            for s in (p.get('adjective_stars') or []):
+                sn = s.get('name', '') if isinstance(s, dict) else str(s)
+                if sn:
+                    all_stars.append(sn)
             for s in (p.get('stars') or []):
-                star_name = s.get('name', '')
-                if s.get('is_mi', False): star_name += '(庙)'
-                elif s.get('is_wang', False): star_name += '(旺)'
-                elif s.get('is_de', False): star_name += '(得)'
-                elif s.get('is_li', False): star_name += '(利)'
-                elif s.get('is_xian', False): star_name += '(陷)'
-                stars.append(star_name)
-            palaces.append(f"{name}: {' '.join(stars) if stars else '(空)'}")
+                sn = s.get('name', '') if isinstance(s, dict) else str(s)
+                if sn:
+                    br = s.get('brightness', '') if isinstance(s, dict) else ''
+                    label = sn
+                    if br: label += '(' + br + ')'
+                    all_stars.append(label)
+            palaces.append(f"{name}: {' '.join(all_stars) if all_stars else '(空宫)'}")
 
         basic_info = pan_data.get('basic_info', {})
         palace_summary = '\n'.join(palaces)
 
+        core_palace = pan_data.get('core_palace', {})
+        core_info = ''
+        if core_palace:
+            core_info = f"\n命宫详情: {json.dumps(core_palace, ensure_ascii=False)}"
+
+        decadal = pan_data.get('decadal_overview', [])
+        decadal_info = ''
+        if decadal:
+            decadal_info = f"\n大限概览: {json.dumps(decadal, ensure_ascii=False)[:500]}"
+
         type_hints = {
+            'overview': '全面分析命盘格局，从整体角度审视命主的一生运势特点、性格特质和人生轨迹。',
             'career': '重点分析事业财运，包括官禄宫、财帛宫及相关星曜组合，分析其事业运势和财运走势。',
+            'love': '重点分析姻缘感情，包括夫妻宫及相关星曜组合，分析其感情状况和姻缘走向。',
             'marriage': '重点分析姻缘感情，包括夫妻宫及相关星曜组合，分析其感情状况和姻缘走向。',
             'health': '重点分析健康运势，包括疾厄宫及相关星曜组合，分析其健康方面的潜在问题和建议。',
             'decadal': '重点分析大限流年，包括当前所处大限、流年运势、四化情况，分析近期运程变化和重要时间节点。',
@@ -3920,10 +4285,18 @@ def _ziwei_ask_task(run_id):
 
             user_msg = f"""出生时间：{basic_info.get('birth', '')}
 性别：{basic_info.get('gender', '')}
+农历：{basic_info.get('lunar_date', '')}
+干支：{basic_info.get('chinese_date', '')}
+生肖：{basic_info.get('zodiac', '')}
+星座：{basic_info.get('sign', '')}
+五行局：{basic_info.get('five_elements_class', '')}
+时辰：{basic_info.get('shichen', '')} ({basic_info.get('shichen_range', '')})
 用户问题：{question}
 
-命盘数据：
+命盘十二宫：
 {palace_summary}
+{core_info}
+{decadal_info}
 
 请根据以上信息给出详细解析。"""
 

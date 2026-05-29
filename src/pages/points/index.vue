@@ -331,16 +331,13 @@ export default {
 
 /* 充值套餐 */
 .pkg-scroll {
-  display: flex; gap: 10px; overflow-x: auto;
-  padding: 4px 0 8px; -webkit-overflow-scrolling: touch;
-  scroll-snap-type: x mandatory;
+  display: flex; gap: 10px;
+  padding: 4px 0 8px;
 }
-.pkg-scroll::-webkit-scrollbar { display: none; }
 .pkg-card {
-  flex: 1 1 0; min-width: 110px; background: var(--card-bg); border: 1px solid var(--card-border);
-  border-radius: 14px; padding: 18px 16px; text-align: center;
+  flex: 1 1 0; min-width: 0; background: var(--card-bg); border: 1px solid var(--card-border);
+  border-radius: 14px; padding: 18px 10px; text-align: center;
   cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;
-  scroll-snap-align: start;
 }
 .pkg-card:hover { transform: translateY(-3px); box-shadow: var(--card-shadow); }
 .pkg-card:first-child { background: linear-gradient(135deg, var(--accent-glow), var(--card-bg)); border-color: var(--accent); }

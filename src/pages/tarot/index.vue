@@ -306,6 +306,7 @@ function _showResultDOM() {
     // 渲染卡牌
     const display = document.getElementById('cardsDisplay')
     if (display && _drawResult.cards && _drawResult.cards.length) {
+      display.setAttribute('data-count', String(_drawResult.cards.length))
       display.innerHTML = _drawResult.cards.map(function(card, i) {
       const icon = card.type === 'major'
         ? (MAJOR_ICONS[card.id] || '🃏')
@@ -1143,7 +1144,7 @@ function _checkTarotRestore() {
 }
 .spread-grid {
   display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
 .spread-card {
@@ -1385,14 +1386,21 @@ function _checkTarotRestore() {
 
 /* 牌面展示 */
 .tarot-cards-display {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 20px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
   margin-bottom: 32px;
+  justify-items: center;
 }
+.tarot-cards-display[data-count="1"] { grid-template-columns: 1fr; max-width: 200px; margin-left: auto; margin-right: auto; }
+.tarot-cards-display[data-count="3"] { grid-template-columns: repeat(3, 1fr); max-width: 560px; margin-left: auto; margin-right: auto; }
+.tarot-cards-display[data-count="5"] { grid-template-columns: repeat(3, 1fr); max-width: 560px; margin-left: auto; margin-right: auto; }
+.tarot-cards-display[data-count="6"] { grid-template-columns: repeat(3, 1fr); max-width: 560px; margin-left: auto; margin-right: auto; }
+.tarot-cards-display[data-count="7"] { grid-template-columns: repeat(4, 1fr); max-width: 720px; margin-left: auto; margin-right: auto; }
+.tarot-cards-display[data-count="10"] { grid-template-columns: repeat(5, 1fr); max-width: 880px; margin-left: auto; margin-right: auto; }
 .tarot-card-slot {
-  width: 160px;
+  width: 100%;
+  max-width: 160px;
   perspective: 600px;
   overflow-anchor: none;
 }
@@ -1666,16 +1674,22 @@ function _checkTarotRestore() {
 /* ═══ 响应式 ═══ */
 @media (max-width: 768px) {
   .tarot-hero-title { font-size: 1.6rem; }
-  .spread-grid { grid-template-columns: repeat(2, 1fr); }
-  .tarot-card-slot { width: 130px; }
+  .spread-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .tarot-card-slot { max-width: 130px; }
   .tarot-card-flipper { height: 220px; }
   .tarot-cards-display { gap: 12px; }
+  .tarot-cards-display[data-count="6"] { grid-template-columns: repeat(3, 1fr); max-width: 420px; }
+  .tarot-cards-display[data-count="7"] { grid-template-columns: repeat(4, 1fr); max-width: 560px; }
+  .tarot-cards-display[data-count="10"] { grid-template-columns: repeat(5, 1fr); max-width: 680px; }
   .tarot-settings { flex-direction: column; align-items: stretch; }
 }
 @media (max-width: 480px) {
-  .tarot-card-slot { width: 110px; }
+  .tarot-card-slot { max-width: 110px; }
   .tarot-card-flipper { height: 200px; }
   .tarot-card-name { font-size: 0.8125rem; }
+  .tarot-cards-display[data-count="6"] { grid-template-columns: repeat(2, 1fr); max-width: 240px; }
+  .tarot-cards-display[data-count="7"] { grid-template-columns: repeat(3, 1fr); max-width: 360px; }
+  .tarot-cards-display[data-count="10"] { grid-template-columns: repeat(4, 1fr); max-width: 480px; }
 }
 
 /* ═══ AI 进度区 ═══ */

@@ -11,6 +11,7 @@
         <view id="histSearch-wrap" class="dom-input-wrap"></view>
         <view class="search-type-row">
           <view class="type-chip" id="histFiltAll" @tap="switchHistFilter('')">全部</view>
+          <view class="type-chip" id="histFiltComprehensive" @tap="switchHistFilter('综合')">综合</view>
           <view class="type-chip" id="histFiltBazi" @tap="switchHistFilter('八字')">八字</view>
           <view class="type-chip" id="histFiltQimen" @tap="switchHistFilter('奇门')">奇门</view>
           <view class="type-chip" id="histFiltLiuy" @tap="switchHistFilter('六爻')">六爻</view>
@@ -43,11 +44,14 @@
       <!-- 记录列表 -->
       <view v-for="(item, idx) in filteredRecords" :key="idx" class="record-card" @tap="rePaipan(item)">
         <view class="record-header">
-          <text class="record-name">{{ item.name || '未命名' }}</text>
+          <text class="record-name">{{ item.name || item.title || '未命名' }}</text>
           <text class="record-time">{{ formatTime(item.created_at) }}</text>
         </view>
-        <view class="record-pillars">{{ item.pillars || '----' }}</view>
+        <view class="record-pillars">{{ item.type === '综合' ? '综合 AI 问答' : (item.pillars || '----') }}</view>
         <view class="record-meta">
+          <text v-if="item.type">{{ item.type }}</text>
+          <text v-if="item.model_id">{{ item.model_id === 'free' ? '免费模型' : item.model_id }}</text>
+          <text v-if="item.models && item.models.length">{{ item.models.join(' / ') }}</text>
           <text v-if="item.gender">{{ item.gender }}</text>
           <text v-if="item.birth_time">{{ item.birth_time }}</text>
           <text v-if="item.cal_type">{{ item.cal_type }}</text>
@@ -90,8 +94,8 @@ const filterType = ref('')
 // 模式B: filterType DOM classList切换
 function switchHistFilter(type) {
   filterType.value = type
-  var types = ['','八字','奇门','六爻','梅花','紫微','塔罗']
-  var ids = ['histFiltAll','histFiltBazi','histFiltQimen','histFiltLiuy','histFiltMei','histFiltZiwei','histFiltTaro']
+  var types = ['','综合','八字','奇门','六爻','梅花','紫微','塔罗']
+  var ids = ['histFiltAll','histFiltComprehensive','histFiltBazi','histFiltQimen','histFiltLiuy','histFiltMei','histFiltZiwei','histFiltTaro']
   for (var i = 0; i < types.length; i++) {
     var el = document.getElementById(ids[i])
     if (el) { type === types[i] ? el.classList.add('active') : el.classList.remove('active') }
@@ -149,6 +153,13 @@ function formatTime(ts) {
 
 // 重新排盘 — 保存参数并跳转到排盘结果页
 function rePaipan(item) {
+  if (item.type === '综合') {
+    // #ifdef H5
+    try { sessionStorage.setItem('xc_comprehensive_resume_id', String(item.id || '')) } catch(_) {}
+    // #endif
+    uni.switchTab({ url: '/pages/index/index' })
+    return
+  }
   const params = item.params || {}
   if (item.type === '八字' || !item.type) {
     // 保存参数到 sessionStorage (H5) 或直接跳转
@@ -190,9 +201,25 @@ async function loadHistory() {
   try {
     const res = await uni.request({ url: '/api/bazi/history' })
     const data = res.data
+    let list = []
     if (data && data.success) {
-      records.value = data.history || []
+      list = (data.history || []).map(function(item) {
+        item.type = item.type === 'paipan' || !item.type ? '八字' : item.type
+        return item
+      })
     }
+    try {
+      const cr = await uni.request({ url: '/api/comprehensive/conversations' })
+      const convs = Array.isArray(cr.data) ? cr.data : []
+      list = convs.map(function(c) {
+        return Object.assign({}, c, {
+          type: '综合',
+          name: c.title || '综合 AI 问答',
+          created_at: c.updated_at || c.created_at,
+        })
+      }).concat(list)
+    } catch (_) {}
+    records.value = list
   } catch (e) {
     // 后端未启动时显示空状态
   } finally {

@@ -125,7 +125,7 @@
             </view>
             <view class="form-group">
               <text class="form-label">您的问题（可选）</text>
-              <input type="text" class="form-input" v-model="zwAiForm.question" placeholder="请输入您想问的问题">
+              <input type="text" class="form-input form-input-text" v-model="zwAiForm.question" placeholder="请输入您想问的问题">
             </view>
             <view class="submit-btn" @click="zwAiAsk">🤖 AI解读</view>
             <view class="qai-stream-box" v-if="zwAiResult" style="display:block;">
@@ -501,6 +501,64 @@ const zwAiLoading = ref(false)
 const zwAiChatReady = ref(false)
 const zwAiFollowUpQuestion = ref('')
 window._zwChatHistory = []
+var _zwCurrentConvId = null
+
+function _saveZwConversation(question, birthInfo) {
+  var token = uni.getStorageSync('xc_token') || ''
+  if (!token) return
+  uni.request({
+    url: '/api/ziwei/conversations', method: 'POST',
+    header: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    data: JSON.stringify({
+      title: (question || '紫微斗数AI解读').substring(0, 50),
+      birth_data: birthInfo || {},
+      messages: window._zwChatHistory || []
+    }),
+    success: function(res) {
+      if (res.data && res.data.id) _zwCurrentConvId = res.data.id
+      window.__sidebarCache = null
+    }
+  })
+}
+
+function _updateZwConversation() {
+  var token = uni.getStorageSync('xc_token') || ''
+  if (!token || !_zwCurrentConvId) return
+  uni.request({
+    url: '/api/ziwei/conversations', method: 'POST',
+    header: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    data: JSON.stringify({ id: _zwCurrentConvId, messages: window._zwChatHistory }),
+    success: function() { window.__sidebarCache = null }
+  })
+}
+
+function _checkZwRestore() {
+  var d = window.__xc_restoreData
+  if (!d || d.type !== 'ziwei') return
+  window.__xc_restoreData = null
+  switchTab('ai')
+  var messages = d.messages || []
+  window._zwChatHistory = messages.slice()
+  _zwCurrentConvId = d.id || null
+  var html = ''
+  messages.forEach(function(m) {
+    if (m.role === 'user') {
+      html += '<div class="chat-bubble-user">' + _escZwHtml(m.content) + '</div>'
+    } else if (m.role === 'assistant') {
+      html += '<div class="chat-bubble-ai"><div class="chat-bubble-content">' + _zwRenderCards(m.content) + '</div></div>'
+    }
+  })
+  zwAiResult.value = html
+  zwAiChatReady.value = true
+  zwAiFollowUpQuestion.value = ''
+}
+
+function _escZwHtml(s) {
+  if (!s || typeof s !== 'string') return ''
+  var d = document.createElement('div')
+  d.appendChild(document.createTextNode(s))
+  return d.innerHTML
+}
 
 async function zwAiAsk() {
   if (zwAiLoading.value) return
@@ -540,6 +598,10 @@ async function zwAiAsk() {
           zwAiResult.value = '<div class="chat-bubble-ai"><div class="chat-bubble-content">' + _zwRenderCards(fullText) + '</div></div>'
           zwAiChatReady.value = true
           zwAiLoading.value = false
+          window._zwChatHistory.push({ role: 'user', content: question || '紫微斗数AI解读' })
+          window._zwChatHistory.push({ role: 'assistant', content: fullText })
+          _zwCurrentConvId = null
+          _saveZwConversation(question || '紫微斗数AI解读', { year: y, month: m, day: d, hour: h, minute: min, gender: gender, date_type: date_type, analysis_type: zwAnalysisTypes[zwAiForm.analysisTypeIdx].key })
           return
         }
         if (charQueue.length === 0) return
@@ -624,6 +686,7 @@ function zwSendFollowUp() {
   const question = zwAiFollowUpQuestion.value.trim()
   if (!question) return
   zwAiFollowUpQuestion.value = ''
+  const token = uni.getStorageSync('xc_token') || ''
   
   window._zwChatHistory = window._zwChatHistory || []
   window._zwChatHistory.push({ role: 'user', content: question })
@@ -636,7 +699,7 @@ function zwSendFollowUp() {
   
   fetch('/api/ziwei/ask/stream', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
     body: JSON.stringify({ question: question, history: window._zwChatHistory })
   }).then(async function(resp) {
     if (!resp.ok) return
@@ -655,15 +718,21 @@ function zwSendFollowUp() {
           clearInterval(typeTimer)
           typeTimer = null
           window._zwChatHistory.push({ role: 'assistant', content: fullText })
+          var bubble = document.getElementById(aiBubbleId)
+          if (bubble) {
+            var contentEl = bubble.querySelector('.chat-bubble-content')
+            if (contentEl) contentEl.innerHTML = _zwRenderCards(fullText)
+          }
+          _updateZwConversation()
           return
         }
         if (charQueue.length === 0) return
-        const take = charQueue.length > 3 ? 2 : 1
+        var take = charQueue.length > 3 ? 2 : 1
         fullText += charQueue.substring(0, take)
         charQueue = charQueue.substring(take)
-        const bubble = document.getElementById(aiBubbleId)
+        var bubble = document.getElementById(aiBubbleId)
         if (bubble) {
-          const contentEl = bubble.querySelector('.chat-bubble-content')
+          var contentEl = bubble.querySelector('.chat-bubble-content')
           if (contentEl) contentEl.innerHTML = _stripMarkdown(fullText).replace(/\n/g, '<br>')
         }
       }, 35)
@@ -944,6 +1013,13 @@ onMounted(function() {
   if (zwDayOptions.value.length > day - 1) {
     zwTargetDayIdx.value = day - 1
   }
+  uni.$on('xc-restore', _checkZwRestore)
+  _checkZwRestore()
+  window._xc_restoreZiwei = _checkZwRestore
+  setInterval(function() {
+    var rd = window.__xc_restoreData
+    if (rd && rd.type === 'ziwei') _checkZwRestore()
+  }, 500)
 })
 </script>
 
@@ -972,8 +1048,11 @@ onMounted(function() {
 .form-group { margin-bottom: 16px; }
 .form-label { display: block; font-size: 0.75rem; color: var(--text-3); margin-bottom: 6px; letter-spacing: 1px; }
 .form-input, .form-select-picker { width: 100%; padding: 10px 14px; border-radius: 10px; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-1); font-size: 0.875rem; outline: none; box-sizing: border-box; }
-.form-input .uni-input-wrapper { height: 22px; }
-.form-input .uni-input-input { height: 22px !important; padding: 0 !important; margin: 0; border: none !important; background: transparent !important; font-size: inherit !important; color: inherit !important; line-height: 22px !important; }
+.zw-form-grid .form-input .uni-input-wrapper { height: 22px; }
+.zw-form-grid .form-input .uni-input-input { height: 22px !important; padding: 0 !important; margin: 0; border: none !important; background: transparent !important; font-size: inherit !important; color: inherit !important; line-height: 22px !important; }
+.form-input-text { height: 48px !important; padding: 0 14px !important; display: flex !important; align-items: center !important; }
+.form-input-text .uni-input-wrapper { width: 100%; height: auto; display: flex; align-items: center; }
+.form-input-text .uni-input-input { height: auto !important; padding: 0 !important; margin: 0; border: none !important; background: transparent !important; font-size: 1rem !important; color: inherit !important; line-height: normal !important; }
 .form-hint { font-size: 0.6875rem; color: var(--text-3); }
 .submit-btn { width: 100%; padding: 14px; border-radius: 30px; border: none; background: hsl(35, 38%, 52%); color: #fff; font-size: 1rem; font-weight: 600; cursor: pointer; letter-spacing: 2px; margin-top: 8px; text-align: center; transition: opacity 0.2s; }
 .submit-btn:hover { opacity: 0.9; }

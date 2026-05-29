@@ -316,3 +316,30 @@ CREATE TABLE IF NOT EXISTS bazi_conversation (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS ix_bazi_conversation_user_id ON bazi_conversation(user_id);
+
+CREATE TABLE IF NOT EXISTS ziwei_conversation (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER REFERENCES user(id),
+    title VARCHAR(100),
+    birth_data TEXT,
+    messages_json TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS ix_ziwei_conversation_user_id ON ziwei_conversation(user_id);
+
+-- 首页综合 AI 对话历史
+CREATE TABLE IF NOT EXISTS comprehensive_conversation (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES user(id),
+    title VARCHAR(100),
+    profile_data TEXT,
+    models_json TEXT,
+    paipan_json TEXT,
+    model_id VARCHAR(50),
+    points_cost INTEGER DEFAULT 0,
+    messages_json TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS ix_comprehensive_conversation_user_id ON comprehensive_conversation(user_id);

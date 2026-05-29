@@ -357,3 +357,30 @@ class BaziConversation(db.Model):
     messages_json = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ZiweiConversation(db.Model):
+    __tablename__ = 'ziwei_conversation'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
+    title = db.Column(db.String(100))
+    birth_data = db.Column(db.Text)
+    messages_json = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ComprehensiveConversation(db.Model):
+    """首页综合 AI 对话历史"""
+    __tablename__ = 'comprehensive_conversation'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    title = db.Column(db.String(100))
+    profile_data = db.Column(db.Text)
+    models_json = db.Column(db.Text)
+    paipan_json = db.Column(db.Text)
+    model_id = db.Column(db.String(50))
+    points_cost = db.Column(db.Integer, default=0)
+    messages_json = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

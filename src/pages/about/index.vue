@@ -13,6 +13,86 @@
         <text class="about-hero-desc">以八字定先天根基与人生大势，以奇门断当下事件与具体决策，双体系结合更全面</text>
       </view>
 
+      <!-- 产品导航 -->
+      <section class="section">
+        <view class="section-tag">产品导航</view>
+        <view class="section-title">全方位命理参考工具</view>
+        <view class="hero-cards">
+          <view @tap="goToPage('/pages/qimen/index')" class="hero-card hero-card-primary">
+            <view class="hero-card-glow"></view>
+            <view class="hero-card-content">
+              <view class="hero-card-icon">🔮</view>
+              <view class="hero-card-title">奇门遁甲</view>
+              <view class="hero-card-desc">一事一断 · 吉凶预判 · 择时择方</view>
+              <view class="hero-card-features">
+                <view class="hero-card-tag">时安奇门系统</view>
+                <view class="hero-card-tag free">免费排盘</view>
+              </view>
+              <view class="hero-card-arrow">→</view>
+            </view>
+          </view>
+
+          <view @tap="goToPage('/pages/bazi-index/index')" class="hero-card hero-card-primary">
+            <view class="hero-card-glow"></view>
+            <view class="hero-card-content">
+              <view class="hero-card-icon">📜</view>
+              <view class="hero-card-title">八字排盘</view>
+              <view class="hero-card-desc">定格局 · 看喜忌 · 断大运 · 知财运</view>
+              <view class="hero-card-features">
+                <view class="hero-card-tag">时安八字系统</view>
+                <view class="hero-card-tag free">免费排盘</view>
+              </view>
+              <view class="hero-card-arrow">→</view>
+            </view>
+          </view>
+
+          <view class="hero-mini-scroll">
+            <view @tap="goToPage('/pages/liuyao/index')" class="hero-card hero-card-mini">
+              <view class="hero-card-content">
+                <view class="hero-card-icon">🧭</view>
+                <view class="hero-card-title">六爻排盘</view>
+              </view>
+            </view>
+            <view @tap="goToPage('/pages/meihua/index')" class="hero-card hero-card-mini">
+              <view class="hero-card-content">
+                <view class="hero-card-icon">🌸</view>
+                <view class="hero-card-title">梅花易数</view>
+              </view>
+            </view>
+            <view @tap="goToPage('/pages/ziwei/index')" class="hero-card hero-card-mini">
+              <view class="hero-card-content">
+                <view class="hero-card-icon">⭐</view>
+                <view class="hero-card-title">紫微斗数</view>
+              </view>
+            </view>
+            <view @tap="goToPage('/pages/tarot/index')" class="hero-card hero-card-mini">
+              <view class="hero-card-content">
+                <view class="hero-card-icon">🃏</view>
+                <view class="hero-card-title">塔罗牌</view>
+              </view>
+            </view>
+            <view @tap="goToPage('/pages/zeji/index')" class="hero-card hero-card-mini">
+              <view class="hero-card-content">
+                <view class="hero-card-icon">📅</view>
+                <view class="hero-card-title">择吉工具</view>
+              </view>
+            </view>
+            <view @tap="goToPage('/pages/calendar/index')" class="hero-card hero-card-mini">
+              <view class="hero-card-content">
+                <view class="hero-card-icon">🗓️</view>
+                <view class="hero-card-title">专属日历</view>
+              </view>
+            </view>
+            <view @tap="goToPage('/pages/community/index')" class="hero-card hero-card-mini">
+              <view class="hero-card-content">
+                <view class="hero-card-icon">💬</view>
+                <view class="hero-card-title">交流社区</view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </section>
+
       <!-- 信任背书 -->
       <view class="section">
         <text class="section-tag">信任背书</text>
@@ -41,18 +121,66 @@
               <view class="case-tab" id="caseTabReal" @tap="filterCases('real')">实战案例</view>
               <view class="case-tab" id="caseTabCommunity" @tap="filterCases('community')">社区案例</view>
             </view>
-            <scroll-view scroll-x class="case-list">
+            <view class="case-list">
               <view class="case-card" v-for="(c, i) in filteredCases" :key="i">
-                <view class="case-badge" :id="'caseBadge' + i">{{ c.sourceLabel }}</view>
-                <text class="case-type">{{ c.type }}</text>
-                <text class="case-title">{{ c.title }}</text>
-                <text class="case-desc">{{ c.desc }}</text>
-                <text class="case-verified">{{ c.verified }}</text>
-                <text class="case-disclaimer">仅为民俗参考，不代表绝对结果</text>
+                <view class="case-header">
+                  <view class="case-avatar" :style="{ background: c.avatarColor }">{{ c.avatar }}</view>
+                  <view class="case-user-info">
+                    <text class="case-nickname">{{ c.nickname }}</text>
+                    <text class="case-date">{{ c.date }}</text>
+                  </view>
+                  <view class="case-badge" :id="'caseBadge' + i">{{ c.sourceLabel }}</view>
+                </view>
+                <view class="case-type">{{ c.type }}</view>
+                <view class="case-q">
+                  <text class="case-q-label">问</text>
+                  <text class="case-q-text">{{ c.question }}</text>
+                </view>
+                <view class="case-a">
+                  <text class="case-a-label">答</text>
+                  <text class="case-a-text">{{ c.answer }}</text>
+                </view>
+                <view class="case-result">
+                  <text class="case-verified">{{ c.verified }}</text>
+                  <text class="case-feedback">{{ c.feedback }}</text>
+                </view>
               </view>
-            </scroll-view>
+            </view>
           </view>
         </view>
+      </view>
+
+      <!-- 核心特色 -->
+      <section class="section">
+        <view class="section-tag">核心特色</view>
+        <view class="section-title">双术数融合 · 更全面的命理参考</view>
+        <view class="section-desc">以八字定先天根基与人生大势，以奇门断当下事件与具体决策</view>
+        <view class="feature-scroll-wrap">
+          <view class="feature-grid">
+            <view class="feature-card" v-for="f in features" :key="f.title">
+              <view class="feature-icon">{{ f.icon }}</view>
+              <view class="feature-card-title">{{ f.title }}</view>
+              <view class="feature-card-desc">{{ f.desc }}</view>
+            </view>
+          </view>
+        </view>
+      </section>
+
+      <!-- 快速场景 -->
+      <view class="section-alt">
+        <section class="section">
+          <view class="section-tag">快速场景</view>
+          <view class="section-title">针对具体事件精准起局</view>
+          <view class="section-desc">选择你的场景，一键获取专业解读参考</view>
+          <view class="scenario-scroll-wrap">
+            <view class="scenario-grid">
+              <view class="scenario-card" v-for="s in scenarios" :key="s.key" @tap="goScenario(s.key)">
+                <text class="scenario-emoji">{{ s.emoji }}</text>
+                <view class="scenario-card-title">{{ s.title }}</view>
+              </view>
+            </view>
+          </view>
+        </section>
       </view>
 
       <!-- 新手入门 -->
@@ -103,10 +231,62 @@
           </view>
         </view>
       </view>
+
+      <!-- 新手常见问题 -->
+      <section class="section faq-section">
+        <view class="faq-panel" id="faqPanel">
+          <view class="faq-panel-header" id="faqPanelHeader" @tap="toggleFaqPanel">
+            <view class="faq-panel-title">❓ 新手常见问题</view>
+            <view class="faq-panel-arrow" id="faqPanelArrow">▲</view>
+          </view>
+          <view class="faq-panel-body" id="faqPanelBody">
+            <view class="faq-item" v-for="(faq, idx) in faqs" :key="faq.q">
+              <view class="faq-q" :id="'faqQ' + idx" @tap="toggleFaq(idx)">
+                <text>{{ faq.q }}</text>
+                <text class="arrow" :id="'faqArrow' + idx">▼</text>
+              </view>
+              <view class="faq-a" :id="'faqA' + idx">{{ faq.a }}</view>
+            </view>
+          </view>
+        </view>
+      </section>
+
+      <!-- 页脚 -->
+      <view class="site-footer">
+        <view class="footer-disclaimer">
+          ⚠️ 本站所有内容仅为民俗文化与传统命理科普参考，不构成任何决策建议，严禁利用本站内容从事封建迷信及违法违规活动，本站不对任何用户基于本站内容做出的决策承担任何责任
+        </view>
+        <view class="footer-grid">
+          <view class="footer-col">
+            <view class="footer-col-title">平台信息</view>
+            <navigator url="/package-info/about/index">关于我们</navigator>
+            <view class="footer-link" @tap="showFooterInfo('contact')">联系方式</view>
+            <view class="footer-link" @tap="showFooterInfo('terms')">用户协议</view>
+            <view class="footer-link" @tap="showFooterInfo('privacy')">隐私政策</view>
+            <view class="footer-link" @tap="showFooterInfo('disclaimer')">完整免责声明</view>
+          </view>
+          <view class="footer-col">
+            <view class="footer-col-title">快捷导航</view>
+            <view class="footer-link" @tap="goToPage('/pages/qimen/index')">奇门遁甲</view>
+            <view class="footer-link" @tap="goToPage('/pages/bazi-index/index')">八字排盘</view>
+            <view class="footer-link" @tap="goToPage('/pages/calendar/index')">专属日历</view>
+            <view class="footer-link" @tap="goToPage('/pages/community/index')">社区</view>
+            <navigator url="/package-info/about/index">关于我们</navigator>
+          </view>
+          <view class="footer-col">
+            <view class="footer-col-title">备案与版权</view>
+            <view class="footer-icp">ICP备案号：京ICP备2026050601号-1</view>
+            <view class="footer-link" @tap="showFooterInfo('copyright')">版权信息</view>
+            <view class="footer-icp">© 2026 时安解忧屋 版权所有</view>
+          </view>
+        </view>
+        <view class="footer-bottom">
+          <text class="footer-bottom-text">时安解忧屋 · 看得懂用得上的民俗命理参考平台</text>
+          <view class="btn-clear-data" @tap="clearAllData">🗑️ 一键清空所有数据</view>
+        </view>
+      </view>
+
     </view>
-
-
-
 
   </view>
 </template>
@@ -122,12 +302,33 @@ export default {
       isLoggedIn: !!uni.getStorageSync('xc_token'),
       caseFilter: 'all',
       cases: [
-        { source: 'classic', sourceLabel: '经典', type: '事业 · 奇门遁甲', title: '求职面试能否通过', desc: '问事背景：用户面临重要面试，排盘解读结论为利东方方位、午时有利。后续果然在调整面试时间后顺利通过。', verified: '✅ 已应验' },
-        { source: 'classic', sourceLabel: '经典', type: '感情 · 奇门遁甲', title: '感情复合时机判断', desc: '问事背景：用户询问与前任复合可能性，排盘显示休门临宫、逢合期在秋分后。用户反馈秋分后确实关系缓和。', verified: '✅ 已应验' },
-        { source: 'real', sourceLabel: '实战', type: '财运 · 八字命理', title: '投资理财方向参考', desc: '问事背景：用户询问投资方向，八字分析显示偏财星弱、正财为主，建议稳健理财。用户采纳后避免了高风险损失。', verified: '✅ 已应验' },
-        { source: 'real', sourceLabel: '实战', type: '学业 · 奇门遁甲', title: '考试发挥与结果预判', desc: '问事背景：用户询问考研结果，排盘显示景门旺相、文书有利。后续考试发挥顺利，成功上岸。', verified: '✅ 已应验' },
-        { source: 'community', sourceLabel: '社区', type: '出行 · 奇门遁甲', title: '长途出行安全预判', desc: '问事背景：用户计划远行，排盘显示驿马星动但逢冲，建议调整出行日期。用户改期后旅途顺利。', verified: '✅ 已应验' },
-        { source: 'community', sourceLabel: '社区', type: '事业 · 八字命理', title: '跳槽时机与方向选择', desc: '问事背景：社区用户分享，八字看正官逢冲流年，建议观望至下半年。实际秋季获得更好 offer。', verified: '✅ 已应验' }
+        { source: 'classic', sourceLabel: '经典', avatar: '陈', avatarColor: 'linear-gradient(135deg,#b2955d,#d4a853)', nickname: '陈先生', date: '2025.03', type: '事业 · 奇门遁甲', question: '下周有一场重要面试，能否顺利通过？', answer: '排盘显示开门临宫，利东方方位，午时最为有利。建议调整面试时间至上午，着深色正装。', feedback: '调整时间后顺利拿到offer！', verified: '✅ 已应验' },
+        { source: 'classic', sourceLabel: '经典', avatar: '林', avatarColor: 'linear-gradient(135deg,#e67e22,#f39c12)', nickname: '林女士', date: '2025.01', type: '感情 · 奇门遁甲', question: '和前任还有复合的可能吗？什么时候比较合适？', answer: '休门临宫，逢合期在秋分前后。双方暂需冷静，不宜急于联系，秋分后关系自然缓和。', feedback: '秋分后真的慢慢联系上了', verified: '✅ 已应验' },
+        { source: 'real', sourceLabel: '实战', avatar: '王', avatarColor: 'linear-gradient(135deg,#27ae60,#2ecc71)', nickname: '王先生', date: '2025.04', type: '财运 · 八字命理', question: '最近有一笔投资机会，适合投入吗？', answer: '八字分析显示偏财星弱、正财为主，流年财星受制。建议稳健理财，不宜大额高风险投入。', feedback: '听劝没投，朋友投了亏了不少', verified: '✅ 已应验' },
+        { source: 'real', sourceLabel: '实战', avatar: '赵', avatarColor: 'linear-gradient(135deg,#3498db,#2980b9)', nickname: '赵同学', date: '2025.02', type: '学业 · 奇门遁甲', question: '今年考研能否上岸？', answer: '景门旺相、文书星有利，考场方位利东南。用神得位，发挥正常则结果可期。', feedback: '成功上岸了！感谢', verified: '✅ 已应验' },
+        { source: 'community', sourceLabel: '社区', avatar: '周', avatarColor: 'linear-gradient(135deg,#9b59b6,#8e44ad)', nickname: '周女士', date: '2025.05', type: '出行 · 奇门遁甲', question: '计划月底长途出行，安全吗？需要注意什么？', answer: '驿马星动但逢冲，原定日期不太理想。建议推迟一周，避开冲煞日，旅途会更加顺利。', feedback: '改期后一路顺风', verified: '✅ 已应验' },
+        { source: 'community', sourceLabel: '社区', avatar: '李', avatarColor: 'linear-gradient(135deg,#e74c3c,#c0392b)', nickname: '李先生', date: '2025.03', type: '事业 · 八字命理', question: '现在跳槽时机合适吗？还是再等等？', answer: '正官逢冲流年，上半年不宜轻动。下半年印星得力，事业有贵人相助，届时机会更好。', feedback: '秋季确实拿到了更好的offer', verified: '✅ 已应验' }
+      ],
+      features: [
+        { icon: '🔮', title: '时安深度解读', desc: '小白极简版 + 专业深度版，专业术语点击即弹出大白话释义' },
+        { icon: '⚡', title: '秒出排盘', desc: '本地精准排盘引擎，基于天文历表，节气精确到分钟级' },
+        { icon: '🔄', title: '双体系互补', desc: '八字看"命里有没有"，奇门看"现在该怎么做"，双体系结合更全面' },
+        { icon: '📜', title: '古籍加持', desc: '融合《渊海子平》《奇门旨归》等经典古籍，以古法为基，以今用为归' },
+        { icon: '📱', title: '全端适配', desc: '桌面端、平板、手机全端适配，随时随地查排盘' },
+        { icon: '🎯', title: '场景化问事', desc: '面试能否通过、项目能否回款、感情复合时机等快速场景一键起局' },
+      ],
+      scenarios: [
+        { key: 's_interview', emoji: '💼', title: '面试能否通过' },
+        { key: 's_project', emoji: '💰', title: '项目能否回款' },
+        { key: 's_loveback', emoji: '💕', title: '感情复合时机' },
+        { key: 's_house', emoji: '🏠', title: '买房租房吉凶' },
+        { key: 's_travel', emoji: '✈️', title: '出行安全预判' },
+        { key: 's_business', emoji: '🏪', title: '开业签约择吉' },
+      ],
+      faqs: [
+        { q: '排盘时间怎么选？', a: '新手模式下默认使用当前时间，这也是最常用的起局方式。奇门遁甲讲究"当时当刻"，用问事时刻起局即可。', open: false },
+        { q: '解读结果怎么看？', a: '建议新手先看"小白极简版"，只保留核心结论和行动建议。有基础后可切换"专业深度版"。', open: false },
+        { q: '八字和奇门该用哪个？', a: '看整体运势用八字，看具体事件用奇门。两者结合使用效果更全面。', open: false },
       ]
     }
   },
@@ -194,8 +395,54 @@ export default {
       this._updateCaseTabs(filter)
     },
     showFooterInfo(type) {
-      const titles = { about: '关于我们', contact: '联系方式', privacy: '隐私政策' }
-      uni.showModal({ title: titles[type] || type, content: '详细信息请访问网站查看', showCancel: false })
+      const infoMap = {
+        contact: '联系方式：请通过社区留言或邮件联系',
+        terms: '用户协议：使用本站即表示同意遵守相关条款',
+        privacy: '隐私政策：所有数据本地处理，不上传服务器',
+        disclaimer: '免责声明：本站内容仅为民俗文化参考',
+        copyright: '版权信息：© 2026 时安解忧屋 版权所有',
+      }
+      uni.showModal({ title: '提示', content: infoMap[type] || '', showCancel: false })
+    },
+    clearAllData() {
+      uni.showModal({
+        title: '确认清空',
+        content: '确认清空所有本地数据？此操作不可撤销。',
+        success: (res) => {
+          if (res.confirm) {
+            var _savedTheme = uni.getStorageSync('xc_theme')
+            uni.clearStorageSync()
+            if (_savedTheme) uni.setStorageSync('xc_theme', _savedTheme)
+            uni.showToast({ title: '已清空', icon: 'success' })
+          }
+        }
+      })
+    },
+    goToPage(url) {
+      uni.switchTab({ url: url })
+    },
+    goScenario(key) {
+      try { sessionStorage.setItem('_nav_query', '?scenario=' + key) } catch(_) {}
+      uni.switchTab({
+        url: '/pages/qimen/index',
+        success: function() {
+          setTimeout(function() { try { uni.$emit('nav-query', '?scenario=' + key) } catch(_) {} }, 200)
+        }
+      })
+    },
+    toggleFaqPanel() {
+      var panel = document.getElementById('faqPanel')
+      if (panel) panel.classList.toggle('open')
+      var body = document.getElementById('faqPanelBody')
+      if (body) body.classList.toggle('open')
+      var arrow = document.getElementById('faqPanelArrow')
+      if (arrow) arrow.classList.toggle('rotated')
+    },
+    toggleFaq(idx) {
+      var a = document.getElementById('faqA' + idx)
+      var arrow = document.getElementById('faqArrow' + idx)
+      if (a) a.classList.toggle('open')
+      if (arrow) arrow.classList.toggle('rotated')
     },
 
   }
@@ -219,6 +466,37 @@ export default {
 .about-hero-title { font-family: var(--font-serif); font-size: 1.75rem; letter-spacing: 3px; color: var(--text-1); margin-bottom: 16px; display: block; }
 .about-hero-desc { font-size: 0.9375rem; color: var(--text-2); line-height: 1.7; max-width: 640px; margin: 0 auto; display: block; }
 
+/* 产品导航卡片 */
+.hero-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 20px; }
+.hero-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md); padding: 28px 24px; backdrop-filter: blur(20px); cursor: pointer; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); position: relative; overflow: hidden; }
+.hero-card:hover { transform: translateY(-6px) scale(1.02); border-color: rgba(255, 255, 255, 0.18); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 40px var(--accent-glow); }
+.hero-card-glow { position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle at center, var(--accent-glow) 0%, transparent 70%); opacity: 0; transition: opacity 0.4s; pointer-events: none; }
+.hero-card:hover .hero-card-glow { opacity: 1; }
+.hero-card-content { position: relative; z-index: 1; }
+.hero-card-icon { font-size: 2.5rem; margin-bottom: 16px; }
+.hero-card-title { font-family: var(--font-serif); font-size: 1.25rem; font-weight: 400; letter-spacing: 4px; color: var(--text-1); margin-bottom: 8px; }
+.hero-card-desc { font-size: 0.8125rem; color: var(--text-3); letter-spacing: 1px; margin-bottom: 16px; line-height: 1.6; }
+.hero-card-features { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.hero-card-tag { padding: 4px 12px; border-radius: 20px; font-size: 0.6875rem; background: var(--accent-glow); color: var(--accent); border: 1px solid rgba(255,255,255,0.06); letter-spacing: 1px; }
+.hero-card-tag.free { background: rgba(110,195,135,0.1); color: var(--success); }
+.hero-card-arrow { font-size: 1.25rem; color: var(--accent); opacity: 0; transform: translateX(-8px); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.hero-card:hover .hero-card-arrow { opacity: 1; transform: translateX(0); }
+.hero-card-primary { grid-column: span 2; background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.12); text-align: center; }
+.hero-card-primary:hover { border-color: var(--accent); }
+.hero-card-primary .hero-card-icon { text-align: center; }
+.hero-card-primary .hero-card-title { text-align: center; }
+.hero-card-primary .hero-card-desc { text-align: center; }
+.hero-card-primary .hero-card-features { justify-content: center; }
+.hero-mini-scroll { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; grid-column: 1 / -1; position: relative; }
+.hero-card-mini { background: rgba(255, 255, 255, 0.02); border-color: rgba(255, 255, 255, 0.05); padding: 18px 8px; border-radius: 14px; }
+.hero-card-mini:hover { transform: translateY(-3px) scale(1.01); border-color: rgba(255, 255, 255, 0.12); box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+.hero-card-mini .hero-card-content { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.hero-card-mini .hero-card-icon { font-size: 1.75rem; margin-bottom: 0; flex-shrink: 0; }
+.hero-card-mini .hero-card-title { font-size: 0.8125rem; letter-spacing: 1px; margin-bottom: 0; }
+.hero-card-mini .hero-card-arrow { display: none; }
+.hero-card-mini .hero-card-desc { display: none; }
+.hero-card-mini .hero-card-features { display: none; }
+
 /* 通用区块 */
 .section { max-width: var(--max-w); margin: 0 auto; padding: 80px 32px; }
 .section-alt { background: var(--section-alt); }
@@ -227,29 +505,77 @@ export default {
 .section-desc { color: var(--text-3); font-size: 0.875rem; margin-bottom: 40px; max-width: 600px; display: block; }
 
 /* 信任背书 */
-.trust-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
-.trust-authority { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; backdrop-filter: blur(16px); }
-.trust-title { font-family: var(--font-serif); font-size: 1.1rem; letter-spacing: 2px; margin-bottom: 16px; display: block; color: var(--text-1); }
-.auth-item { margin-bottom: 12px; }
-.auth-item-title { font-size: 0.8125rem; color: var(--accent); margin-bottom: 4px; display: block; }
-.auth-item-desc { font-size: 0.75rem; color: var(--text-3); line-height: 1.6; display: block; }
+.trust-grid { display: grid; grid-template-columns: 280px 1fr; gap: 24px; align-items: stretch; }
+.trust-authority { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 20px; backdrop-filter: blur(16px); height: 100%; box-sizing: border-box; }
+.trust-title { font-family: var(--font-serif); font-size: 0.9rem; letter-spacing: 2px; margin-bottom: 12px; display: block; color: var(--text-1); }
+.auth-item { margin-bottom: 10px; }
+.auth-item-title { font-size: 0.75rem; color: var(--accent); margin-bottom: 3px; display: block; }
+.auth-item-desc { font-size: 0.6875rem; color: var(--text-3); line-height: 1.5; display: block; }
 
 /* 案例卡片 */
-.case-scroll-wrap { overflow: hidden; }
-.case-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+.case-scroll-wrap { position: relative; min-width: 0; height: 100%; display: flex; flex-direction: column; }
+.case-scroll-wrap::after {
+  content: ''; position: absolute; top: 0; right: 0; width: 60px; height: 100%;
+  background: linear-gradient(to right, transparent, var(--bg));
+  pointer-events: none; z-index: 3;
+}
+.case-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; position: relative; z-index: 2; flex-shrink: 0; }
 .case-tab { padding: 5px 14px; border-radius: 20px; font-size: 0.75rem; border: 1px solid var(--card-border); color: var(--text-3); cursor: pointer; background: transparent; }
 .case-tab.active { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); }
-.case-list { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 8px; white-space: nowrap; }
-.case-card { flex: 0 0 300px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md); padding: 20px; backdrop-filter: blur(16px); position: relative; }
-.case-badge { position: absolute; top: 10px; right: 10px; font-size: 0.5625rem; padding: 2px 6px; border-radius: 4px; color: #fff; }
+.case-list { display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; gap: 16px; overflow-x: auto; padding-bottom: 8px; -webkit-overflow-scrolling: touch; position: relative; z-index: 2; flex: 1; min-height: 0; }
+.case-list::-webkit-scrollbar { height: 4px; }
+.case-list::-webkit-scrollbar-thumb { background: var(--card-border); border-radius: 2px; }
+.case-card { flex: 0 0 280px !important; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md); padding: 16px; backdrop-filter: blur(16px); position: relative; }
+.case-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.case-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #fff; flex-shrink: 0; font-weight: 500; }
+.case-user-info { flex: 1; min-width: 0; }
+.case-nickname { font-size: 0.8125rem; color: var(--text-1); display: block; font-weight: 500; }
+.case-date { font-size: 0.625rem; color: var(--text-3); display: block; margin-top: 1px; }
+.case-badge { font-size: 0.5625rem; padding: 2px 6px; border-radius: 4px; color: #fff; flex-shrink: 0; }
 .case-badge.classic { background: var(--accent); }
 .case-badge.real { background: #e67e22; }
 .case-badge.community { background: #27ae60; }
-.case-type { font-size: 0.6875rem; color: var(--accent); margin-bottom: 8px; letter-spacing: 1px; display: block; }
-.case-title { font-size: 0.875rem; margin-bottom: 6px; display: block; color: var(--text-1); }
-.case-desc { font-size: 0.75rem; color: var(--text-3); line-height: 1.5; margin-bottom: 8px; display: block; white-space: normal; }
-.case-verified { font-size: 0.6875rem; color: var(--success); display: block; }
-.case-disclaimer { font-size: 0.625rem; color: var(--text-3); margin-top: 8px; border-top: 1px dashed var(--card-border); padding-top: 8px; display: block; }
+.case-type { font-size: 0.6875rem; color: var(--accent); margin-bottom: 10px; letter-spacing: 1px; display: flex; align-items: center; }
+.case-q, .case-a { display: flex; gap: 6px; margin-bottom: 8px; }
+.case-q-label, .case-a-label { width: 18px; height: 18px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.625rem; font-weight: 600; flex-shrink: 0; margin-top: 1px; }
+.case-q-label { background: rgba(178,149,93,0.15); color: var(--accent); }
+.case-a-label { background: rgba(39,174,96,0.15); color: var(--success); }
+.case-q-text, .case-a-text { font-size: 0.75rem; color: var(--text-2); line-height: 1.5; flex: 1; min-width: 0; white-space: normal; word-break: break-all; }
+.case-a-text { color: var(--text-3); }
+.case-result { display: flex; align-items: center; gap: 8px; margin-top: 4px; margin-bottom: 4px; }
+.case-verified { font-size: 0.6875rem; color: var(--success); }
+.case-feedback { font-size: 0.6875rem; color: var(--accent); font-style: italic; }
+
+/* 核心特色 */
+.feature-scroll-wrap { position: relative; }
+.feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.feature-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md); padding: 28px 24px; backdrop-filter: blur(20px); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); text-align: center; }
+.feature-icon { font-size: 2rem; margin-bottom: 12px; }
+.feature-card-title { font-family: var(--font-serif); font-size: 0.9375rem; letter-spacing: 2px; margin-bottom: 8px; color: var(--text-1); }
+.feature-card-desc { font-size: 0.8125rem; color: var(--text-3); line-height: 1.6; }
+
+/* 场景快速入口 */
+.scenario-scroll-wrap { position: relative; }
+.scenario-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; }
+.scenario-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md); padding: 24px 16px; backdrop-filter: blur(16px); text-align: center; cursor: pointer; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.scenario-emoji { font-size: 2rem; display: block; margin-bottom: 8px; }
+.scenario-card-title { font-size: 0.8125rem; color: var(--text-2); letter-spacing: 1px; }
+
+/* FAQ */
+.faq-section { padding-bottom: 0 !important; }
+.faq-panel { max-width: var(--max-w); margin: 0 auto; border: 1px solid var(--card-border); border-radius: var(--radius-md); overflow: hidden; background: var(--card-bg); backdrop-filter: blur(12px); }
+.faq-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; cursor: pointer; }
+.faq-panel-title { font-family: var(--font-serif); font-size: 0.9375rem; letter-spacing: 2px; color: var(--text-2); }
+.faq-panel-arrow { font-size: 0.75rem; color: var(--text-3); transition: transform 0.3s var(--ease); }
+.faq-panel-arrow.rotated { transform: rotate(180deg); }
+.faq-panel-body { max-height: 0; overflow: hidden; transition: max-height 0.4s var(--ease); padding: 0 20px; }
+.faq-panel-body.open { max-height: 600px; padding: 0 20px 16px; }
+.faq-item { border: 1px solid var(--card-border); border-radius: 10px; margin-bottom: 8px; overflow: hidden; }
+.faq-q { padding: 14px 20px; cursor: pointer; font-size: 0.875rem; color: var(--text-2); display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); }
+.faq-q .arrow { transition: transform 0.2s; }
+.faq-q .arrow.rotated { transform: rotate(180deg); }
+.faq-a { padding: 0 20px; max-height: 0; overflow: hidden; transition: max-height 0.3s var(--ease); font-size: 0.8125rem; color: var(--text-3); line-height: 1.7; }
+.faq-a.open { max-height: 200px; padding: 14px 20px; }
 
 /* 教育板块 */
 .edu-grid { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 24px; }
@@ -273,9 +599,33 @@ export default {
   .about-hero-title { font-size: 1.35rem; letter-spacing: 2px; }
   .about-hero-desc { font-size: 0.8125rem; }
   .section { padding: 48px 16px; }
-  .trust-grid, .edu-grid { grid-template-columns: 1fr; }
-
+  .hero-cards { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .hero-card-primary { grid-column: span 2; }
+  .hero-mini-scroll { grid-template-columns: repeat(4, 1fr); }
+  .trust-grid { grid-template-columns: 1fr; }
+  .feature-grid { grid-template-columns: repeat(2, 1fr); }
+  .scenario-grid { grid-template-columns: repeat(3, 1fr); }
+  .edu-grid { grid-template-columns: 1fr; }
+  .footer-grid { grid-template-columns: 1fr; gap: 24px; }
+  .site-footer { padding: 24px 16px; }
 }
+
+@media (max-width: 480px) {
+  .footer-grid { grid-template-columns: 1fr 1fr; }
+  .footer-col:nth-child(3) { grid-column: 1 / -1; }
+  .footer-bottom { flex-direction: column; gap: 8px; text-align: center; }
+}
+
+/* 页脚 */
+.site-footer { background: var(--nav-bg); border-top: 1px solid var(--card-border); padding: 24px 32px 24px; margin-top: 0; }
+.footer-disclaimer { max-width: var(--max-w); margin: 0 auto 32px; padding: 14px 20px; border-radius: 10px; background: rgba(215,125,110,0.08); border: 1px solid rgba(215,125,110,0.15); font-size: 0.75rem; color: var(--danger); line-height: 1.6; text-align: center; }
+.footer-grid { max-width: var(--max-w); margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; }
+.footer-col-title { font-size: 0.8125rem; color: var(--text-2); margin-bottom: 12px; letter-spacing: 1px; }
+.footer-col navigator, .footer-col .footer-link { display: block; font-size: 0.75rem; color: var(--text-3); text-decoration: none; padding: 3px 0; cursor: pointer; }
+.footer-icp { font-size: 0.6875rem; color: var(--text-3); margin-top: 8px; }
+.footer-bottom { max-width: var(--max-w); margin: 24px auto 0; padding-top: 16px; border-top: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center; }
+.footer-bottom-text { font-size: 0.6875rem; color: var(--text-3); }
+.btn-clear-data { font-size: 0.6875rem; padding: 4px 10px; border-radius: 6px; background: transparent; border: 1px solid var(--danger); color: var(--danger); cursor: pointer; }
 
 /* 弹窗 */
 .modal-overlay { display: none; position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.55); backdrop-filter: blur(8px); align-items: center; justify-content: center; }
