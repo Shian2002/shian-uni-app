@@ -15,5 +15,7 @@ server-backup/
 temp.js
 replace.txt
 *.png
+test_*.py
+test-*.mjs
 *.pyc
 __pycache__/
