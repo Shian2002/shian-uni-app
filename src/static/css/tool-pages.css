@@ -636,6 +636,26 @@
     .tool-tabs { overflow-x: auto; }
     .tool-tab { padding: 10px 14px; font-size: 0.8125rem; white-space: nowrap; }
     .incognito-bar { flex-direction: column; gap: 6px; text-align: center; }
+    
+    /* 完全按照 record-ctx-menu 手机版样式 */
+    .nav-dropdown-menu,
+    .card-dropdown {
+        position: fixed !important;
+        top: 200px !important;
+        left: 50% !important;
+        transform: translateX(-50%) translateZ(0) !important;
+        background: rgba(255,255,255,0.65) !important;
+        border-color: rgba(255,255,255,0.3) !important;
+        border-radius: 20px !important;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.4) !important;
+        -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+        backdrop-filter: blur(20px) saturate(180%) !important;
+        isolation: isolate !important;
+        padding: 6px 0 !important;
+        color: #333 !important;
+        border-width: 1px !important;
+        z-index: 9999 !important;
+    }
 }
 
 /* ═══ 奇门免费版 — 日期选择器（时安风格） ═══ */

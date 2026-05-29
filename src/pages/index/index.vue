@@ -38,7 +38,7 @@
 
           <!-- 产品卡片 -->
           <view class="hero-cards">
-            <navigator url="/pages/qimen/index" open-type="switchTab" class="hero-card hero-card-primary">
+            <view @tap="goToPage('/pages/qimen/index')" class="hero-card hero-card-primary">
               <view class="hero-card-glow"></view>
               <view class="hero-card-content">
                 <view class="hero-card-icon">🔮</view>
@@ -50,9 +50,9 @@
                 </view>
                 <view class="hero-card-arrow">→</view>
               </view>
-            </navigator>
+            </view>
 
-            <navigator url="/pages/bazi-index/index" open-type="switchTab" class="hero-card hero-card-primary">
+            <view @tap="goToPage('/pages/bazi-index/index')" class="hero-card hero-card-primary">
               <view class="hero-card-glow"></view>
               <view class="hero-card-content">
                 <view class="hero-card-icon">📜</view>
@@ -64,65 +64,65 @@
                 </view>
                 <view class="hero-card-arrow">→</view>
               </view>
-            </navigator>
+            </view>
 
             <!-- 更多工具小卡片 -->
             <view class="hero-mini-scroll">
-              <navigator url="/pages/liuyao/index" open-type="switchTab" class="hero-card hero-card-mini">
+              <view @tap="goToPage('/pages/liuyao/index')" class="hero-card hero-card-mini">
               <view class="hero-card-content">
                 <view class="hero-card-icon">🧭</view>
                 <view class="hero-card-title">六爻排盘</view>
                 <view class="hero-card-arrow">→</view>
               </view>
-            </navigator>
+            </view>
 
-            <navigator url="/pages/meihua/index" open-type="switchTab" class="hero-card hero-card-mini">
+            <view @tap="goToPage('/pages/meihua/index')" class="hero-card hero-card-mini">
               <view class="hero-card-content">
                 <view class="hero-card-icon">🌸</view>
                 <view class="hero-card-title">梅花易数</view>
                 <view class="hero-card-arrow">→</view>
               </view>
-            </navigator>
+            </view>
 
-            <navigator url="/pages/ziwei/index" open-type="switchTab" class="hero-card hero-card-mini">
+            <view @tap="goToPage('/pages/ziwei/index')" class="hero-card hero-card-mini">
               <view class="hero-card-content">
                 <view class="hero-card-icon">⭐</view>
                 <view class="hero-card-title">紫微斗数</view>
                 <view class="hero-card-arrow">→</view>
               </view>
-            </navigator>
+            </view>
 
-            <navigator url="/pages/tarot/index" open-type="switchTab" class="hero-card hero-card-mini">
+            <view @tap="goToPage('/pages/tarot/index')" class="hero-card hero-card-mini">
               <view class="hero-card-content">
                 <view class="hero-card-icon">🃏</view>
                 <view class="hero-card-title">塔罗牌</view>
                 <view class="hero-card-arrow">→</view>
               </view>
-            </navigator>
+            </view>
 
-            <navigator url="/pages/zeji/index" open-type="switchTab" class="hero-card hero-card-mini">
+            <view @tap="goToPage('/pages/zeji/index')" class="hero-card hero-card-mini">
               <view class="hero-card-content">
                 <view class="hero-card-icon">📅</view>
                 <view class="hero-card-title">择吉工具</view>
                 <view class="hero-card-arrow">→</view>
               </view>
-            </navigator>
+            </view>
 
-            <navigator url="/pages/calendar/index" open-type="switchTab" class="hero-card hero-card-mini">
+            <view @tap="goToPage('/pages/calendar/index')" class="hero-card hero-card-mini">
               <view class="hero-card-content">
                 <view class="hero-card-icon">🗓️</view>
                 <view class="hero-card-title">专属日历</view>
                 <view class="hero-card-arrow">→</view>
               </view>
-            </navigator>
+            </view>
 
-            <navigator url="/pages/community/index" open-type="switchTab" class="hero-card hero-card-mini">
+            <view @tap="goToPage('/pages/community/index')" class="hero-card hero-card-mini">
               <view class="hero-card-content">
                 <view class="hero-card-icon">💬</view>
                 <view class="hero-card-title">交流社区</view>
                 <view class="hero-card-arrow">→</view>
               </view>
-            </navigator>
+            </view>
             </view>
           </view>
         </view>
@@ -234,10 +234,10 @@
           </view>
           <view class="footer-col">
             <view class="footer-col-title">快捷导航</view>
-            <navigator url="/pages/qimen/index" open-type="switchTab">奇门遁甲</navigator>
-            <navigator url="/pages/bazi-index/index" open-type="switchTab">八字排盘</navigator>
-            <navigator url="/pages/calendar/index" open-type="switchTab">专属日历</navigator>
-            <navigator url="/pages/community/index" open-type="switchTab">社区</navigator>
+            <view @tap="goToPage('/pages/qimen/index')">奇门遁甲</view>
+            <view @tap="goToPage('/pages/bazi-index/index')">八字排盘</view>
+            <view @tap="goToPage('/pages/calendar/index')">专属日历</view>
+            <view @tap="goToPage('/pages/community/index')">社区</view>
             <navigator url="/package-info/about/index">关于我们</navigator>
           </view>
           <view class="footer-col">
@@ -319,6 +319,10 @@ const scenarios = [
   { key: 's_travel', emoji: '✈️', title: '出行安全预判' },
   { key: 's_business', emoji: '🏪', title: '开业签约择吉' },
 ]
+
+function goToPage(url) {
+  uni.switchTab({ url: url })
+}
 
 function goScenario(key) {
   try { sessionStorage.setItem('_nav_query', '?scenario=' + key) } catch(_) {}

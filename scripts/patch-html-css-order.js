@@ -5,20 +5,34 @@
  * 被放在 <script type="module"> 之后, 导致部分浏览器可能先渲染再加载 CSS。
  *
  * 修复:
- *   1. 将所有 <link rel="stylesheet"> 移到 <head> 最前面（任何 <script> 之前）
- *   2. 在 <head> 内嵌样式 #app{visibility:hidden} 防止未渲染闪白
- *   3. 在 </body> 前加 inline script, 等所有资源加载完成后显示 #app
+ *   1. 收集 dist/build/h5/assets/index-*.css 中未被引用的文件并追加到 <head>
+ *   2. 将所有 <link rel="stylesheet"> 移到 <head> 最前面（任何 <script> 之前）
+ *   3. 在 <head> 内嵌样式 #app{visibility:hidden} 防止未渲染闪白
+ *   4. 在 </body> 前加 inline script, 等所有资源加载完成后显示 #app
  */
 const fs = require('fs')
 const path = require('path')
 
 const htmlPath = path.join(__dirname, '..', 'dist', 'build', 'h5', 'index.html')
+const assetsDir = path.join(__dirname, '..', 'dist', 'build', 'h5', 'assets')
 if (!fs.existsSync(htmlPath)) {
   console.log('[SKIP] dist/build/h5/index.html not found')
   process.exit(0)
 }
 
 let html = fs.readFileSync(htmlPath, 'utf8')
+
+// ── 0. 查找 assets 目录中所有 index-*.css, 将未引用的追加到 <head> ──
+if (fs.existsSync(assetsDir)) {
+  const allCssFiles = fs.readdirSync(assetsDir).filter(f => /^index-[^.]+\.css$/.test(f))
+  for (const cssFile of allCssFiles) {
+    if (html.indexOf(cssFile) === -1) {
+      const linkTag = '\n<link rel="stylesheet" href="/assets/' + cssFile + '">'
+      html = html.replace('</head>', linkTag + '\n</head>')
+      console.log('[ADD] missing CSS: ' + cssFile)
+    }
+  }
+}
 
 // ── 1. 收集 <head> 中所有 <link rel="stylesheet"> ──
 const headMatch = html.match(/<head>([\s\S]*?)<\/head>/i)

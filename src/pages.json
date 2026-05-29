@@ -13,7 +13,9 @@
     {"path": "pages/profile/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "个人中心"}},
     {"path": "pages/error/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "错误页面"}},
     {"path": "pages/tool-coming/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "即将上线"}},
-    {"path": "pages/zeji/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "择吉工具"}}
+    {"path": "pages/zeji/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "择吉工具"}},
+    {"path": "pages/about/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "关于我们"}},
+    {"path": "pages/points/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "积分中心"}}
   ],
   "subPackages": [
     {
@@ -122,6 +124,18 @@
         "text": "我的",
         "iconPath": "static/tab/profile.png",
         "selectedIconPath": "static/tab/profile-active.png"
+      },
+      {
+        "pagePath": "pages/about/index",
+        "text": "关于我们",
+        "iconPath": "static/tab/home.png",
+        "selectedIconPath": "static/tab/home-active.png"
+      },
+      {
+        "pagePath": "pages/points/index",
+        "text": "积分中心",
+        "iconPath": "static/tab/home.png",
+        "selectedIconPath": "static/tab/home-active.png"
       }
     ]
   }

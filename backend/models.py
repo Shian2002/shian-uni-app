@@ -258,6 +258,7 @@ class BaziRecord(db.Model):
     pillars     = db.Column(db.String(20), default='')       # 天干地支如: 甲子丙寅庚午壬申
     record_type = db.Column(db.String(10), default='paipan') # paipan / hepan
     starred     = db.Column(db.Boolean, default=False)
+    pinned      = db.Column(db.Boolean, default=False)
     category    = db.Column(db.String(10), default='全部')
     params_json = db.Column(db.Text, default='')             # 排盘参数 JSON
     hepan_json  = db.Column(db.Text, default='')             # 合盘数据 JSON
@@ -277,6 +278,7 @@ class BaziRecord(db.Model):
             'pillars': self.pillars,
             'type': self.record_type,
             'starred': self.starred,
+            'pinned': self.pinned,
             'category': self.category,
             'created_at': self.created_at.isoformat() if self.created_at else '',
             'params': json.loads(self.params_json) if self.params_json else {},
@@ -349,7 +351,7 @@ class BaziConversation(db.Model):
     """八字AI对话历史"""
     __tablename__ = 'bazi_conversation'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
     title = db.Column(db.String(100))
     birth_data = db.Column(db.Text)
     messages_json = db.Column(db.Text)

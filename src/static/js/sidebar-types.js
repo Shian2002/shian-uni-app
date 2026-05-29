@@ -10,7 +10,7 @@
     TYPE_META: {
       qimen: { icon: '🔮', label: '奇门遁甲' },
       paipan: { icon: '📜', label: '八字排盘' },
-      bazi: { icon: '📜', label: '八字排盘' },
+      bazi: { icon: '🤖', label: '八字AI解读' },
       liuyao: { icon: '🧭', label: '六爻排盘' },
       meihua: { icon: '🌸', label: '梅花易数' },
       ziwei: { icon: '⭐', label: '紫微斗数' },

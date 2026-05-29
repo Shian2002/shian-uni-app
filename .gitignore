@@ -11,5 +11,9 @@ backend/venv/
 backend/.secret_key
 backend/tianji.db
 backend/static/uploads/
+server-backup/
+temp.js
+replace.txt
+*.png
 *.pyc
 __pycache__/

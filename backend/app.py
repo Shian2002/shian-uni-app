@@ -363,11 +363,81 @@ def migrate_db():
             except Exception as e:
                 logger.warning(f"user.avatar 迁移失败: {e}")
 
+        # 9. bazi_record.pinned
+        try:
+            db.session.execute(db.text('SELECT pinned FROM bazi_record LIMIT 1'))
+        except Exception:
+            try:
+                db.session.execute(db.text('ALTER TABLE bazi_record ADD COLUMN pinned BOOLEAN DEFAULT 0'))
+                db.session.commit()
+                logger.info("[DB] 已添加 bazi_record.pinned 字段")
+            except Exception as e:
+                logger.warning(f"bazi_record.pinned 迁移失败: {e}")
+
         # 确保上传目录存在
         upload_dir = app.config.get('UPLOAD_FOLDER')
         if upload_dir and not os.path.exists(upload_dir):
             os.makedirs(upload_dir, exist_ok=True)
             logger.info(f"[DB] 已创建上传目录: {upload_dir}")
+
+        # 7. bazi_conversation.user_id nullable（SQLite不支持ALTER COLUMN）
+        try:
+            result = db.session.execute(db.text('PRAGMA table_info(bazi_conversation)'))
+            for row in result.fetchall():
+                if row[1] == 'user_id' and row[3] == 1:  # notnull=1
+                    logger.info("[DB] bazi_conversation.user_id 需要改为可空")
+                    db.session.execute(db.text('''
+                        CREATE TABLE bazi_conversation_new (
+                            id INTEGER PRIMARY KEY,
+                            user_id INTEGER,
+                            title VARCHAR(100),
+                            birth_data TEXT,
+                            messages_json TEXT,
+                            created_at DATETIME,
+                            updated_at DATETIME
+                        )
+                    '''))
+                    db.session.execute(db.text('INSERT INTO bazi_conversation_new SELECT * FROM bazi_conversation'))
+                    db.session.execute(db.text('DROP TABLE bazi_conversation'))
+                    db.session.execute(db.text('ALTER TABLE bazi_conversation_new RENAME TO bazi_conversation'))
+                    db.session.commit()
+                    logger.info("[DB] bazi_conversation.user_id 已改为可空")
+                    break
+        except Exception as e:
+            logger.warning(f"bazi_conversation 迁移失败: {e}")
+
+        # 8. Backfill: 已有 BaziConversation 创建 Record（确保侧边栏显示）
+        try:
+            from sqlalchemy import text as _sql
+            bazi_rec_count = db.session.execute(_sql(
+                "SELECT COUNT(*) FROM record WHERE app_type='bazi'"
+            )).scalar() or 0
+            conv_count = db.session.execute(_sql(
+                "SELECT COUNT(*) FROM bazi_conversation"
+            )).scalar() or 0
+            if bazi_rec_count < conv_count:
+                convs = BaziConversation.query.order_by(BaziConversation.created_at.asc()).all()
+                count = 0
+                for conv in convs:
+                    uid = conv.user_id or 1
+                    msgs = json.loads(conv.messages_json) if conv.messages_json else []
+                    last_assistant = ''
+                    for msg in reversed(msgs):
+                        if msg.get('role') == 'assistant' and msg.get('content'):
+                            last_assistant = msg['content']
+                            break
+                    rec = Record(
+                        user_id=uid, app_type='bazi',
+                        question=(conv.title or '八字AI解读')[:200],
+                        result_html=last_assistant,
+                    )
+                    db.session.add(rec)
+                    count += 1
+                if count:
+                    db.session.commit()
+                    logger.info(f"[DB] 已为 {count} 条旧 BaziConversation 创建 Record")
+        except Exception as e:
+            logger.warning(f"bazi backfill 迁移失败: {e}")
 
 # ── 启动时运行数据库迁移（在 migrate_db 定义之后调用）──
 if not _startup_checks_done:
@@ -3613,10 +3683,13 @@ def api_qimen_conversation_delete(cid):
 # ─── 八字AI对话历史 API ───
 
 @app.route('/api/bazi/conversations', methods=['GET'])
-@login_required
 def api_bazi_conversations():
-    convs = BaziConversation.query.filter_by(user_id=current_user.id)\
-        .order_by(BaziConversation.updated_at.desc()).all()
+    convs = BaziConversation.query
+    if current_user.is_authenticated:
+        convs = convs.filter_by(user_id=current_user.id)
+    else:
+        convs = convs.filter(BaziConversation.user_id.is_(None))
+    convs = convs.order_by(BaziConversation.updated_at.desc()).all()
     return jsonify([{
         'id': c.id, 'title': c.title,
         'created_at': c.created_at.isoformat() if c.created_at else None,
@@ -3625,20 +3698,25 @@ def api_bazi_conversations():
 
 
 @app.route('/api/bazi/conversations', methods=['POST'])
-@login_required
 def api_bazi_conversations_create():
     data = request.get_json(silent=True) or {}
     conv_id = data.get('id')
     messages = data.get('messages') or []
+    uid = current_user.id if current_user.is_authenticated else None
     if conv_id:
-        conv = BaziConversation.query.filter_by(id=conv_id, user_id=current_user.id).first()
+        query = BaziConversation.query.filter_by(id=conv_id)
+        if uid is not None:
+            query = query.filter_by(user_id=uid)
+        else:
+            query = query.filter(BaziConversation.user_id.is_(None))
+        conv = query.first()
         if conv:
             conv.messages_json = json.dumps(messages)
             conv.updated_at = datetime.utcnow()
             db.session.commit()
             return jsonify({'id': conv.id, 'ok': True})
     conv = BaziConversation(
-        user_id=current_user.id,
+        user_id=uid,
         title=(data.get('title') or '')[:100],
         birth_data=json.dumps(data.get('birth_data') or {}),
         messages_json=json.dumps(messages),
@@ -3649,9 +3727,13 @@ def api_bazi_conversations_create():
 
 
 @app.route('/api/bazi/conversations/<int:cid>', methods=['GET'])
-@login_required
 def api_bazi_conversation_detail(cid):
-    conv = BaziConversation.query.filter_by(id=cid, user_id=current_user.id).first()
+    query = BaziConversation.query.filter_by(id=cid)
+    if current_user.is_authenticated:
+        query = query.filter_by(user_id=current_user.id)
+    else:
+        query = query.filter(BaziConversation.user_id.is_(None))
+    conv = query.first()
     if not conv:
         return jsonify({'error': '对话不存在'}), 404
     return jsonify({
@@ -3664,9 +3746,13 @@ def api_bazi_conversation_detail(cid):
 
 
 @app.route('/api/bazi/conversations/<int:cid>', methods=['DELETE'])
-@login_required
 def api_bazi_conversation_delete(cid):
-    conv = BaziConversation.query.filter_by(id=cid, user_id=current_user.id).first()
+    query = BaziConversation.query.filter_by(id=cid)
+    if current_user.is_authenticated:
+        query = query.filter_by(user_id=current_user.id)
+    else:
+        query = query.filter(BaziConversation.user_id.is_(None))
+    conv = query.first()
     if not conv:
         return jsonify({'error': '对话不存在'}), 404
     db.session.delete(conv)
@@ -3820,7 +3906,6 @@ def _ziwei_ask_task(run_id):
         sf_key = _os.environ.get('SILICONFLOW_API_KEY', '')
         sf_url = _os.environ.get('SILICONFLOW_BASE_URL', 'https://api.siliconflow.cn/v1')
         model = _os.environ.get('DEEPSEEK_MODEL_NORMAL', 'deepseek-ai/DeepSeek-V3')
-
         if sf_key:
             client = OpenAI(api_key=sf_key, base_url=sf_url)
             system_prompt = f"""你是一位精通紫微斗数的资深命理师，经验丰富、底蕴深厚。
@@ -4893,8 +4978,17 @@ def api_bazi_history():
     # 登录时迁移 session 中的旧数据到数据库（一次性）
     _migrate_session_history()
     records = BaziRecord.query.filter_by(user_id=current_user.id)\
-        .order_by(BaziRecord.created_at.desc()).limit(50).all()
+        .order_by(BaziRecord.pinned.desc(), BaziRecord.created_at.desc()).limit(50).all()
     return jsonify({'success': True, 'history': [r.to_dict() for r in records], 'total': len(records)})
+
+
+@app.route('/api/bazi/history/<int:rec_id>')
+@login_required
+def api_bazi_history_get(rec_id):
+    rec = BaziRecord.query.filter_by(id=rec_id, user_id=current_user.id).first()
+    if not rec:
+        return jsonify({'success': False, 'error': '记录不存在'})
+    return jsonify({'success': True, 'record': rec.to_dict()})
 
 
 @app.route('/api/bazi/history/clear', methods=['POST'])
@@ -4924,7 +5018,7 @@ def api_bazi_history_delete():
     idx = data.get('index', -1)
     if idx >= 0:
         records = BaziRecord.query.filter_by(user_id=current_user.id)\
-            .order_by(BaziRecord.created_at.desc()).all()
+            .order_by(BaziRecord.pinned.desc(), BaziRecord.created_at.desc()).all()
         if 0 <= idx < len(records):
             db.session.delete(records[idx])
             db.session.commit()
@@ -4947,7 +5041,7 @@ def api_bazi_history_star():
         idx = data.get('index', -1)
         if idx >= 0:
             records = BaziRecord.query.filter_by(user_id=current_user.id)\
-                .order_by(BaziRecord.created_at.desc()).all()
+                .order_by(BaziRecord.pinned.desc(), BaziRecord.created_at.desc()).all()
             if 0 <= idx < len(records):
                 rec = records[idx]
     if rec:
@@ -4957,14 +5051,46 @@ def api_bazi_history_star():
     return jsonify({'success': False, 'error': '记录不存在'})
 
 
+@app.route('/api/bazi/history/pin', methods=['POST'])
+@login_required
+@csrf.exempt
+def api_bazi_history_pin():
+    """切换排盘记录置顶状态"""
+    data = request.get_json(silent=True) or {}
+    rec_id = data.get('id')
+    rec = None
+    if rec_id:
+        rec = BaziRecord.query.filter_by(id=rec_id, user_id=current_user.id).first()
+    if not rec:
+        # 兼容旧前端 index 方式
+        idx = data.get('index', -1)
+        if idx >= 0:
+            records = BaziRecord.query.filter_by(user_id=current_user.id)\
+                .order_by(BaziRecord.pinned.desc(), BaziRecord.created_at.desc()).all()
+            if 0 <= idx < len(records):
+                rec = records[idx]
+    if rec:
+        rec.pinned = not rec.pinned
+        db.session.commit()
+        return jsonify({'success': True, 'pinned': rec.pinned})
+    return jsonify({'success': False, 'error': '记录不存在'})
+
+
 @app.route('/api/bazi/history/category', methods=['POST'])
 @login_required
 @csrf.exempt
 def api_bazi_history_category():
     """更新排盘记录分类"""
     data = request.get_json(silent=True) or {}
-    rec_id = data.get('id')
     category = data.get('category', '全部')
+    ids = data.get('ids', [])
+    if ids and isinstance(ids, list):
+        recs = BaziRecord.query.filter(BaziRecord.id.in_(ids), BaziRecord.user_id == current_user.id).all()
+        for rec in recs:
+            rec.category = category
+        db.session.commit()
+        return jsonify({'success': True})
+    rec_id = data.get('id')
     rec = None
     if rec_id:
         rec = BaziRecord.query.filter_by(id=rec_id, user_id=current_user.id).first()
@@ -4972,7 +5098,7 @@ def api_bazi_history_category():
         idx = data.get('index', -1)
         if idx >= 0:
             records = BaziRecord.query.filter_by(user_id=current_user.id)\
-                .order_by(BaziRecord.created_at.desc()).all()
+                .order_by(BaziRecord.pinned.desc(), BaziRecord.created_at.desc()).all()
             if 0 <= idx < len(records):
                 rec = records[idx]
     if rec:
@@ -5000,7 +5126,7 @@ def api_bazi_history_batch_delete():
     if indices:
         # 兼容旧前端：按索引删除
         records = BaziRecord.query.filter_by(user_id=current_user.id)\
-            .order_by(BaziRecord.created_at.desc()).all()
+            .order_by(BaziRecord.pinned.desc(), BaziRecord.created_at.desc()).all()
         for idx in sorted(indices, reverse=True):
             if 0 <= idx < len(records):
                 db.session.delete(records[idx])
@@ -5008,6 +5134,23 @@ def api_bazi_history_batch_delete():
         return jsonify({'success': True})
 
     return jsonify({'success': False, 'error': '无有效参数'})
+
+
+@app.route('/api/bazi/history/rename', methods=['POST'])
+@login_required
+@csrf.exempt
+def api_bazi_history_rename():
+    data = request.get_json(silent=True) or {}
+    rec_id = data.get('id')
+    new_name = (data.get('name') or '').strip()[:80]
+    if not rec_id or not new_name:
+        return jsonify({'success': False, 'error': '参数缺失'})
+    rec = BaziRecord.query.filter_by(id=rec_id, user_id=current_user.id).first()
+    if not rec:
+        return jsonify({'success': False, 'error': '记录不存在'})
+    rec.name = new_name
+    db.session.commit()
+    return jsonify({'success': True})
 
 
 def _migrate_session_history():
@@ -5119,8 +5262,6 @@ def api_bazi_ask_stream():
     if request.method == 'POST':
         data = request.get_json(silent=True) or {}
         question = (data.get('question') or '').strip()
-        if not question:
-            question = '请全面分析我的八字命局'
 
         # 参数
         birth = data.get('birth', '')
@@ -5131,24 +5272,58 @@ def api_bazi_ask_stream():
         birth_lng = data.get('birth_lng', 0)
         birth_lat = data.get('birth_lat', 0)
         analysis_type = data.get('analysis_type', '')
+        pan_data = data.get('pan_data')
+        record_ids = data.get('record_ids', [])  # 从档案选择的多条记录ID
         year, month, day, hour = data.get('year'), data.get('month'), data.get('day'), data.get('hour')
 
-        if not birth and not all([year, month, day, hour]):
-            return jsonify({'error': '请提供出生时间'}), 400
+        if not birth and not all([year, month, day, hour]) and not pan_data and not record_ids:
+            history = data.get('history', [])
+            if not history:
+                return jsonify({'error': '请提供出生时间或选择档案'}), 400
 
-        # 排盘
-        from bazi_engine import paipan as bazi_paipan
-        try:
-            if birth:
-                result = bazi_paipan(name, gender, birth, cal_type, birth_addr, longitude=birth_lng if birth_lng else None)
-            else:
-                birth_str = f"{year}-{month:02d}-{day:02d} {hour}:00"
-                result = bazi_paipan(name, gender, birth_str, cal_type, birth_addr)
-        except Exception as e:
-            return jsonify({'error': f'排盘失败: {str(e)}'}), 500
+        # 排盘：优先使用前端传的 pan_data（八字排盘免费版的专业排盘结果）
+        result = None
+        results_list = []
 
-        if not result.get('success'):
-            return jsonify({'error': result.get('error', '排盘失败')}), 500
+        if record_ids and isinstance(record_ids, list) and record_ids:
+            # 从数据库加载历史记录，重新排盘
+            from bazi_engine import paipan as bazi_paipan
+            records = BaziRecord.query.filter(
+                BaziRecord.id.in_(record_ids),
+                BaziRecord.user_id == (current_user.id if current_user.is_authenticated else -1)
+            ).all()
+            for rec in records:
+                try:
+                    params = json.loads(rec.params_json) if rec.params_json else {}
+                    bt = rec.birth_time or params.get('birthTime', '')
+                    cal = rec.cal_type or params.get('calType', '公历')
+                    g = rec.gender or params.get('gender', '男')
+                    addr = rec.birth_addr or params.get('birthAddr', '')
+                    lng = float(params.get('birthLng', 0) or 0)
+                    r = bazi_paipan(rec.name, g, bt, cal, addr, longitude=lng if lng else None)
+                    if r and r.get('success'):
+                        r['_record_id'] = rec.id
+                        r['_record_name'] = rec.name
+                        results_list.append(r)
+                except:
+                    pass
+            if results_list:
+                # 使用第一条作为主 pan，全部存 pan_list
+                result = results_list[0]
+        elif pan_data and isinstance(pan_data, dict) and pan_data.get('success'):
+            result = pan_data
+        elif birth or all([year, month, day, hour]):
+            from bazi_engine import paipan as bazi_paipan
+            try:
+                if birth:
+                    result = bazi_paipan(name, gender, birth, cal_type, birth_addr, longitude=birth_lng if birth_lng else None)
+                else:
+                    birth_str = f"{year}-{month:02d}-{day:02d} {hour}:00"
+                    result = bazi_paipan(name, gender, birth_str, cal_type, birth_addr)
+            except Exception as e:
+                return jsonify({'error': f'排盘失败: {str(e)}'}), 500
+            if not result.get('success'):
+                return jsonify({'error': result.get('error', '排盘失败')}), 500
 
         # 生成 run_id（带前缀，避免ID冲突）
         with _bazi_ask_lock:
@@ -5156,12 +5331,31 @@ def api_bazi_ask_stream():
             run_id = f"bz_{_bazi_ask_current_run}"
 
         run_dir = get_run_dir(run_id)
-        with open(os.path.join(run_dir, 'pan.json'), 'w', encoding='utf-8') as f:
-            json.dump(result, f, ensure_ascii=False)
+        if result:
+            with open(os.path.join(run_dir, 'pan.json'), 'w', encoding='utf-8') as f:
+                json.dump(result, f, ensure_ascii=False)
+        if results_list:
+            with open(os.path.join(run_dir, 'pan_list.json'), 'w', encoding='utf-8') as f:
+                json.dump(results_list, f, ensure_ascii=False)
         with open(os.path.join(run_dir, 'question.txt'), 'w', encoding='utf-8') as f:
             f.write(question)
         with open(os.path.join(run_dir, 'analysis_type.txt'), 'w') as f:
             f.write(analysis_type)
+        if not result:
+            with open(os.path.join(run_dir, 'history.json'), 'w', encoding='utf-8') as f:
+                json.dump(data.get('history', []), f, ensure_ascii=False)
+
+        # 创建 Record（如六爻/梅花一样，让侧边栏自动显示）
+        uid = current_user.id if current_user.is_authenticated else None
+        if uid:
+            try:
+                record = Record(question=question[:200], user_id=uid, app_type='bazi', result_html='')
+                db.session.add(record)
+                db.session.commit()
+                with open(os.path.join(run_dir, 'record_id.txt'), 'w') as f:
+                    f.write(str(record.id))
+            except Exception as e:
+                logger.warning(f'[bazi] 创建Record失败: {e}')
 
         write_run_status(run_id, {'phase': 'calculating', 'message': '排盘中...', 'progress': 10, 'run_id': run_id})
         t = threading.Thread(target=_bazi_ask_task, args=(run_id,), daemon=True)
@@ -5207,8 +5401,6 @@ def _bazi_ask_task(run_id):
     """后台线程：构建八字Prompt → 调用 DeepSeek API → 保存结果"""
     try:
         run_dir = get_run_dir(run_id)
-        with open(os.path.join(run_dir, 'pan.json'), 'r', encoding='utf-8') as f:
-            result = json.load(f)
         question = open(os.path.join(run_dir, 'question.txt'), 'r', encoding='utf-8').read().strip()
         analysis_type = ''
         try:
@@ -5218,81 +5410,215 @@ def _bazi_ask_task(run_id):
 
         write_run_status(run_id, {'phase': 'analyzing', 'message': 'AI解盘中...', 'progress': 30, 'run_id': run_id})
 
-        # 提取八字摘要
-        fp = result.get('four_pillars', {})
-        four_pillars_text = f"""年柱: {fp.get('year', {}).get('gan', '')}{fp.get('year', {}).get('zhi', '')} ({fp.get('year', {}).get('na_yin', '')})
-月柱: {fp.get('month', {}).get('gan', '')}{fp.get('month', {}).get('zhi', '')} ({fp.get('month', {}).get('na_yin', '')})
-日柱: {fp.get('day', {}).get('gan', '')}{fp.get('day', {}).get('zhi', '')} ({fp.get('day', {}).get('na_yin', '')})
-时柱: {fp.get('hour', {}).get('gan', '')}{fp.get('hour', {}).get('zhi', '')} ({fp.get('hour', {}).get('na_yin', '')})
-日主: {fp.get('day', {}).get('gan', '')} ({fp.get('day', {}).get('wu_xing', '')})
-五行分布: {result.get('wu_xing', '')}
-所缺五行: {', '.join(result.get('lack_wuxing', [])) if result.get('lack_wuxing') else '无'}
-元男/元女: {result.get('yuan_nv', result.get('yuan_nan', ''))}"""
-
-        day_gan = fp.get('day', {}).get('gan', '')
-        day_zhi = fp.get('day', {}).get('zhi', '')
-
-        type_hints = {
-            'career': '重点分析财运事业，包括八字财星、官星配置，大运流年对财运事业的影响，以及适合的行业和发展方向。',
-            'marriage': '重点分析婚姻感情，包括日支夫妻宫、配偶星配置，以及感情运势走势和婚恋建议。',
-            'decadal': '重点分析大运流年，包括当前所处大运、未来几年流年运势，以及重要转折点。',
-            'family': '重点分析健康六亲，包括身体健康需要注意的方面、六亲缘分等。',
-            'general': '全面分析八字命局格局，从整体角度审视命主的人生运势特点和先天禀赋。',
-        }
-        type_desc = type_hints.get(analysis_type, type_hints['general'])
-        focus_tip = f'本次分析侧重点：{type_desc}' if analysis_type else ''
-
         from openai import OpenAI
         import os as _os
         sf_key = _os.environ.get('SILICONFLOW_API_KEY', '')
         sf_url = _os.environ.get('SILICONFLOW_BASE_URL', 'https://api.siliconflow.cn/v1')
         model = _os.environ.get('DEEPSEEK_MODEL_NORMAL', 'deepseek-ai/DeepSeek-V3')
 
-        if sf_key:
-            client = OpenAI(api_key=sf_key, base_url=sf_url)
-            system_prompt = f"""你是一位精通八字命理的资深命理师，经验丰富、底蕴深厚。
-{focus_tip}
-请根据用户的出生信息和八字排盘结果，给出专业、有深度、个性化的八字命理分析。
-回答要求：
-- 语言自然流畅，像命理师在面对面交流
-- 结合八字四柱、五行生克、十神关系来分析
-- 指出关键格局和组合的作用
-- 给出建设性建议
-- 用 markdown 组织，字数 800-1500 字"""
-
-            user_msg = f"""用户信息：
-姓名：{result.get('name', '')}
-性别：{result.get('gender', '')}
-出生：{result.get('birth_solar', '')}
-
-用户问题：{question}
-
-八字：
-{four_pillars_text}
-
-请根据以上信息给出详细解析。"""
-
-            write_run_status(run_id, {'phase': 'streaming', 'message': '生成解答中...', 'progress': 50, 'run_id': run_id})
-            response = client.chat.completions.create(
-                model=model, messages=[
-                    {'role': 'system', 'content': system_prompt},
-                    {'role': 'user', 'content': user_msg}
-                ], temperature=0.8, max_tokens=3072, stream=True
-            )
-
-            full_text = ''
-            with open(os.path.join(run_dir, 'stream.txt'), 'w', encoding='utf-8') as sf:
-                for chunk in response:
-                    if chunk.choices and chunk.choices[0].delta.content:
-                        text = chunk.choices[0].delta.content
-                        full_text += text
-                        sf.write(text)
-                        sf.flush()
-
-            with open(os.path.join(run_dir, 'result.md'), 'w', encoding='utf-8') as f:
-                f.write(full_text)
-            write_run_status(run_id, {'phase': 'done', 'message': '解答完成', 'progress': 100, 'run_id': run_id})
+        if not sf_key:
+            write_run_status(run_id, {'phase': 'error', 'message': '未配置AI API Key', 'progress': 0, 'run_id': run_id})
             return
+
+        client = OpenAI(api_key=sf_key, base_url=sf_url)
+        system_prompt = '你是精通八字命理的资深命理师。根据用户的问题和命盘数据，给出专业、有深度、个性化的命理分析。结合八字四柱、五行生克、十神关系来论证观点，给出建设性建议。语言自然流畅，像命理师在面对面交流。'
+
+        pan_path = os.path.join(run_dir, 'pan.json')
+        pan_list_path = os.path.join(run_dir, 'pan_list.json')
+
+        # 辅助函数：从命盘结果构建文字
+        def _build_bazi_text(pan_result, label=''):
+            fp = pan_result.get('four_pillars', {})
+            shi_shen = pan_result.get('shi_shen', {})
+            cang_gan = pan_result.get('cang_gan', {})
+            cang_gan_ss = pan_result.get('cang_gan_shi_shen', {})
+            shen_sha_pp = pan_result.get('shen_sha_per_pillar', {})
+
+            pillars_detail = ''
+            for p in ['year', 'month', 'day', 'hour']:
+                col = fp.get(p, {})
+                ss_key = p + '_gan'
+                cg = cang_gan.get(p, [])
+                cg_ss = cang_gan_ss.get(p, [])
+                cg_parts = [f'{cg[i]}({cg_ss[i]})' for i in range(min(len(cg), len(cg_ss)))]
+                ss = shen_sha_pp.get(p, [])
+                pillars_detail += (
+                    f"  {p}柱: {col.get('gan_zhi', '')}  天干十神: {shi_shen.get(ss_key, '')}  "
+                    f"纳音: {col.get('nayin', '')}  藏干: {','.join(cg_parts) if cg_parts else '无'}  "
+                    f"神煞: {','.join(ss) if ss else '无'}\n"
+                )
+
+            da_yun_list = pan_result.get('da_yun', [])
+            dy_text = ''
+            for dy in da_yun_list:
+                p_rels = str(dy.get('pillar_relations', []))
+                dy_text += (
+                    f"  {dy.get('start_age', '?')}~{dy.get('end_age', '?')}岁: "
+                    f"{dy.get('gan_zhi', '')} 十神: {dy.get('gan_shishen_abbrev', '')}/{dy.get('zhi_shishen_abbrev', '')}  "
+                    f"纳音: {dy.get('nayin', '')} 神煞: {','.join(dy.get('shen_sha', []) or [])}  "
+                    f"冲合: {p_rels[1:-1] if p_rels and p_rels != '[]' else '无'}\n"
+                )
+
+            liu_nian_list = pan_result.get('liu_nian', [])[:10]
+            ln_text = ''
+            for ln in liu_nian_list:
+                p_rels = str(ln.get('pillar_relations', []))
+                ln_text += (
+                    f"  {ln.get('year', '')}: {ln.get('gan_zhi', '')} "
+                    f"十神: {ln.get('gan_shishen_abbrev', '')}/{ln.get('zhi_shishen_abbrev', '')}  "
+                    f"纳音: {ln.get('nayin', '')} 神煞: {','.join(ln.get('shen_sha', []) or [])}  "
+                    f"冲合: {p_rels[1:-1] if p_rels and p_rels != '[]' else '无'}\n"
+                )
+
+            geju = pan_result.get('geju', {})
+            tiaohou = pan_result.get('tiaohou', {})
+            fp2 = fp
+            label = label or pan_result.get('_record_name', '')
+            name = pan_result.get('name', '') or label
+            return f"""【命盘】{name}
+  性别: {pan_result.get('gender', '')}  出生: {pan_result.get('birth_solar', '')}
+  日主: {fp2.get('day', {}).get('gan', '')}({fp2.get('day', {}).get('wu_xing', '')})
+  旺衰: {pan_result.get('wang_shuai', '')}  格局: {geju.get('name', '无')}
+  四柱: {fp2.get('year', {}).get('gan_zhi', '')} {fp2.get('month', {}).get('gan_zhi', '')} {fp2.get('day', {}).get('gan_zhi', '')} {fp2.get('hour', {}).get('gan_zhi', '')}
+  五行: {pan_result.get('wu_xing', '')}  缺: {', '.join(pan_result.get('lack_wuxing', [])) if pan_result.get('lack_wuxing') else '无'}
+  大运: {dy_text}  流年: {ln_text}"""
+
+        if os.path.exists(pan_list_path):
+            with open(pan_list_path, 'r', encoding='utf-8') as f:
+                pan_list = json.load(f)
+            parts = []
+            for i, pan in enumerate(pan_list):
+                name = pan.get('_record_name', '') or pan.get('name', '') or f'命主{i+1}'
+                parts.append(f'【命主{i+1}】{name}\n{_build_bazi_text(pan)}')
+            all_text = '\n'.join(parts)
+            user_msg = f'以下为多份命盘数据：\n{all_text}\n\n用户的问题：{question}'
+            messages = [{'role': 'system', 'content': system_prompt}, {'role': 'user', 'content': user_msg}]
+        elif os.path.exists(pan_path):
+            with open(pan_path, 'r', encoding='utf-8') as f:
+                result = json.load(f)
+
+            fp = result.get('four_pillars', {})
+            shi_shen = result.get('shi_shen', {})
+            cang_gan = result.get('cang_gan', {})
+            cang_gan_ss = result.get('cang_gan_shi_shen', {})
+            shen_sha_pp = result.get('shen_sha_per_pillar', {})
+
+            pillars_detail = ''
+            for p in ['year', 'month', 'day', 'hour']:
+                col = fp.get(p, {})
+                ss_key = p + '_gan'
+                cg = cang_gan.get(p, [])
+                cg_ss = cang_gan_ss.get(p, [])
+                cg_parts = [f'{cg[i]}({cg_ss[i]})' for i in range(min(len(cg), len(cg_ss)))]
+                ss = shen_sha_pp.get(p, [])
+                pillars_detail += (
+                    f"  {p}柱: {col.get('gan_zhi', '')}  天干十神: {shi_shen.get(ss_key, '')}  "
+                    f"纳音: {col.get('nayin', '')}  藏干: {','.join(cg_parts) if cg_parts else '无'}  "
+                    f"神煞: {','.join(ss) if ss else '无'}\n"
+                )
+
+            da_yun_list = result.get('da_yun', [])
+            dy_text = ''
+            for dy in da_yun_list:
+                p_rels = str(dy.get('pillar_relations', []))
+                dy_text += (
+                    f"  {dy.get('start_age', '?')}~{dy.get('end_age', '?')}岁: "
+                    f"{dy.get('gan_zhi', '')} 十神: {dy.get('gan_shishen_abbrev', '')}/{dy.get('zhi_shishen_abbrev', '')}  "
+                    f"纳音: {dy.get('nayin', '')} 神煞: {','.join(dy.get('shen_sha', []) or [])}  "
+                    f"冲合: {p_rels[1:-1] if p_rels and p_rels != '[]' else '无'}\n"
+                )
+
+            liu_nian_list = result.get('liu_nian', [])[:10]
+            ln_text = ''
+            for ln in liu_nian_list:
+                p_rels = str(ln.get('pillar_relations', []))
+                ln_text += (
+                    f"  {ln.get('year', '')}: {ln.get('gan_zhi', '')} "
+                    f"十神: {ln.get('gan_shishen_abbrev', '')}/{ln.get('zhi_shishen_abbrev', '')}  "
+                    f"纳音: {ln.get('nayin', '')} 神煞: {','.join(ln.get('shen_sha', []) or [])}  "
+                    f"冲合: {p_rels[1:-1] if p_rels and p_rels != '[]' else '无'}\n"
+                )
+
+            geju = result.get('geju', {})
+            tiaohou = result.get('tiaohou', {})
+            bazi_data_text = f"""【基础信息】
+姓名: {result.get('name', '')}  性别: {result.get('gender', '')}
+出生: {result.get('birth_solar', '')}
+日主: {fp.get('day', {}).get('gan', '')}({fp.get('day', {}).get('wu_xing', '')})
+旺衰: {result.get('wang_shuai', '')}
+生肖: {result.get('sheng_xiao', '')}  星座: {result.get('xing_zuo', '')}
+
+【四柱详解】
+{pillars_detail}
+【五行】
+分布: {result.get('wu_xing', '')}
+所缺: {', '.join(result.get('lack_wuxing', [])) if result.get('lack_wuxing') else '无'}
+旺相休囚: {result.get('wang_xiang_xiu', {})}
+
+【格局】{geju.get('name', '无')}  {geju.get('desc', '')}
+【调候用神】{tiaohou.get('shen', '无')}  {tiaohou.get('desc', '')}
+
+【大运】（起运{result.get('qi_yun_age', '?')}岁，{result.get('da_yun_direction', '')}行）
+{dy_text}
+【近期流年】
+{ln_text}"""
+
+            user_msg = f'{bazi_data_text}\n用户的问题：{question}'
+            messages = [{'role': 'system', 'content': system_prompt}, {'role': 'user', 'content': user_msg}]
+        else:
+            history = []
+            try:
+                with open(os.path.join(run_dir, 'history.json'), 'r', encoding='utf-8') as f:
+                    history = json.load(f)
+            except:
+                pass
+            messages = [{'role': 'system', 'content': system_prompt}]
+
+            # 追问时重新构建完整的命盘数据，保证模型有全部上下文
+            if os.path.exists(pan_path):
+                with open(pan_path, 'r', encoding='utf-8') as f:
+                    result2 = json.load(f)
+                fp2 = result2.get('four_pillars', {})
+                si = result2.get('shi_shen', {})
+                dy_list = result2.get('da_yun', [])
+                dy_t = ''.join([f'{d.get("gan_zhi","")}({d.get("start_age","?")}-{d.get("end_age","?")}岁) ' for d in dy_list[:3]])
+                ln_t = ' '.join([f'{l.get("year","")}({l.get("gan_zhi","")})' for l in (result2.get("liu_nian",[]) or [])[:5]])
+                pan_text = f'【命盘】{result2.get("birth_solar","")} {result2.get("gender","")} 日主{fp2.get("day",{}).get("gan","")}({fp2.get("day",{}).get("wu_xing","")}) 四柱{" ".join([fp2.get(p,{}).get("gan_zhi","") for p in ["year","month","day","hour"]])} 五行{result2.get("wu_xing","")} 缺{",".join(result2.get("lack_wuxing",[]) or [])} 格局{result2.get("geju",{}).get("name","")} 大运{dy_t} 流年{ln_t}'
+                messages.append({'role': 'user', 'content': f'{pan_text}\n\n用户当前问题：{question}'})
+            else:
+                messages.append({'role': 'user', 'content': f'用户当前问题：{question}\n\n只分析当前问题，不涉及其他内容。'})
+
+        write_run_status(run_id, {'phase': 'streaming', 'message': '生成解答中...', 'progress': 50, 'run_id': run_id})
+        response = client.chat.completions.create(
+            model=model, messages=messages, temperature=0.6, max_tokens=2048, stream=True
+        )
+
+        full_text = ''
+        with open(os.path.join(run_dir, 'stream.txt'), 'w', encoding='utf-8') as sf:
+            for chunk in response:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    text = chunk.choices[0].delta.content
+                    full_text += text
+                    sf.write(text)
+                    sf.flush()
+
+        with open(os.path.join(run_dir, 'result.md'), 'w', encoding='utf-8') as f:
+            f.write(full_text)
+        write_run_status(run_id, {'phase': 'done', 'message': '解答完成', 'progress': 100, 'run_id': run_id})
+
+        # 更新 Record result_html（背景线程需要 app_context）
+        try:
+            with app.app_context():
+                rid_path = os.path.join(run_dir, 'record_id.txt')
+                if os.path.exists(rid_path):
+                    rid = int(open(rid_path).read().strip())
+                    rec = db.session.get(Record, rid)
+                    if rec:
+                        rec.result_html = full_text
+                        db.session.commit()
+        except Exception as e:
+            logger.warning(f'[bazi] 更新Record结果失败: {e}')
+        return
 
         write_run_status(run_id, {'phase': 'error', 'message': '未配置AI API Key', 'progress': 0, 'run_id': run_id})
     except Exception as e:
@@ -6509,7 +6835,11 @@ def api_oauth_qq_callback():
         openid = me_resp.get('openid', '')
         if not openid:
             return redirect(f"{OAUTH_ORIGIN}/#/pages/profile/index?oauth_error=QQ登录获取信息失败")
-        # 3. 查询或创建用户
+        if current_user.is_authenticated:
+            current_user.oauth_qq = openid
+            db.session.commit()
+            logger.info(f"[QQ OAuth] 绑定到已有用户 {current_user.username}")
+            return redirect(f"{OAUTH_ORIGIN}/#/pages/profile/index?oauth_success=qq")
         user = User.query.filter_by(oauth_qq=openid).first()
         if not user:
             user = User(username=f'qq_{openid[:8]}', password_hash=generate_password_hash(openid, method='pbkdf2:sha256'), oauth_qq=openid)
@@ -6549,7 +6879,11 @@ def api_oauth_wechat_callback():
         openid = token_resp.get('openid', '')
         if not openid:
             return redirect(f"{OAUTH_ORIGIN}/#/pages/profile/index?oauth_error=微信登录失败")
-        # 2. 查询或创建用户
+        if current_user.is_authenticated:
+            current_user.oauth_wechat = openid
+            db.session.commit()
+            logger.info(f"[WeChat OAuth] 绑定到已有用户 {current_user.username}")
+            return redirect(f"{OAUTH_ORIGIN}/#/pages/profile/index?oauth_success=wechat")
         user = User.query.filter_by(oauth_wechat=openid).first()
         if not user:
             user = User(username=f'wx_{openid[:8]}', password_hash=generate_password_hash(openid, method='pbkdf2:sha256'), oauth_wechat=openid)
@@ -6587,19 +6921,21 @@ def api_oauth_gitee_callback():
         return redirect(f"{OAUTH_ORIGIN}/#/pages/profile/index?oauth_error=Gitee登录取消")
     try:
         import urllib.request as _ur
-        # 1. code 换 access_token
         token_url = f"https://gitee.com/oauth/token?grant_type=authorization_code&code={code}&client_id={GITEE_CLIENT_ID}&redirect_uri={urllib.parse.quote(GITEE_CALLBACK_URL)}&client_secret={GITEE_CLIENT_SECRET}"
         token_resp = json.loads(_ur.urlopen(_ur.Request(token_url, data=b'', headers={'Accept': 'application/json'}), timeout=10).read().decode())
         access_token = token_resp.get('access_token', '')
         if not access_token:
             return redirect(f"{OAUTH_ORIGIN}/#/pages/profile/index?oauth_error=Gitee登录失败")
-        # 2. 获取用户信息
         user_url = f"https://gitee.com/api/v5/user?access_token={access_token}"
         user_resp = json.loads(_ur.urlopen(_ur.Request(user_url, headers={'Accept': 'application/json'}), timeout=10).read().decode())
         gitee_id = str(user_resp.get('id', ''))
         if not gitee_id:
             return redirect(f"{OAUTH_ORIGIN}/#/pages/profile/index?oauth_error=Gitee获取信息失败")
-        # 3. 查询或创建用户
+        if current_user.is_authenticated:
+            current_user.oauth_gitee = gitee_id
+            db.session.commit()
+            logger.info(f"[Gitee OAuth] 绑定到已有用户 {current_user.username}")
+            return redirect(f"{OAUTH_ORIGIN}/#/pages/profile/index?oauth_success=gitee")
         user = User.query.filter_by(oauth_gitee=gitee_id).first()
         if not user:
             username = user_resp.get('login', f'gitee_{gitee_id[:8]}')
@@ -7229,12 +7565,14 @@ def _fetch_huangli_from_api(year, month, day):
                         21: '廿一', 22: '廿二', 23: '廿三', 24: '廿四', 25: '廿五',
                         26: '廿六', 27: '廿七', 28: '廿八', 29: '廿九', 30: '三十'}
 
-        # 日干五行
-        wu_xing_gan = {'甲': '木', '乙': '木', '丙': '火', '丁': '火', '戊': '土',
-                       '己': '土', '庚': '金', '辛': '金', '壬': '水', '癸': '水'}
+        # 日支五行
+        wu_xing_map = {'甲': '木', '乙': '木', '丙': '火', '丁': '火', '戊': '土',
+                       '己': '土', '庚': '金', '辛': '金', '壬': '水', '癸': '水',
+                       '子': '水', '丑': '土', '寅': '木', '卯': '木', '辰': '土', '巳': '火',
+                       '午': '火', '未': '土', '申': '金', '酉': '金', '戌': '土', '亥': '水'}
         gan_zhi_day = d.get('TianGanDiZhiDay', '')
-        ri_gan = gan_zhi_day[0] if gan_zhi_day else ''
-        wu_xing_day = wu_xing_gan.get(ri_gan, '')
+        ri_zhi = gan_zhi_day[1] if len(gan_zhi_day) >= 2 else ''
+        wu_xing_day = wu_xing_map.get(ri_zhi, '')
 
         result = {
             'solarDate': date_str,
@@ -7368,21 +7706,21 @@ def _compute_huangli_local(year, month, day):
     result['shengXiao'] = sx_list[z_idx_y]
 
     # 日干支（基于儒略日计算）
-    # 以 1900-01-01 = 庚子日 为基准 (庚=6, 子=0)
+    # 以 2024-01-01 = 甲子日 为基准 (甲=0, 子=0)，API已验证
     from datetime import date as dt_date
-    base = dt_date(1900, 1, 1)
+    base = dt_date(2024, 1, 1)
     target = dt_date(year, month, day)
     delta = (target - base).days
-    g_idx_d = (6 + delta) % 10
+    g_idx_d = (0 + delta) % 10
     z_idx_d = (0 + delta) % 12
     result['ganZhiDay'] = gan_list[g_idx_d] + zhi_list[z_idx_d]
 
-    # 月干支（简化：以节气换月为准，此处用近似值）
-    # 寅月=正月，月干按年干推算
+    # 月干支（年上起月法）
+    # 甲己之年丙作首，乙庚之岁戊为头，丙辛必定寻庚起，丁壬壬位顺行流，戊癸何方发，甲寅之上好追求
     lunar_month = result.get('lunarMonth', month)
     yin_offset = (lunar_month - 1) if lunar_month >= 1 else 0
     z_idx_m = (yin_offset + 2) % 12  # 正月=寅
-    g_idx_m = (g_idx_y * 2 + yin_offset) % 10
+    g_idx_m = (g_idx_y * 2 + 2 + yin_offset) % 10
     result['ganZhiMonth'] = gan_list[g_idx_m] + zhi_list[z_idx_m]
 
     # ===== 五行 =====
@@ -7393,7 +7731,7 @@ def _compute_huangli_local(year, month, day):
                    '午':'火','未':'土','申':'金','酉':'金','戌':'土','亥':'水'}
     ri_gan = gan_list[g_idx_d]
     ri_zhi = zhi_list[z_idx_d]
-    result['wuXingDay'] = wu_xing_gan[ri_gan]  # 日干五行
+    result['wuXingDay'] = wu_xing_zhi[ri_zhi]  # 日支五行
     result['wuXingZhi'] = wu_xing_zhi[ri_zhi]   # 日支五行
 
     # 纳音五行（简化：60甲子纳音表）
@@ -7551,12 +7889,16 @@ def api_upload():
 @csrf.exempt
 def api_avatar():
     """用户头像上传 — 图片会被裁剪为圆形显示"""
+    logger.info(f"[avatar] upload request from user={current_user.id}, files={list(request.files.keys())}, content_type={request.content_type}")
     if 'file' not in request.files:
+        logger.warning(f"[avatar] no 'file' in request.files, keys={list(request.files.keys())}")
         return jsonify({'error': '未选择文件'}), 400
     f = request.files['file']
     if not f.filename:
+        logger.warning("[avatar] empty filename")
         return jsonify({'error': '未选择文件'}), 400
     if not allowed_file(f.filename):
+        logger.warning(f"[avatar] not allowed file: {f.filename}")
         return jsonify({'error': '不支持的文件格式，仅支持 jpg/png/gif/webp'}), 400
 
     # 用 Pillow 裁剪为正方形（居中裁剪）

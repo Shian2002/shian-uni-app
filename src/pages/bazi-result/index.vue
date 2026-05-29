@@ -186,8 +186,7 @@
                         <view class="pillar-row">
                           <view class="pillar-cell label-cell">主星</view>
                           <view class="pillar-cell zhuxing-cell" v-for="(pillar, key) in fourPillars" :key="'zx'+key">
-                            <text :class="ssTagClass(shiShen[key])">{{ abbreviateShiShen(shiShen[key]) }}</text>
-                            <text v-if="key === 'day'" style="font-size:0.55rem;color:#999;display:block;">{{ dayMasterLabel }}</text>
+                            <text :class="ssTagClass(shiShen[key])" class="ss-full-text">{{ key === 'day' ? dayMasterLabel : fixShiShenName(shiShen[key]) }}</text>
                           </view>
                         </view>
                         <view class="pillar-row">
@@ -205,14 +204,14 @@
                         <view class="pillar-row">
                           <view class="pillar-cell label-cell">副星</view>
                           <view class="pillar-cell fuxing-cell" v-for="(pillar, key) in fourPillars" :key="'fx'+key">
-                            <text v-for="(cgSs, ci) in (cangGanShiShen[key] || [])" :key="ci" :class="ssTagClass(cgSs)" style="margin-right:2px;">{{ abbreviateShiShen(cgSs) }}</text>
+                            <text v-for="(cgSs, ci) in (cangGanShiShen[key] || [])" :key="ci" :class="ssTagClass(cgSs)" class="ss-full-text ss-vertical">{{ fixShiShenName(cgSs) }}</text>
                           </view>
                         </view>
                         <view class="pillar-row">
                           <view class="pillar-cell label-cell">藏干</view>
                           <view class="pillar-cell cang-gan-cell" v-for="(pillar, key) in fourPillars" :key="'cg'+key">
-                            <text v-for="(cg, ci) in (cangGan[key] || [])" :key="ci">
-                              <rich-text :nodes="wxSpanBZ(cg)"></rich-text>
+                            <text v-for="(cg, ci) in (cangGan[key] || [])" :key="ci" class="cg-wx-text">
+                              <rich-text :nodes="wxSpanStr(cg + (GAN_WUXING[cg] || ''))"></rich-text>
                             </text>
                           </view>
                         </view>
@@ -334,7 +333,7 @@
                     <!-- Main layout -->
                     <view class="wz-pan-layout">
                       <view class="wz-pan-left">
-                        <view style="min-width:600px;">
+                        <view class="wz-pan-table-inner">
                           <view class="wz-row header-row" :key="'hdr-'+yunRefreshKey">
                             <view class="wz-row-item label-cell">日期</view>
                             <view class="wz-row-item" v-for="(h, i) in colLabels" :key="'hdr-'+yunRefreshKey+'-'+i">{{ h }}</view>
@@ -666,6 +665,13 @@ function wxSpanBZ(ch) {
   if (!ch) return ''
   const color = WX_COLOR_BZ[ch]
   return color ? `<span style="color:${color}">${ch}</span>` : ch
+}
+
+function wxSpanStr(s) {
+  if (!s) return ''
+  var r = ''
+  for (var i = 0; i < s.length; i++) { r += wxSpanBZ(s[i]) }
+  return r
 }
 
 function abbreviateShiShen(ss) {
@@ -2451,9 +2457,10 @@ onMounted(async () => {
     const urlP = new URLSearchParams(location.search || '?' + _hashQs)
     const uy = urlP.get('y'), um = urlP.get('m'), ud = urlP.get('d')
     const uh = urlP.get('h'), umi = urlP.get('mi'), us = urlP.get('s')
+    var uCal = urlP.get('cal')
     if (uy && um && ud) {
       params = {
-        calType: '公历',
+        calType: uCal || '公历',
         gender: (us == 2) ? '女' : '男',
         birthTime: `${uy}${String(um).padStart(2,'0')}${String(ud).padStart(2,'0')}${String(uh||0).padStart(2,'0')}${String(umi||0).padStart(2,'0')}`,
         birthAddr: '', birthLng: 0, birthLat: 0,
@@ -2673,10 +2680,16 @@ onMounted(async () => {
 .pillar-header { font-size: 0.85rem; font-weight: 700; color: var(--accent); }
 .pillar-cell.gan-cell { font-size: 1.45rem; font-weight: 700; color: var(--text-1); }
 .pillar-cell.zhi-cell { font-size: 1.45rem; font-weight: 700; color: var(--text-1); }
-.pillar-cell.cang-gan-cell { font-size: 0.82rem; color: var(--text-2); }
+.pillar-cell.cang-gan-cell { font-size: 0.82rem; color: var(--text-2); display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.cg-wx-text { display: flex; align-items: baseline; gap: 1px; }
+.cg-wx-label { font-size: 0.6rem; color: var(--text-3); }
 .pillar-cell.nayin-cell { font-size: 0.76rem; color: var(--text-3); }
 .pillar-cell.shensha-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 0.7rem; color: var(--text-3); }
 .ss-tag { display: inline-block; padding: 1px 5px; margin: 1px; border-radius: 6px; background: var(--tag-bg); border: 1px solid var(--card-border); font-size: 0.66rem; color: var(--tag-text); }
+.ss-full-text { font-size: 0.72rem; font-weight: 600; display: block; line-height: 1.4; text-align: center; }
+.ss-vertical { display: block; margin: 1px 0; }
+.pillar-cell.zhuxing-cell { display: flex; align-items: center; justify-content: center; min-height: 1.8em; }
+.pillar-cell.fuxing-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-height: 1.8em; }
 
 /* 信息卡片 */
 .info-card { background: var(--section-alt); border-radius: 10px; padding: 12px; border: 1px solid var(--card-border); }
@@ -2770,17 +2783,17 @@ onMounted(async () => {
 
 /* 排盘主布局 */
 .wz-pan-layout { display: flex; gap: 10px; margin-bottom: 10px; }
-.wz-pan-left { flex: 1; min-width: 0; overflow-x: auto; overflow-y: auto; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md); }
+.wz-pan-left { flex: 1; min-width: 0; overflow: hidden; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md); }
+.wz-pan-table-inner { width: 100%; min-width: 0; }
 .wz-pan-right { width: 380px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; border-left: 1px solid var(--card-border); padding-left: 10px; }
 
-/* 排盘表格行 */
-.wz-row { display: flex; align-items: stretch; min-height: 28px; border-bottom: 1px solid var(--card-border); }
+.wz-row { display: flex; align-items: stretch; min-height: 28px; border-bottom: 1px solid var(--card-border); width: 100%; }
 .wz-row:last-child { border-bottom: none; }
 .wz-row.header-row .wz-row-item { color: var(--accent); font-size: 0.72rem; font-weight: 700; background: var(--section-alt); }
-.wz-row-item { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 0.82rem; padding: 3px 2px; position: relative; transition: background 0.15s; }
+.wz-row-item { flex: 1 1 0%; display: flex; align-items: center; justify-content: center; font-size: 0.82rem; padding: 3px 2px; position: relative; transition: background 0.15s; min-width: 0; overflow: hidden; }
 .wz-row-item:last-child { border-right: none; }
 .wz-row-item.wz-pro-sep { border-left: 2px solid var(--card-border); }
-.wz-row-item.label-cell { flex: 0 0 54px; max-width: 54px; min-width: 54px; padding: 0 !important; box-sizing: border-box; color: var(--text-3); font-size: 0.72rem; font-weight: 600; background: var(--section-alt); border-right: 1px solid var(--card-border); }
+.wz-row-item.label-cell { flex: 0 0 48px; max-width: 48px; min-width: 48px; padding: 0 !important; box-sizing: border-box; color: var(--text-3); font-size: 0.72rem; font-weight: 600; background: var(--section-alt); border-right: 1px solid var(--card-border); }
 
 .wz-row.wz-tg-row .wz-row-item:not(.label-cell) { font-size: 1.2rem; font-weight: 700; padding: 6px 0; }
 .wz-row.wz-tg-row { border-bottom: none; }
@@ -2824,7 +2837,7 @@ onMounted(async () => {
 .wz-yun-items-wrap { position: relative; padding: 0; }
 .wz-yun-items { display: flex; flex-wrap: nowrap; gap: 0; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; position: relative; scrollbar-width: none; -ms-overflow-style: none; }
 .wz-yun-items::-webkit-scrollbar { display: none; }
-.wz-yun-item { display: flex; flex-direction: column; align-items: center; padding: 8px 4px; min-width: 56px; width: 56px; cursor: pointer; flex-shrink: 0; transition: background 0.15s; gap: 2px; min-height: 72px; justify-content: center; box-sizing: border-box; scroll-snap-align: start; }
+.wz-yun-item { display: flex; flex-direction: column; align-items: center; padding: 8px 4px; min-width: 48px; flex: 0 0 auto; cursor: pointer; transition: background 0.15s; gap: 2px; min-height: 72px; justify-content: center; box-sizing: border-box; scroll-snap-align: start; }
 .wz-yun-item:hover { background: var(--accent-glow); }
 .wz-yun-item.wz-active { background: var(--dayun-active); }
 .wz-yun-item.wz-current { background: var(--accent-glow); }
@@ -2917,10 +2930,12 @@ onMounted(async () => {
   .pillar-cell.cang-gan-cell { font-size: 0.74rem; }
   .pillar-cell.nayin-cell { font-size: 0.68rem; }
   .pillar-cell.shensha-cell { font-size: 0.64rem; }
-  /* 专业排盘响应式 */
   .wz-pan-layout { flex-direction: column; }
   .wz-pan-right { width: 100%; border-left: none; padding-left: 0; border-top: 1px solid var(--card-border); padding-top: 10px; }
   .wz-extra-grid { grid-template-columns: 1fr; }
+  .wz-row-item.label-cell { flex: 0 0 40px; max-width: 40px; min-width: 40px; font-size: 0.68rem; }
+  .wz-row-item { min-width: 0; font-size: 0.68rem; }
+  .wz-row.wz-tg-row .wz-row-item:not(.label-cell), .wz-row.wz-dz-row .wz-row-item:not(.label-cell) { font-size: 0.95rem; }
 }
 @media (max-width: 640px) {
   .result-container { padding: 8px 8px 36px; }
@@ -2936,15 +2951,15 @@ onMounted(async () => {
 }
 @media (max-width: 480px) {
   .pillar-cell.label-cell { flex: 0 0 36px; max-width: 36px; font-size: 0.6rem; }
-  .wz-pan-left > view:first-child { min-width: auto !important; }
-  .wz-row-item { min-width: 30px; font-size: 0.55rem; padding: 2px 1px; }
+  .wz-pan-table-inner { min-width: auto !important; }
+  .wz-row-item { min-width: 0; font-size: 0.55rem; padding: 2px 1px; flex: 1; }
   .wz-row-item.label-cell { flex: 0 0 24px; max-width: 24px; min-width: 24px; font-size: 0.52rem; padding: 0 !important; }
-  .wz-row.wz-tg-row .wz-row-item:not(.label-cell), .wz-row.wz-dz-row .wz-row-item:not(.label-cell) { font-size: 1rem; padding: 4px 0; }
+  .wz-row.wz-tg-row .wz-row-item:not(.label-cell), .wz-row.wz-dz-row .wz-row-item:not(.label-cell) { font-size: 0.9rem; padding: 4px 0; }
   .wz-pro-sep { border-left-width: 1px !important; }
   .wz-row.ss-row .wz-row-item { gap: 1px; padding: 2px 0; }
   .wz-ss-tag { font-size: 0.45rem; padding: 0 2px; margin: 0; }
   .ss-tag { font-size: 0.5rem; padding: 0 3px; }
-  .wz-yun-item { min-width: 36px; width: 36px; padding: 4px 1px; font-size: 0.6rem; min-height: 52px; }
+  .wz-yun-item { min-width: 0; flex: 1; padding: 4px 1px; font-size: 0.6rem; min-height: 52px; }
   .wz-cg-item { font-size: 0.55rem; }
 }
 .riZhu-strength { margin-top: 12px; padding: 12px; background: var(--section-alt); border-radius: 10px; border: 1px solid var(--card-border); }

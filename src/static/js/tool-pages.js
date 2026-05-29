@@ -436,15 +436,76 @@ function deleteSingleRecord(recId) {
 }
 
 // ── 下拉菜单 ──
+function _tpApplyFrost(el) {
+    if (!el || window.innerWidth > 768) return
+    var parent = el.parentElement
+    if (parent && parent !== document.body) {
+        el._tp_origParent = parent
+        el._tp_origNext = el.nextElementSibling
+        document.body.appendChild(el)
+    }
+    el.style.position = 'fixed'
+    el.style.top = '200px'
+    el.style.left = '50%'
+    el.style.transform = 'translateX(-50%) translateZ(0)'
+    el.style.background = 'rgba(255,255,255,0.65)'
+    el.style.borderColor = 'rgba(255,255,255,0.3)'
+    el.style.borderRadius = '20px'
+    el.style.boxShadow = '0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.4)'
+    el.style.webkitBackdropFilter = 'blur(20px) saturate(180%)'
+    el.style.backdropFilter = 'blur(20px) saturate(180%)'
+    el.style.zIndex = '9999'
+    el.style.padding = '6px 0'
+    el.style.color = '#333'
+    el.style.visibility = 'visible'
+    el.style.opacity = '1'
+    el.style.pointerEvents = 'auto'
+}
+function _tpRestoreMenu(el) {
+    if (!el) return
+    el.style.position = ''
+    el.style.top = ''
+    el.style.left = ''
+    el.style.transform = ''
+    el.style.background = ''
+    el.style.borderColor = ''
+    el.style.borderRadius = ''
+    el.style.boxShadow = ''
+    el.style.webkitBackdropFilter = ''
+    el.style.backdropFilter = ''
+    el.style.zIndex = ''
+    el.style.padding = ''
+    el.style.color = ''
+    el.style.visibility = ''
+    el.style.opacity = ''
+    el.style.pointerEvents = ''
+    if (el._tp_origParent) {
+        var origParent = el._tp_origParent
+        var origNext = el._tp_origNext
+        if (origNext && origNext.parentElement === origParent) {
+            origParent.insertBefore(el, origNext)
+        } else {
+            origParent.appendChild(el)
+        }
+        el._tp_origParent = null
+        el._tp_origNext = null
+    }
+}
 function toggleCardDropdown(el, recId) {
     const dd = document.getElementById('dropdown-' + recId);
     if (!dd) return;
     const wasOpen = dd.classList.contains('show');
     closeAllDropdowns();
-    if (!wasOpen) dd.classList.add('show');
+    if (!wasOpen) {
+        dd.classList.add('show');
+        _tpApplyFrost(dd);
+    }
 }
 function closeAllDropdowns() {
-    document.querySelectorAll('.card-dropdown.show').forEach(d => d.classList.remove('show'));
+    document.querySelectorAll('.card-dropdown.show').forEach(function(d) {
+        d.classList.remove('show');
+        if (d._tp_origParent) _tpRestoreMenu(d);
+    });
 }
 // 点击空白处关闭下拉
 document.addEventListener('click', function(e) {

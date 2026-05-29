@@ -188,15 +188,19 @@
       return
     }
     listEl.innerHTML = '<div class="sidebar-empty">加载中...</div>'
+    loadSidebarData()
+  }
+
+  // ═══ 加载侧边栏数据（可被刷新函数复用） ═══
+  function loadSidebarData() {
+    var listEl = document.getElementById('sidebarListGlobal')
+    if (!listEl) return
 
     var xhr = new XMLHttpRequest()
     xhr.open('GET', '/api/records?per_page=50')
     xhr.setRequestHeader('Accept', 'application/json')
     xhr.onload = function() {
-      if (xhr.status !== 200) {
-        listEl.innerHTML = '<div class="sidebar-empty">加载失败</div>'
-        return
-      }
+      if (xhr.status !== 200) { listEl.innerHTML = '<div class="sidebar-empty">加载失败</div>'; return }
       try {
         var data = JSON.parse(xhr.responseText)
         var items = data.records || []
@@ -215,9 +219,7 @@
         tarotXhr.onload = function() {
           var t = []
           try { t = JSON.parse(tarotXhr.responseText); if (!Array.isArray(t)) t = [] } catch(e) {}
-          t.forEach(function(c) {
-            items.push({ id: 'tarot_' + c.id, app_type: 'tarot', question: c.title || c.spread_name || '塔罗解读', created_at: c.updated_at || c.created_at, _tarotConvId: c.id })
-          })
+          t.forEach(function(c) { items.push({ id: 'tarot_' + c.id, app_type: 'tarot', question: c.title || c.spread_name || '塔罗解读', created_at: c.updated_at || c.created_at, _tarotConvId: c.id }) })
           onAllDone()
         }
         tarotXhr.onerror = function() { onAllDone() }
@@ -228,9 +230,7 @@
         baziXhr.onload = function() {
           var b = []
           try { b = JSON.parse(baziXhr.responseText); if (!Array.isArray(b)) b = [] } catch(e) {}
-          b.forEach(function(c) {
-            items.push({ id: 'bazi_' + c.id, app_type: 'bazi', question: c.title || '八字AI解读', created_at: c.updated_at || c.created_at, _baziConvId: c.id })
-          })
+          b.forEach(function(c) { items.push({ id: 'bazi_' + c.id, app_type: 'bazi', question: c.title || '八字AI解读', created_at: c.updated_at || c.created_at, _baziConvId: c.id }) })
           onAllDone()
         }
         baziXhr.onerror = function() { onAllDone() }
@@ -251,14 +251,17 @@
         }
         baziHxhr.onerror = function() { onAllDone() }
         baziHxhr.send()
-      } catch(e) {
-        listEl.innerHTML = '<div class="sidebar-empty">解析失败</div>'
-      }
+      } catch(e) { listEl.innerHTML = '<div class="sidebar-empty">解析失败</div>' }
     }
-    xhr.onerror = function() {
-      listEl.innerHTML = '<div class="sidebar-empty">网络错误</div>'
-    }
+    xhr.onerror = function() { listEl.innerHTML = '<div class="sidebar-empty">网络错误</div>' }
     xhr.send()
+  }
+
+  // ═══ 强制刷新侧边栏（外部调用） ═══
+  window._xc_refreshSidebar = function() {
+    window.__sidebarCache = null
+    ensureGlobalSidebar()
+    loadSidebarData()
   }
 
   // ═══ 查看塔罗对话 ═══

@@ -18,7 +18,7 @@
         <view class="nav-btn" data-href="#/pages/zeji/index" @click="go('#/pages/zeji/index')">择吉工具</view>
         <view class="nav-btn" data-href="#/pages/calendar/index" @click="go('#/pages/calendar/index')">专属日历</view>
         <view class="nav-btn" data-href="#/pages/community/index" @click="go('#/pages/community/index')">社区</view>
-        <view class="nav-btn" data-href="#/package-info/about/index" @click="go('#/package-info/about/index')">关于我们</view>
+        <view class="nav-btn" data-href="#/pages/about/index" @click="go('#/pages/about/index')">关于我们</view>
 
         <!-- 溢出"更多"按钮（JS 控制显示） -->
         <view class="nav-btn nav-btn-more" id="navBtnMore" style="display:none;" onclick="window._xc_toggleMore(event)">
@@ -27,7 +27,6 @@
         </view>
       </view>
       <view class="topnav-right">
-        <view class="nav-profile-btn" data-href="#/pages/profile/index" @click="go('#/pages/profile/index')">个人中心</view>
         <view class="theme-toggle-nav" id="themeToggleBtn" data-action="auth" @click="onToggleTheme">
           <text id="themeToggleIcon">{{ theme === 'dark' ? '🌙' : '☀️' }}</text>
         </view>
@@ -37,8 +36,8 @@
         <view class="nav-avatar-wrap" v-else>
            <view class="nav-avatar-trigger nav-avatar-trigger-global" id="avatarGlobalTrigger">
              <view class="nav-avatar-inner">
-               <image v-if="avatarUrl" class="nav-avatar-img" :src="avatarUrl" mode="aspectFill"></image>
-               <text v-else class="nav-avatar-text">{{ avatarLetter }}</text>
+               <image v-if="avatarUrl" class="nav-avatar-img" :src="avatarUrl" mode="aspectFill" @error="onAvatarError"></image>
+              <text v-else class="nav-avatar-text">{{ avatarLetter }}</text>
              </view>
            </view>
            <view class="nav-avatar-dropdown" id="avatarDropdown">
@@ -47,9 +46,10 @@
                <text class="points-badge" id="avatarPointsBadge">...</text>
              </view>
              <view class="avatar-dropdown-divider"></view>
-             <view class="avatar-dropdown-item" data-href="#/package-user/points/index" onclick="window.__topNavGo('#/package-user/points/index')">积分中心 ›</view>
+             <view class="avatar-dropdown-item avatar-dropdown-action" data-href="#/pages/profile/index">个人中心 ›</view>
+             <view class="avatar-dropdown-item avatar-dropdown-action" data-href="#/pages/points/index">积分中心 ›</view>
              <view class="avatar-dropdown-divider"></view>
-             <view class="avatar-dropdown-item" onclick="window._xc_doLogout()">退出登录</view>
+             <view class="avatar-dropdown-item avatar-dropdown-action" data-action="logout">退出登录</view>
            </view>
          </view>
       </view>
@@ -161,8 +161,14 @@ function ensureGlobalSidebar() {
 
   document.body.appendChild(overlay)
   document.body.appendChild(sidebar)
-  // 恢复上次的视图选择
   _restoreSidebarView()
+  var cachedAvatar = uni.getStorageSync('xc_avatar')
+  if (cachedAvatar) {
+    var sideImg = document.getElementById('sidebarUserAvatar')
+    var sideLetter = document.getElementById('sidebarUserLetter')
+    if (sideImg) { sideImg.src = cachedAvatar; sideImg.style.display = 'block' }
+    if (sideLetter) sideLetter.style.display = 'none'
+  }
 }
 
 onMounted(function() {
@@ -428,10 +434,10 @@ function toggleSidebar() {
     return
   }
   listEl.innerHTML = '<div class="sidebar-empty">加载中...</div>'
-  var recordsLoaded = false, tarotLoaded = false, lyConvLoaded = false, mhConvLoaded = false, qiConvLoaded = false
-  var allRecords = [], tarotItems = [], lyConvItems = [], mhConvItems = [], qiConvItems = []
+  var recordsLoaded = false, tarotLoaded = false, lyConvLoaded = false, mhConvLoaded = false, qiConvLoaded = false, baziConvLoaded = false
+  var allRecords = [], tarotItems = [], lyConvItems = [], mhConvItems = [], qiConvItems = [], baziConvItems = []
   function _renderMerged() {
-    if (!recordsLoaded || !tarotLoaded || !lyConvLoaded || !mhConvLoaded || !qiConvLoaded) return
+    if (!recordsLoaded || !tarotLoaded || !lyConvLoaded || !mhConvLoaded || !qiConvLoaded || !baziConvLoaded) return
     tarotItems.forEach(function(c) {
       allRecords.push({ id: 'tarot_' + c.id, app_type: 'tarot', question: c.title || c.spread_name || '塔罗解读', created_at: c.updated_at || c.created_at, _tarotConvId: c.id })
     })
@@ -443,6 +449,9 @@ function toggleSidebar() {
     })
     qiConvItems.forEach(function(c) {
       allRecords.push({ id: 'qi_' + c.id, app_type: 'qimen', question: c.title || '奇门遁甲', created_at: c.updated_at || c.created_at, _qaiConvId: c.id })
+    })
+    baziConvItems.forEach(function(c) {
+      allRecords.push({ id: 'bz_' + c.id, app_type: 'bazi', question: c.title || '八字AI解读', created_at: c.updated_at || c.created_at, _baziConvId: c.id })
     })
     if (!allRecords.length) { listEl.innerHTML = '<div class="sidebar-empty">暂无历史记录</div>'; return }
     var groups = _groupRecords(allRecords)
@@ -471,6 +480,9 @@ function toggleSidebar() {
   uni.request({ url: '/api/qimen/conversations', method: 'GET', success: function(res) {
     qiConvItems = res.data || []; if (!Array.isArray(qiConvItems)) qiConvItems = []; qiConvLoaded = true; _renderMerged()
   }, fail: function() { qiConvLoaded = true; _renderMerged() }})
+  uni.request({ url: '/api/bazi/conversations', method: 'GET', success: function(res) {
+    baziConvItems = res.data || []; if (!Array.isArray(baziConvItems)) baziConvItems = []; baziConvLoaded = true; _renderMerged()
+  }, fail: function() { baziConvLoaded = true; _renderMerged() }})
 }
 
 // 渲染分组历史（共享函数，避免与 sidebar.js 重复）
@@ -499,7 +511,7 @@ function _renderSidebarGroups(groups, listEl) {
 function _renderSidebarItem(r) {
   var time = _formatSidebarTime(r.created_at)
   var text = _escHtml(r.question || '(无问题)')
-  var realId = r._tarotConvId || r._lyConvId || r._mhConvId || r._qaiConvId || r.id
+  var realId = r._tarotConvId || r._lyConvId || r._mhConvId || r._qaiConvId || r._baziConvId || r.id
   var appType = r.app_type || ''
   var deleteConfirm = 'if(confirm(\'确定要删除这条记录吗？\'))window._xc_deleteHistoryItem(\'' + appType + '\',\'' + realId + '\',this)'
   var clickAction = r._tarotConvId
@@ -512,10 +524,14 @@ function _renderSidebarItem(r) {
     ? 'onclick="window._showMhConvDetail(' + r._mhConvId + ')"'
     : r._qaiConvId
     ? 'onclick="window._showQiConvDetail(' + r._qaiConvId + ')"'
+    : r._baziConvId
+    ? 'onclick="window._showBaziConvDetail(' + r._baziConvId + ')"'
     : r.app_type === 'liuyao'
     ? 'onclick="window._showLyRecordDetail(' + r.id + ')"'
     : r.app_type === 'qimen'
     ? 'onclick="window._showQiRecordDetail(' + r.id + ')"'
+    : r.app_type === 'bazi'
+    ? 'onclick="window._showBaziRecordDetail(' + r.id + ')"'
     : 'onclick="window._showHistoryDetail(' + r.id + ')"'
   return '<div class="sidebar-item">'
     + '<div class="sidebar-item-body" ' + clickAction + '>'
@@ -659,28 +675,37 @@ window._showQiRecordDetail = function(rid) {
 
 window._showBaziConvDetail = function(cid) {
   if (window._xc_closeSidebar) window._xc_closeSidebar()
-  var xhr = new XMLHttpRequest()
-  xhr.open('GET', '/api/bazi/conversations/' + cid)
-  xhr.setRequestHeader('Accept', 'application/json')
-  xhr.onload = function() {
-    var d = JSON.parse(xhr.responseText)
+  uni.request({ url: '/api/bazi/conversations/' + cid, method: 'GET', success: function(res) {
+    var d = res.data
     if (!d || !d.id) { uni.showToast({ title: '对话不存在', icon: 'none' }); return }
     window.__xc_restoreData = { type: 'bazi', id: d.id, title: d.title, messages: d.messages, birth_data: d.birth_data }
     try { sessionStorage.setItem('_nav_query', 'tab=ai') } catch(_) {}
-    if (_isOnPage('pages/bazi-index/index')) {
-      setTimeout(function() { if (window._xc_restoreBazi) window._xc_restoreBazi() }, 100)
-    } else {
-      uni.navigateTo({ url: '/pages/bazi-index/index', success: function() {
-        setTimeout(function() { if (window._xc_restoreBazi) window._xc_restoreBazi() }, 400)
-      } })
+    function doRestore() {
+      if (window._xc_restoreBazi) { window._xc_restoreBazi(); return true }
+      return false
     }
-  }
-  xhr.send()
+    if (_isOnPage('pages/bazi-index/index')) {
+      setTimeout(function() { if (!doRestore()) setTimeout(doRestore, 500) }, 100)
+    } else {
+      uni.switchTab({ url: '/pages/bazi-index/index' })
+      setTimeout(function() { if (!doRestore()) setTimeout(doRestore, 500) }, 600)
+    }
+  }, fail: function() { uni.showToast({ title: '加载失败', icon: 'none' }) } })
 }
 
 window._showBaziRecordDetail = function(rid) {
   if (window._xc_closeSidebar) window._xc_closeSidebar()
-  uni.navigateTo({ url: '/pages/bazi-result/index?id=' + rid })
+  uni.request({ url: '/api/records/' + rid, method: 'GET', success: function(res) {
+    var d = res.data
+    if (!d) { uni.showToast({ title: '记录不存在', icon: 'none' }); return }
+    var _bzMsgs = []
+    if (d.question) _bzMsgs.push({ role: 'user', content: d.question })
+    if (d.result_html) _bzMsgs.push({ role: 'assistant', content: d.result_html })
+    window.__xc_restoreData = { type: 'bazi', id: d.id, title: d.question || '八字排盘', messages: _bzMsgs }
+    try { sessionStorage.setItem('_nav_query', 'tab=ai') } catch(_) {}
+    uni.switchTab({ url: '/pages/bazi-index/index' })
+    setTimeout(function() { if (window._xc_restoreBazi) window._xc_restoreBazi(); else setTimeout(function() { if (window._xc_restoreBazi) window._xc_restoreBazi() }, 500) }, 600)
+  }, fail: function() { uni.showToast({ title: '加载失败', icon: 'none' }) } })
 }
 
 // 恢复上次使用的视图选择
@@ -750,7 +775,8 @@ window._xc_deleteHistoryItem = function(appType, realId, el) {
     tarot: '/api/tarot/conversations/',
     liuyao: '/api/liuyao/conversations/',
     meihua: '/api/meihua/conversations/',
-    qimen: '/api/qimen/conversations/'
+    qimen: '/api/qimen/conversations/',
+    bazi: '/api/bazi/conversations/'
   }
   var url = urlMap[appType] || '/api/records/'
   var sidebarItem = el && el.closest ? el.closest('.sidebar-item') : null
@@ -775,24 +801,36 @@ function onShowLogin() {
     window._openLoginModal()
   } catch(_) {}
 }
+
 var avatarUrl = ref('')
 var avatarLetter = ref('')
-var avatarLoaded = false
+var _avatarInstanceLoaded = false
+function onAvatarError() {
+  avatarUrl.value = ''
+  uni.removeStorageSync('xc_avatar')
+}
 function loadAvatar() {
-  if (avatarLoaded || !props.isLoggedIn) return
-  avatarLoaded = true
-  window.__avatarLoaded = true
+  if (!props.isLoggedIn) return
   var cachedUser = uni.getStorageSync('xc_user')
-  if (cachedUser) avatarLetter.value = cachedUser.charAt(0).toUpperCase()
+  var parsed = null
+  try { parsed = typeof cachedUser === 'string' ? JSON.parse(cachedUser) : cachedUser } catch(_) { parsed = null }
+  if (parsed && typeof parsed === 'object') {
+    if (parsed.username) avatarLetter.value = parsed.username.charAt(0).toUpperCase()
+    else if (parsed.nickname) avatarLetter.value = parsed.nickname.charAt(0).toUpperCase()
+  } else if (cachedUser && typeof cachedUser === 'string') {
+    avatarLetter.value = cachedUser.charAt(0).toUpperCase()
+  }
+  var cachedAvatar = uni.getStorageSync('xc_avatar')
+  if (cachedAvatar) avatarUrl.value = cachedAvatar
+  if (_avatarInstanceLoaded) return
+  _avatarInstanceLoaded = true
+  window.__avatarLoaded = true
   uni.request({ url: '/api/me', method: 'GET' }).then(function(res) {
     var d = res.data
     if (d && d.guest) {
-      // Safari 可能在页面刚加载时延迟发送 Cookie，不要因为 /api/me 返回 guest 就清除登录态
-      // 只要 localStorage 中还有 token，前端就保持登录状态
-      // 真正的 session 过期会在后续 API 调用返回 401 时自然处理
     } else if (d && d.username) {
       avatarLetter.value = d.username.charAt(0).toUpperCase()
-      if (d.avatar) avatarUrl.value = d.avatar
+      if (d.avatar) { avatarUrl.value = d.avatar; uni.setStorageSync('xc_avatar', d.avatar) }
     }
   }).catch(function() {})
 }
@@ -934,8 +972,8 @@ function onToggleTheme() {
 //   Round 8: 直接设 hash + reload, 但 HASH_TO_TAB 把首页映射成 /pages/index/index → 白屏
 //   Round 9: 首页用真实路由路径 #/ (uni-app 中首页路由注册为 path:"/")
 //            其他 tabBar 页面用 #/pages/xxx/index (它们在 __uniRoutes 中 path 就是 /pages/xxx/index)
-var TAB_PATHS = ['/', '/pages/qimen/index', '/pages/bazi-index/index', '/pages/tarot/index', '/pages/liuyao/index', '/pages/meihua/index', '/pages/ziwei/index', '/pages/zeji/index', '/pages/calendar/index', '/pages/community/index', '/pages/profile/index']
-var TAB_ROUTES = ['pages/index/index', 'pages/qimen/index', 'pages/bazi-index/index', 'pages/tarot/index', 'pages/liuyao/index', 'pages/meihua/index', 'pages/ziwei/index', 'pages/zeji/index', 'pages/calendar/index', 'pages/community/index', 'pages/profile/index']
+var TAB_PATHS = ['/', '/pages/qimen/index', '/pages/bazi-index/index', '/pages/tarot/index', '/pages/liuyao/index', '/pages/meihua/index', '/pages/ziwei/index', '/pages/zeji/index', '/pages/calendar/index', '/pages/community/index', '/pages/profile/index', '/pages/about/index', '/pages/points/index']
+var TAB_ROUTES = ['pages/index/index', 'pages/qimen/index', 'pages/bazi-index/index', 'pages/tarot/index', 'pages/liuyao/index', 'pages/meihua/index', 'pages/ziwei/index', 'pages/zeji/index', 'pages/calendar/index', 'pages/community/index', 'pages/profile/index', 'pages/about/index', 'pages/points/index']
 function isOnTabPage() {
   try {
     var pages = getCurrentPages()
@@ -1018,33 +1056,34 @@ function updateNavOverflow() {
     var moreMenu = bar.querySelector('#navBtnMoreMenu')
     if (!bar || !more || !moreMenu) return
 
-    // 重置：显示所有按钮
     bar.querySelectorAll('.nav-btn:not(.nav-btn-more)').forEach(function(b) {
       b.style.display = ''
     })
     more.style.display = 'none'
     moreMenu.innerHTML = ''
 
-    // 检测溢出：按钮右边界超出视口右边界
-    // ⚠️ 不能用 bar.getBoundingClientRect().right 作为阈值，
-    // 移动端 nav-btn-bar 可能宽于视口（flex-shrink:0），
-    // 导致所有按钮都在 bar 内部不溢出，但实际上已经超出屏幕
     var sidebarBtn = bar.parentNode ? bar.parentNode.querySelector('.topnav-sidebar-btn') : null
     var topnavRight = bar.parentNode ? bar.parentNode.querySelector('.topnav-right') : null
     var rightWidth = topnavRight ? topnavRight.getBoundingClientRect().width : 0
     var sidebarWidth = sidebarBtn ? sidebarBtn.getBoundingClientRect().width : 0
     var viewportWidth = window.innerWidth
-    // 右侧区域和侧边栏按钮是必须保留的，按钮栏可用宽度 = 视口 - 侧边栏 - 右侧 - padding
-    var barMaxRight = viewportWidth - Math.max(rightWidth, 0) - 8
-    var overflow = []
+    var barMaxRight = viewportWidth - Math.max(rightWidth, 0) - sidebarWidth - 20
+
+    var allBtns = []
     bar.querySelectorAll('.nav-btn:not(.nav-btn-more)').forEach(function(btn) {
-      if (btn.getBoundingClientRect().right > barMaxRight) overflow.push(btn)
+      allBtns.push(btn)
     })
+
+    var overflow = []
+    for (var i = allBtns.length - 1; i >= 0; i--) {
+      if (allBtns[i].getBoundingClientRect().right > barMaxRight) {
+        overflow.unshift(allBtns[i])
+      }
+    }
 
     if (overflow.length > 0) {
       overflow.forEach(function(btn) {
         btn.style.display = 'none'
-        // 在"更多"下拉中创建克隆项
         var clone = document.createElement('view')
         clone.className = 'nav-btn-drop-item'
         clone.setAttribute('data-href', btn.getAttribute('data-href'))
@@ -1066,7 +1105,6 @@ function updateNavOverflow() {
       })
       more.style.display = ''
     } else {
-      // 没有溢出时明确隐藏"更多"按钮
       more.style.display = 'none'
     }
   })
@@ -1126,16 +1164,89 @@ defineExpose({ getCurrentRoute, go })
 // 此处添加 data-href + 原生 capture 事件监听，确保即使 Vue 事件不响应也能跳转。
 onMounted(() => {
   // #ifdef H5
-  // 暴露 go 到 window 方便调试
   window.__topNavGo = go
   window.__topNavGo.avatarLoad = loadAvatar
-  // 注册全局下拉切换函数
+
+  var _xc_applyFrost = function(el) {
+    if (!el || window.innerWidth > 768) return
+    var parent = el.parentElement
+    if (parent && parent !== document.body) {
+      el._xc_origParent = parent
+      el._xc_origNext = el.nextElementSibling
+      document.body.appendChild(el)
+    }
+    el.style.setProperty('display', 'block', 'important')
+    el.style.setProperty('position', 'fixed', 'important')
+    el.style.setProperty('background', 'rgba(255,255,255,0.65)', 'important')
+    el.style.setProperty('border-color', 'rgba(255,255,255,0.3)', 'important')
+    el.style.setProperty('border-radius', '20px', 'important')
+    el.style.setProperty('box-shadow', '0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.4)', 'important')
+    el.style.setProperty('-webkit-backdrop-filter', 'blur(20px) saturate(180%)', 'important')
+    el.style.setProperty('backdrop-filter', 'blur(20px) saturate(180%)', 'important')
+    el.style.setProperty('z-index', '9999', 'important')
+    el.style.setProperty('padding', '6px 0', 'important')
+    el.style.setProperty('color', '#333', 'important')
+    el.style.setProperty('visibility', 'visible', 'important')
+    el.style.setProperty('opacity', '1', 'important')
+    el.style.setProperty('pointer-events', 'auto', 'important')
+
+    if (el.id === 'avatarDropdown') {
+      if (el._xc_origParent) {
+        var rect = el._xc_origParent.getBoundingClientRect()
+        el.style.setProperty('top', (rect.bottom + 8) + 'px', 'important')
+        el.style.setProperty('right', (window.innerWidth - rect.right) + 'px', 'important')
+        el.style.setProperty('left', 'auto', 'important')
+        el.style.setProperty('transform', 'translateZ(0)', 'important')
+      }
+    } else {
+      el.style.setProperty('top', '60px', 'important')
+      el.style.setProperty('left', '50%', 'important')
+      el.style.setProperty('transform', 'translateX(-50%) translateZ(0)', 'important')
+    }
+  }
+
+  var _xc_restoreMenu = function(el) {
+    if (!el) return
+    el.style.removeProperty('display')
+    el.style.removeProperty('position')
+    el.style.removeProperty('top')
+    el.style.removeProperty('left')
+    el.style.removeProperty('right')
+    el.style.removeProperty('transform')
+    el.style.removeProperty('background')
+    el.style.removeProperty('border-color')
+    el.style.removeProperty('border-radius')
+    el.style.removeProperty('box-shadow')
+    el.style.removeProperty('-webkit-backdrop-filter')
+    el.style.removeProperty('backdrop-filter')
+    el.style.removeProperty('z-index')
+    el.style.removeProperty('padding')
+    el.style.removeProperty('color')
+    el.style.removeProperty('visibility')
+    el.style.removeProperty('opacity')
+    el.style.removeProperty('pointer-events')
+    if (el._xc_origParent) {
+      var origParent = el._xc_origParent
+      var origNext = el._xc_origNext
+      if (origNext && origNext.parentElement === origParent) {
+        origParent.insertBefore(el, origNext)
+      } else {
+        origParent.appendChild(el)
+      }
+      el._xc_origParent = null
+      el._xc_origNext = null
+    }
+  }
+
   if (!window.__xcDropInited) {
     window.__xcDropInited = true
 
-    function _xc_closeAllDropdowns() {
-      document.querySelectorAll('.nav-btn-has-drop.open, .nav-btn-more.open').forEach(function(d) {
+    var _xc_closeAllDropdowns = function() {
+      document.querySelectorAll('.nav-btn-has-drop.open, .nav-btn-more.open, #avatarDropdown').forEach(function(d) {
         d.classList.remove('open')
+      })
+      document.querySelectorAll('.nav-btn-drop-menu, #avatarDropdown').forEach(function(m) {
+        if (m._xc_origParent) _xc_restoreMenu(m)
       })
     }
 
@@ -1145,16 +1256,26 @@ onMounted(() => {
       var el = event.currentTarget
       var wasOpen = el.classList.contains('open')
       _xc_closeAllDropdowns()
-      if (!wasOpen) el.classList.add('open')
+      if (!wasOpen) {
+        el.classList.add('open')
+        var menu = el.querySelector('.nav-btn-drop-menu')
+        if (menu) _xc_applyFrost(menu)
+      }
     }
 
     window._xc_toggleMore = function(event) {
       event.stopPropagation()
       event.preventDefault()
-      var el = event.currentTarget
+      var el = event && event.currentTarget
+      if (!el || !el.classList) el = document.querySelector('#navBtnBar #navBtnMore')
+      if (!el) return
       var wasOpen = el.classList.contains('open')
       _xc_closeAllDropdowns()
-      if (!wasOpen) el.classList.add('open')
+      if (!wasOpen) {
+        el.classList.add('open')
+        var menu = el.querySelector('.nav-btn-drop-menu')
+        if (menu) _xc_applyFrost(menu)
+      }
     }
 
     window._xc_dropItemGo = function(event, href) {
@@ -1169,7 +1290,9 @@ onMounted(() => {
       for (var d = 10; el && d > 0; d--) {
         if (el.classList && (el.classList.contains('nav-btn-has-drop') || el.classList.contains('nav-btn-more'))) return
         if (el.classList && el.classList.contains('nav-btn-drop-menu')) return
-        if (el.id === 'navBtnMore') return
+        if (el.id === 'navBtnMore' || el.id === 'avatarDropdown') return
+        if (el.classList && el.classList.contains('nav-avatar-wrap')) return
+        if (el.classList && el.classList.contains('avatar-dropdown-item')) return
         if (el.dataset && el.dataset.href) {
           e.preventDefault()
           e.stopPropagation()
@@ -1187,6 +1310,9 @@ onMounted(() => {
       for (var d = 10; el && d > 0; d--) {
         if (el.classList && (el.classList.contains('nav-btn-has-drop') || el.classList.contains('nav-btn-more'))) return
         if (el.classList && el.classList.contains('nav-btn-drop-menu')) return
+        if (el.id === 'navBtnMore' || el.id === 'avatarDropdown') return
+        if (el.classList && el.classList.contains('nav-avatar-wrap')) return
+        if (el.classList && el.classList.contains('avatar-dropdown-item')) return
         el = el.parentElement
       }
       _xc_closeAllDropdowns()
@@ -1224,7 +1350,12 @@ onMounted(() => {
           var wrap = el.closest('.nav-avatar-wrap')
           if (wrap) {
             var dd = wrap.querySelector('#avatarDropdown')
-            if (dd) { document.querySelectorAll('#avatarDropdown').forEach(function(x) { x.classList.remove('open') }); dd.classList.add('open') }
+            if (dd) {
+              var wasOpen = dd.classList.contains('open')
+              _xc_closeAllDropdowns()
+              dd.classList.add('open')
+              _xc_applyFrost(dd)
+            }
           }
           if (!window.__avatarLoaded) loadAvatar()
           return
@@ -1232,41 +1363,91 @@ onMounted(() => {
       }
     }, true)
     document.addEventListener('click', function(e) {
-       for (var el = e.target; el; el = el.parentElement) {
-         if (el.classList && (el.classList.contains('nav-avatar-trigger-global') || el.classList.contains('nav-avatar-wrap') || el.id === 'avatarDropdown')) return
-       }
-       document.querySelectorAll('#avatarDropdown').forEach(function(x) { x.classList.remove('open') })
-     }, true)
+      for (var el = e.target; el; el = el.parentElement) {
+        if (el.classList && el.classList.contains('avatar-dropdown-action')) {
+          e.preventDefault()
+          e.stopPropagation()
+          if (el.dataset.action === 'logout') {
+            window._xc_doLogout()
+          } else if (el.dataset.href) {
+            go(el.dataset.href)
+          }
+          return
+        }
+        if (el.classList && (el.classList.contains('nav-avatar-trigger-global') || el.classList.contains('nav-avatar-wrap') || el.id === 'avatarDropdown')) return
+      }
+      document.querySelectorAll('#avatarDropdown').forEach(function(x) {
+        x.classList.remove('open')
+        if (x._xc_origParent) _xc_restoreMenu(x)
+      })
+    }, true)
     // 移动端 nav-dropdown 点击切换（移动端无 hover）
     document.addEventListener('touchstart', function(e) {
-      var touchedDropTrigger = false
+      var touchedAvatar = false
+      var clickedDropdownItem = false
       for (var el = e.target; el; el = el.parentElement) {
+        if (el.classList && el.classList.contains('avatar-dropdown-action')) {
+          e.preventDefault()
+          e.stopPropagation()
+          touchedAvatar = true
+          clickedDropdownItem = true
+          if (el.dataset.action === 'logout') {
+            window._xc_doLogout()
+          } else if (el.dataset.href) {
+            go(el.dataset.href)
+          }
+          break
+        }
+        if (el.id === 'avatarDropdown') {
+          clickedDropdownItem = true
+          touchedAvatar = true
+          break
+        }
         if (el.classList && el.classList.contains('nav-drop-trigger')) {
-          touchedDropTrigger = true
           var dropdown = el.closest('.nav-dropdown')
           if (dropdown) {
             var isOpen = dropdown.classList.contains('open')
             document.querySelectorAll('.nav-dropdown.open').forEach(function(d) { d.classList.remove('open') })
-            if (!isOpen) dropdown.classList.add('open')
+            if (!isOpen) {
+              dropdown.classList.add('open')
+              var dm = dropdown.querySelector('.nav-dropdown-menu')
+              if (dm) _xc_applyFrost(dm)
+            }
           }
           return
         }
         if (el.classList && el.classList.contains('nav-avatar-trigger-global')) {
+          touchedAvatar = true
           var wrap = el.closest('.nav-avatar-wrap')
           if (wrap) {
             var dd = wrap.querySelector('#avatarDropdown')
-            if (dd) { document.querySelectorAll('#avatarDropdown').forEach(function(x) { x.classList.remove('open') }); dd.classList.add('open') }
+            if (dd) {
+              var wasOpen = dd.classList.contains('open')
+              _xc_closeAllDropdowns()
+              if (!wasOpen) {
+                dd.classList.add('open')
+                _xc_applyFrost(dd)
+              }
+            }
           }
           if (!window.__avatarLoaded) loadAvatar()
+          e.preventDefault()
+          e.stopPropagation()
           return
         }
       }
-      // 点击空白处关闭所有下拉
-      if (!touchedDropTrigger) {
-        document.querySelectorAll('.nav-dropdown.open').forEach(function(d) { d.classList.remove('open') })
+      if (clickedDropdownItem) {
+        e.preventDefault()
+        e.stopPropagation()
+        return
+      }
+      if (!touchedAvatar) {
+        document.querySelectorAll('#avatarDropdown').forEach(function(x) {
+          x.classList.remove('open')
+          if (x._xc_origParent) _xc_restoreMenu(x)
+        })
       }
     }, true)
-    // 移动端 nav-dropdown 点击切换（兼容 click）
     document.addEventListener('click', function(e) {
       for (var el = e.target; el; el = el.parentElement) {
         if (el.classList && el.classList.contains('nav-drop-trigger')) {
@@ -1274,7 +1455,11 @@ onMounted(() => {
           if (dropdown) {
             var isOpen = dropdown.classList.contains('open')
             document.querySelectorAll('.nav-dropdown.open').forEach(function(d) { d.classList.remove('open') })
-            if (!isOpen) dropdown.classList.add('open')
+            if (!isOpen) {
+              dropdown.classList.add('open')
+              var dm = dropdown.querySelector('.nav-dropdown-menu')
+              if (dm) _xc_applyFrost(dm)
+            }
           }
           return
         }
@@ -1297,7 +1482,7 @@ onMounted(() => {
   try {
     var modalInputs = [
       { wrap: 'tnLoginUser-wrap', id: 'tnLoginUser', type: 'text', placeholder: '用户名' },
-      { wrap: 'tnLoginPass-wrap', id: 'tnLoginPass', type: 'password', placeholder: '密码' },
+      { wrap: 'tnLoginPass-wrap', id: 'tnLoginPass', type: 'text', placeholder: '密码', isPassword: true },
       { wrap: 'tnLoginPhone-wrap', id: 'tnLoginPhone', type: 'text', placeholder: '手机号' },
       { wrap: 'tnLoginPhoneCode-wrap', id: 'tnLoginPhoneCode', type: 'text', placeholder: '验证码' },
       { wrap: 'tnLoginEmail-wrap', id: 'tnLoginEmail', type: 'text', placeholder: 'QQ邮箱地址' },
@@ -1313,6 +1498,7 @@ onMounted(() => {
         inp.placeholder = item.placeholder
         inp.className = 'field-input'
         inp.style.cssText = 'width:100%;padding:10px 14px;border-radius:10px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--text-1);font-size:0.875rem;outline:none;box-sizing:border-box;'
+        if (item.isPassword) inp.style.cssText += '-webkit-text-security:disc;-moz-text-security:disc;text-security:disc;'
         w.appendChild(inp)
       }
     })
@@ -1356,7 +1542,7 @@ onMounted(() => {
   flex:1;
   min-width:0;
 }
-.topnav-sidebar-btn { display:inline-flex; font-size:1.6rem; color:var(--text-2); cursor:pointer; padding:6px 10px; margin-right:4px; flex-shrink:0; align-items:center; border-radius:8px; }
+.topnav-sidebar-btn { display:flex; font-size:1.4rem; color:var(--text-2); cursor:pointer; padding:0 10px; margin-right:4px; flex-shrink:0; align-items:center; justify-content:center; border-radius:8px; width:40px; height:40px; line-height:1; margin-top:-5px; }
 .topnav-sidebar-btn:hover { background:var(--accent-glow); }
 .topnav-logo {
   display: flex;
@@ -1377,6 +1563,7 @@ onMounted(() => {
   gap: 8px;
   flex-shrink: 0;
   margin-left: auto;
+  z-index: 10;
 }
 
 /* ═══ 第 2 行：按钮栏 ═══ */
@@ -1385,7 +1572,9 @@ onMounted(() => {
   align-items: center;
   flex-wrap: nowrap;
   gap: 2px;
-  flex-shrink: 0;
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: visible;
 }
 .nav-btn {
   display: inline-flex;
@@ -1456,6 +1645,8 @@ onMounted(() => {
 
 /* "更多"按钮 */
 .nav-btn-more { position: relative; }
+.nav-btn-more .nav-btn-drop-menu { left: auto; right: 0; transform: translateY(4px); }
+.nav-btn-more.open .nav-btn-drop-menu { transform: translateY(2px); }
 
 /* 按钮 */
 .btn {
@@ -1491,33 +1682,11 @@ onMounted(() => {
   padding: 4px;
 }
 
-/* ═══ 响应式 ═══ */
-@media (max-width: 768px) {
-  .topnav { padding: 0 8px; }
-  .nav-btn { padding: 3px 7px; font-size: 0.7rem; }
-  .topnav-right { margin-left: 0; flex-shrink: 1; gap: 4px; }
-  .nav-btn-bar { flex-shrink: 1; }
-  .nav-profile-btn { font-size: 0.72rem; padding: 3px 6px; }
-  .theme-toggle-nav { font-size: 1rem; padding: 2px 4px; }
-  .nav-auth-btns .btn-sm { font-size: 0.7rem; padding: 4px 8px; }
-}
-@media (max-width: 480px) {
-  .nav-btn { padding: 3px 6px; font-size: 0.65rem; }
-  .topnav-right { gap: 2px; }
-  .nav-profile-btn { font-size: 0.65rem; padding: 2px 4px; }
-  .theme-toggle-nav { font-size: 0.9rem; padding: 1px 2px; }
-  .nav-auth-btns .btn-sm { font-size: 0.65rem; padding: 3px 6px; }
-}
-@media (max-width: 360px) {
-  .nav-profile-btn { letter-spacing: -0.5px; }
-  .topnav-right { gap: 0; }
-}
-
 /* ═══ 用户头像 ═══ */
 .nav-avatar-wrap { position: relative; display: flex; align-items: center; cursor: pointer; margin-left: 8px; }
-.nav-avatar-inner { width: 38px; height: 38px; border-radius: 50%; overflow: hidden; background: var(--accent-glow); display: flex; align-items: center; justify-content: center; }
+.nav-avatar-inner { width: 38px; height: 38px; border-radius: 50%; overflow: hidden; background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.12); }
 .nav-avatar-img { width: 100%; height: 100%; object-fit: cover; }
-.nav-avatar-text { font-size: 0.95rem; font-weight: 700; color: var(--accent); }
+.nav-avatar-text { font-size: 0.95rem; font-weight: 700; color: var(--text-3); }
 .nav-avatar-dropdown { position: absolute; top: 100%; right: 0; margin-top: 8px; background: rgba(48, 53, 76, 0.94); border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; padding: 4px 0; min-width: 120px; display: none; box-shadow: 0 8px 32px rgba(0,0,0,0.25); z-index: 200; -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6); }
 [data-theme="light"] .nav-avatar-dropdown { background: rgba(255, 253, 248, 0.94); border: 1px solid rgba(0,0,0,0.07); box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
 .nav-avatar-dropdown.open { display: block; }
@@ -1558,6 +1727,52 @@ onMounted(() => {
 .code-btn { white-space: nowrap; flex-shrink: 0; }
 .code-btn[disabled] { opacity: 0.5; pointer-events: none; }
 .modal-hint { font-size: 0.7rem; color: var(--text-3); text-align: center; margin-top: 12px; line-height: 1.4; }
+
+/* ═══ 响应式 ═══ */
+@media (max-width: 768px) {
+  .topnav { padding: 0 8px; }
+  .topnav-right { margin-left: 0; flex-shrink: 0; gap: 4px; }
+  .theme-toggle-nav { font-size: 1rem; padding: 2px 4px; }
+  .nav-auth-btns .btn-sm { font-size: 0.8rem; padding: 4px 8px; }
+  
+  /* 完全按照 record-ctx-menu 手机版样式 */
+  .nav-btn-drop-menu,
+  .nav-avatar-dropdown {
+    position: fixed !important;
+    top: 60px !important;
+    left: 50% !important;
+    transform: translateX(-50%) translateZ(0) !important;
+    background: rgba(255,255,255,0.65) !important;
+    border-color: rgba(255,255,255,0.3) !important;
+    border-radius: 20px !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.4) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    isolation: isolate !important;
+    padding: 6px 0 !important;
+    color: #333 !important;
+    z-index: 9999 !important;
+  }
+  
+  /* 覆盖主题切换的浅色样式 */
+  [data-theme="light"] .nav-btn-drop-menu,
+  [data-theme="light"] .nav-avatar-dropdown {
+    background: rgba(255,255,255,0.65) !important;
+    border-color: rgba(255,255,255,0.3) !important;
+    border-radius: 20px !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.4) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    isolation: isolate !important;
+    padding: 6px 0 !important;
+    color: #333 !important;
+  }
+}
+@media (max-width: 480px) {
+  .topnav-right { gap: 2px; }
+  .theme-toggle-nav { font-size: 0.9rem; padding: 1px 2px; }
+  .nav-auth-btns .btn-sm { font-size: 0.75rem; padding: 3px 6px; }
+}
 
 /* ═══ 登录弹窗移动端适配 ═══ */
 @media (max-width: 480px) {

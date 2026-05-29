@@ -425,12 +425,6 @@ onMounted(() => {
   }, 100)
 
   setTimeout(function() {
-    var navBtns = document.querySelectorAll('.cal-nav-btn')
-    if (navBtns.length >= 3) {
-      navBtns[0].addEventListener('click', function(e) { if (e._xcHandled) return; e._xcHandled = true; calPrev() })
-      navBtns[1].addEventListener('click', function(e) { if (e._xcHandled) return; e._xcHandled = true; calToday() })
-      navBtns[2].addEventListener('click', function(e) { if (e._xcHandled) return; e._xcHandled = true; calNext() })
-    }
     var closeBtn = document.querySelector('.cal-detail-close')
     if (closeBtn) closeBtn.addEventListener('click', function(e) { if (e._xcHandled) return; e._xcHandled = true; closeCalDetail() })
     var footerMap = {

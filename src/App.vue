@@ -21,11 +21,16 @@ export default {
     // 桌面端 800px+ 视口下导致全局放大 2 倍以上。
     // 必须在 load/resize 事件后也覆盖，因为 useRem() 也监听了这些事件。
     // 仅在桌面端（>768px）启用覆盖，手机端由 uni-app 原生 rem 计算管理
-    function _fixRem() { var w = window.innerWidth; if (w <= 768) return; var fs = '16px'; if (w >= 1920) fs = '18px'; else if (w >= 1400) fs = '17px'; document.documentElement.style.fontSize = fs }
+    function _fixRem() { document.documentElement.style.fontSize = '16px' }
     _fixRem()
     window.addEventListener('load', _fixRem)
-    var _fixRemTimer
-    window.addEventListener('resize', function() { clearTimeout(_fixRemTimer); _fixRemTimer = setTimeout(_fixRem, 120) })
+    window.addEventListener('resize', function() { setTimeout(_fixRem, 0); setTimeout(_fixRem, 50); setTimeout(_fixRem, 150); setTimeout(_fixRem, 300) })
+    var _remLock = false
+    new MutationObserver(function() {
+      if (!_remLock && document.documentElement.style.fontSize !== '16px') {
+        _remLock = true; _fixRem(); setTimeout(function() { _remLock = false }, 10)
+      }
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['style'] })
     // 后备：移除 overlay 并强制显示 #app
     setTimeout(function() {
       var o = document.getElementById('xc-overlay')
@@ -238,9 +243,9 @@ uni-tabbar, .uni-tabbar, .uni-tabbar-bottom {
 .sidebar-detail-body .history-markdown { font-size:.82rem; color:var(--text-2); line-height:1.8; }
 .sidebar-detail-body .history-markdown p { margin-bottom:8px; }
 .sidebar-user-logged { display:flex; align-items:center; gap:10px; }
-.sidebar-user-avatar-wrap { width:36px; height:36px; border-radius:50%; background:var(--accent-glow); overflow:hidden; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.sidebar-user-avatar-wrap { width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.08); overflow:hidden; display:flex; align-items:center; justify-content:center; flex-shrink:0; border:1px solid rgba(255,255,255,0.12); }
 .sidebar-user-avatar { width:100%; height:100%; object-fit:cover; display:none; }
-.sidebar-user-avatar-letter { font-size:.9rem; font-weight:700; color:var(--accent); }
+.sidebar-user-avatar-letter { font-size:.9rem; font-weight:700; color:var(--text-3); }
 .sidebar-user-info { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
 .sidebar-user-name { font-size:.82rem; font-weight:600; color:var(--text-1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .sidebar-user-points { font-size:.7rem; color:var(--accent); }

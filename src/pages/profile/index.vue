@@ -8,246 +8,139 @@
       <section class="tool-hero">
         <view class="tool-hero-content">
           <view class="section-tag">个人中心</view>
-          <view class="tool-hero-title">个人中心 · 命盘存档与账号管理</view>
-          <view class="tool-hero-desc">命理库管理 · 一键调用 · 跨设备同步</view>
+          <view class="tool-hero-title">个人中心 · 账号管理</view>
+          <view class="tool-hero-desc">账号信息 · 安全设置 · 跨设备同步</view>
         </view>
       </section>
 
       <!-- 工具面板 -->
       <section class="section">
-        <view class="tool-container" style="max-width:860px;">
-          <!-- 声明 -->
-          <view class="profile-disclaimer">⚠️ 仅供民俗文化参考，不构成任何决策建议</view>
+        <view class="tool-container" style="max-width:560px;">
 
-          <!-- 命盘存档区 -->
-          <view class="profile-section">
-            <view class="profile-section-title">
-              <text>📋 个人命理库</text>
+          <!-- 头像卡片 -->
+          <view class="profile-card" v-if="isLoggedIn">
+            <view class="profile-card-avatar" @tap="clickProfileAvatar" title="点击更换头像">
+              <image v-if="userInfo.avatar" :src="userInfo.avatar" class="profile-card-avatar-img" mode="aspectFill" />
+              <text v-else class="profile-card-avatar-text">{{ (userInfo.username || '用').charAt(0).toUpperCase() }}</text>
             </view>
-
-            <!-- 三个标签页 -->
-            <view class="profile-tabs">
-              <view class="profile-tab" id="profileTabSelf" :class="{ active: profileTab === 'self' }" @tap="switchTab('self')">自身命盘</view>
-              <view class="profile-tab" id="profileTabCustomer" :class="{ active: profileTab === 'customer' }" @tap="switchTab('customer')">客户命盘</view>
-              <view class="profile-tab" id="profileTabCollect" :class="{ active: profileTab === 'collect' }" @tap="switchTab('collect')">收藏命盘</view>
-            </view>
-
-            <!-- 未登录提示 -->
-            <view class="profile-empty" v-if="!isLoggedIn">
-              <view class="profile-empty-icon">🔒</view>
-              <text class="profile-empty-text">登录后管理命盘存档</text>
-              <text class="profile-empty-sub">命盘存档跨设备同步，永不丢失</text>
-              <view class="btn btn-accent btn-sm" style="margin-top:16px;" @tap="showLoginBtn">立即登录</view>
-            </view>
-
-            <template v-else>
-              <!-- 搜索栏 -->
-              <view class="profile-search-row">
-                <view id="profileSearch-wrap" class="dom-input-wrap"></view>
-                <picker :range="['最近使用', '创建时间']" :value="profileSortIdx" @change="profileSortIdx = $event.detail.value">
-                  <view class="form-select-picker" style="width:auto;">{{ ['最近使用', '创建时间'][profileSortIdx] }}</view>
-                </picker>
-              </view>
-
-              <!-- 命盘列表 -->
-              <view class="profile-grid" v-if="filteredProfiles.length > 0">
-                <view class="p-card" :class="{ 'is-default': p.isDefault || p.is_default }" v-for="p in filteredProfiles" :key="p.id" @tap="selectProfile(p)">
-                  <view class="p-card-head">
-                    <text class="p-card-name">{{ p.name }}</text>
-                    <view class="p-card-badge" v-if="p.isDefault || p.is_default">默认</view>
-                  </view>
-                  <view class="p-card-detail">
-                    性别：{{ p.gender || '—' }} ｜ 历法：{{ p.calType || p.cal_type || '—' }}
-                  </view>
-                  <view class="p-card-detail">
-                    出生：{{ formatBirthTime(p.birthTime || p.birth_time) }}
-                  </view>
-                  <view class="p-card-detail">
-                    出生地：{{ p.birthAddr || p.birth_addr || '—' }}
-                  </view>
-                  <view class="p-card-detail p-card-last-used" v-if="p.lastUsedAt || p.last_used_at">
-                    最近使用：{{ timeAgo(new Date(p.lastUsedAt || p.last_used_at)) }}
-                  </view>
-                  <view class="p-card-actions">
-                    <view class="btn btn-outline btn-sm" @tap.stop="editProfile(p)">编辑</view>
-                    <view class="btn btn-outline btn-sm" v-if="!(p.isDefault || p.is_default)" @tap.stop="setDefaultProfile(p.id)">设为默认</view>
-                    <view class="btn btn-outline btn-sm btn-danger" @tap.stop="deleteProfile(p.id)">删除</view>
-                  </view>
-                </view>
-              </view>
-              <view class="profile-empty" v-else>
-                <view class="profile-empty-icon">📭</view>
-                <text class="profile-empty-text">暂无{{ tabLabels[profileTab] }}</text>
-              </view>
-            </template>
-          </view>
-
-          <!-- 新增/编辑存档表单（v-if已移除，由DOM style.display控制） -->
-          <view class="profile-form-card" id="profileFormCard" style="display:none;">
-            <view class="profile-section-title">
-              <text>✎ 编辑存档</text>
-            </view>
-            <view class="form-row">
-              <view class="form-group">
-                <text class="form-label">姓名</text>
-                <view id="profileName-wrap" class="dom-input-wrap"></view>
-              </view>
-              <view class="form-group">
-                <text class="form-label">性别</text>
-                <picker :range="['男', '女']" :value="formData.genderIdx" @change="formData.genderIdx = $event.detail.value">
-                  <view class="form-select-picker">{{ ['男', '女'][formData.genderIdx] }}</view>
-                </picker>
-              </view>
-            </view>
-            <view class="form-row">
-              <view class="form-group">
-                <text class="form-label">历法</text>
-                <picker :range="['公历', '农历']" :value="formData.calTypeIdx" @change="formData.calTypeIdx = $event.detail.value">
-                  <view class="form-select-picker">{{ ['公历', '农历'][formData.calTypeIdx] }}</view>
-                </picker>
-              </view>
-              <view class="form-group">
-                <text class="form-label">出生时间</text>
-                <picker mode="date" :value="formData.birthDate" @change="formData.birthDate = $event.detail.value">
-                  <view class="form-select-picker">{{ formData.birthDate || '选择日期' }}</view>
-                </picker>
-              </view>
-            </view>
-            <view class="form-group">
-              <text class="form-label">出生地</text>
-              <view id="profileBirthAddr-wrap" class="dom-input-wrap"></view>
-            </view>
-            <view class="form-checkbox-row">
-              <switch :checked="formData.isDefault" @change="formData.isDefault = $event.detail.value" color="var(--accent)" />
-              <text class="form-checkbox-label">设为默认命盘</text>
-            </view>
-            <view class="form-actions">
-              <view class="btn btn-outline" @tap="hideProfileForm">取消</view>
-              <view class="btn btn-accent" @tap="saveProfile">保存</view>
+            <view class="profile-card-info">
+              <text class="profile-card-name">{{ userInfo.username }}</text>
+              <text class="profile-card-meta">注册于 {{ userInfo.regDate }} · {{ profiles.length }} 个存档</text>
             </view>
           </view>
 
-          <!-- 账号信息区 -->
-          <view class="profile-section">
-            <view class="profile-section-title"><text>🔑 账号信息</text></view>
-            <view class="profile-empty" v-if="!isLoggedIn">
-              <view class="profile-empty-icon">🔒</view>
-              <text class="profile-empty-text">登录后查看账号信息</text>
-            </view>
-            <view class="account-info" v-else>
-              <view class="account-info-row account-info-center">
-                <text class="account-info-label">头像</text>
-                <view class="profile-avatar-large" @tap="clickProfileAvatar" title="点击更换头像">
-                  <image v-if="userInfo.avatar" :src="userInfo.avatar" class="profile-avatar-img" mode="aspectFill" />
-                  <text v-else class="profile-avatar-text">{{ (userInfo.username || '用').charAt(0).toUpperCase() }}</text>
+          <!-- 未登录 -->
+          <view class="profile-empty" v-if="!isLoggedIn">
+            <view class="profile-empty-icon">🔒</view>
+            <text class="profile-empty-text">登录后查看账号信息</text>
+            <view class="btn btn-accent btn-sm" style="margin-top:16px;" @tap="showLoginBtn">立即登录</view>
+          </view>
+
+          <!-- 账号安全分组 -->
+          <view class="settings-group" v-if="isLoggedIn">
+            <view class="settings-group-title">账号安全</view>
+            <view class="settings-list">
+              <!-- 修改用户名 -->
+              <view class="settings-item" @tap="toggleAccordion('username')">
+                <text class="settings-item-icon">👤</text>
+                <text class="settings-item-label">修改用户名</text>
+                <text class="settings-item-value" id="bindUsername">{{ userInfo.username }}</text>
+                <text class="settings-item-arrow">{{ accordionOpen === 'username' ? '▲' : '›' }}</text>
+              </view>
+              <view class="settings-accordion" v-show="accordionOpen === 'username'">
+                <view class="settings-accordion-inner">
+                  <view class="field"><view id="asNewUsername-wrap" class="dom-input-wrap"></view></view>
+                  <view class="field" v-if="hasPassword"><view id="asCurrPassForUser-wrap" class="dom-input-wrap"></view></view>
+                  <view class="modal-error" id="asUsernameError"></view>
+                  <view class="btn btn-accent btn-sm" id="asUsernameBtn" onclick="window._xc_changeUsername()" style="float:right">确认修改</view>
                 </view>
               </view>
-              <view class="account-info-row">
-                <text class="account-info-label">用户名</text>
-                <text class="account-info-value">{{ userInfo.username }}</text>
+
+              <!-- 密码 -->
+              <view class="settings-item" @tap="toggleAccordion('password')">
+                <text class="settings-item-icon">🔑</text>
+                <text class="settings-item-label">{{ hasPassword ? '修改密码' : '设置密码' }}</text>
+                <text class="settings-item-value" id="bindPassword">{{ hasPassword ? '已设置' : '未设置' }}</text>
+                <text class="settings-item-arrow">{{ accordionOpen === 'password' ? '▲' : '›' }}</text>
               </view>
-              <view class="account-info-row">
-                <text class="account-info-label">注册时间</text>
-                <text class="account-info-value">{{ userInfo.regDate }}</text>
+              <view class="settings-accordion" v-show="accordionOpen === 'password'">
+                <view class="settings-accordion-inner">
+                  <view class="field" v-if="hasPassword"><view id="asOldPass-wrap" class="dom-input-wrap"></view></view>
+                  <view class="field"><view id="asNewPass-wrap" class="dom-input-wrap"></view></view>
+                  <view class="modal-error" id="asPassError"></view>
+                  <view class="btn btn-accent btn-sm" id="asPasswordBtn" onclick="window._xc_changePassword()" style="float:right">{{ hasPassword ? '确认修改' : '设置密码' }}</view>
+                </view>
               </view>
-              <view class="account-info-row">
-                <text class="account-info-label">存档数量</text>
-                <text class="account-info-value">{{ profiles.length }}</text>
+
+              <!-- 邮箱 -->
+              <view class="settings-item" @tap="toggleAccordion('email')">
+                <text class="settings-item-icon">📧</text>
+                <text class="settings-item-label">绑定邮箱</text>
+                <text class="settings-item-value" id="bindEmail">未绑定</text>
+                <text class="settings-item-arrow">{{ accordionOpen === 'email' ? '▲' : '›' }}</text>
               </view>
-              <view class="account-info-row account-info-actions">
-                <view class="btn btn-outline btn-sm" @tap="doLogout">退出登录</view>
-                <view class="btn btn-accent btn-sm" onclick="window._xc_showAccountSettings()">账号设置</view>
+              <view class="settings-accordion" v-show="accordionOpen === 'email'">
+                <view class="settings-accordion-inner">
+                  <view class="field"><view id="asBindEmail-wrap" class="dom-input-wrap"></view></view>
+                  <view class="field code-field" style="display:flex;gap:8px;">
+                    <view id="asBindEmailCode-wrap" class="dom-input-wrap" style="flex:1;"></view>
+                    <view class="btn btn-outline btn-sm" onclick="window._xc_sendBindEmailCode()" id="asBindEmailBtn">获取验证码</view>
+                  </view>
+                  <view class="modal-error" id="asBindEmailError"></view>
+                  <view class="btn btn-accent btn-sm" id="asBindEmailSubmit" onclick="window._xc_bindEmail()" style="float:right">绑定邮箱</view>
+                </view>
+              </view>
+
+              <!-- 手机号 -->
+              <view class="settings-item" @tap="toggleAccordion('phone')">
+                <text class="settings-item-icon">📱</text>
+                <text class="settings-item-label">绑定手机号</text>
+                <text class="settings-item-value" id="bindPhone">未绑定</text>
+                <text class="settings-item-arrow">{{ accordionOpen === 'phone' ? '▲' : '›' }}</text>
+              </view>
+              <view class="settings-accordion" v-show="accordionOpen === 'phone'">
+                <view class="settings-accordion-inner">
+                  <view class="field"><view id="asBindPhone-wrap" class="dom-input-wrap"></view></view>
+                  <view class="field code-field" style="display:flex;gap:8px;">
+                    <view id="asBindPhoneCode-wrap" class="dom-input-wrap" style="flex:1;"></view>
+                    <view class="btn btn-outline btn-sm" onclick="window._xc_sendBindPhoneCode()" id="asBindPhoneBtn">获取验证码</view>
+                  </view>
+                  <view class="modal-error" id="asBindPhoneError"></view>
+                  <view class="btn btn-accent btn-sm" id="asBindPhoneSubmit" onclick="window._xc_bindPhone()" style="float:right">绑定手机号</view>
+                </view>
+              </view>
+
+              <!-- 第三方 -->
+              <view class="settings-item" @tap="toggleAccordion('oauth')">
+                <text class="settings-item-icon">🔗</text>
+                <text class="settings-item-label">第三方账号</text>
+                <text class="settings-item-value" id="bindGitee">未绑定</text>
+                <text class="settings-item-arrow">{{ accordionOpen === 'oauth' ? '▲' : '›' }}</text>
+              </view>
+              <view class="settings-accordion" v-show="accordionOpen === 'oauth'">
+                <view class="settings-accordion-inner">
+                  <view class="settings-oauth-row" v-for="item in oauthProviders" :key="item.key">
+                    <view class="settings-oauth-left">
+                      <text class="settings-oauth-icon">{{ item.icon }}</text>
+                      <text class="settings-oauth-label">{{ item.name }}</text>
+                    </view>
+                    <view class="settings-oauth-right">
+                      <text class="settings-oauth-status" v-if="item.bound" style="color:var(--success);">已绑定</text>
+                      <view class="btn btn-outline btn-sm" v-else @tap="bindOAuth(item.key)">绑定</view>
+                    </view>
+                  </view>
+                </view>
               </view>
             </view>
           </view>
 
-          <!-- 账号设置弹窗（用 createNativeInput + wrap 模式） -->
-          <view class="modal-overlay" id="accountSettingsModal" onclick="if(event.target.id==='accountSettingsModal')window._xc_closeAccountSettings()">
-            <view class="modal-box">
-              <view class="modal-title">🔐 账号设置</view>
-              <view class="modal-close" onclick="window._xc_closeAccountSettings()">✕</view>
-
-              <!-- 当前绑定状态 -->
-              <view class="as-section">
-                <view class="as-section-title">当前绑定</view>
-                <view class="bind-info">
-                  <view class="bind-row"><text class="bind-label">用户名</text><text class="bind-value" id="bindUsername">—</text></view>
-                  <view class="bind-row"><text class="bind-label">邮箱</text><text class="bind-value" id="bindEmail">未绑定</text><text class="bind-unbind" id="bindEmailUnbind" style="display:none;" onclick="window._xc_unbindEmail()">解绑</text></view>
-                  <view class="bind-row"><text class="bind-label">手机号</text><text class="bind-value" id="bindPhone">未绑定</text><text class="bind-unbind" id="bindPhoneUnbind" style="display:none;" onclick="window._xc_unbindPhone()">解绑</text></view>
-                  <view class="bind-row"><text class="bind-label">密码</text><text class="bind-value" id="bindPassword">已设置</text></view>
-                  <view class="bind-row"><text class="bind-label">Gitee</text><text class="bind-value" id="bindGitee">未绑定</text></view>
-                </view>
-              </view>
-
-              <view class="as-divider"></view>
-
-              <!-- 修改/设置用户名 -->
-              <view class="as-section">
-                <view class="as-section-title">修改用户名</view>
-                <view class="field">
-                  <text class="field-label">新用户名</text>
-                  <view id="asNewUsername-wrap" class="dom-input-wrap"></view>
-                </view>
-                <view class="field" id="asUsernamePassField" v-if="hasPassword">
-                  <text class="field-label">当前密码（验证身份）</text>
-                  <view id="asCurrPassForUser-wrap" class="dom-input-wrap"></view>
-                </view>
-                <view class="modal-error" id="asUsernameError"></view>
-                <view class="btn btn-accent btn-block" id="asUsernameBtn" onclick="window._xc_changeUsername()">修改用户名</view>
-              </view>
-
-              <view class="as-divider"></view>
-
-              <!-- 设置/修改密码 -->
-              <view class="as-section">
-                <view class="as-section-title">{{ hasPassword ? '修改密码' : '设置密码' }}</view>
-                <view class="field" id="asOldPassField" v-if="hasPassword">
-                  <text class="field-label">当前密码</text>
-                  <view id="asOldPass-wrap" class="dom-input-wrap"></view>
-                </view>
-                <view class="field">
-                  <text class="field-label">新密码</text>
-                  <view id="asNewPass-wrap" class="dom-input-wrap"></view>
-                </view>
-                <view class="modal-error" id="asPassError"></view>
-                <view class="btn btn-accent btn-block" id="asPasswordBtn" onclick="window._xc_changePassword()">{{ hasPassword ? '修改密码' : '设置密码' }}</view>
-              </view>
-
-              <view class="as-divider"></view>
-
-              <!-- 绑定邮箱 -->
-              <view class="as-section">
-                <view class="as-section-title">绑定邮箱</view>
-                <view class="field">
-                  <text class="field-label">邮箱地址</text>
-                  <view id="asBindEmail-wrap" class="dom-input-wrap"></view>
-                </view>
-                <view class="field code-field" style="display:flex;gap:8px;margin-bottom:10px;">
-                  <view id="asBindEmailCode-wrap" class="dom-input-wrap" style="flex:1;"></view>
-                  <view class="btn btn-outline btn-sm code-btn" onclick="window._xc_sendBindEmailCode()" id="asBindEmailBtn">获取验证码</view>
-                </view>
-                <view class="modal-error" id="asBindEmailError"></view>
-                <view class="btn btn-accent btn-block" id="asBindEmailSubmit" onclick="window._xc_bindEmail()">绑定邮箱</view>
-              </view>
-
-              <view class="as-divider"></view>
-
-              <!-- 绑定手机号 -->
-              <view class="as-section">
-                <view class="as-section-title">绑定手机号</view>
-                <view class="field">
-                  <text class="field-label">手机号</text>
-                  <view id="asBindPhone-wrap" class="dom-input-wrap"></view>
-                </view>
-                <view class="field code-field" style="display:flex;gap:8px;margin-bottom:10px;">
-                  <view id="asBindPhoneCode-wrap" class="dom-input-wrap" style="flex:1;"></view>
-                  <view class="btn btn-outline btn-sm code-btn" onclick="window._xc_sendBindPhoneCode()" id="asBindPhoneBtn">获取验证码</view>
-                </view>
-                <view class="modal-error" id="asBindPhoneError"></view>
-                <view class="btn btn-accent btn-block" id="asBindPhoneSubmit" onclick="window._xc_bindPhone()">绑定手机号</view>
-              </view>
-            </view>
+          <!-- 退出登录 -->
+          <view class="settings-logout" v-if="isLoggedIn" @tap="doLogout">
+            <text class="settings-logout-text">退出登录</text>
           </view>
+
+          <!-- 隐藏的弹窗占位（保留给全局API兼容，不显示） -->
+          <view id="accountSettingsModal" style="display:none !important;"></view>
         </view>
       </section>
     </view>
@@ -276,6 +169,49 @@ function toggleTheme() {
 const isLoggedIn = ref(!!uni.getStorageSync('xc_token'))
 window.addEventListener('xc-session-expired', function() { isLoggedIn.value = false })
 const hasPassword = ref(uni.getStorageSync('xc_has_password') === '1')
+const accordionOpen = ref('')
+const accordionInputsCreated = {}
+function toggleAccordion(name) {
+  accordionOpen.value = accordionOpen.value === name ? '' : name
+  if (accordionOpen.value === name && !accordionInputsCreated[name]) {
+    setTimeout(function() { createAccordionInputs(name) }, 50)
+  }
+}
+function createAccordionInputs(name) {
+  var wrapMap = {
+    username: ['asNewUsername-wrap', 'asCurrPassForUser-wrap'],
+    password: ['asOldPass-wrap', 'asNewPass-wrap'],
+    email: ['asBindEmail-wrap', 'asBindEmailCode-wrap'],
+    phone: ['asBindPhone-wrap', 'asBindPhoneCode-wrap']
+  }
+  var wraps = wrapMap[name] || []
+  wraps.forEach(function(wrapId) {
+    var el = document.getElementById(wrapId)
+    if (el && !el.querySelector('input')) {
+      var inp = document.createElement('input')
+      if (wrapId.indexOf('Code') > -1) inp.type = 'text'
+      else if (wrapId.indexOf('Email') > -1) inp.type = 'email'
+      else if (wrapId.indexOf('Phone') > -1) inp.type = 'tel'
+      else inp.type = wrapId.indexOf('Pass') > -1 ? 'text' : 'text'
+      inp.style.cssText = 'width:100%;padding:10px 14px;border-radius:10px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--text-1);font-size:0.875rem;outline:none;box-sizing:border-box;transition:border-color 0.2s,box-shadow 0.2s'
+      if (wrapId.indexOf('Pass') > -1) { inp.style.cssText += ';-webkit-text-security:disc;-moz-text-security:disc;text-security:disc;' }
+      inp.onfocus = function() { this.style.borderColor = 'var(--accent)'; this.style.boxShadow = '0 0 0 2px var(--accent-glow)' }
+      inp.onblur = function() { this.style.borderColor = 'var(--input-border)'; this.style.boxShadow = 'none' }
+      if (wrapId === 'asNewUsername-wrap') inp.placeholder = '输入新用户名'
+      else if (wrapId === 'asCurrPassForUser-wrap') inp.placeholder = '输入当前密码'
+      else if (wrapId === 'asOldPass-wrap') inp.placeholder = '输入当前密码'
+      else if (wrapId === 'asNewPass-wrap') inp.placeholder = '输入新密码（至少4位）'
+      else if (wrapId === 'asBindEmail-wrap') inp.placeholder = 'your@email.com'
+      else if (wrapId === 'asBindEmailCode-wrap') inp.placeholder = '验证码'
+      else if (wrapId === 'asBindPhone-wrap') inp.placeholder = '手机号'
+      else if (wrapId === 'asBindPhoneCode-wrap') inp.placeholder = '验证码'
+      else inp.placeholder = '至少4个字符'
+      if (wrapId === 'asCurrPassForUser-wrap' && !hasPassword.value) { el.style.display = 'none'; return }
+      el.appendChild(inp)
+    }
+  })
+  accordionInputsCreated[name] = true
+}
 
 function showLoginBtn() {
   try {
@@ -310,9 +246,9 @@ function showAccountSettings() {
         if (modal.querySelector('#' + wrapId) && !modal.querySelector('#' + wrapId + ' input')) {
           var wrap = modal.querySelector('#' + wrapId)
           var inp = document.createElement('input')
-          inp.type = wrapId.indexOf('Pass') > -1 ? 'password' : 'text'
-          // 内联样式（style scoped 对动态创建的 input 不生效）
+          inp.type = wrapId.indexOf('Pass') > -1 ? 'text' : 'text'
           inp.style.cssText = 'width:100%;padding:10px 14px;border-radius:10px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--text-1);font-size:0.875rem;outline:none;box-sizing:border-box;transition:border-color 0.2s,box-shadow 0.2s'
+          if (wrapId.indexOf('Pass') > -1) inp.style.cssText += ';-webkit-text-security:disc;-moz-text-security:disc;text-security:disc;'
           inp.onfocus = function() { this.style.borderColor = 'var(--accent)'; this.style.boxShadow = '0 0 0 2px var(--accent-glow)' }
           inp.onblur = function() { this.style.borderColor = 'var(--input-border)'; this.style.boxShadow = 'none' }
           if (wrapId === 'asNewUsername-wrap') inp.placeholder = '输入新用户名'
@@ -350,7 +286,7 @@ async function changeUsername() {
     var d = res.data
     if (d.error) { try { document.querySelectorAll('#asUsernameError').forEach(function(el) { el.textContent = d.error }) } catch(_) {}; if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }; return }
     userInfo.username = newUsername; uni.setStorageSync('xc_user', newUsername)
-    closeAccountSettings(); uni.showToast({ title: '用户名已更新', icon: 'success' })
+    closeAccountSettings(); uni.showToast({ title: '用户名已更新', icon: 'success' }); setTimeout(function() { location.reload() }, 800)
   } catch (e) { try { document.querySelectorAll('#asUsernameError').forEach(function(el) { el.textContent = '网络错误' }) } catch(_) {}; if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' } }
 }
 async function changePassword() {
@@ -370,15 +306,29 @@ async function changePassword() {
     var d = res.data
     if (d.error) { try { document.querySelectorAll('#asPassError').forEach(function(el) { el.textContent = d.error }) } catch(_) {}; if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }; return }
     hasPassword.value = true; uni.setStorageSync('xc_has_password', '1')
-    closeAccountSettings(); uni.showToast({ title: '密码已设置', icon: 'success' })
+    closeAccountSettings(); uni.showToast({ title: '密码已设置', icon: 'success' }); setTimeout(function() { location.reload() }, 800)
   } catch (e) { try { document.querySelectorAll('#asPassError').forEach(function(el) { el.textContent = '网络错误' }) } catch(_) {}; if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' } }
 }
 
 const userInfo = reactive({
   username: uni.getStorageSync('xc_user') || '用户',
   regDate: '—',
-  avatar: ''
+  avatar: uni.getStorageSync('xc_avatar') || ''
 })
+const oauthProviders = reactive([
+  { key: 'gitee', name: 'Gitee', icon: '🟢', bound: false }
+])
+async function bindOAuth(provider) {
+  try {
+    var res = await uni.request({ url: '/api/oauth/' + provider + '/url' })
+    var d = res.data
+    if (d.error) { uni.showToast({ title: d.error, icon: 'none' }); return }
+    if (!d.url) { uni.showToast({ title: '该方式暂未配置', icon: 'none' }); return }
+    window.location.href = d.url
+  } catch (e) {
+    uni.showToast({ title: '获取授权链接失败', icon: 'none' })
+  }
+}
 const asForm = reactive({ newUsername: '', currPassForUser: '', oldPass: '', newPass: '' })
 
 // 命理库
@@ -599,7 +549,7 @@ async function saveProfile() {
 function clickProfileAvatar() {
   uni.chooseImage({
     count: 1,
-    sizeType: ['compressed'],
+    sizeType: ['original', 'compressed'],
     sourceType: ['album', 'camera'],
     success: async (res) => {
       const tempFile = res.tempFilePaths[0]
@@ -612,17 +562,29 @@ function clickProfileAvatar() {
         }
       } catch (_) {}
       try {
+        var _token = ''
+        try { _token = localStorage.getItem('xc_token') || '' } catch(_) {}
+        var _headers = { 'X-Requested-With': 'XMLHttpRequest' }
+        if (_token) _headers['Authorization'] = 'Bearer ' + _token
         const uploadRes = await uni.uploadFile({
           url: '/api/avatar',
           filePath: tempFile,
-          name: 'file'
+          name: 'file',
+          header: _headers
         })
+        console.log('[avatar] upload status:', uploadRes.statusCode, 'data:', uploadRes.data)
         const d = JSON.parse(uploadRes.data)
         if (d.error) { uni.showToast({ title: d.error, icon: 'none' }); return }
-        userInfo.avatar = d.url
+        userInfo.avatar = d.url + (d.url.includes('?') ? '&' : '?') + '_t=' + Date.now()
+        uni.setStorageSync('xc_avatar', userInfo.avatar)
+        if (typeof window !== 'undefined' && window.__sidebar) {
+          try { window.__sidebar.updateAvatar(userInfo.avatar) } catch(_) {}
+        }
         uni.showToast({ title: '头像已更新', icon: 'success' })
+        setTimeout(function() { location.reload() }, 800)
       } catch (e) {
-        uni.showToast({ title: '头像上传失败', icon: 'none' })
+        console.error('[avatar] upload error:', e)
+        uni.showToast({ title: '头像上传失败: ' + (e.message || '未知错误'), icon: 'none' })
       }
     }
   })
@@ -686,8 +648,9 @@ onMounted(() => {
             if (wrapId.indexOf('Code') > -1) inp.type = 'text'
             else if (wrapId.indexOf('Email') > -1) inp.type = 'email'
             else if (wrapId.indexOf('Phone') > -1) inp.type = 'tel'
-            else inp.type = wrapId.indexOf('Pass') > -1 ? 'password' : 'text'
+            else inp.type = wrapId.indexOf('Pass') > -1 ? 'text' : 'text'
             inp.style.cssText = 'width:100%;padding:10px 14px;border-radius:10px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--text-1);font-size:0.875rem;outline:none;box-sizing:border-box;transition:border-color 0.2s,box-shadow 0.2s'
+            if (wrapId.indexOf('Pass') > -1) inp.style.cssText += ';-webkit-text-security:disc;-moz-text-security:disc;text-security:disc;'
             inp.onfocus = function() { this.style.borderColor = 'var(--accent)'; this.style.boxShadow = '0 0 0 2px var(--accent-glow)' }
             inp.onblur = function() { this.style.borderColor = 'var(--input-border)'; this.style.boxShadow = 'none' }
             if (wrapId === 'asNewUsername-wrap') inp.placeholder = '输入新用户名'
@@ -714,14 +677,12 @@ onMounted(() => {
   }
   if (!window._xc_changeUsername) {
     window._xc_changeUsername = async function() {
-      var modal = document.querySelector('#accountSettingsModal.open')
-      if (!modal) return
-      var btn = modal.querySelector('#asUsernameBtn'); var origText = btn ? btn.textContent : ''
+      var btn = document.getElementById('asUsernameBtn'); var origText = btn ? btn.textContent : ''
       if (btn) { origText = btn.textContent; btn.textContent = '修改中...'; btn.style.opacity = '0.6'; btn.style.pointerEvents = 'none' }
       try {
-        modal.querySelectorAll('#asUsernameError').forEach(function(el) { el.textContent = '' })
-        var u = modal.querySelector('#asNewUsername-wrap input')
-        var p = modal.querySelector('#asCurrPassForUser-wrap input')
+        document.querySelectorAll('#asUsernameError').forEach(function(el) { el.textContent = '' })
+        var u = document.querySelector('#asNewUsername-wrap input')
+        var p = document.querySelector('#asCurrPassForUser-wrap input')
         var newUsername = u ? u.value.trim() : ''; var currPass = p ? p.value : ''
         if (!newUsername || newUsername.length < 2) { if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }; uni.showToast({ title: '用户名至少2个字符', icon: 'none' }); return }
         if (window.__xc_hasPassword && !currPass) { if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }; uni.showToast({ title: '请输入当前密码', icon: 'none' }); return }
@@ -729,11 +690,11 @@ onMounted(() => {
         if (window.__xc_hasPassword) data.current_password = currPass
         var res = await uni.request({ url: '/api/user/change-username', method: 'POST', data: data })
         var d = res.data
-        modal.classList.remove('open'); modal.style.display = 'none'; document.querySelectorAll('#accountSettingsModal').forEach(function(el) { el.classList.remove('open') })
         if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }
         if (d.error) { uni.showToast({ title: d.error, icon: 'none' }); return }
         uni.setStorageSync('xc_user', newUsername); uni.showToast({ title: '用户名已更新', icon: 'success' })
-      } catch (e) { modal.classList.remove('open'); modal.style.display = 'none'; document.querySelectorAll('#accountSettingsModal').forEach(function(el) { el.classList.remove('open') }); if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }; uni.showToast({ title: '网络错误', icon: 'none' }) }
+        setTimeout(function() { location.reload() }, 800)
+      } catch (e) { if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }; uni.showToast({ title: '网络错误', icon: 'none' }) }
     }
   }
   // 加载账号绑定信息
@@ -748,6 +709,8 @@ onMounted(() => {
           document.getElementById('bindPhone').textContent = d.phone || '未绑定'
           document.getElementById('bindPassword').textContent = d.has_password ? '已设置' : '未设置'
           document.getElementById('bindGitee').textContent = d.oauth_gitee ? '已绑定' : '未绑定'
+          var giteeItem = oauthProviders.find(function(p) { return p.key === 'gitee' })
+          if (giteeItem) giteeItem.bound = !!d.oauth_gitee
           // 显示解绑按钮
           var eu = document.getElementById('bindEmailUnbind')
           if (eu) eu.style.display = d.email ? 'inline' : 'none'
@@ -764,8 +727,7 @@ onMounted(() => {
     return async function() {
       var btn = document.getElementById(config.btnId)
       if (btn && btn.getAttribute('data-counting') === '1') return
-      var modal = document.querySelector('#accountSettingsModal.open') || document.querySelector('#accountSettingsModal')
-      var input = modal ? modal.querySelector('#' + config.wrapId + ' input') : null
+      var input = document.querySelector('#' + config.wrapId + '-wrap input')
       var val = input ? input.value.trim() : ''
       if (!val || !config.validate(val)) { uni.showToast({ title: config.errMsg, icon: 'none' }); return }
       try {
@@ -789,9 +751,8 @@ onMounted(() => {
   // 通用绑定（邮箱/手机号共用）
   function _profileBind(config) {
     return async function() {
-      var modal = document.querySelector('#accountSettingsModal.open') || document.querySelector('#accountSettingsModal')
-      var valInput = modal ? modal.querySelector('#' + config.wrapId + ' input') : null
-      var codeInput = modal ? modal.querySelector('#' + config.codeWrapId + ' input') : null
+      var valInput = document.querySelector('#' + config.wrapId + '-wrap input')
+      var codeInput = document.querySelector('#' + config.codeWrapId + '-wrap input')
       var val = valInput ? valInput.value.trim() : ''
       var code = codeInput ? codeInput.value.trim() : ''
       if (!val || !code) { uni.showToast({ title: '请填写完整', icon: 'none' }); return }
@@ -808,6 +769,7 @@ onMounted(() => {
         if (valInput) valInput.value = ''
         if (codeInput) codeInput.value = ''
         resetBtn()
+        setTimeout(function() { location.reload() }, 800)
       } catch(e) { uni.showToast({ title: '绑定失败', icon: 'none' }); resetBtn() }
     }
   }
@@ -842,14 +804,12 @@ onMounted(() => {
 
   if (!window._xc_changePassword) {
     window._xc_changePassword = async function() {
-      var modal = document.querySelector('#accountSettingsModal.open')
-      if (!modal) return
-      var btn = modal.querySelector('#asPasswordBtn'); var origText = btn ? btn.textContent : ''
+      var btn = document.getElementById('asPasswordBtn'); var origText = btn ? btn.textContent : ''
       if (btn) { origText = btn.textContent; btn.textContent = '设置中...'; btn.style.opacity = '0.6'; btn.style.pointerEvents = 'none' }
       try {
-        modal.querySelectorAll('#asPassError').forEach(function(el) { el.textContent = '' })
-        var oldEl = modal.querySelector('#asOldPass-wrap input')
-        var newEl = modal.querySelector('#asNewPass-wrap input')
+        document.querySelectorAll('#asPassError').forEach(function(el) { el.textContent = '' })
+        var oldEl = document.querySelector('#asOldPass-wrap input')
+        var newEl = document.querySelector('#asNewPass-wrap input')
         var oldPass = oldEl ? oldEl.value : ''; var newPass = newEl ? newEl.value : ''
         if (window.__xc_hasPassword && !oldPass) { if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }; uni.showToast({ title: '请输入当前密码', icon: 'none' }); return }
         if (!newPass || newPass.length < 4) { if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }; uni.showToast({ title: '新密码至少4个字符', icon: 'none' }); return }
@@ -857,12 +817,12 @@ onMounted(() => {
         if (window.__xc_hasPassword) data.old_password = oldPass
         var res = await uni.request({ url: '/api/user/change-password', method: 'POST', data: data })
         var d = res.data
-        modal.classList.remove('open'); modal.style.display = 'none'; document.querySelectorAll('#accountSettingsModal').forEach(function(el) { el.classList.remove('open') })
         if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }
         if (d.error) { uni.showToast({ title: d.error, icon: 'none' }); return }
         window.__xc_hasPassword = true; uni.setStorageSync('xc_has_password', '1')
         uni.showToast({ title: '密码已设置', icon: 'success' })
-      } catch (e) { modal.classList.remove('open'); modal.style.display = 'none'; document.querySelectorAll('#accountSettingsModal').forEach(function(el) { el.classList.remove('open') }); if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }; uni.showToast({ title: '网络错误', icon: 'none' }) }
+        setTimeout(function() { location.reload() }, 800)
+      } catch (e) { if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }; uni.showToast({ title: '网络错误', icon: 'none' }) }
     }
   }
   // 创建原生DOM输入框
@@ -894,7 +854,7 @@ onMounted(() => {
         hasPassword.value = d.has_password !== false
         if (d.username) userInfo.username = d.username
         if (d.created_at) userInfo.regDate = new Date(d.created_at).toLocaleString('zh-CN')
-        if (d.avatar) userInfo.avatar = d.avatar
+        if (d.avatar) { userInfo.avatar = d.avatar; uni.setStorageSync('xc_avatar', d.avatar) }
       }
     }).catch(() => {})
   }
@@ -907,8 +867,9 @@ onMounted(() => {
     if (oauthSuccess) {
       isLoggedIn.value = true
       uni.setStorageSync('xc_token', 'session')
-      uni.showToast({ title: oauthSuccess === 'qq' ? 'QQ登录成功' : '微信登录成功', icon: 'success' })
+      uni.showToast({ title: oauthSuccess === 'qq' ? 'QQ登录成功' : oauthSuccess === 'gitee' ? 'Gitee绑定成功' : oauthSuccess === 'wechat' ? '微信登录成功' : '登录成功', icon: 'success' })
       loadProfiles()
+      loadBindings()
       // 清除 URL 参数
       window.history.replaceState({}, '', window.location.pathname + window.location.hash.split('?')[0])
     }
@@ -932,8 +893,9 @@ onMounted(() => {
       uni.setStorageSync('xc_has_password', d.has_password !== false ? '1' : '0')
       hasPassword.value = d.has_password !== false
       userInfo.username = d.username
-      if (d.avatar) userInfo.avatar = d.avatar
+      if (d.avatar) { userInfo.avatar = d.avatar; uni.setStorageSync('xc_avatar', d.avatar) }
       if (d.created_at) userInfo.regDate = new Date(d.created_at).toLocaleString('zh-CN')
+      loadBindings()
     }
   }).catch(function() {})
 })
@@ -956,7 +918,6 @@ onShow(function() {
 [data-theme="light"] .bg-layer { background: radial-gradient(ellipse 72% 52% at 12% 18%, rgba(210,190,150,0.20) 0%, transparent 65%), radial-gradient(ellipse 55% 42% at 92% 85%, rgba(195,175,135,0.13) 0%, transparent 60%), linear-gradient(155deg, var(--bg-grad-1), var(--bg-grad-2) 60%, var(--bg-grad-3)); }
 .page-wrap { position: relative; z-index: 1; }
 
-/* 页面样式 */
 .section { max-width: var(--max-w); margin: 0 auto; padding: 80px 32px; }
 .section-tag { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.6875rem; letter-spacing: 2px; color: var(--accent); background: var(--accent-glow); margin-bottom: 12px; }
 .tool-hero { padding: 60px 32px 32px; text-align: center; position: relative; overflow: hidden; }
@@ -965,88 +926,72 @@ onShow(function() {
 .tool-hero-title { font-family: var(--font-serif); font-size: 2rem; font-weight: 400; letter-spacing: 4px; color: var(--text-1); margin-bottom: 12px; }
 .tool-hero-desc { font-size: 0.9375rem; color: var(--text-3); letter-spacing: 2px; }
 
-.tool-container { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; backdrop-filter: blur(20px); box-shadow: var(--card-shadow); max-width: 720px; margin: 0 auto; }
-.profile-disclaimer { background: var(--accent-glow); border: 1px solid var(--card-border); border-radius: 12px; padding: 12px 18px; margin-bottom: 24px; font-size: 0.8125rem; color: var(--text-2); text-align: center; letter-spacing: 1px; }
+.tool-container { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; backdrop-filter: blur(20px); box-shadow: var(--card-shadow); max-width: 560px; margin: 0 auto; }
 
-.profile-section { margin-bottom: 28px; }
-.profile-section-title { font-family: var(--font-serif); font-size: 1.125rem; font-weight: 400; letter-spacing: 2px; color: var(--text-1); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+/* ═══ 头像卡片 ═══ */
+.profile-card { display: flex; align-items: center; gap: 18px; padding: 8px 0 28px; margin-bottom: 24px; border-bottom: 1px solid var(--card-border); }
+.profile-card-avatar { position: relative; width: 72px; height: 72px; border-radius: 50%; background: rgba(255,255,255,0.06); overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; border: 2px solid var(--card-border); transition: border-color 0.2s, transform 0.2s; }
+.profile-card-avatar:active { transform: scale(1.05); }
+.profile-card-avatar:hover { border-color: var(--accent); }
+.profile-card-avatar-img { width: 100%; height: 100%; border-radius: 50%; }
+.profile-card-avatar-text { font-size: 1.8rem; font-weight: 600; color: var(--text-3); }
+.profile-card-avatar-badge { position: absolute; bottom: 0; right: 0; width: 22px; height: 22px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.55rem; }
+.profile-card-info { flex: 1; min-width: 0; }
+.profile-card-name { display: block; font-size: 1.15rem; font-weight: 600; color: var(--text-1); margin-bottom: 4px; }
+.profile-card-meta { display: block; font-size: 0.75rem; color: var(--text-3); letter-spacing: 0.5px; }
 
-/* ═══ 账号设置弹窗 ═══ */
+/* ═══ 设置分组（iOS风格） ═══ */
+.settings-group { margin-bottom: 28px; }
+.settings-group-title { font-size: 0.72rem; font-weight: 500; color: var(--text-3); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; padding-left: 4px; }
+.settings-list { background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 14px; overflow: hidden; }
+.settings-item { display: flex; align-items: center; padding: 14px 16px; cursor: pointer; transition: background 0.15s; border-bottom: 1px solid var(--card-border); gap: 12px; }
+.settings-item:last-child { border-bottom: none; }
+.settings-item:hover { background: var(--accent-glow); }
+.settings-item:active { background: rgba(255,255,255,0.06); }
+.settings-item-icon { font-size: 1.05rem; flex-shrink: 0; width: 24px; text-align: center; }
+.settings-item-label { flex: 1; font-size: 0.875rem; color: var(--text-1); }
+.settings-item-value { font-size: 0.78rem; color: var(--text-3); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-item-arrow { font-size: 0.85rem; color: var(--text-3); flex-shrink: 0; margin-left: 4px; transition: transform 0.2s; }
+
+/* ═══ Accordion 展开区 ═══ */
+.settings-accordion { border-top: 1px solid var(--card-border); background: rgba(0,0,0,0.08); }
+.settings-accordion-inner { padding: 14px 16px; }
+.settings-accordion-inner::after { content: ''; display: table; clear: both; }
+.settings-accordion-inner .field { margin-bottom: 10px; }
+.settings-accordion-inner .btn-block { margin-top: 6px; }
+
+.settings-oauth-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--card-border); }
+.settings-oauth-row:last-child { border-bottom: none; }
+.settings-oauth-left { display: flex; align-items: center; gap: 10px; }
+.settings-oauth-icon { font-size: 1.1rem; }
+.settings-oauth-label { font-size: 0.85rem; color: var(--text-2); }
+.settings-oauth-right { display: flex; align-items: center; }
+.settings-oauth-status { font-size: 0.78rem; color: var(--text-3); }
+
+/* ═══ 退出登录 ═══ */
+.settings-logout { margin-top: 24px; text-align: center; padding: 14px; border-radius: 12px; cursor: pointer; border: 1px solid var(--danger); transition: background 0.2s; }
+.settings-logout:hover { background: rgba(215,125,110,0.08); }
+.settings-logout:active { background: rgba(215,125,110,0.15); }
+.settings-logout-text { color: var(--danger); font-size: 0.9rem; font-weight: 500; letter-spacing: 1px; }
+
+/* ═══ 通用 ═══ */
+.profile-empty { text-align: center; padding: 48px 20px; color: var(--text-3); }
+.profile-empty-icon { font-size: 3rem; margin-bottom: 12px; }
+.profile-empty-text { font-size: 0.9375rem; color: var(--text-2); display: block; margin-bottom: 4px; }
+
+.field { margin-bottom: 10px; }
+.modal-error { color: var(--danger); font-size: 0.75rem; min-height: 18px; margin: 4px 0 8px; line-height: 1.4; }
+
 .modal-overlay { position: fixed; inset: 0; z-index: 999; background: rgba(0,0,0,0.55); display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 16px; box-sizing: border-box; }
 .modal-overlay.open { display: flex; }
 #accountSettingsModal .modal-box { position: relative; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 20px; padding: 32px 28px 24px; max-width: 420px; width: 100%; box-shadow: 0 12px 48px rgba(0,0,0,0.25); }
 #accountSettingsModal .modal-title { font-family: var(--font-serif); font-size: 1.15rem; text-align: center; color: var(--text-1); margin-bottom: 24px; letter-spacing: 1px; }
 #accountSettingsModal .modal-close { position: absolute; top: 12px; right: 16px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 0.85rem; color: var(--text-3); cursor: pointer; }
 #accountSettingsModal .modal-close:hover { background: var(--accent-glow); color: var(--accent); }
-#accountSettingsModal .field { margin-bottom: 14px; }
-#accountSettingsModal .field-label { display: block; font-size: 0.72rem; color: var(--text-3); margin-bottom: 5px; letter-spacing: 0.5px; }
-#accountSettingsModal .field-input { width: 100%; padding: 11px 14px; border-radius: 10px; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-1); font-size: 0.875rem; outline: none; box-sizing: border-box; transition: border-color 0.2s; }
-#accountSettingsModal .field-input:focus { border-color: var(--accent); }
-#accountSettingsModal .modal-error { color: var(--danger); font-size: 0.75rem; min-height: 18px; margin: 6px 0 10px; line-height: 1.4; }
-#accountSettingsModal .btn-block { width: 100%; text-align: center; padding: 10px 0; border-radius: 10px; font-size: 0.85rem; cursor: pointer; transition: opacity 0.2s; }
-.as-section { margin-bottom: 6px; }
-.as-section-title { font-size: 0.78rem; font-weight: 600; color: var(--text-2); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--card-border); letter-spacing: 1px; }
-.as-divider { height: 1px; background: var(--card-border); margin: 20px 0; opacity: 0.5; }
 
-.profile-tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid var(--card-border); }
-.profile-tab { padding: 10px 18px; font-size: 0.875rem; cursor: pointer; border: none; background: transparent; color: var(--text-3); border-bottom: 2px solid transparent; transition: all 0.2s; }
-.profile-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
-
-.profile-search-row { display: flex; gap: 10px; margin-bottom: 16px; }
-.form-input { flex: 1; padding: 10px 14px; border-radius: 10px; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-1); font-size: 0.875rem; outline: none; box-sizing: border-box; }
-.form-select-picker { padding: 10px 14px; border-radius: 10px; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-1); font-size: 0.875rem; }
-
-.profile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
-.p-card { background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); border-radius: 12px; padding: 18px; transition: all 0.2s; cursor: pointer; }
-.p-card:hover { border-color: var(--card-border-hover); background: var(--accent-glow); transform: translateX(4px); }
-.p-card.is-default { border-color: var(--accent); }
-.p-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.p-card-name { font-size: 1rem; font-weight: 600; color: var(--text-1); }
-.p-card-badge { font-size: 0.6875rem; padding: 2px 8px; border-radius: 4px; background: var(--accent); color: #fff; }
-.p-card-detail { font-size: 0.8125rem; color: var(--text-3); line-height: 1.7; }
-.p-card-last-used { font-size: 0.6875rem; color: var(--text-3); }
-.p-card-actions { display: flex; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--card-border); }
-.btn-danger { color: var(--danger); border-color: var(--danger); }
-
-.profile-empty { text-align: center; padding: 48px 20px; color: var(--text-3); }
-.profile-empty-icon { font-size: 3rem; margin-bottom: 12px; }
-.profile-empty-text { font-size: 0.9375rem; color: var(--text-2); display: block; margin-bottom: 4px; }
-.profile-empty-sub { font-size: 0.75rem; color: var(--text-3); display: block; margin-bottom: 16px; }
-
-.profile-form-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 28px; backdrop-filter: blur(20px); box-shadow: var(--card-shadow); margin-bottom: 24px; }
-.form-group { margin-bottom: 16px; }
-.form-label { display: block; font-size: 0.75rem; color: var(--text-3); margin-bottom: 6px; letter-spacing: 1px; }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.form-checkbox-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-.form-checkbox-label { font-size: 0.8125rem; color: var(--text-2); }
-.form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
-
-/* 头像 */
-.profile-avatar-large { width: 48px; height: 48px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; font-weight: 600; cursor: pointer; overflow: hidden; transition: box-shadow 0.2s, transform 0.2s; }
-.profile-avatar-large:active { transform: scale(1.08); }
-.profile-avatar-img { width: 100%; height: 100%; border-radius: 50%; }
-.profile-avatar-text { font-size: 1.25rem; font-weight: 600; }
-.account-info-actions { justify-content: center; padding-top: 8px; }
-
-.account-info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--card-border); align-items: center; }
-.account-info-row:last-child { border-bottom: none; }
-.account-info-label { color: var(--text-3); font-size: 0.875rem; }
-.account-info-value { color: var(--text-1); font-weight: 500; font-size: 0.875rem; }
-
-/* 绑定信息样式 */
-.bind-info { margin-bottom: 8px; }
-.bind-row { display: flex; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--card-border); font-size: 0.8125rem; gap: 8px; }
-.bind-row:last-child { border-bottom: none; }
-.bind-label { color: var(--text-3); min-width: 52px; }
-.bind-value { color: var(--text-1); flex: 1; }
-.bind-unbind { color: var(--danger); font-size: 0.6875rem; cursor: pointer; text-decoration: underline; }
-
-/* 弹窗 */
 @media (max-width: 768px) {
   .section { padding: 48px 16px; }
-  .profile-search-row { flex-direction: column; }
-  .profile-grid { grid-template-columns: 1fr; }
-  .form-row { grid-template-columns: 1fr; gap: 0; }
-
+  .tool-container { padding: 20px; }
+  .profile-card-avatar { width: 60px; height: 60px; }
 }
 </style>

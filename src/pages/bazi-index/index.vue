@@ -186,142 +186,83 @@
             <view class="wz-form">
               <view class="wz-form-row">
                 <view class="wz-form-item wz-flex-3">
-                  <text class="wz-form-label">姓名</text>
-                  <view id="baziName-wrap" class="dom-input-wrap"></view>
+                  <text class="wz-form-label">档案</text>
+                  <view class="archive-selector" @tap.stop="toggleArchiveDropdown">
+                    <text class="archive-trigger" :class="{ active: archiveOpen }">
+                      {{ selectedRecords.length > 0 ? '已选 ' + selectedRecords.length + ' 人' : '点击选择八字记录' }}
+                    </text>
+                    <text class="archive-arrow">{{ archiveOpen ? '▲' : '▼' }}</text>
+                  </view>
                 </view>
                 <view class="wz-form-item wz-flex-1">
-                  <text class="wz-form-label">分类</text>
-                  <picker :range="['全部', '客户', '名人']" :value="baziCatIdx" @change="baziCatIdx = $event.detail.value">
-                    <view class="wz-form-input picker-display">{{ ['全部', '客户', '名人'][baziCatIdx] }}</view>
-                  </picker>
+                  <text class="wz-form-label">筛选</text>
+                  <view class="archive-selector" @tap.stop="toggleFilterDropdown">
+                    <text class="archive-trigger" :class="{ active: filterOpen }">{{ archiveFilter }}</text>
+                    <text class="archive-arrow">{{ filterOpen ? '▲' : '▼' }}</text>
+                  </view>
+                  <view class="filter-dropdown" v-show="filterOpen" @tap.stop>
+                    <view class="filter-dropdown-item" :class="{ active: archiveFilter === f }" v-for="f in archiveFilters" :key="f" @tap="archiveFilter = f; filterOpen = false; loadArchiveRecords()">{{ f }}</view>
+                  </view>
+                </view>
+              </view>
+              <!-- 档案下拉面板 -->
+              <view class="archive-dropdown" v-show="archiveOpen">
+                <view class="archive-search"><input class="archive-search-input" v-model="archiveSearch" placeholder="搜索姓名..." @input="filterArchiveList" /></view>
+                <view class="archive-list">
+                  <view v-for="r in filteredArchive" :key="r.id" class="archive-item" @tap="toggleArchiveRecord(r)">
+                    <view class="archive-checkbox" :class="{ checked: archiveRecordIds.includes(r.id) }">{{ archiveRecordIds.includes(r.id) ? '✓' : '' }}</view>
+                    <view class="archive-info">
+                      <text class="archive-name">{{ r.name || '未命名' }}</text>
+                      <text class="archive-gender">{{ r.gender === '男' ? '♂' : '♀' }}</text>
+                      <text class="archive-pillars">{{ r.pillars || '' }}</text>
+                      <text class="archive-birth">{{ r.birth_time || '' }}</text>
+                    </view>
+                  </view>
+                  <view v-if="filteredArchive.length === 0" class="archive-empty">暂无记录</view>
+                </view>
+                <view class="archive-actions">
+                  <text class="archive-clear-btn" @tap="clearArchiveSelection">清空</text>
+                  <text class="archive-confirm-btn" @tap="confirmArchiveSelection">确定 ({{ selectedRecords.length }})</text>
                 </view>
               </view>
 
-              <view class="wz-form-row">
-                <view class="wz-form-item">
-                  <text class="wz-form-label">性别</text>
-                  <view class="wz-segment-box">
-                    <view id="baziGenderMale" class="wz-segment-btn" :class="{ active: baziGender === '男' }" @tap="selectBaziGender('男')">
-                      <text class="wz-segment-icon">♂</text><text>男</text>
-                    </view>
-                    <view id="baziGenderFemale" class="wz-segment-btn" :class="{ active: baziGender === '女' }" @tap="selectBaziGender('女')">
-                      <text class="wz-segment-icon">♀</text><text>女</text>
-                    </view>
-                  </view>
-                </view>
-                <view class="wz-form-item wz-flex-2">
-                  <text class="wz-form-label">历法</text>
-                  <view class="wz-segment-box">
-                    <view id="baziCalGongLi" class="wz-segment-btn" :class="{ active: baziCalType === '公历' }" @tap="selectBaziCalType('公历')">公历</view>
-                    <view id="baziCalNongLi" class="wz-segment-btn" :class="{ active: baziCalType === '农历' }" @tap="selectBaziCalType('农历')">农历</view>
-                    <view id="baziCalSiZhu" class="wz-segment-btn" :class="{ active: baziCalType === '四柱' }" @tap="selectBaziCalType('四柱')">四柱</view>
-                  </view>
+              <!-- 已选档案显示 -->
+              <view class="archive-selected" v-if="selectedRecords.length > 0">
+                <view v-for="r in selectedRecords" :key="r.id" class="archive-selected-tag">
+                  <text>{{ r.name || '未命名' }} {{ r.gender === '男' ? '♂' : '♀' }}</text>
+                  <text class="archive-selected-pillars">{{ r.pillars || '' }}</text>
+                  <text class="archive-selected-remove" @tap="removeArchiveRecord(r.id)">✕</text>
                 </view>
               </view>
 
               <view class="wz-divider"></view>
 
-              <view class="wz-form-group" id="baziDateSectionAi">
-                <text class="wz-form-label">出生时间</text>
-                <view class="wz-datetime-row">
-                  <view class="wz-dt-col"><select id="baziYearAi" class="wz-datetime-select"></select></view>
-                  <view class="wz-dt-col"><select id="baziMonthAi" class="wz-datetime-select"></select></view>
-                  <view class="wz-dt-col"><select id="baziDayAi" class="wz-datetime-select"></select></view>
-                  <view class="wz-dt-col wz-dt-hour"><select id="baziHourAi" class="wz-datetime-select"></select></view>
-                  <view class="wz-dt-col wz-dt-minute"><select id="baziMinuteAi" class="wz-datetime-select"></select></view>
+              <!-- 专业排盘结果显示 -->
+              <view class="wz-form-group" id="baziPanDisplayAi">
+                <text class="wz-form-label">八字排盘数据</text>
+                <view class="pan-data-box" id="baziPanDisplayBox" style="min-height:80px;padding:12px;background:var(--card-bg);border:1.5px solid var(--card-border);border-radius:10px;margin-top:8px;font-size:0.85rem;line-height:1.7;">
+                  <text v-if="selectedRecords.length === 0 && !panDataAvailable" style="color:var(--text-3);">请从上方档案选择八字记录，或在「八字排盘免费版」排盘后使用此功能。</text>
+                  <text v-else-if="selectedRecords.length > 0" style="white-space:pre-wrap;">{{ archivePanSummary }}</text>
+                  <text v-else>{{ panSummary }}</text>
                 </view>
-                <view class="wz-instant-row">
-                  <view class="wz-instant-btn" @tap="wzInstantPaipan">⚡ 即时起局</view>
-                  <view class="wz-instant-preview" v-if="instantPreview">{{ instantPreview }}</view>
-                </view>
-              </view>
-
-              <view class="wz-form-group" id="baziSiziSectionAi" style="display:none;">
-                <text class="wz-form-label">直接输入四柱干支</text>
-                <view class="wz-sizi-grid">
-                  <view class="wz-sizi-row-item"><text class="wz-sizi-label">年柱</text><view id="siziYear-wrap-ai" class="dom-input-wrap"></view></view>
-                  <view class="wz-sizi-row-item"><text class="wz-sizi-label">月柱</text><view id="siziMonth-wrap-ai" class="dom-input-wrap"></view></view>
-                  <view class="wz-sizi-row-item"><text class="wz-sizi-label">日柱</text><view id="siziDay-wrap-ai" class="dom-input-wrap"></view></view>
-                  <view class="wz-sizi-row-item"><text class="wz-sizi-label">时柱</text><view id="siziHour-wrap-ai" class="dom-input-wrap"></view></view>
-                </view>
-                <text class="wz-form-hint">输入天干+地支各一字，如：甲子、丙寅、戊午、庚申</text>
               </view>
 
               <view class="wz-divider"></view>
-
-              <view class="wz-form-group">
-                <text class="wz-form-label">出生地址</text>
-                <view class="wz-addr-selects">
-                  <select id="baziProvinceAi" class="wz-addr-select"><option value="">-- 省 --</option></select>
-                  <select id="baziCityAi" class="wz-addr-select"><option value="">-- 市 --</option></select>
-                  <select id="baziDistrictAi" class="wz-addr-select"><option value="">-- 区 --</option></select>
-                </view>
-                <input type="hidden" id="baziBirthAddrAi" value="" style="display:none;">
-                <input type="hidden" id="baziBirthLngAi" value="0" style="display:none;">
-                <input type="hidden" id="baziBirthLatAi" value="0" style="display:none;">
-                <view class="wz-addr-info" id="baziAddrInfoAi" style="display:none;">
-                  <text class="wz-addr-solar" id="baziAddrSolarAi">真太阳时：--</text>
-                  <text class="wz-addr-lng" id="baziAddrLngAi">经度：-- 纬度：--</text>
-                </view>
-              </view>
-
-              <view class="wz-form-group wz-advanced-box">
-                <view class="wz-switch-grid">
-                  <view class="wz-switch-row">
-                    <text class="wz-switch-label">真太阳时</text>
-                    <view id="baziSwitchSolar" class="wz-switch" :class="{ active: useSolarTime }" @tap="toggleBaziSolar">
-                      <view class="wz-switch-slider"></view>
-                    </view>
-                    <text class="wz-switch-hint">{{ useSolarTime ? '开' : '关' }}</text>
-                  </view>
-                  <view class="wz-switch-row">
-                    <text class="wz-switch-label">夏令时</text>
-                    <view id="baziSwitchDst" class="wz-switch" :class="{ active: isDst }" @tap="toggleBaziDst">
-                      <view class="wz-switch-slider"></view>
-                    </view>
-                    <text class="wz-switch-hint">{{ isDst ? '开' : '关' }}</text>
-                  </view>
-                  <view class="wz-switch-row">
-                    <text class="wz-switch-label">子时换日</text>
-                    <view id="baziSwitchZi" class="wz-switch" :class="{ active: nightZi }" @tap="toggleBaziZi">
-                      <view class="wz-switch-slider"></view>
-                    </view>
-                    <text class="wz-switch-hint">{{ nightZi ? '早子时' : '夜子时' }}</text>
-                  </view>
-                  <view class="wz-switch-row">
-                    <text class="wz-switch-label">保存案例</text>
-                    <view id="baziSwitchSave" class="wz-switch" :class="{ active: saveCase }" @tap="toggleBaziSave">
-                      <view class="wz-switch-slider"></view>
-                    </view>
-                    <text class="wz-switch-hint">{{ saveCase ? '保存' : '不保存' }}</text>
-                  </view>
-                </view>
-                <text class="wz-form-hint">夏令时：1986-1991年中国实行夏令时，时钟拨快1小时 | 子时换日：23:00后日柱是否换到次日（默认不换日）</text>
-              </view>
             </view>
 
-            <view class="wz-divider" style="margin:24px 0 20px;"></view>
-            <view class="form-group"><text class="form-label">分析类型</text>
-              <view class="analysis-type-row">
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 0 }" data-bz-action="aiType" data-bz-type-idx="0">📜 命局总览</view>
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 1 }" data-bz-action="aiType" data-bz-type-idx="1">💰 财运事业</view>
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 2 }" data-bz-action="aiType" data-bz-type-idx="2">❤️ 婚姻感情</view>
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 3 }" data-bz-action="aiType" data-bz-type-idx="3">📈 大运流年</view>
-                <view class="analysis-type-btn" :class="{ active: baiAnalysisTypeIdx === 4 }" data-bz-action="aiType" data-bz-type-idx="4">🏥 健康六亲</view>
-              </view>
-            </view>
-            <view class="form-group"><text class="form-label">你的问题（选填）</text><view id="baiQuestion-wrap" class="dom-input-wrap"></view></view>
+            <view class="form-group"><text class="form-label">你的问题</text><view id="baiQuestion-wrap" class="dom-input-wrap"></view></view>
             <view class="submit-btn" data-bz-action="aiAsk">🔮 AI 深度解读</view>
             <view class="qai-stream-box" id="baiStreamBox" style="display:none;">
               <view class="chat-container" id="baiChatContainer"></view>
             </view>
             <view class="chat-input-bar" id="baiChatInputBar" style="display:none;">
               <input class="chat-input" id="baiChatInput" placeholder="继续追问..." />
+              <view class="chat-send-btn" style="margin-right:6px;" data-bz-action="aiNewQuestion">新问题</view>
               <view class="chat-send-btn" data-bz-action="aiFollowUp">发送</view>
             </view>
           </view>
 
-          <!-- ══ 记录案例 ══ -->
+          <!-- ══ 排盘记录 ══ -->
           <view class="tool-tab-content" v-show="activeTab === 'records'">
             <view class="record-page">
               <!-- 1. 顶部Tab切换 -->
@@ -330,77 +271,93 @@
                 <view id="baziRecordHepan" class="record-tab" :class="{ active: recordTab === 'hepan' }" @tap="switchRecordTab('hepan')">合盘案例</view>
               </view>
 
-              <!-- 2. 搜索栏 + 功能按钮 -->
+              <!-- 2. 工具栏 -->
               <view class="record-toolbar">
                 <view class="record-search">
                   <view id="recordSearch-wrap" class="dom-input-wrap"></view>
                   <view class="search-btn" @tap="onRecordSearch">搜索</view>
                 </view>
                 <view class="record-actions">
-                  <view id="baziBatchToggle" class="action-btn" :class="{ active: batchMode }" @tap="toggleBatchDelete">批量删除</view>
-                  <view class="action-btn" @tap="showFilter = !showFilter">筛选</view>
+                  <view class="action-btn" :class="{ disabled: !batchMode || selectedIds.length === 0 }" @tap="batchMode ? (moveGroupModal = true) : null">📁 移动分组</view>
+                  <view class="action-btn" :class="{ active: showStarSection }" @tap="showStarSection = !showStarSection">⭐ 星标</view>
+                  <view id="baziBatchToggle" class="action-btn" :class="{ active: batchMode }" @tap="toggleBatchDelete">{{ batchMode ? '退出批量' : '批量' }}</view>
+                  <view class="action-btn action-btn-ai" @tap="sendRecordsBatchToAi">🔮 发AI</view>
                 </view>
               </view>
 
-              <!-- 3. 分类标签 -->
-              <view class="record-categories">
-                <text class="cat-label">案例分类:</text>
-                <view class="cat-tags">
-                  <view id="baziCatAll" class="cat-tag" :class="{ active: catFilter === '全部' }" @tap="selectCatFilter('全部')">全部</view>
-                  <view id="baziCatClient" class="cat-tag" :class="{ active: catFilter === '客户' }" @tap="selectCatFilter('客户')">客户</view>
-                  <view id="baziCatFamous" class="cat-tag" :class="{ active: catFilter === '名人' }" @tap="selectCatFilter('名人')">名人</view>
-                  <view id="baziCatFamily" class="cat-tag" :class="{ active: catFilter === '亲友' }" @tap="selectCatFilter('亲友')">亲友</view>
-                </view>
+              <view class="record-filter-row">
+                <text class="record-filter-label">筛选</text>
+                <view class="record-filter-tag" :class="{ active: catFilter === '全部' }" @tap="catFilter = '全部'">全部</view>
+                <view class="record-filter-tag" :class="{ active: catFilter === '客户' }" @tap="catFilter = '客户'">客户</view>
+                <view class="record-filter-tag" :class="{ active: catFilter === '名人' }" @tap="catFilter = '名人'">名人</view>
+                <view class="record-filter-tag" :class="{ active: catFilter === '亲友' }" @tap="catFilter = '亲友'">亲友</view>
               </view>
 
-              <!-- 4. 星标八字区 -->
-              <view class="star-section" v-if="starredRecords.length > 0">
-                <view class="star-title">⭐ 星标八字</view>
-                <view class="star-cards">
-                  <view class="bz-card starred" v-for="r in starredRecords" :key="r.id" @tap="viewRecord(r)">
-                    <text class="sx-icon">{{ r.gender === '男' ? '♂' : '♀' }}</text>
+              <!-- 5. 星标八字区（可折叠） -->
+              <view class="star-section" v-if="starredRecords.length > 0 && showStarSection">
+                <view class="star-title" @tap="showStarSection = !showStarSection">⭐ 星标八字 <text class="star-toggle">{{ showStarSection ? '▾' : '▸' }}</text></view>
+                <view class="star-cards" v-show="showStarSection">
+                  <view class="bz-card" :class="{ starred: true, pinned: r.pinned }" v-for="r in starredRecords" :key="'star-'+r.id" @tap="viewRecord(r)" @contextmenu.prevent="showRecordMenu($event, r)">
+                    <view class="card-avatar">{{ getZodiacEmoji(r) }}</view>
                     <view class="card-userinfo">
-                      <view class="card-name">{{ r.name || '未命名' }}</view>
+                      <view class="card-name">{{ r.name || '未命名' }}<text class="card-sex">{{ r.gender }}</text><text class="card-star-badge" v-if="r.starred">★</text><text class="card-pin-badge" v-if="r.pinned">📌</text></view>
                       <view class="card-date">{{ r.dateStr }}</view>
+                    </view>
+                    <view class="card-gz" v-if="r.ganArr && r.ganArr.length">
+                      <view class="gz-col" v-for="(g, i) in r.ganArr" :key="'sg'+i">
+                        <text class="gz-circle" :style="{ backgroundColor: wxColor(g) }">{{ g }}</text>
+                        <text class="gz-circle gz-zhi" :style="{ backgroundColor: wxColor(r.zhiArr[i]) }">{{ r.zhiArr[i] }}</text>
+                      </view>
+                    </view>
+                    <view class="card-gz card-gz-empty" v-else>
+                      <text class="gz-circle gz-placeholder">?</text>
+                    </view>
+                    <view class="card-ops" :data-ops-id="'ops-'+r.id" @tap.stop="showRecordMenu($event, r)">
+                      <text class="ops-dots">⋮</text>
                     </view>
                   </view>
                 </view>
               </view>
 
-              <!-- 5. 批量操作栏 -->
+              <!-- 6. 批量操作栏 -->
               <view class="batch-bar" v-if="batchMode">
                 <label class="batch-select-all" @tap="toggleSelectAll">
                   <text>{{ selectAll ? '☑' : '☐' }} 全选</text>
                 </label>
                 <text class="batch-count">已选 {{ selectedIds.length }} 项</text>
-                <view class="batch-confirm-btn" @tap="confirmBatchDelete">确认删除</view>
+                <view class="batch-move-btn" @tap="moveGroupModal = true">📁 移动分组</view>
+                <view class="batch-ai-btn" @tap="sendRecordsBatchToAi">🔮 发送AI</view>
+                <view class="batch-confirm-btn" @tap="confirmBatchDelete">删除</view>
                 <view class="batch-cancel-btn" @tap="cancelBatchDelete">取消</view>
               </view>
 
-              <!-- 6. 案例列表 -->
+              <!-- 7. 案例列表 -->
               <view class="case-cards" v-if="filteredRecords.length > 0">
-                <view class="bz-card" v-for="r in filteredRecords" :key="r.id" @tap="viewRecord(r)">
+                <view class="bz-card" :class="{ pinned: r.pinned }" v-for="(r, idx) in filteredRecords" :key="r.id" @tap="batchMode ? toggleSelectId(r.id) : viewRecord(r)" @contextmenu.prevent="showRecordMenu($event, r)">
                   <view class="batch-checkbox" v-if="batchMode">
-                    <view class="checkbox-view" :class="{ checked: selectedIds.includes(r.id) }" @tap.stop="toggleSelectId(r.id)"></view>
+                    <view class="checkbox-view" :class="{ checked: selectedIds.includes(r.id) }"></view>
                   </view>
-                  <text class="sx-icon">{{ r.gender === '男' ? '♂' : '♀' }}</text>
+                  <view class="card-avatar">{{ getZodiacEmoji(r) }}</view>
                   <view class="card-userinfo">
-                    <view class="card-name">{{ r.name || '未命名' }}<text class="card-sex">{{ r.gender }}</text></view>
+                    <view class="card-name">{{ r.name || '未命名' }}<text class="card-sex">{{ r.gender }}</text><text class="card-star-badge" v-if="r.starred">★</text><text class="card-pin-badge" v-if="r.pinned">📌</text></view>
                     <view class="card-date">{{ r.dateStr }}</view>
                   </view>
-                  <view class="card-gz">
-                    <view class="card-gan">
-                      <text class="gz-label" v-for="(g, i) in r.ganArr" :key="'g'+i">{{ g }}</text>
-                    </view>
-                    <view class="card-zhi">
-                      <text class="gz-label" v-for="(z, i) in r.zhiArr" :key="'z'+i">{{ z }}</text>
+                  <view class="card-gz" v-if="r.ganArr && r.ganArr.length">
+                    <view class="gz-col" v-for="(g, i) in r.ganArr" :key="'g'+i">
+                      <text class="gz-circle" :style="{ backgroundColor: wxColor(g) }">{{ g }}</text>
+                      <text class="gz-circle gz-zhi" :style="{ backgroundColor: wxColor(r.zhiArr[i]) }">{{ r.zhiArr[i] }}</text>
                     </view>
                   </view>
-                  <view class="card-star" :class="{ starred: r.starred }" @tap.stop="toggleStar(r)">★</view>
+                  <view class="card-gz card-gz-empty" v-else>
+                    <text class="gz-circle gz-placeholder">?</text>
+                  </view>
+                  <view class="card-ops" :data-ops-id="'ops-'+r.id" @tap.stop="showRecordMenu($event, r)">
+                    <text class="ops-dots">⋮</text>
+                  </view>
                 </view>
               </view>
 
-              <!-- 7. 空状态 -->
+              <!-- 8. 空状态 -->
               <view class="record-empty" v-if="filteredRecords.length === 0">
                 <text class="empty-icon">📋</text>
                 <view class="empty-text">暂无排盘记录</view>
@@ -408,12 +365,37 @@
                 <view class="btn btn-accent btn-sm" @tap="activeTab = 'free'">去排盘</view>
               </view>
             </view>
+
+
+
+            <!-- 移动分组弹窗 -->
+            <view class="modal-overlay" :class="{ open: moveGroupModal }" @tap="moveGroupModal = false">
+              <view class="modal-box" @tap.stop>
+                <view class="modal-title">移动到分组</view>
+                <view class="move-group-list">
+                  <view class="move-group-item" @tap="batchMoveToGroup('全部')">📁 全部</view>
+                  <view class="move-group-item" @tap="batchMoveToGroup('客户')">👤 客户</view>
+                  <view class="move-group-item" @tap="batchMoveToGroup('名人')">🌟 名人</view>
+                  <view class="move-group-item" @tap="batchMoveToGroup('亲友')">❤️ 亲友</view>
+                </view>
+                <view class="modal-btns">
+                  <view class="btn btn-ghost" @tap="moveGroupModal = false">取消</view>
+                </view>
+              </view>
+            </view>
           </view>
         </view>
       </section>
     </view>
 
-
+    <view class="menu-overlay" v-if="recordContextMenu.show" @tap="hideRecordMenu()"></view>
+    <view class="record-ctx-menu" v-if="recordContextMenu.show" :style="{ left: recordContextMenu.x + 'px', top: recordContextMenu.y + 'px' }" @tap.stop>
+      <view class="ctx-menu-item" @tap="editRecord(recordContextMenu.record)">✏️ 编辑</view>
+      <view class="ctx-menu-item" @tap="togglePin(recordContextMenu.record); hideRecordMenu()">{{ recordContextMenu.record && recordContextMenu.record.pinned ? '📌 取消置顶' : '📌 置顶' }}</view>
+      <view class="ctx-menu-item" @tap="sendToAiFromMenu(recordContextMenu.record)">🔮 发AI解读</view>
+      <view class="ctx-menu-divider"></view>
+      <view class="ctx-menu-item ctx-danger" @tap="deleteRecordFromMenu(recordContextMenu.record)">🗑️ 删除</view>
+    </view>
 
   </view>
 </template>
@@ -604,6 +586,8 @@ async function baziFreePaipan() {
           }
         })()
     const res = await uni.request({ url: '/api/bazi/paipan', method: 'POST', data })
+    // 保存排盘结果，供时安八字系统AI解读使用
+    if (res.data) window.__lastBaziPanData = res.data
     if (res.data && res.data.redirect) {
       // #ifdef H5
       sessionStorage.setItem('xc_bazi_params', JSON.stringify(data))
@@ -628,36 +612,220 @@ const baiAnalysisTypeIdx = ref(0)
 const baiAnalysisTypes = ['general', 'career', 'marriage', 'decadal', 'family']
 const baiAdvanced = ref(false)
 const baiAiLoading = ref(false); const baziAiResult = ref('')
+const panDataAvailable = computed(function() { return !!(window.__lastBaziPanData && window.__lastBaziPanData.success) })
+const panSummary = computed(function() {
+  var d = window.__lastBaziPanData
+  if (!d || !d.success) return ''
+  var fp = d.four_pillars || {}
+  var yz = fp.year ? (fp.year.gan||'') + (fp.year.zhi||'') : ''
+  var mz = fp.month ? (fp.month.gan||'') + (fp.month.zhi||'') : ''
+  var dz = fp.day ? (fp.day.gan||'') + (fp.day.zhi||'') : ''
+  var hz = fp.hour ? (fp.hour.gan||'') + (fp.hour.zhi||'') : ''
+  var dayGan = fp.day ? (fp.day.gan||'') : ''
+  var wx = d.wu_xing || ''
+  var lack = d.lack_wuxing ? d.lack_wuxing.join(',') : '无'
+  return '出生: ' + (d.birth_solar||'') + '  性别: ' + (d.gender||'') + '\n四柱: ' + yz + ' ' + mz + ' ' + dz + ' ' + hz + '\n日主: ' + dayGan + '  五行: ' + wx + '  所缺: ' + lack
+})
+// 档案（八字记录选择）
+const archiveOpen = ref(false)
+const archiveFilter = ref('全部')
+const archiveFilters = ['全部', '客户', '名人', '亲友']
+const filterOpen = ref(false)
+const archiveSearch = ref('')
+const archiveRecords = ref([])
+const filteredArchive = ref([])
+const archiveRecordIds = ref([])
+const selectedRecords = ref([])
+const archivePanSummary = computed(function() {
+  var lines = []
+  for (var i = 0; i < selectedRecords.value.length; i++) {
+    var r = selectedRecords.value[i]
+    lines.push('【命主' + (i+1) + '】' + (r.name||'未命名') + ' ' + (r.gender === '男' ? '♂' : '♀') + '\n  出生: ' + (r.birth_time||'') + '  四柱: ' + (r.pillars||''))
+  }
+  return lines.join('\n')
+})
 const shichenLabels = ['不确定', '子时 (23-1)', '丑时 (1-3)', '寅时 (3-5)', '卯时 (5-7)', '辰时 (7-9)', '巳时 (9-11)', '午时 (11-13)', '未时 (13-15)', '申时 (15-17)', '酉时 (17-19)', '戌时 (19-21)', '亥时 (21-23)']
 window._baiChatHistory = []
 
 var _baiCurrentConvId = null
 
+// ── 档案（八字记录多选）──
+function loadArchiveRecords() {
+  var cat = archiveFilter.value
+  var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
+  if (!token) { uni.showToast({ title: '请先登录', icon: 'none' }); return }
+  uni.request({
+    url: '/api/bazi/history', method: 'GET',
+    header: token ? { 'Authorization': 'Bearer ' + token } : {},
+    success: function(res) {
+      var list = []
+      if (res.statusCode === 401) { uni.showToast({ title: '请先登录', icon: 'none' }); return }
+      if (res.data && Array.isArray(res.data)) list = res.data
+      else if (res.data && res.data.success && Array.isArray(res.data.history)) list = res.data.history
+      if (cat !== '全部') list = list.filter(function(r) { return r.category === cat })
+      archiveRecords.value = list
+      filterArchiveList()
+    },
+    fail: function() { uni.showToast({ title: '加载档案失败', icon: 'none' }) }
+  })
+}
+function filterArchiveList() {
+  var q = (archiveSearch.value || '').toLowerCase()
+  var list = archiveRecords.value.filter(function(r) { return !q || (r.name || '').toLowerCase().includes(q) })
+  filteredArchive.value = list
+}
+function _bzApplyFrost(el) {
+  if (!el || window.innerWidth > 768) return
+  var parent = el.parentElement
+  if (parent && parent !== document.body) {
+    el._bz_origParent = parent
+    el._bz_origNext = el.nextElementSibling
+    document.body.appendChild(el)
+  }
+  el.style.setProperty('position', 'fixed', 'important')
+  el.style.setProperty('background', 'rgba(255,255,255,0.65)', 'important')
+  el.style.setProperty('border-color', 'rgba(255,255,255,0.3)', 'important')
+  el.style.setProperty('border-radius', '20px', 'important')
+  el.style.setProperty('box-shadow', '0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.4)', 'important')
+  el.style.setProperty('-webkit-backdrop-filter', 'blur(20px) saturate(180%)', 'important')
+  el.style.setProperty('backdrop-filter', 'blur(20px) saturate(180%)', 'important')
+  el.style.setProperty('z-index', '9999', 'important')
+  el.style.setProperty('padding', '6px 0', 'important')
+  el.style.setProperty('color', '#333', 'important')
+  el.style.setProperty('visibility', 'visible', 'important')
+  el.style.setProperty('opacity', '1', 'important')
+  el.style.setProperty('pointer-events', 'auto', 'important')
+
+  var trigger = null
+  if (el._bz_origParent) {
+    trigger = el._bz_origParent.querySelector('.archive-selector')
+  }
+  if (trigger) {
+    var rect = trigger.getBoundingClientRect()
+    el.style.setProperty('top', (rect.bottom + 8) + 'px', 'important')
+    el.style.setProperty('left', rect.left + 'px', 'important')
+    el.style.setProperty('right', 'auto', 'important')
+    el.style.setProperty('transform', 'translateZ(0)', 'important')
+  } else {
+    el.style.setProperty('top', '120px', 'important')
+    el.style.setProperty('left', '50%', 'important')
+    el.style.setProperty('right', 'auto', 'important')
+    el.style.setProperty('transform', 'translateX(-50%) translateZ(0)', 'important')
+  }
+}
+function _bzRestoreMenu(el) {
+  if (!el) return
+  el.style.removeProperty('position')
+  el.style.removeProperty('top')
+  el.style.removeProperty('left')
+  el.style.removeProperty('right')
+  el.style.removeProperty('transform')
+  el.style.removeProperty('background')
+  el.style.removeProperty('border-color')
+  el.style.removeProperty('border-radius')
+  el.style.removeProperty('box-shadow')
+  el.style.removeProperty('-webkit-backdrop-filter')
+  el.style.removeProperty('backdrop-filter')
+  el.style.removeProperty('z-index')
+  el.style.removeProperty('padding')
+  el.style.removeProperty('color')
+  el.style.removeProperty('visibility')
+  el.style.removeProperty('opacity')
+  el.style.removeProperty('pointer-events')
+  if (el._bz_origParent) {
+    var origParent = el._bz_origParent
+    var origNext = el._bz_origNext
+    if (origNext && origNext.parentElement === origParent) {
+      origParent.insertBefore(el, origNext)
+    } else {
+      origParent.appendChild(el)
+    }
+    el._bz_origParent = null
+    el._bz_origNext = null
+  }
+}
+function toggleArchiveDropdown() {
+  if (archiveOpen.value) {
+    archiveOpen.value = false
+    var dd = document.querySelector('.archive-dropdown')
+    if (dd && dd._bz_origParent) _bzRestoreMenu(dd)
+    return
+  }
+  archiveOpen.value = true
+  filterOpen.value = false
+  var fd = document.querySelector('.filter-dropdown')
+  if (fd && fd._bz_origParent) _bzRestoreMenu(fd)
+  if (archiveRecords.value.length === 0) loadArchiveRecords()
+  nextTick(function() {
+    var dd = document.querySelector('.archive-dropdown')
+    if (dd) _bzApplyFrost(dd)
+  })
+}
+function toggleFilterDropdown() {
+  if (filterOpen.value) {
+    filterOpen.value = false
+    var dd = document.querySelector('.filter-dropdown')
+    if (dd && dd._bz_origParent) _bzRestoreMenu(dd)
+    return
+  }
+  filterOpen.value = true
+  archiveOpen.value = false
+  var ad = document.querySelector('.archive-dropdown')
+  if (ad && ad._bz_origParent) _bzRestoreMenu(ad)
+  nextTick(function() {
+    var dd = document.querySelector('.filter-dropdown')
+    if (dd) _bzApplyFrost(dd)
+  })
+}
+function toggleArchiveRecord(r) {
+  var idx = archiveRecordIds.value.indexOf(r.id)
+  if (idx >= 0) archiveRecordIds.value.splice(idx, 1)
+  else archiveRecordIds.value.push(r.id)
+}
+function removeArchiveRecord(id) {
+  var idx = archiveRecordIds.value.indexOf(id)
+  if (idx >= 0) archiveRecordIds.value.splice(idx, 1)
+  selectedRecords.value = selectedRecords.value.filter(function(r) { return r.id !== id })
+}
+function clearArchiveSelection() {
+  archiveRecordIds.value = []
+  selectedRecords.value = []
+}
+function confirmArchiveSelection() {
+  var ids = archiveRecordIds.value
+  var list = archiveRecords.value.filter(function(r) { return ids.indexOf(r.id) >= 0 })
+  selectedRecords.value = list
+  archiveOpen.value = false
+  // 清除旧排盘缓存以免混淆
+  delete window.__lastBaziPanData
+}
+
 function _saveBaziConversation(question, birthData) {
   var title = (question || '八字AI解读').substring(0, 50)
-  uni.request({
-    url: '/api/bazi/conversations', method: 'POST',
-    data: {
+  var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
+  fetch('/api/bazi/conversations', {
+    method: 'POST',
+    headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+    body: JSON.stringify({
       title: title,
       messages: window._baiChatHistory || [],
       birth_data: birthData || {}
-    },
-    success: function(res) {
-      if (res.data && res.data.id) _baiCurrentConvId = res.data.id
-      window.__sidebarCache = null
-    },
-    fail: function(err) { console.error('[bazi] 保存对话失败:', err) }
-  })
+    })
+  }).then(function(r) { return r.json() }).then(function(data) {
+    if (data && data.id) _baiCurrentConvId = data.id
+    window.__sidebarCache = null
+    if (window._xc_refreshSidebar) window._xc_refreshSidebar()
+  }).catch(function(err) { console.error('[bazi] 保存对话失败:', err) })
 }
 
 function _updateBaziConversation() {
   if (!_baiCurrentConvId) return
-  uni.request({
-    url: '/api/bazi/conversations', method: 'POST',
-    data: { id: _baiCurrentConvId, messages: window._baiChatHistory || [] },
-    success: function() { window.__sidebarCache = null },
-    fail: function(err) { console.error('[bazi] 更新对话失败:', err) }
-  })
+  var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
+  fetch('/api/bazi/conversations', {
+    method: 'POST',
+    headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+    body: JSON.stringify({ id: _baiCurrentConvId, messages: window._baiChatHistory || [] })
+  }).then(function() { window.__sidebarCache = null }).catch(function(err) { console.error('[bazi] 更新对话失败:', err) })
 }
 
 function _checkBaziRestore() {
@@ -665,64 +833,103 @@ function _checkBaziRestore() {
   if (!d || d.type !== 'bazi') return
   window.__xc_restoreData = null
   switchBaziTab('ai')
-  var messages = d.messages || []
-  if (!messages.length) return
-  window._baiChatHistory = messages.slice()
-  _baiCurrentConvId = d.id || null
-  var streamBox = document.getElementById('baiStreamBox')
-  if (streamBox) streamBox.style.display = 'block'
-  var chatContainer = document.getElementById('baiChatContainer')
-  if (!chatContainer) return
-  chatContainer.innerHTML = ''
-  messages.forEach(function(m) {
-    var cls = m.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai'
-    var content = (m.content || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')
-    var bubble = document.createElement('div')
-    bubble.className = cls
-    if (m.role === 'assistant') {
-      bubble.innerHTML = '<div class="chat-bubble-content">' + content + '</div>'
+  function doRestore() {
+    var aiPanel = document.getElementById('baziTabAiContent')
+    if (!aiPanel || getComputedStyle(aiPanel).display === 'none') return false
+    var streamBox = document.getElementById('baiStreamBox')
+    if (streamBox) streamBox.style.display = ''
+    var chatContainer = document.getElementById('baiChatContainer')
+    var inputBar = document.getElementById('baiChatInputBar')
+    if (!chatContainer) return false
+    chatContainer.innerHTML = ''
+    if (d.rawHtml) {
+      if (d.question) {
+        var ub = document.createElement('view')
+        ub.className = 'chat-bubble-user'
+        ub.textContent = d.question
+        chatContainer.appendChild(ub)
+      }
+      var ab = document.createElement('view')
+      ab.className = 'chat-bubble-ai'
+      ab.innerHTML = '<div class="chat-bubble-content">' + _baiRenderCards(d.rawHtml) + '</div>'
+      chatContainer.appendChild(ab)
+      window._baiChatHistory = [
+        { role: 'user', content: d.question || '' },
+        { role: 'assistant', content: d.rawHtml.replace(/<[^>]+>/g, '').substring(0, 200) }
+      ]
+      _baiCurrentConvId = null
     } else {
-      bubble.innerHTML = '<div class="chat-bubble-text">' + content + '</div>'
+      var messages = d.messages || []
+      window._baiChatHistory = messages.slice()
+      _baiCurrentConvId = d.id || null
+      messages.forEach(function(m) {
+        if (m.role === 'user') {
+          var ub = document.createElement('view')
+          ub.className = 'chat-bubble-user'
+          ub.textContent = m.content
+          chatContainer.appendChild(ub)
+        } else if (m.role === 'assistant') {
+          var ab = document.createElement('view')
+          ab.className = 'chat-bubble-ai'
+          ab.innerHTML = '<div class="chat-bubble-content">' + _baiRenderCards(m.content) + '</div>'
+          chatContainer.appendChild(ab)
+        }
+      })
     }
-    chatContainer.appendChild(bubble)
-  })
-  chatContainer.scrollTop = chatContainer.scrollHeight
-  var inputBar = document.getElementById('baiChatInputBar')
-  if (inputBar) inputBar.style.display = 'flex'
+    if (inputBar) inputBar.style.display = 'flex'
+    var askBtn = document.querySelector('[data-bz-action="aiAsk"]'); if (askBtn) askBtn.style.display = 'none'
+    setTimeout(function() {
+      var el = document.getElementById('baiChatInputBar')
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 150)
+    return true
+  }
+  if (!doRestore()) {
+    setTimeout(doRestore, 200)
+    setTimeout(doRestore, 500)
+    setTimeout(doRestore, 1000)
+  }
 }
 
 window._xc_restoreBazi = function() {
   nextTick(function() { _checkBaziRestore() })
 }
+setInterval(function() {
+  var rd = window.__xc_restoreData
+  if (rd && rd.type === 'bazi') _checkBaziRestore()
+}, 500)
+window._baiAiAsk = baiAiAsk
 
 async function baiAiAsk() {
-  window._baiAiAsk = baiAiAsk
   if (baiAiLoading.value) return
 
-  // 从AI Tab表单读取（带Ai后缀的ID）
-  var yEl = document.getElementById('baziYearAi'); var mEl = document.getElementById('baziMonthAi')
-  var dEl = document.getElementById('baziDayAi'); var hEl = document.getElementById('baziHourAi')
-  var miEl = document.getElementById('baziMinuteAi')
-  if (!yEl || !mEl || !dEl) { uni.showToast({ title: '请选择出生日期', icon: 'none' }); return }
-
-  var now = new Date()
-  var defYear = now.getFullYear(), defMonth = now.getMonth() + 1, defDay = now.getDate()
-  var defHour = now.getHours(), defMin = now.getMinutes()
-
-  var yVal = yEl.value || String(defYear)
-  var mVal = mEl.value || String(defMonth)
-  var dVal = dEl.value || String(defDay)
-  var hVal = hEl && hEl.value ? String(hEl.value).padStart(2, '0') : String(defHour).padStart(2, '0')
-  var miVal = miEl && miEl.value ? String(miEl.value).padStart(2, '0') : String(defMin).padStart(2, '0')
-
-  var d = yVal + String(mVal).padStart(2, '0') + String(dVal).padStart(2, '0')
-  var h = hVal; var mi = miVal
-  var gender = baziGender.value
-  var calType = baziCalType.value
   var question = ((document.getElementById('baiQuestion') || {}).value || '').trim()
-  var birthAddr = (document.getElementById('baziBirthAddrAi') || {}).value || ''
-  var birthLng = parseFloat((document.getElementById('baziBirthLngAi') || {}).value) || 0
-  var birthLat = parseFloat((document.getElementById('baziBirthLatAi') || {}).value) || 0
+  if (!question) { baiAiLoading.value = false; uni.showToast({ title: '请输入您想问的问题', icon: 'none' }); return }
+
+  // 决定数据来源：优先用档案（多选），其次用免费排盘的缓存
+  var useArchive = selectedRecords.value.length > 0
+  var useSinglePan = !useArchive && window.__lastBaziPanData && window.__lastBaziPanData.success
+
+  if (!useArchive && !useSinglePan) {
+    baiAiLoading.value = false
+    uni.showToast({ title: '请先在档案选择八字记录，或在八字排盘免费版排盘', icon: 'none' })
+    return
+  }
+
+  var bodyData = { question: question, analysis_type: baiAnalysisTypes[baiAnalysisTypeIdx] }
+
+  if (useArchive) {
+    bodyData.record_ids = selectedRecords.value.map(function(r) { return r.id })
+    var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
+    if (token) bodyData.token = token
+  } else {
+    var panData = window.__lastBaziPanData
+    var birthSolar = panData.birth_solar || ''
+    bodyData.pan_data = panData
+    bodyData.gender = panData.gender || '男'
+    bodyData.birth = birthSolar.replace(/[- ]/g, '').substring(0, 12) || '199001011200'
+    bodyData.cal_type = '公历'
+  }
 
   // 清理 — 先设 loading
   baiAiLoading.value = true
@@ -732,84 +939,93 @@ async function baiAiAsk() {
   var chatContainer = document.getElementById('baiChatContainer')
   if (chatContainer) chatContainer.innerHTML = ''
   var inputBar = document.getElementById('baiChatInputBar')
-  if (inputBar) inputBar.style.display = 'none'
+  if (inputBar) { inputBar.style.display = 'none'; var ci = document.getElementById('baiChatInput'); if (ci) ci.value = '' }
+  var askBtn = document.querySelector('[data-bz-action="aiAsk"]'); if (askBtn) askBtn.style.display = 'inline-flex'
 
   var bubbleId = 'baiBubble_' + Date.now()
   var bubbleHTML = '<div class="chat-bubble-ai" id="' + bubbleId + '">' +
-    '<div class="ai-stage">🔗 正在连接 DeepSeek AI 引擎...</div>' +
-    '<div class="ai-progress-bar"><div class="ai-progress-fill" style="width:20%"></div></div>' +
+    '<div class="ai-stage" id="baiStage"><img class="ai-stage-logo" id="baiStageLogo" src="/static/images/logo.webp?v=2"><span id="baiStageText">排盘准备中</span></div>' +
+    '<div class="ai-progress-bar"><div class="ai-progress-fill" id="baiProgressFill" style="width:8%"></div></div>' +
     '<div class="chat-bubble-content"></div></div>'
   if (chatContainer) chatContainer.innerHTML = bubbleHTML
 
-  _baiDoStreamSSE({
-    bubbleId: bubbleId, url: '/api/bazi/ask/stream',
-    body: { birth: d + h + mi, gender: gender, cal_type: calType, question: question, analysis_type: baiAnalysisTypes[baiAnalysisTypeIdx], birth_addr: birthAddr, birth_lng: birthLng, birth_lat: birthLat },
-    question: question,
-    onDone: function(fullText) {
-      window._baiChatHistory = [{ role: 'user', content: question }, { role: 'assistant', content: fullText }]
-      baziAiResult.value = fullText
-      var bar = document.getElementById('baiChatInputBar'); if (bar) bar.style.display = 'flex'
-      _baiCurrentConvId = null
-      _saveBaziConversation(question, {
-        birth: d + h + mi, gender: gender, cal_type: calType,
-        birth_addr: birthAddr, birth_lng: birthLng, birth_lat: birthLat,
-        analysis_type: baiAnalysisTypes[baiAnalysisTypeIdx]
-      })
-    },
-    onError: function() { baiAiLoading.value = false }
-  })
-}
+  var stages = ['加载命理数据库...', '计算四柱八字...', '分析五行生克...', '推演大运流年...', '调用AI引擎...', '生成深度解读...']
+  var stageIdx = 0
+  var progFill = document.getElementById('baiProgressFill')
+  var stageText = document.getElementById('baiStageText')
+  var progTimer = setInterval(function() {
+    if (!progFill) return
+    var w = parseFloat(progFill.style.width) || 8
+    if (w < 70) progFill.style.width = Math.min(w + 2.5, 70) + '%'
+  }, 300)
+  var stageTimer = setInterval(function() {
+    if (stageIdx < stages.length - 1) {
+      stageIdx++
+      if (stageText) stageText.textContent = stages[stageIdx]
+    } else {
+      clearInterval(stageTimer)
+    }
+  }, 2000)
+  setTimeout(function() { stageIdx = Math.max(stageIdx, 2); if (stageText) stageText.textContent = stages[stageIdx] }, 6000)
 
-function _baiDoStreamSSE(opts) {
-  var bubble = document.getElementById(opts.bubbleId); if (!bubble) { console.error('[bazi] bubble not found'); return }
-  var stageEl = bubble.querySelector('.ai-stage'); var barEl = bubble.querySelector('.ai-progress-fill')
-  var contentEl = bubble.querySelector('.chat-bubble-content')
-  var fullText = '', charQueue = '', typeTimer = null, doneReceived = false
-  function startTypewriter() {
-    if (typeTimer) return
-    typeTimer = setInterval(function() {
-      if (charQueue.length === 0 && doneReceived) {
-        clearInterval(typeTimer); typeTimer = null
-        baiAiLoading.value = false
-        if (stageEl) stageEl.style.display = 'none'
-        var barWrap = bubble.querySelector('.ai-progress-bar'); if (barWrap) barWrap.style.display = 'none'
-        if (contentEl) contentEl.innerHTML = _baiRenderCards(fullText)
-        if (opts.onDone) opts.onDone(fullText); return
-      }
-      if (charQueue.length === 0) return
-      var take = charQueue.length > 3 ? 2 : 1
-      fullText += charQueue.substring(0, take); charQueue = charQueue.substring(take)
-      if (contentEl) contentEl.innerHTML = _stripMarkdown(fullText).replace(/\n/g, '<br>')
-    }, 35)
-  }
-  var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
-  var xhr = new XMLHttpRequest()
-  xhr.open('POST', opts.url, false)
-  xhr.setRequestHeader('Content-Type', 'application/json')
-  if (token) xhr.setRequestHeader('Authorization', 'Bearer ' + token)
-  xhr.send(JSON.stringify(opts.body))
-  if (xhr.status >= 200 && xhr.status < 300 && xhr.responseText) {
-    var text = xhr.responseText
+  try {
+    var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
+    var resp = await fetch('/api/bazi/ask/stream', {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+      body: JSON.stringify(bodyData)
+    })
+    if (!resp.ok) { clearInterval(progTimer); clearInterval(stageTimer); baiAiLoading.value = false; uni.showToast({ title: '请求失败 ' + resp.status, icon: 'none' }); return }
+    var text = await resp.text()
+    if (!text) { clearInterval(progTimer); clearInterval(stageTimer); baiAiLoading.value = false; uni.showToast({ title: '响应为空', icon: 'none' }); return }
     var lines = text.split('\n')
+    var charQueue = '', fullText = '', doneReceived = false
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i]
       if (line.indexOf('data:') !== 0) continue
       try {
         var data = JSON.parse(line.replace('data:', '').trim())
-        if (data.type === 'chunk' || data.type === 'delta') {
-          if (!typeTimer) startTypewriter()
-          charQueue += data.content
-        } else if (data.type === 'done') {
-          doneReceived = true
-        } else if (data.type === 'error') {
-          if (stageEl) stageEl.innerHTML = '⚠️ ' + data.message; if (opts.onError) opts.onError()
-        }
+        if (data.type === 'chunk' || data.type === 'delta') { charQueue += data.content }
+        else if (data.type === 'done') { doneReceived = true }
       } catch(_) {}
     }
-  } else {
-    if (stageEl) stageEl.innerHTML = '⚠️ 服务器错误 ' + xhr.status
-    if (opts.onError) opts.onError()
+    startBaziTypewriter(bubbleId, charQueue, function(finalText) {
+      clearInterval(progTimer); clearInterval(stageTimer)
+      if (progFill) progFill.style.width = '100%'
+      if (stageText) stageText.textContent = '✅ 解读完成'
+      window._baiChatHistory = [{ role: 'user', content: question }, { role: 'assistant', content: finalText }]
+      baziAiResult.value = finalText
+      var bar = document.getElementById('baiChatInputBar'); if (bar) bar.style.display = 'flex'
+      var askBtn = document.querySelector('[data-bz-action="aiAsk"]'); if (askBtn) askBtn.style.display = 'none'
+      _baiCurrentConvId = null
+      _saveBaziConversation(question, { birth: '', gender: '', cal_type: '公历', analysis_type: baiAnalysisTypes[baiAnalysisTypeIdx] })
+    }, doneReceived)
+  } catch(e) {
+    console.error('[bazi] fetch error:', e)
+    baiAiLoading.value = false
+    uni.showToast({ title: '网络异常', icon: 'none' })
   }
+}
+
+function startBaziTypewriter(bubbleId, text, onDone, doneReceived) {
+  var bubble = document.getElementById(bubbleId); if (!bubble) { console.error('[bazi] bubble not found'); return }
+  var stageEl = bubble.querySelector('.ai-stage'); var contentEl = bubble.querySelector('.chat-bubble-content')
+  var fullText = '', charQueue = text || '', pos = 0, timer = null
+  function tick() {
+    if (pos >= charQueue.length && doneReceived) {
+      clearInterval(timer); timer = null
+      baiAiLoading.value = false
+      if (stageEl) stageEl.style.display = 'none'
+      var barWrap = bubble.querySelector('.ai-progress-bar'); if (barWrap) barWrap.style.display = 'none'
+      if (contentEl) contentEl.innerHTML = _baiRenderCards(fullText)
+      if (onDone) onDone(fullText); return
+    }
+    if (pos >= charQueue.length) return
+    var take = (charQueue.length - pos) > 3 ? 2 : 1
+    fullText += charQueue.substring(pos, pos + take); pos += take
+    if (contentEl) contentEl.innerHTML = _stripMarkdown(fullText).replace(/\n/g, '<br>')
+  }
+  if (charQueue.length > 0) timer = setInterval(tick, 35)
 }
 
 function _stripMarkdown(s) {
@@ -838,28 +1054,53 @@ function _baiRenderCards(text) {
   return html
 }
 
-function baiSendFollowUp() {
-  window._baiSendFollowUp = baiSendFollowUp
+async function baiSendFollowUp() {
   var input = document.querySelector('#baiChatInput input') || document.getElementById('baiChatInput'); if (!input) return
   var question = input.value.trim(); if (!question) return; input.value = ''
   var chatContainer = document.getElementById('baiChatContainer'); if (!chatContainer) return
-  var userBubble = document.createElement('view'); userBubble.className = 'chat-bubble-user'; userBubble.textContent = question
+  var userBubble = document.createElement('div'); userBubble.className = 'chat-bubble-user'; userBubble.textContent = question
   chatContainer.appendChild(userBubble)
   var bubbleId = 'baiFollow_' + Date.now()
-  var aiBubble = document.createElement('view'); aiBubble.className = 'chat-bubble-ai'; aiBubble.id = bubbleId
-  aiBubble.innerHTML = '<div class="ai-stage"><img class="ai-stage-logo" src="/static/images/logo.webp?v=2">正在生成回复...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div><div class="chat-bubble-content"></div>'
+  var aiBubble = document.createElement('div'); aiBubble.className = 'chat-bubble-ai'; aiBubble.id = bubbleId
+  aiBubble.innerHTML = '<div class="ai-stage"><img class="ai-stage-logo" src="/static/images/logo.webp?v=2"><span>AI思考中...</span></div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:10%"></div></div><div class="chat-bubble-content"></div>'
   chatContainer.appendChild(aiBubble); chatContainer.scrollIntoView({ behavior: 'smooth', block: 'end' })
   var history = window._baiChatHistory || []; history.push({ role: 'user', content: question })
-  _baiDoStreamSSE({
-    bubbleId: bubbleId, url: '/api/bazi/ask/stream', body: { question: question, history: history },
-    question: question,
-    onDone: function(fullText) {
-      history.push({ role: 'assistant', content: fullText }); window._baiChatHistory = history
+  var followProg = aiBubble.querySelector('.ai-progress-fill')
+  var followTimer = setInterval(function() {
+    if (!followProg) return
+    var w = parseFloat(followProg.style.width) || 10
+    if (w < 75) followProg.style.width = Math.min(w + 1.8, 75) + '%'
+  }, 400)
+  try {
+    var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
+    var bd = window._baziInitBirthData || {}
+    var resp = await fetch('/api/bazi/ask/stream', {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+      body: JSON.stringify(Object.assign({ question: question, history: history }, bd))
+    })
+    if (!resp.ok) return
+    var text = await resp.text()
+    if (!text) return
+    var lines = text.split('\n'), charQueue = '', doneReceived = false
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i]
+      if (line.indexOf('data:') !== 0) continue
+      try {
+        var data = JSON.parse(line.replace('data:', '').trim())
+        if (data.type === 'chunk' || data.type === 'delta') { charQueue += data.content }
+        else if (data.type === 'done') { doneReceived = true }
+      } catch(_) {}
+    }
+    startBaziTypewriter(bubbleId, charQueue, function(finalText) {
+      clearInterval(followTimer)
+      if (followProg) followProg.style.width = '100%'
+      history.push({ role: 'assistant', content: finalText }); window._baiChatHistory = history
       if (_baiCurrentConvId) { _updateBaziConversation() } else { _saveBaziConversation(question, {}) }
-    },
-    onError: function() {}
-  })
+    }, doneReceived)
+  } catch(e) { console.error('[bazi] followup error:', e) }
 }
+window._baiSendFollowUp = baiSendFollowUp
 
 // 保留旧函数兼容
 function goPaipan() {
@@ -872,38 +1113,14 @@ const recordTab = ref('paipan')
 const recordSearch = ref(''); const catFilter = ref('全部')
 const batchMode = ref(false); const selectAll = ref(false)
 const selectedIds = ref([]); const showFilter = ref(false)
+const showStarSection = ref(true)
+const filterDropdownOpen = ref(false)
+const moveGroupModal = ref(false)
 const records = ref([])
 const starredRecords = computed(() => records.value.filter(r => r.starred))
 const filteredRecords = computed(() => {
   let list = records.value
-  const searchEl = 
-  // DOM click 绑定（事件代理，uni-view 的 @tap/@click 不生效）
-  setTimeout(function() {
-    var aiContent = document.getElementById('baziTabAiContent')
-    if (aiContent) {
-      aiContent.addEventListener('click', function(e) {
-        var target = e.target
-        var btn = target.closest ? target.closest('.submit-btn') : null
-        if (!btn) { btn = target; while (btn && !btn.classList.contains('submit-btn')) btn = btn.parentElement }
-        if (btn && btn.textContent.indexOf('AI 深度解读') !== -1) {
-          baiAiAsk(); return
-        }
-        var sendBtn = target.closest ? target.closest('.chat-send-btn') : null
-        if (!sendBtn) { sendBtn = target; while (sendBtn && !sendBtn.classList.contains('chat-send-btn')) sendBtn = sendBtn.parentElement }
-        if (sendBtn) { baiSendFollowUp(); return }
-        var typeBtn = target.closest ? target.closest('.analysis-type-btn') : null
-        if (!typeBtn) { typeBtn = target; while (typeBtn && !typeBtn.classList.contains('analysis-type-btn')) typeBtn = typeBtn.parentElement }
-        if (typeBtn) {
-          var texts = ['命局总览', '财运事业', '婚姻感情', '大运流年', '健康六亲']
-          for (var i = 0; i < texts.length; i++) {
-            if (typeBtn.textContent.indexOf(texts[i]) !== -1) { baiAnalysisTypeIdx.value = i; return }
-          }
-        }
-      })
-    }
-  }, 300)
-
-  document.getElementById('recordSearch')
+  const searchEl = document.getElementById('recordSearch')
   const searchVal = searchEl ? searchEl.value : recordSearch.value
   if (catFilter.value !== '全部') list = list.filter(r => r.category === catFilter.value)
   if (searchVal) { const q = searchVal.toLowerCase(); list = list.filter(r => (r.name || '').toLowerCase().includes(q)) }
@@ -911,34 +1128,7 @@ const filteredRecords = computed(() => {
 })
 
 function onRecordSearch() {
-  const el = 
-  // DOM click 绑定（事件代理，uni-view 的 @tap/@click 不生效）
-  setTimeout(function() {
-    var aiContent = document.getElementById('baziTabAiContent')
-    if (aiContent) {
-      aiContent.addEventListener('click', function(e) {
-        var target = e.target
-        var btn = target.closest ? target.closest('.submit-btn') : null
-        if (!btn) { btn = target; while (btn && !btn.classList.contains('submit-btn')) btn = btn.parentElement }
-        if (btn && btn.textContent.indexOf('AI 深度解读') !== -1) {
-          baiAiAsk(); return
-        }
-        var sendBtn = target.closest ? target.closest('.chat-send-btn') : null
-        if (!sendBtn) { sendBtn = target; while (sendBtn && !sendBtn.classList.contains('chat-send-btn')) sendBtn = sendBtn.parentElement }
-        if (sendBtn) { baiSendFollowUp(); return }
-        var typeBtn = target.closest ? target.closest('.analysis-type-btn') : null
-        if (!typeBtn) { typeBtn = target; while (typeBtn && !typeBtn.classList.contains('analysis-type-btn')) typeBtn = typeBtn.parentElement }
-        if (typeBtn) {
-          var texts = ['命局总览', '财运事业', '婚姻感情', '大运流年', '健康六亲']
-          for (var i = 0; i < texts.length; i++) {
-            if (typeBtn.textContent.indexOf(texts[i]) !== -1) { baiAnalysisTypeIdx.value = i; return }
-          }
-        }
-      })
-    }
-  }, 300)
-
-  document.getElementById('recordSearch')
+  const el = document.getElementById('recordSearch')
   if (el) recordSearch.value = el.value
 }
 function toggleBatchDelete() {
@@ -951,21 +1141,129 @@ function toggleSelectId(id) {
   const idx = selectedIds.value.indexOf(id)
   if (idx > -1) selectedIds.value.splice(idx, 1); else selectedIds.value.push(id)
 }
-function confirmBatchDelete() { records.value = records.value.filter(r => !selectedIds.value.includes(r.id)); batchMode.value = false; selectedIds.value = [] }
+function confirmBatchDelete() {
+  var ids = selectedIds.value.slice()
+  if (ids.length === 0) { batchMode.value = false; return }
+  var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
+  uni.request({
+    url: '/api/bazi/history/batch-delete', method: 'POST',
+    header: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+    data: JSON.stringify({ ids: ids }),
+    success: function(res) {
+      if (res.data && res.data.success) {
+        records.value = records.value.filter(function(r) { return ids.indexOf(r.id) < 0 })
+        uni.showToast({ title: '已删除 ' + ids.length + ' 条', icon: 'none' })
+      } else {
+        uni.showToast({ title: '删除失败', icon: 'none' })
+      }
+    },
+    fail: function() { uni.showToast({ title: '网络错误', icon: 'none' }) }
+  })
+  batchMode.value = false; selectedIds.value = []
+}
 function cancelBatchDelete() { batchMode.value = false; selectedIds.value = [] }
-function toggleStar(r) { r.starred = !r.starred }
-function viewRecord(r) { uni.navigateTo({ url: `/pages/bazi-result/index?id=${r.id}` }) }
+function toggleStar(r) {
+  var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
+  uni.request({
+    url: '/api/bazi/history/star', method: 'POST',
+    header: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+    data: JSON.stringify({ id: r.id }),
+    success: function(res) {
+      if (res.data && res.data.success) {
+        r.starred = res.data.starred
+      }
+    },
+    fail: function() { r.starred = !r.starred }
+  })
+}
+function viewRecord(r) {
+  try { sessionStorage.removeItem('xc_bazi_params') } catch(_) {}
+  var bt = r.birth_time || ''
+  var q = '?y=' + bt.substring(0,4)
+  q += '&m=' + bt.substring(4,6)
+  q += '&d=' + bt.substring(6,8)
+  q += '&h=' + bt.substring(8,10)
+  q += '&mi=' + bt.substring(10,12)
+  q += '&s=' + (r.gender === '女' ? 2 : 1)
+  if (r.cal_type && r.cal_type !== '公历') q += '&cal=' + encodeURIComponent(r.cal_type)
+  uni.navigateTo({ url: '/pages/bazi-result/index' + q })
+}
+
+var WX_CARD = {
+  '甲':'#07e930','乙':'#1dcc36','丙':'#d30505','丁':'#e02a2a','戊':'#8b6d03','己':'#a07d10',
+  '庚':'#ef9104','辛':'#d4860a','壬':'#2e83f6','癸':'#4a96f0',
+  '子':'#2e83f6','丑':'#a07d10','寅':'#07e930','卯':'#1dcc36','辰':'#a07d10','巳':'#d30505',
+  '午':'#e02a2a','未':'#a07d10','申':'#ef9104','酉':'#d4860a','戌':'#8b6d03','亥':'#4a96f0'
+}
+var GAN_WX_NAME = {'甲':'木','乙':'木','丙':'火','丁':'火','戊':'土','己':'土','庚':'金','辛':'金','壬':'水','癸':'水'}
+var ZHI_WX_NAME = {'子':'水','丑':'土','寅':'木','卯':'木','辰':'土','巳':'火','午':'火','未':'土','申':'金','酉':'金','戌':'土','亥':'水'}
+var ZODIAC_EMOJI = ['🐭','🐮','🐯','🐰','🐲','🐍','🐴','🐏','🐵','🐔','🐶','🐷']
+function getZodiacEmoji(r) {
+  if (r && r.birth_time) {
+    var bt = String(r.birth_time)
+    var m = bt.match(/(\d{4})(\d{2})(\d{2})/)
+    if (m) {
+      var year = parseInt(m[1])
+      var month = parseInt(m[2])
+      var day = parseInt(m[3])
+      if (month < 2 || (month === 2 && day < 4)) year -= 1
+      return ZODIAC_EMOJI[(year - 4) % 12]
+    }
+  }
+  return r && r.gender === '女' ? '♀' : '♂'
+}
+function wxColor(ch) { return WX_CARD[ch] || 'var(--text-2)' }
+function fmtTimeAgo(dateStr) {
+  if (!dateStr) return ''
+  var d = new Date(dateStr)
+  if (isNaN(d.getTime())) return dateStr.slice(0, 10)
+  var now = new Date(), diff = Math.floor((now - d) / 1000)
+  if (diff < 60) return '刚刚'
+  if (diff < 3600) return Math.floor(diff / 60) + '分钟前'
+  if (diff < 86400) return Math.floor(diff / 3600) + '小时前'
+  if (diff < 2592000) return Math.floor(diff / 86400) + '天前'
+  var m = d.getMonth() + 1, day = d.getDate()
+  return (d.getFullYear() !== now.getFullYear() ? d.getFullYear() + '/' : '') + m + '/' + day
+}
+function fmtDateCN(str) {
+  if (!str) return ''
+  var s = String(str).replace(/[T\s].*$/, '').replace(/[-\/]/g, '')
+  if (s.length > 8) s = s.slice(0, 8)
+  if (/^\d{8}$/.test(s)) return s.slice(0,4) + '年' + s.slice(4,6) + '月' + s.slice(6,8) + '日'
+  var d = new Date(str)
+  if (!isNaN(d.getTime())) return d.getFullYear() + '年' + String(d.getMonth()+1).padStart(2,'0') + '月' + String(d.getDate()).padStart(2,'0') + '日'
+  return str.slice(0, 10)
+}
+function _fmtRecord(r) {
+  var p = (r.pillars || '')
+  var ganArr = [], zhiArr = []
+  for (var i = 0; i < p.length; i += 2) {
+    if (i + 1 < p.length) { ganArr.push(p[i]); zhiArr.push(p[i + 1]) }
+  }
+  r.ganArr = ganArr; r.zhiArr = zhiArr
+  r.dateStr = fmtDateCN(r.birth_time || r.created_at || '')
+  r.dayGan = ganArr.length >= 3 ? ganArr[2] : ''
+  r.dayGanWx = r.dayGan ? (GAN_WX_NAME[r.dayGan] || '') : ''
+  r.typeLabel = r.record_type === 'hepan' ? '合盘' : '排盘'
+  r.catLabel = r.category && r.category !== '全部' ? r.category : ''
+  r.calLabel = r.cal_type || '公历'
+  r.addrShort = r.birth_addr ? r.birth_addr.replace(/省|市|自治区|特别行政区/g, '').slice(0, 4) : ''
+  r.createdAgo = fmtTimeAgo(r.created_at)
+  return r
+}
 
 function loadRecords() {
+  var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
   uni.request({
-    url: '/api/bazi/history',
-    method: 'GET',
+    url: '/api/bazi/history', method: 'GET',
+    header: token ? { 'Authorization': 'Bearer ' + token } : {},
     success: function(res) {
-      if (res.data && Array.isArray(res.data)) {
-        records.value = res.data
-      } else if (res.data && res.data.success && Array.isArray(res.data.records)) {
-        records.value = res.data.records
-      }
+      var list = []
+      if (res.data && Array.isArray(res.data)) list = res.data
+      else if (res.data && res.data.success && Array.isArray(res.data.history)) list = res.data.history
+      else if (res.data && res.data.success && Array.isArray(res.data.records)) list = res.data.records
+      for (var i = 0; i < list.length; i++) _fmtRecord(list[i])
+      records.value = list
     },
     fail: function(err) { console.error('[bazi] 加载排盘记录失败:', err) }
   })
@@ -973,14 +1271,237 @@ function loadRecords() {
 
 function deleteRecord(id) {
   if (!id) return
+  var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
   uni.request({
-    url: '/api/bazi/history/delete',
-    method: 'POST',
-    data: { id: id },
+    url: '/api/bazi/history/delete', method: 'POST',
+    header: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+    data: JSON.stringify({ id: id }),
     success: function() {
       records.value = records.value.filter(function(r) { return r.id !== id })
     },
     fail: function(err) { console.error('[bazi] 删除记录失败:', err) }
+  })
+}
+
+function sendRecordToAi(r) {
+  if (!selectedRecords.value) return
+  var exists = selectedRecords.value.some(function(s) { return s.id === r.id })
+  if (!exists) {
+    selectedRecords.value.push(r)
+    archiveRecordIds.value.push(r.id)
+  }
+  delete window.__lastBaziPanData
+  activeTab.value = 'ai'
+  uni.showToast({ title: '已加载到AI档案', icon: 'none' })
+}
+
+function sendRecordsBatchToAi() {
+  var ids = selectedIds.value.slice()
+  if (ids.length === 0) { uni.showToast({ title: '请先选择记录', icon: 'none' }); return }
+  for (var i = 0; i < ids.length; i++) {
+    var r = records.value.find(function(x) { return x.id === ids[i] })
+    if (r) {
+      var exists = selectedRecords.value.some(function(s) { return s.id === r.id })
+      if (!exists) {
+        selectedRecords.value.push(r)
+        archiveRecordIds.value.push(r.id)
+      }
+    }
+  }
+  delete window.__lastBaziPanData
+  batchMode.value = false; selectedIds.value = []
+  activeTab.value = 'ai'
+  uni.showToast({ title: '已加载 ' + ids.length + ' 条到AI档案', icon: 'none' })
+}
+
+var recordContextMenu = ref({ show: false, x: 0, y: 0, record: null, targetRect: null })
+
+function showRecordMenu(e, r) {
+  if (e && e.stopPropagation) e.stopPropagation()
+  if (e && e.preventDefault) e.preventDefault()
+
+  var menuWidth = 180
+  var menuHeight = 200
+  var x = 20
+  var y = 20
+  var vw = window.innerWidth || 375
+  var vh = window.innerHeight || 667
+
+  var targetElement = null
+
+  if (e && e.currentTarget && e.currentTarget.getBoundingClientRect) {
+    targetElement = e.currentTarget
+  } else if (e && e.target) {
+    var closest = e.target.closest ? e.target.closest('.card-ops') : null
+    if (closest) targetElement = closest
+  }
+
+  if (!targetElement && r && r.id) {
+    targetElement = document.querySelector('[data-ops-id="ops-' + r.id + '"]')
+  }
+
+  if (targetElement) {
+    var rect = targetElement.getBoundingClientRect()
+    x = rect.right - menuWidth
+    y = rect.bottom + 6
+    if (y + menuHeight > vh - 10 && rect.top > menuHeight + 10) {
+      y = rect.top - menuHeight - 6
+    }
+  } else if (e) {
+    var cx = 0, cy = 0
+    if (e.touches && e.touches[0]) {
+      cx = e.touches[0].clientX
+      cy = e.touches[0].clientY
+    } else if (typeof e.clientX === 'number') {
+      cx = e.clientX
+      cy = e.clientY
+    }
+    if (cx > 0 && cy > 0) {
+      x = cx - menuWidth + 20
+      y = cy + 10
+    }
+  }
+
+  if (x < 10) x = 10
+  if (x + menuWidth > vw - 10) x = vw - menuWidth - 10
+  if (y < 10) y = 10
+  if (y + menuHeight > vh - 10) y = vh - menuHeight - 10
+
+  x = Math.round(x)
+  y = Math.round(y)
+
+  recordContextMenu.value = {
+    show: true,
+    x: x,
+    y: y,
+    record: r,
+    targetRect: null,
+    ready: true
+  }
+}
+
+function showMoveGroupForRecord(r) {
+  hideRecordMenu()
+  selectedIds.value = [r.id]
+  moveGroupModal.value = true
+}
+function hideRecordMenu() { recordContextMenu.value.show = false }
+
+function moveRecordCategory(r, cat) {
+  var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
+  uni.request({
+    url: '/api/bazi/history/category', method: 'POST',
+    header: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+    data: JSON.stringify({ id: r.id, category: cat }),
+    success: function(res) {
+      if (res.data && res.data.success) {
+        r.category = cat
+        uni.showToast({ title: '已移至「' + cat + '」', icon: 'none' })
+      }
+    }
+  })
+  hideRecordMenu()
+}
+
+function renameRecordPrompt(r) {
+  var newName = prompt('修改名称:', r.name || '')
+  if (newName === null || newName.trim() === '') return
+  newName = newName.trim()
+  var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
+  uni.request({
+    url: '/api/bazi/history/rename', method: 'POST',
+    header: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+    data: JSON.stringify({ id: r.id, name: newName }),
+    success: function(res) {
+      if (res.data && res.data.success) {
+        r.name = newName
+      } else {
+        uni.showToast({ title: '重命名失败', icon: 'none' })
+      }
+    }
+  })
+  hideRecordMenu()
+}
+
+function editRecord(r) {
+  hideRecordMenu()
+  var newName = prompt('编辑名称:', r.name || '')
+  if (newName === null || newName.trim() === '') return
+  newName = newName.trim()
+  var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
+  uni.request({
+    url: '/api/bazi/history/rename', method: 'POST',
+    header: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+    data: JSON.stringify({ id: r.id, name: newName }),
+    success: function(res) {
+      if (res.data && res.data.success) {
+        r.name = newName
+        uni.showToast({ title: '修改成功', icon: 'success' })
+      } else {
+        uni.showToast({ title: '编辑失败', icon: 'none' })
+      }
+    }
+  })
+}
+
+function togglePin(r) {
+  var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
+  uni.request({
+    url: '/api/bazi/history/pin', method: 'POST',
+    header: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+    data: JSON.stringify({ id: r.id }),
+    success: function(res) {
+      if (res.data && res.data.success) {
+        // 更新本地状态并重新加载列表以正确排序
+        loadRecords()
+        uni.showToast({ title: res.data.pinned ? '已置顶' : '已取消置顶', icon: 'success' })
+      }
+    },
+    fail: function(err) { console.error('[bazi] 置顶失败:', err) }
+  })
+}
+
+function deleteRecordFromMenu(r) {
+  uni.showModal({
+    title: '确认删除',
+    content: '确定删除「' + (r.name || '未命名') + '」的排盘记录？',
+    success: function(res) {
+      if (res.confirm) {
+        deleteRecord(r.id)
+      }
+    }
+  })
+  hideRecordMenu()
+}
+
+function sendToAiFromMenu(r) {
+  hideRecordMenu()
+  sendRecordToAi(r)
+}
+
+function selectFilterAndClose(cat) {
+  catFilter.value = cat
+  filterDropdownOpen.value = false
+}
+
+function batchMoveToGroup(cat) {
+  var ids = selectedIds.value.slice()
+  if (ids.length === 0) { uni.showToast({ title: '请先选择记录', icon: 'none' }); return }
+  var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
+  uni.request({
+    url: '/api/bazi/history/category', method: 'POST',
+    header: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+    data: JSON.stringify({ ids: ids, category: cat }),
+    success: function(res) {
+      if (res.data && res.data.success) {
+        for (var i = 0; i < ids.length; i++) {
+          var r = records.value.find(function(x) { return x.id === ids[i] })
+          if (r) r.category = cat
+        }
+        uni.showToast({ title: '已将 ' + ids.length + ' 条移至「' + cat + '」', icon: 'none' })
+        moveGroupModal.value = false
+      }
+    }
   })
 }
 
@@ -1011,35 +1532,11 @@ function switchBaziTab(tab) {
       }
     }
   }
-  // AI Tab激活时：初始化select选项（免费Tab先初始化，AI Tab需要同步）
-  if (tab === 'ai') {
-    nextTick(function() { _initAiTabSelects() })
-  }
 }
 
 // AI Tab：同步免费Tab的select选项到AI Tab
 function _initAiTabSelects() {
-  var freeTabIds = ['baziYear', 'baziMonth', 'baziDay', 'baziHour', 'baziMinute']
-  var aiTabIds = ['baziYearAi', 'baziMonthAi', 'baziDayAi', 'baziHourAi', 'baziMinuteAi']
-  for (var i = 0; i < freeTabIds.length; i++) {
-    var freeEl = document.getElementById(freeTabIds[i])
-    var aiEl = document.getElementById(aiTabIds[i])
-    if (freeEl && aiEl) {
-      aiEl.innerHTML = freeEl.innerHTML
-      aiEl.value = freeEl.value
-    }
-  }
-  var freeAddrIds = ['baziProvince', 'baziCity', 'baziDistrict']
-  var aiAddrIds = ['baziProvinceAi', 'baziCityAi', 'baziDistrictAi']
-  for (var j = 0; j < freeAddrIds.length; j++) {
-    var freeAddrEl = document.getElementById(freeAddrIds[j])
-    var aiAddrEl = document.getElementById(aiAddrIds[j])
-    if (freeAddrEl && aiAddrEl) {
-      aiAddrEl.innerHTML = freeAddrEl.innerHTML
-      aiAddrEl.value = freeAddrEl.value
-    }
-  }
-  _initAiTabAddrListeners()
+  // AI Tab 不再需要独立日期输入，保留空函数避免报错
 }
 
 // AI Tab：初始化地址选择器事件监听
@@ -1772,8 +2269,15 @@ onMounted(() => {
       while (target && target !== this && depth > 0) {
         if (target.dataset && target.dataset.bzAction) {
           var action = target.dataset.bzAction
-          if (action === 'aiAsk' && window._baiAiAsk) window._baiAiAsk()
-          else if (action === 'aiFollowUp' && window._baiSendFollowUp) window._baiSendFollowUp()
+          if (action === 'aiAsk') baiAiAsk()
+          else if (action === 'aiFollowUp') baiSendFollowUp()
+          else if (action === 'aiNewQuestion') {
+            baziAiResult.value = ''; window._baiChatHistory = []; _baiCurrentConvId = null
+            archiveOpen.value = false; archiveRecordIds.value = []; selectedRecords.value = []
+            var box = document.getElementById('baiStreamBox'); if (box) box.style.display = 'none'
+            var ib = document.getElementById('baiChatInputBar'); if (ib) { ib.style.display = 'none'; var ci = document.getElementById('baiChatInput'); if (ci) ci.value = '' }
+            var ab = document.querySelector('[data-bz-action="aiAsk"]'); if (ab) ab.style.display = 'inline-flex'
+          }
           else if (action === 'aiType') {
             var idx = parseInt(target.dataset.bzTypeIdx)
             if (!isNaN(idx)) baiAnalysisTypeIdx.value = idx
@@ -1791,6 +2295,18 @@ onMounted(() => {
   if (rsEl) {
     rsEl.style.cssText = 'width:100%;padding:8px 10px;border:none;background:none;outline:none;font-size:14px;color:var(--text-1);box-sizing:border-box;'
   }
+
+  // 档案下拉：点击外部关闭
+  document.addEventListener('click', function(e) {
+    if (archiveOpen.value) {
+      var sel = e.target.closest('.archive-selector, .archive-dropdown')
+      if (!sel) archiveOpen.value = false
+    }
+    if (recordContextMenu.value.show) {
+      var menu = e.target.closest('.record-ctx-menu')
+      if (!menu) hideRecordMenu()
+    }
+  })
 
   // ── 创建原生select日期选择（模式C：绕过Vue 3.4.21 picker bug） ──
   var curYear = now.getFullYear()
@@ -1890,6 +2406,45 @@ onMounted(() => {
     baziMinuteIdx.value = parseInt(val)
   })
 
+  // AI Tab 年/月 change → 刷新日 select
+  ;['baziYearAi', 'baziMonthAi'].forEach(function(id) {
+    var el = document.getElementById(id)
+    if (el) el.addEventListener('change', function() { refillBaziDaySelect() })
+  })
+
+  // ── AI Tab DOM click 绑定（事件代理，uni-view 的 @tap/@click 不生效）──
+  setTimeout(function() {
+    var aiContent = document.getElementById('baziTabAiContent')
+    if (aiContent) {
+      aiContent.addEventListener('click', function(e) {
+        var target = e.target
+        var btn = target.closest ? target.closest('.submit-btn') : null
+        if (!btn) { btn = target; while (btn && !btn.classList.contains('submit-btn')) btn = btn.parentElement }
+        if (btn && btn.textContent.indexOf('AI 深度解读') !== -1) {
+          baiAiAsk(); return
+        }
+        var sendBtn = target.closest ? target.closest('.chat-send-btn') : null
+        if (!sendBtn) { sendBtn = target; while (sendBtn && !sendBtn.classList.contains('chat-send-btn')) sendBtn = sendBtn.parentElement }
+        if (sendBtn) {
+          if (sendBtn.getAttribute('data-bz-action') === 'aiNewQuestion') {
+            baiAiAsk()
+          } else {
+            baiSendFollowUp()
+          }
+          return
+        }
+        var typeBtn = target.closest ? target.closest('.analysis-type-btn') : null
+        if (!typeBtn) { typeBtn = target; while (typeBtn && !typeBtn.classList.contains('analysis-type-btn')) typeBtn = typeBtn.parentElement }
+        if (typeBtn) {
+          var texts = ['命局总览', '财运事业', '婚姻感情', '大运流年', '健康六亲']
+          for (var i = 0; i < texts.length; i++) {
+            if (typeBtn.textContent.indexOf(texts[i]) !== -1) { baiAnalysisTypeIdx.value = i; return }
+          }
+        }
+      })
+    }
+  }, 300)
+
   // ── 出生地址：加载城市数据并填充三级级联选择 ──
   fetch('/static/js/city_data.json').then(function(r) { return r.json() }).then(function(data) {
     _cityData = data
@@ -1960,9 +2515,6 @@ onMounted(() => {
       distEl.innerHTML = '<option value="">-- 区 --</option>'
       distEl.addEventListener('change', function() { _updateAddrInfo() })
     }
-    
-    // 也初始化 AI Tab 的地址选择器
-    _initAiTabSelects()
   }).catch(function() {})
 
   function _updateAddrInfo() {
@@ -2067,7 +2619,7 @@ onMounted(() => {
 /* ── 问真风格表单 ── */
 .wz-form { padding: 4px 0; }
 .wz-form-row { display: flex; gap: 12px; margin-bottom: 14px; }
-.wz-form-item { flex: 1; }
+.wz-form-item { flex: 1; position: relative; }
 .wz-flex-1 { flex: 0 0 90px; }
 .wz-flex-2 { flex: 2; }
 .wz-flex-3 { flex: 3; }
@@ -2142,50 +2694,151 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .result-mode-btn { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--card-border); background: transparent; color: var(--text-3); font-size: 0.75rem; cursor: pointer; text-align: center; }
 .result-mode-btn.active { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); }
 
-/* ── 记录案例（问真风格） ── */
+/* ── 记录案例 ── */
 .record-page { background: var(--card-bg); border-radius: 12px; overflow: visible; }
 .record-tabs { display: flex; border-bottom: 1px solid var(--card-border); padding: 0 20px; }
 .record-tab { padding: 16px 24px; font-size: 15px; color: var(--text-3); cursor: pointer; border-bottom: 2px solid transparent; }
 .record-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
-.record-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; gap: 12px; flex-wrap: wrap; }
+.record-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px 4px; gap: 10px; flex-wrap: wrap; }
+.record-filter-row { display: flex; align-items: center; gap: 6px; padding: 8px 20px 10px; flex-wrap: wrap; }
+.record-filter-label { font-size: 13px; color: var(--text-3); margin-right: 2px; }
+.record-filter-tag { padding: 4px 12px; border-radius: 6px; font-size: 12px; border: 1px solid var(--card-border); color: var(--text-3); cursor: pointer; transition: all 0.15s; }
+.record-filter-tag.active { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); font-weight: 600; }
 .record-search { display: flex; align-items: center; background: var(--input-bg); border-radius: 20px; padding: 4px 4px 4px 14px; flex: 1; max-width: 400px; }
 .record-search .dom-input-wrap { flex: 1; }
 .record-search .dom-input-wrap .native-input { border: none; background: none; outline: none; padding: 8px 10px; font-size: 14px; flex: 1; color: var(--text-1); }
 .search-btn { background: var(--accent); color: #fff; border: none; border-radius: 16px; padding: 8px 20px; font-size: 14px; cursor: pointer; }
-.record-actions { display: flex; gap: 4px; }
-.action-btn { padding: 8px 14px; font-size: 13px; color: var(--text-3); cursor: pointer; border-radius: 6px; }
+.record-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.action-btn { padding: 6px 12px; font-size: 12px; color: var(--text-3); cursor: pointer; border-radius: 6px; white-space: nowrap; transition: all 0.2s; }
+.action-btn:hover { background: var(--accent-glow); color: var(--accent); }
 .action-btn.active { background: var(--accent); color: #fff; }
-.record-categories { display: flex; align-items: center; padding: 0 20px 12px; gap: 10px; }
-.cat-label { font-size: 14px; color: var(--text-3); white-space: nowrap; }
-.cat-tags { display: flex; gap: 8px; flex-wrap: wrap; }
-.cat-tag { padding: 6px 16px; font-size: 13px; color: var(--text-3); background: var(--input-bg); border-radius: 16px; cursor: pointer; }
-.cat-tag.active { background: var(--accent); color: #fff; }
+.action-btn.disabled { opacity: 0.35; pointer-events: none; }
+.action-btn-ai { color: var(--accent); }
+.filter-dropdown { padding: 0 20px; position: relative; }
+.filter-dropdown-inner { display: flex; gap: 8px; padding: 10px 16px; background: var(--section-alt); border-radius: 10px; border: 1px solid var(--card-border); }
+.filter-item { padding: 6px 20px; font-size: 13px; color: var(--text-3); border-radius: 16px; cursor: pointer; transition: all 0.2s; }
+.filter-item:hover { background: var(--accent-glow); color: var(--accent); }
+.filter-item.active { background: var(--accent); color: #fff; }
+.active-filter-tag { display: flex; align-items: center; gap: 8px; padding: 6px 20px; }
+.filter-tag-text { font-size: 12px; color: var(--accent); background: var(--accent-glow); padding: 4px 12px; border-radius: 12px; }
+.filter-tag-close { font-size: 12px; color: var(--text-3); cursor: pointer; padding: 2px 6px; }
+.filter-tag-close:hover { color: var(--danger); }
 .star-section { padding: 0 20px 8px; }
-.star-title { font-size: 15px; font-weight: 600; color: var(--text-1); padding: 12px 0 10px; border-top: 1px solid var(--card-border); }
-.star-cards { display: flex; flex-wrap: wrap; gap: 12px; }
-.batch-bar { display: flex; align-items: center; gap: 16px; padding: 10px 20px; background: var(--section-alt); border-top: 1px solid var(--card-border); border-bottom: 1px solid var(--card-border); }
+.star-title { font-size: 15px; font-weight: 600; color: var(--text-1); padding: 12px 0 10px; border-top: 1px solid var(--card-border); cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.star-toggle { font-size: 12px; color: var(--text-3); }
+.star-cards { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px; }
+.batch-bar { display: flex; align-items: center; gap: 12px; padding: 10px 20px; background: var(--section-alt); border-top: 1px solid var(--card-border); border-bottom: 1px solid var(--card-border); flex-wrap: wrap; }
 .batch-select-all { font-size: 14px; color: var(--text-3); cursor: pointer; }
 .batch-count { font-size: 14px; color: var(--accent); font-weight: 600; }
-.batch-confirm-btn { margin-left: auto; background: #e74c3c; color: #fff; border: none; border-radius: 6px; padding: 6px 16px; font-size: 13px; cursor: pointer; }
+.batch-move-btn { background: var(--section-alt); color: var(--text-2); border: 1px solid var(--card-border); border-radius: 6px; padding: 6px 14px; font-size: 13px; cursor: pointer; }
+.batch-move-btn:hover { border-color: var(--accent); color: var(--accent); }
+.batch-confirm-btn { background: #e74c3c; color: #fff; border: none; border-radius: 6px; padding: 6px 16px; font-size: 13px; cursor: pointer; }
 .batch-cancel-btn { background: var(--input-bg); color: var(--text-3); border: 1px solid var(--card-border); border-radius: 6px; padding: 6px 16px; font-size: 13px; cursor: pointer; }
-.case-cards { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 12px 20px 20px; }
-.bz-card { width: calc(50% - 6px); background: var(--accent-glow); border-radius: 10px; padding: 16px 18px; position: relative; cursor: pointer; }
-.bz-card.starred { background: rgba(178,149,91,0.1); border: 1px solid rgba(178,149,91,0.25); }
-.bz-card .sx-icon { position: absolute; top: 12px; left: 14px; width: 28px; height: 28px; font-size: 20px; line-height: 28px; text-align: center; }
-.bz-card .card-userinfo { margin-left: 34px; margin-bottom: 10px; }
-.bz-card .card-name { font-size: 15px; font-weight: 600; color: var(--text-1); display: flex; align-items: center; gap: 6px; }
-.bz-card .card-sex { font-size: 11px; color: var(--text-3); background: var(--input-bg); padding: 1px 6px; border-radius: 4px; }
-.bz-card .card-date { font-size: 13px; color: var(--text-3); margin-top: 3px; }
-.bz-card .card-gz { display: flex; flex-direction: column; gap: 6px; margin-left: 34px; }
-.bz-card .card-gan, .bz-card .card-zhi { display: flex; gap: 10px; }
-.bz-card .gz-label { font-size: 14px; font-weight: 700; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border-radius: 4px; color: var(--accent); }
-.bz-card .card-star { position: absolute; right: 12px; top: 14px; font-size: 16px; cursor: pointer; opacity: 0.4; }
-.bz-card .card-star.starred { opacity: 1; }
-.bz-card .batch-checkbox { position: absolute; left: -4px; top: 14px; width: 18px; height: 18px; }
+.case-cards { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px 20px 20px; }
+.bz-card { width: auto !important; display: flex; align-items: center; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; position: relative; cursor: pointer; height: 80px; transition: border-color 0.2s, background 0.2s; overflow: hidden; }
+.bz-card:hover { border-color: var(--accent); background: var(--accent-glow); }
+.bz-card.starred { border-color: rgba(241,196,15,0.4); background: rgba(241,196,15,0.04); }
+.bz-card.pinned { border-color: rgba(46,204,113,0.6); background: rgba(46,204,113,0.06); box-shadow: 0 0 0 1px rgba(46,204,113,0.3), 0 4px 12px rgba(46,204,113,0.15); }
+.bz-card.pinned::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #2ecc71 0%, #27ae60 100%);
+  border-radius: 10px 0 0 10px;
+}
+.bz-card .card-pin-badge { color: #2ecc71; font-size: 12px; }
+.bz-card .card-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+  color: #333;
+  margin-left: 12px;
+  line-height: 1;
+  padding: 0;
+  box-sizing: border-box;
+}
+.bz-card .card-userinfo { flex: 0 1 auto; min-width: 0; max-width: 120px; padding: 0 8px; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+.bz-card .card-name { font-size: 14px; font-weight: 700; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px; }
+.bz-card .card-sex { font-size: 10px; color: var(--text-3); background: var(--input-bg); padding: 0 5px; border-radius: 3px; flex-shrink: 0; }
+.bz-card .card-star-badge { color: #f1c40f; font-size: 12px; }
+.bz-card .card-date { font-size: 11px; color: var(--text-3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bz-card .card-gz { display: flex; gap: 4px; flex: 1; justify-content: center; min-width: 0; align-items: center; padding: 6px 4px; }
+.bz-card .gz-col { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1; min-width: 0; }
+.bz-card .gz-circle { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0; }
+.bz-card .gz-placeholder { background: var(--card-border); color: var(--text-3); }
+.bz-card .card-ops {
+  width: 50px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.05);
+  border-left: 1px solid var(--card-border);
+  cursor: pointer;
+  transition: background 0.2s;
+  position: relative;
+  z-index: 10;
+}
+.bz-card .card-ops:hover {
+  background: rgba(255,255,255,0.12);
+}
+.bz-card .card-ops:active {
+  background: rgba(255,255,255,0.18);
+}
+.bz-card .ops-dots {
+  font-size: 24px;
+  color: var(--text-3);
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+}
+.bz-card .batch-checkbox { position: absolute; left: -6px; top: 50%; transform: translateY(-50%); z-index: 2; }
+.batch-ai-btn { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 6px 14px; font-size: 13px; cursor: pointer; }
+
+/* 移动分组弹窗 */
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 600; display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+.modal-overlay.open { display: flex; }
+.modal-box { background: var(--card-bg); border-radius: 16px; padding: 24px; min-width: 280px; max-width: 360px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.modal-title { font-size: 17px; font-weight: 700; color: var(--text-1); margin-bottom: 16px; text-align: center; }
+.move-group-list { display: flex; flex-direction: column; gap: 8px; }
+.move-group-item { padding: 12px 16px; font-size: 15px; color: var(--text-2); background: var(--section-alt); border-radius: 10px; cursor: pointer; text-align: center; transition: all 0.2s; border: 1px solid transparent; }
+.move-group-item:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+.modal-btns { margin-top: 16px; text-align: center; }
+.btn-ghost { background: transparent; color: var(--text-3); border: 1px solid var(--card-border); border-radius: 8px; padding: 8px 24px; font-size: 14px; cursor: pointer; }
+
+.bz-card.selected { border-color: var(--accent) !important; background: var(--accent-glow) !important; box-shadow: 0 0 0 1px var(--accent); }
 .record-empty { text-align: center; padding: 60px 20px; }
-.empty-icon { font-size: 3rem; margin-bottom: 12px; }
-.empty-text { font-size: 16px; color: var(--text-3); margin-bottom: 6px; }
-.empty-hint { font-size: 13px; color: var(--text-3); margin-bottom: 16px; }
+.empty-icon { font-size: 3rem; margin-bottom: 12px; display: block; opacity: 0.5; }
+.empty-text { font-size: 16px; color: var(--text-2); margin-bottom: 6px; font-weight: 600; }
+.empty-hint { font-size: 13px; color: var(--text-4); margin-bottom: 20px; line-height: 1.6; }
+
+/* 右键菜单 */
+.record-ctx-menu { position: fixed; z-index: 9999; background: rgba(235,235,240,0.96); border: 1px solid rgba(0,0,0,0.08); border-radius: 14px; padding: 6px 0; min-width: 180px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); color: #333; }
+@media (max-width: 768px) {
+  .record-ctx-menu { background: rgba(255,255,255,0.65); border-color: rgba(255,255,255,0.3); border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.4); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%); -webkit-transform: translateZ(0); transform: translateZ(0); isolation: isolate; }
+}
+.ctx-menu-item { padding: 10px 18px; font-size: 14px; color: #333; cursor: pointer; display: flex; align-items: center; gap: 8px; white-space: nowrap; transition: all 0.15s; }
+.ctx-menu-item:hover { background: rgba(0,0,0,0.06); color: #111; }
+.ctx-menu-item.ctx-danger { color: #e74c3c; }
+.ctx-menu-item.ctx-danger:hover { background: rgba(231,76,60,0.08); }
+.ctx-menu-divider { height: 1px; background: rgba(0,0,0,0.08); margin: 4px 12px; }
+.ctx-submenu { position: relative; }
+.ctx-submenu-list { display: none; position: absolute; left: 100%; top: 0; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 6px 0; min-width: 100px; box-shadow: var(--card-shadow); z-index: 10000; }
+.ctx-submenu:hover .ctx-submenu-list { display: block; }
+.ctx-submenu-item { padding: 8px 16px; font-size: 13px; color: var(--text-2); cursor: pointer; }
+.ctx-submenu-item:hover { background: var(--accent-glow); color: var(--accent); }
+/* 点击外部关闭菜单的遮罩 */
+.menu-overlay { position: fixed; inset: 0; z-index: 4999; }
 
 /* 弹窗 */
 .modal-overlay { display: none; position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.55); backdrop-filter: blur(8px); align-items: center; justify-content: center; }
@@ -2212,11 +2865,40 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   .wz-dt-col { flex: 1 1 calc(33% - 8px); min-width: 60px; }
   .wz-addr-selects { flex-wrap: wrap; }
   .wz-switch-grid { grid-template-columns: 1fr; }
-  .bz-card { width: 100%; }
   .record-toolbar { flex-direction: column; align-items: stretch; }
   .record-search { max-width: none; }
   .wz-smart-btns { flex-direction: column; }
   .wz-smart-btns .wz-submit-btn { width: 100%; }
+  .case-cards, .star-cards { display: flex !important; flex-direction: column !important; gap: 10px !important; }
+  .bz-card { height: auto !important; min-height: 90px !important; }
+  .card-userinfo { max-width: 100% !important; }
+  .gz-circle { width: 20px !important; height: 20px !important; font-size: 11px !important; }
+  .record-filter-row { padding: 8px 16px 10px !important; }
+  
+  /* 手机端头像 fix */
+  .bz-card .card-avatar {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    font-size: 18px !important;
+    line-height: 1 !important;
+    padding: 0 !important;
+    margin-left: 12px !important;
+    color: #fff !important;
+    box-sizing: border-box !important;
+    border-radius: 50% !important;
+  }
+  
+  /* 手机版菜单样式 */
+  .record-ctx-menu { min-width: 170px; }
+  .ctx-submenu-list { position: static; display: none; background: rgba(0,0,0,0.2); margin-top: 4px; border-top: 1px solid var(--card-border); border-bottom: 1px solid var(--card-border); border-radius: 0; }
+  .ctx-submenu:active .ctx-submenu-list, 
+  .ctx-submenu:focus .ctx-submenu-list { display: block; }
+  
 }
 @media (max-width: 480px) {
   .tool-hero-title { font-size: 1.2rem; }
@@ -2248,6 +2930,8 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .chat-bubble-user { align-self: flex-end; background: var(--accent); color: #fff; border-radius: 14px 14px 4px 14px; padding: 10px 16px; max-width: 80%; font-size: 0.9rem; line-height: 1.5; }
 .chat-bubble-content { font-size: 0.875rem; color: var(--text-2); line-height: 1.9; }
 .ai-stage { font-size: 0.9rem; color: var(--text-1); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.ai-stage-logo { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; flex-shrink: 0; animation: ai-logo-spin 1.8s linear infinite; box-shadow: 0 0 6px rgba(0,0,0,0.06); }
+@keyframes ai-logo-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .ai-progress-bar { height: 4px; background: var(--card-border); border-radius: 2px; overflow: hidden; margin-bottom: 16px; }
 .ai-progress-fill { height: 100%; width: 20%; background: linear-gradient(90deg, var(--accent), #8b5cf6); border-radius: 2px; animation: ai-progress-pulse 1.5s ease-in-out infinite; transition: width 0.3s ease; }
 @keyframes ai-progress-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
@@ -2259,4 +2943,59 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .analysis-type-btn { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--card-border); background: transparent; color: var(--text-3); font-size: 0.75rem; cursor: pointer; text-align: center; white-space: nowrap; transition: all .15s; }
 .analysis-type-btn.active { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); }
 
+/* ── 档案多选 ── */
+.archive-selector { display: flex; align-items: center; gap: 4px; padding: 9px 12px; border: 1.5px solid var(--card-border); border-radius: 10px; background: var(--card-bg); cursor: pointer; min-height: 38px; box-sizing: border-box; }
+.archive-trigger { flex: 1; font-size: 0.85rem; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.archive-trigger.active { color: var(--accent); }
+.archive-arrow { font-size: 0.7rem; color: var(--text-3); }
+.archive-dropdown { position: relative; z-index: 100; background: var(--card-bg); border: 1.5px solid var(--card-border); border-radius: 12px; margin-top: 4px; max-height: 320px; display: flex; flex-direction: column; box-shadow: var(--card-shadow); }
+.archive-search { padding: 8px 10px; border-bottom: 1px solid var(--card-border); }
+.archive-search-input { width: 100%; padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 8px; font-size: 0.82rem; background: var(--input-bg); color: var(--text-1); outline: none; box-sizing: border-box; }
+.archive-list { overflow-y: auto; flex: 1; max-height: 200px; }
+.archive-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; border-bottom: 1px solid var(--card-border); }
+.archive-item:active { background: var(--section-alt); }
+.archive-checkbox { width: 20px; height: 20px; border-radius: 4px; border: 2px solid var(--card-border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #fff; transition: all .15s; }
+.archive-checkbox.checked { background: var(--accent); border-color: var(--accent); }
+.archive-info { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; min-width: 0; }
+.archive-name { font-size: 0.9rem; font-weight: 600; color: var(--text-1); }
+.archive-gender { font-size: 0.75rem; color: var(--text-3); }
+.archive-pillars { font-size: 0.82rem; color: var(--accent); font-weight: 500; letter-spacing: 1px; }
+.archive-birth { font-size: 0.72rem; color: var(--text-3); }
+.archive-empty { padding: 24px; text-align: center; color: var(--text-3); font-size: 0.85rem; }
+.archive-actions { display: flex; justify-content: space-between; padding: 8px 12px; border-top: 1px solid var(--card-border); }
+.archive-clear-btn { padding: 6px 14px; border-radius: 8px; font-size: 0.82rem; color: var(--danger); cursor: pointer; }
+.archive-confirm-btn { padding: 6px 18px; border-radius: 8px; font-size: 0.82rem; background: var(--accent); color: #fff; cursor: pointer; }
+.archive-filter-row { display: flex; gap: 4px; flex-wrap: wrap; }
+.archive-filter-tag { padding: 4px 10px; border-radius: 6px; font-size: 0.72rem; border: 1px solid var(--card-border); color: var(--text-3); cursor: pointer; }
+.archive-filter-tag.active { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); }
+.filter-dropdown { position: absolute; z-index: 100; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 4px 0; margin-top: 4px; min-width: 100px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+.filter-dropdown-item { padding: 8px 14px; font-size: 0.8rem; color: var(--text-2); cursor: pointer; white-space: nowrap; }
+.filter-dropdown-item:hover { background: rgba(255,255,255,0.06); }
+.filter-dropdown-item.active { color: var(--accent); font-weight: 600; }
+.archive-selected { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.archive-selected-tag { display: flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 8px; background: var(--accent-glow); border: 1px solid var(--accent); font-size: 0.78rem; color: var(--accent); }
+.archive-selected-pillars { font-weight: 600; letter-spacing: 1px; }
+.archive-selected-remove { margin-left: 4px; cursor: pointer; opacity: 0.6; font-size: 0.82rem; }
+.archive-selected-remove:hover { opacity: 1; }
+
+@media (max-width: 768px) {
+  .archive-dropdown,
+  .filter-dropdown {
+    position: fixed !important;
+    top: 120px !important;
+    left: 50% !important;
+    transform: translateX(-50%) translateZ(0) !important;
+    background: rgba(255,255,255,0.65) !important;
+    border-color: rgba(255,255,255,0.3) !important;
+    border-radius: 20px !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.4) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    isolation: isolate !important;
+    padding: 6px 0 !important;
+    color: #333 !important;
+    border-width: 1px !important;
+    z-index: 9999 !important;
+  }
+}
 </style>

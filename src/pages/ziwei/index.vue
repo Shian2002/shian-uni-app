@@ -3,246 +3,604 @@
     <view class="bg-layer"></view>
     <TopNav :theme="theme" :is-logged-in="isLoggedIn" @toggle-theme="toggleTheme" />
     <view class="page-wrap">
-      <section class="tool-hero"><view class="tool-hero-content"><view class="section-tag">紫微斗数</view><view class="tool-hero-title">紫微斗数 · 十二宫排盘</view><view class="tool-hero-desc">出生时间排盘 · 十二宫星曜 · 四化飞星 · 大限流年推运</view></view></section>
+      <section class="tool-hero">
+        <view class="tool-hero-content">
+          <view class="section-tag">紫微斗数</view>
+          <view class="tool-hero-title">紫微斗数 · 十二宫排盘</view>
+          <view class="tool-hero-desc">出生时间排盘 · 十二宫星曜 · 四化飞星 · 大限流年推运</view>
+        </view>
+      </section>
       <section class="section">
         <view class="tool-container">
-
+          <!-- Tab 切换 -->
           <view class="tool-tabs">
-            <view id="zwTabPan" class="tool-tab" :class="{ active: activeTab === 'pan' }" data-zw-tab="pan">⭐ 排盘<text class="tab-badge free">免费</text></view>
-            <view id="zwTabAi" class="tool-tab" :class="{ active: activeTab === 'ai' }" @tap="switchZwTab('ai')">🔮 时安紫微系统<text class="tab-badge">PRO</text></view>
-            <view id="zwTabHoro" class="tool-tab" :class="{ active: activeTab === 'horoscope' }" data-zw-tab="horoscope">📅 推运<text class="tab-badge">PRO</text></view>
+            <view class="tool-tab" :class="{ active: activeTab === 'pan' }" @click="switchTab('pan')">⭐ 排盘<text class="tab-badge free">免费</text></view>
+            <view class="tool-tab" :class="{ active: activeTab === 'ai' }" @click="switchTab('ai')">🤖 AI解读</view>
+            <view class="tool-tab" :class="{ active: activeTab === 'horoscope' }" @click="switchTab('horoscope')">📅 推运<text class="tab-badge">PRO</text></view>
           </view>
           <!-- 排盘面板 -->
-          <view class="tool-tab-content" id="zwPanContent" v-show="activeTab === 'pan'">
+          <view class="tool-tab-content" v-show="activeTab === 'pan'">
             <view class="zw-form-grid">
-              <view class="form-group"><text class="form-label">出生年</text><view id="zwYear-wrap" class="dom-input-wrap"></view></view>
-              <view class="form-group"><text class="form-label">出生月</text><view id="zwMonth-wrap" class="dom-input-wrap"></view></view>
-              <view class="form-group"><text class="form-label">出生日</text><view id="zwDay-wrap" class="dom-input-wrap"></view></view>
-              <view class="form-group"><text class="form-label">出生时(0-23)</text><view id="zwHour-wrap" class="dom-input-wrap"></view></view>
-              <view class="form-group"><text class="form-label">出生分(可选)</text><view id="zwMinute-wrap" class="dom-input-wrap"></view></view>
-              <view class="form-group"><text class="form-label">性别</text><picker :range="['男', '女']" :value="zwGenderIdx" @change="zwGenderIdx = $event.detail.value"><view class="form-select-picker">{{ ['男', '女'][zwGenderIdx] }}</view></picker></view>
-              <view class="form-group"><text class="form-label">历法类型</text><picker :range="['阳历(公历)', '农历(阴历)']" :value="zwDateTypeIdx" @change="zwDateTypeIdx = $event.detail.value"><view class="form-select-picker">{{ ['阳历(公历)', '农历(阴历)'][zwDateTypeIdx] }}</view></picker></view>
+              <view class="form-group">
+                <text class="form-label">出生年</text>
+                <input type="number" class="form-input" v-model="zwForm.year" placeholder="yyyy">
+              </view>
+              <view class="form-group">
+                <text class="form-label">出生月</text>
+                <input type="number" class="form-input" v-model="zwForm.month" placeholder="1-12">
+              </view>
+              <view class="form-group">
+                <text class="form-label">出生日</text>
+                <input type="number" class="form-input" v-model="zwForm.day" placeholder="1-31">
+              </view>
+              <view class="form-group">
+                <text class="form-label">出生时(0-23)</text>
+                <input type="number" class="form-input" v-model="zwForm.hour" placeholder="0-23">
+              </view>
+              <view class="form-group">
+                <text class="form-label">出生分(可选)</text>
+                <input type="number" class="form-input" v-model="zwForm.minute" placeholder="0-59">
+              </view>
+              <view class="form-group">
+                <text class="form-label">性别</text>
+                <picker :range="['男', '女']" :value="zwForm.genderIdx" @change="zwForm.genderIdx = $event.detail.value">
+                  <view class="form-select-picker">{{ ['男', '女'][zwForm.genderIdx] }}</view>
+                </picker>
+              </view>
+              <view class="form-group">
+                <text class="form-label">历法类型</text>
+                <picker :range="['阳历(公历)', '农历(阴历)']" :value="zwForm.dateTypeIdx" @change="zwForm.dateTypeIdx = $event.detail.value">
+                  <view class="form-select-picker">{{ ['阳历(公历)', '农历(阴历)'][zwForm.dateTypeIdx] }}</view>
+                </picker>
+              </view>
             </view>
-            <view class="btn-row">
-              <view class="submit-btn" data-zw-action="freePan">⭐ 免费排盘</view>
-              <view class="btn btn-ghost" data-zw-action="resetPan">🔄 清空</view>
-            </view>
+            <view class="submit-btn" @click="ziweiFreePan">⭐ 免费排盘</view>
             <text class="form-hint" style="text-align:center;display:block;margin-top:12px;">基于iztro-py精确排盘，十二宫、主星辅星、四化飞星全展示。</text>
             <view class="zw-result" v-if="zwPanResult" v-html="zwPanResult"></view>
           </view>
-          <!-- 推运面板 -->
-          <view class="tool-tab-content" id="zwHoroContent" v-show="activeTab === 'horoscope'">
-            <view class="zw-form-grid">
-              <view class="form-group"><text class="form-label">出生年</text><view id="zwHYear-wrap" class="dom-input-wrap"></view></view>
-              <view class="form-group"><text class="form-label">出生月</text><view id="zwHMonth-wrap" class="dom-input-wrap"></view></view>
-              <view class="form-group"><text class="form-label">出生日</text><view id="zwHDay-wrap" class="dom-input-wrap"></view></view>
-              <view class="form-group"><text class="form-label">出生时(0-23)</text><view id="zwHHour-wrap" class="dom-input-wrap"></view></view>
-              <view class="form-group"><text class="form-label">性别</text><picker :range="['男', '女']" :value="zwHGenderIdx" @change="zwHGenderIdx = $event.detail.value"><view class="form-select-picker">{{ ['男', '女'][zwHGenderIdx] }}</view></picker></view>
-              <view class="form-group"><text class="form-label">历法类型</text><picker :range="['阳历(公历)', '农历(阴历)']" :value="zwHDateTypeIdx" @change="zwHDateTypeIdx = $event.detail.value"><view class="form-select-picker">{{ ['阳历(公历)', '农历(阴历)'][zwHDateTypeIdx] }}</view></picker></view>
-            </view>
-            <view class="btn-row">
-              <view class="submit-btn" data-zw-action="horoscope">📅 推运排盘</view>
-              <view class="btn btn-ghost" data-zw-action="resetHoroscope">🔄 清空</view>
-            </view>
-            <view class="zw-result" v-if="zwHoroscopeResult" v-html="zwHoroscopeResult"></view>
-          </view>
           <!-- AI解读面板 -->
-          <view class="tool-tab-content" id="zwTabAiContent" v-show="activeTab === 'ai'">
+          <view class="tool-tab-content" v-show="activeTab === 'ai'">
             <view class="zw-form-grid">
-              <view class="form-group"><text class="form-label">出生年</text><view id="zwAiYear-wrap" class="dom-input-wrap"></view></view>
-              <view class="form-group"><text class="form-label">出生月</text><view id="zwAiMonth-wrap" class="dom-input-wrap"></view></view>
-              <view class="form-group"><text class="form-label">出生日</text><view id="zwAiDay-wrap" class="dom-input-wrap"></view></view>
-              <view class="form-group"><text class="form-label">出生时(0-23)</text><view id="zwAiHour-wrap" class="dom-input-wrap"></view></view>
-              <view class="form-group"><text class="form-label">出生分(可选)</text><view id="zwAiMinute-wrap" class="dom-input-wrap"></view></view>
-              <view class="form-group"><text class="form-label">性别</text><picker :range="['男', '女']" :value="zwAiGenderIdx" @change="zwAiGenderIdx = $event.detail.value"><view class="form-select-picker">{{ ['男', '女'][zwAiGenderIdx] }}</view></picker></view>
-              <view class="form-group"><text class="form-label">历法类型</text><picker :range="['阳历(公历)', '农历(阴历)']" :value="zwAiDateTypeIdx" @change="zwAiDateTypeIdx = $event.detail.value"><view class="form-select-picker">{{ ['阳历(公历)', '农历(阴历)'][zwAiDateTypeIdx] }}</view></picker></view>
-            </view>
-            <view class="form-group"><text class="form-label">分析类型</text>
-              <view class="analysis-type-row">
-                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 0 }" data-zw-action="aiType" data-zw-type-idx="0">🔮 命盘总览</view>
-                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 1 }" data-zw-action="aiType" data-zw-type-idx="1">💼 事业财运</view>
-                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 2 }" data-zw-action="aiType" data-zw-type-idx="2">💕 姻缘感情</view>
-                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 3 }" data-zw-action="aiType" data-zw-type-idx="3">🏥 健康运势</view>
-                <view class="analysis-type-btn" :class="{ active: zwAiAnalysisTypeIdx === 4 }" data-zw-action="aiType" data-zw-type-idx="4">📅 大限流年</view>
+              <view class="form-group">
+                <text class="form-label">出生年</text>
+                <input type="number" class="form-input" v-model="zwAiForm.year" placeholder="yyyy">
+              </view>
+              <view class="form-group">
+                <text class="form-label">出生月</text>
+                <input type="number" class="form-input" v-model="zwAiForm.month" placeholder="1-12">
+              </view>
+              <view class="form-group">
+                <text class="form-label">出生日</text>
+                <input type="number" class="form-input" v-model="zwAiForm.day" placeholder="1-31">
+              </view>
+              <view class="form-group">
+                <text class="form-label">出生时(0-23)</text>
+                <input type="number" class="form-input" v-model="zwAiForm.hour" placeholder="0-23">
+              </view>
+              <view class="form-group">
+                <text class="form-label">出生分(可选)</text>
+                <input type="number" class="form-input" v-model="zwAiForm.minute" placeholder="0-59">
+              </view>
+              <view class="form-group">
+                <text class="form-label">性别</text>
+                <picker :range="['男', '女']" :value="zwAiForm.genderIdx" @change="zwAiForm.genderIdx = $event.detail.value">
+                  <view class="form-select-picker">{{ ['男', '女'][zwAiForm.genderIdx] }}</view>
+                </picker>
+              </view>
+              <view class="form-group">
+                <text class="form-label">历法类型</text>
+                <picker :range="['阳历(公历)', '农历(阴历)']" :value="zwAiForm.dateTypeIdx" @change="zwAiForm.dateTypeIdx = $event.detail.value">
+                  <view class="form-select-picker">{{ ['阳历(公历)', '农历(阴历)'][zwAiForm.dateTypeIdx] }}</view>
+                </picker>
               </view>
             </view>
-            <view class="form-group"><text class="form-label">你的问题（选填）</text><view id="zwAiQuestion-wrap" class="dom-input-wrap"></view></view>
-            <view class="btn-row">
-              <view class="submit-btn" data-zw-action="aiAsk">🔮 AI 深度解读</view>
+            <view class="form-group">
+              <text class="form-label">分析类型</text>
+              <view class="analysis-type-row">
+                <view v-for="(t, idx) in zwAnalysisTypes" :key="idx" 
+                  class="analysis-type-btn" 
+                  :class="{ active: zwAiForm.analysisTypeIdx === idx }"
+                  @click="zwAiForm.analysisTypeIdx = idx">{{ t.label }}</view>
+              </view>
             </view>
-            <view class="qai-stream-box" id="zwStreamBox" style="display:none;">
-              <view class="chat-container" id="zwChatContainer"></view>
+            <view class="form-group">
+              <text class="form-label">您的问题（可选）</text>
+              <input type="text" class="form-input" v-model="zwAiForm.question" placeholder="请输入您想问的问题">
             </view>
-            <view class="chat-input-bar" id="zwChatInputBar" style="display:none;">
-              <input class="chat-input" id="zwChatInput" placeholder="继续追问..." />
-              <view class="chat-send-btn" data-zw-action="aiFollowUp">发送</view>
+            <view class="submit-btn" @click="zwAiAsk">🤖 AI解读</view>
+            <view class="qai-stream-box" v-if="zwAiResult" style="display:block;">
+              <view class="chat-container" v-html="zwAiResult"></view>
+              <view class="chat-input-bar" v-if="zwAiChatReady" style="display:flex;">
+                <input type="text" class="chat-input" v-model="zwAiFollowUpQuestion" placeholder="继续提问...">
+                <view class="chat-send-btn" @click="zwSendFollowUp">发送</view>
+              </view>
             </view>
+          </view>
+          <!-- 推运面板 -->
+          <view class="tool-tab-content" v-show="activeTab === 'horoscope'">
+            <view class="zw-form-grid">
+              <view class="form-group">
+                <text class="form-label">出生年</text>
+                <input type="number" class="form-input" v-model="zwHoroForm.year" placeholder="yyyy">
+              </view>
+              <view class="form-group">
+                <text class="form-label">出生月</text>
+                <input type="number" class="form-input" v-model="zwHoroForm.month" placeholder="1-12">
+              </view>
+              <view class="form-group">
+                <text class="form-label">出生日</text>
+                <input type="number" class="form-input" v-model="zwHoroForm.day" placeholder="1-31">
+              </view>
+              <view class="form-group">
+                <text class="form-label">出生时(0-23)</text>
+                <input type="number" class="form-input" v-model="zwHoroForm.hour" placeholder="0-23">
+              </view>
+              <view class="form-group">
+                <text class="form-label">性别</text>
+                <picker :range="['男', '女']" :value="zwHoroForm.genderIdx" @change="zwHoroForm.genderIdx = $event.detail.value">
+                  <view class="form-select-picker">{{ ['男', '女'][zwHoroForm.genderIdx] }}</view>
+                </picker>
+              </view>
+              <view class="form-group">
+                <text class="form-label">历法类型</text>
+                <picker :range="['阳历(公历)', '农历(阴历)']" :value="zwHoroForm.dateTypeIdx" @change="zwHoroForm.dateTypeIdx = $event.detail.value">
+                  <view class="form-select-picker">{{ ['阳历(公历)', '农历(阴历)'][zwHoroForm.dateTypeIdx] }}</view>
+                </picker>
+              </view>
+            </view>
+            <view class="form-group" style="margin-top:12px;">
+              <text class="form-label">🕐 推运日期</text>
+              <view class="qf-datetime-row">
+                <view class="qf-dt-col">
+                  <picker :range="zwYearOptions" :value="zwTargetYearIdx" @change="onTargetYearChange">
+                    <view class="qf-datetime-select">{{ zwTargetYearDisplay || '年' }}</view>
+                  </picker>
+                </view>
+                <view class="qf-dt-col">
+                  <picker :range="zwMonthOptions" :value="zwTargetMonthIdx" @change="onTargetMonthChange">
+                    <view class="qf-datetime-select">{{ zwTargetMonthDisplay || '月' }}</view>
+                  </picker>
+                </view>
+                <view class="qf-dt-col">
+                  <picker :range="zwDayOptions" :value="zwTargetDayIdx" @change="onTargetDayChange">
+                    <view class="qf-datetime-select">{{ zwTargetDayDisplay || '日' }}</view>
+                  </picker>
+                </view>
+                <view class="qf-dt-col">
+                  <picker :range="zwHourOptions" :value="zwTargetHourIdx" @change="onTargetHourChange">
+                    <view class="qf-datetime-select">{{ zwTargetHourDisplay || '时' }}</view>
+                  </picker>
+                </view>
+                <view class="qf-dt-col qf-dt-col-narrow">
+                  <picker :range="zwMinuteOptions" :value="zwTargetMinuteIdx" @change="onTargetMinuteChange">
+                    <view class="qf-datetime-select">{{ zwTargetMinuteDisplay || '分' }}</view>
+                  </picker>
+                </view>
+              </view>
+            </view>
+            <view class="submit-btn" @click="ziweiHoroscope">📅 推运排盘</view>
+            <view class="zw-result" v-if="zwHoroscopeResult" v-html="zwHoroscopeResult"></view>
           </view>
         </view>
       </section>
     </view>
-
   </view>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import TopNav from '@/components/TopNav.vue'
+
 const theme = ref(uni.getStorageSync('xc_theme') || 'dark')
 function toggleTheme() {
   theme.value = theme.value === 'dark' ? 'light' : 'dark'
   uni.setStorageSync('xc_theme', theme.value)
   try {
-    document.documentElement.setAttribute('data-theme', theme.value); document.body.setAttribute('data-theme', theme.value); const root = document.querySelector('.page-root')
+    document.documentElement.setAttribute('data-theme', theme.value)
+    document.body.setAttribute('data-theme', theme.value)
+    const root = document.querySelector('.page-root')
     if (root) root.setAttribute('data-theme', theme.value)
     const icon = document.getElementById('themeToggleIcon')
     if (icon) icon.textContent = theme.value === 'dark' ? '🌙' : '☀️'
   } catch(_) {}
 }
-const mobileMenuOpen = ref(false); const submenuOpen = reactive({ qimen: false, bazi: false, more: false })
-function openMobileMenu() { mobileMenuOpen.value = true }; function closeMobileMenu() { mobileMenuOpen.value = false }; function toggleSubmenu(k) { submenuOpen[k] = !submenuOpen[k] }
+
 const isLoggedIn = ref(!!uni.getStorageSync('xc_token'))
 window.addEventListener('xc-session-expired', function() { isLoggedIn.value = false })
+
 const activeTab = ref('pan')
 
-function switchZwTab(tab) {
-  activeTab.value = tab
-  var els = [['zwTabPan','pan'],['zwTabAi','ai'],['zwTabHoro','horoscope']]
-  els.forEach(function(e) {
-    var btn = document.getElementById(e[0])
-    if (btn) { tab === e[1] ? btn.classList.add('active') : btn.classList.remove('active') }
-  })
+// Tab切换函数
+function switchTab(tabName) {
+  activeTab.value = tabName
 }
-// 排盘表单
-const zwYear = ref(2000); const zwMonth = ref(8); const zwDay = ref(16); const zwHour = ref(12); const zwMinute = ref(0)
-const zwGenderIdx = ref(0); const zwDateTypeIdx = ref(0); const zwPanResult = ref('')
 
-function zwResetPan() {
-  zwYear.value = ''; zwMonth.value = ''; zwDay.value = ''; zwHour.value = ''; zwMinute.value = ''
-  zwGenderIdx.value = 0; zwDateTypeIdx.value = 0; zwPanResult.value = ''
-}
+const zwForm = reactive({
+  year: 2000, month: 8, day: 16, hour: 12, minute: 0,
+  genderIdx: 0, dateTypeIdx: 0
+})
+
+// AI解读表单
+const zwAiForm = reactive({
+  year: 2000, month: 8, day: 16, hour: 12, minute: 0,
+  genderIdx: 0, dateTypeIdx: 0,
+  analysisTypeIdx: 0, question: ''
+})
+
+const zwAnalysisTypes = [
+  { key: 'overview', label: '整体概览' },
+  { key: 'career', label: '事业财运' },
+  { key: 'love', label: '感情姻缘' },
+  { key: 'health', label: '健康运势' },
+  { key: 'decadal', label: '大限流年' }
+]
 
 // 推运表单
-const zwHYear = ref(2000); const zwHMonth = ref(8); const zwHDay = ref(16); const zwHHour = ref(12)
-const zwHGenderIdx = ref(0); const zwHDateTypeIdx = ref(0)
-const zwTargetDate = ref(''); const zwHoroscopeResult = ref('')
+const zwHoroForm = reactive({
+  year: 2000, month: 8, day: 16, hour: 12,
+  genderIdx: 0, dateTypeIdx: 0
+})
 
-function zwResetHoroscope() {
-  zwHYear.value = ''; zwHMonth.value = ''; zwHDay.value = ''; zwHHour.value = ''
-  zwHGenderIdx.value = 0; zwHDateTypeIdx.value = 0; zwTargetDate.value = ''; zwHoroscopeResult.value = ''
+// 推运日期选择器相关
+const zwTargetYearIdx = ref(0)
+const zwTargetMonthIdx = ref(0)
+const zwTargetDayIdx = ref(0)
+const zwTargetHourIdx = ref(0)
+const zwTargetMinuteIdx = ref(0)
+
+const zwYearOptions = ref([])
+const zwMonthOptions = ref([])
+const zwDayOptions = ref([])
+const zwHourOptions = ref([])
+const zwMinuteOptions = ref([])
+
+const zwTargetYearDisplay = computed(() => zwYearOptions.value[zwTargetYearIdx.value] || '')
+const zwTargetMonthDisplay = computed(() => zwMonthOptions.value[zwTargetMonthIdx.value] || '')
+const zwTargetDayDisplay = computed(() => zwDayOptions.value[zwTargetDayIdx.value] || '')
+const zwTargetHourDisplay = computed(() => zwHourOptions.value[zwTargetHourIdx.value] || '')
+const zwTargetMinuteDisplay = computed(() => zwMinuteOptions.value[zwTargetMinuteIdx.value] || '')
+
+// 初始化日期选择器
+function initDatePickers() {
+  const now = new Date()
+  const curYear = now.getFullYear()
+  
+  zwYearOptions.value = []
+  for (let y = curYear + 3; y >= 1920; y--) zwYearOptions.value.push(y + '年')
+  zwTargetYearIdx.value = zwYearOptions.value.indexOf(curYear + '年')
+  
+  zwMonthOptions.value = []
+  for (let m = 1; m <= 12; m++) zwMonthOptions.value.push(m + '月')
+  zwTargetMonthIdx.value = now.getMonth()
+  
+  updateDayOptions()
+  
+  zwHourOptions.value = []
+  for (let h = 0; h <= 23; h++) zwHourOptions.value.push(h + '时')
+  zwTargetHourIdx.value = now.getHours()
+  
+  zwMinuteOptions.value = []
+  for (let m = 0; m <= 59; m++) zwMinuteOptions.value.push(m + '分')
+  zwTargetMinuteIdx.value = now.getMinutes()
 }
 
-// AI 解读
-const zwAiAnalysisTypeIdx = ref(0)
-const zwAiAnalysisTypes = ['overview', 'career', 'love', 'health', 'decadal']
-const zwAiGenderIdx = ref(0); const zwAiDateTypeIdx = ref(0)
-const zwAiLoading = ref(false); const zwAiResult = ref('')
+function updateDayOptions() {
+  const now = new Date()
+  const yearText = zwYearOptions.value[zwTargetYearIdx.value]
+  const monthText = zwMonthOptions.value[zwTargetMonthIdx.value]
+  let y = now.getFullYear()
+  let m = now.getMonth() + 1
+  
+  if (yearText) y = parseInt(yearText)
+  if (monthText) m = parseInt(monthText)
+  
+  const daysInMonth = new Date(y, m, 0).getDate()
+  
+  zwDayOptions.value = []
+  for (let d = 1; d <= daysInMonth; d++) zwDayOptions.value.push(d + '日')
+  
+  if (zwTargetDayIdx.value >= zwDayOptions.value.length) {
+    zwTargetDayIdx.value = Math.min(zwTargetDayIdx.value, zwDayOptions.value.length - 1)
+  }
+}
+
+function onTargetYearChange(e) { zwTargetYearIdx.value = e.detail.value; updateDayOptions() }
+function onTargetMonthChange(e) { zwTargetMonthIdx.value = e.detail.value; updateDayOptions() }
+function onTargetDayChange(e) { zwTargetDayIdx.value = e.detail.value }
+function onTargetHourChange(e) { zwTargetHourIdx.value = e.detail.value }
+function onTargetMinuteChange(e) { zwTargetMinuteIdx.value = e.detail.value }
+
+const zwPanResult = ref('')
+const zwHoroscopeResult = ref('')
+
+async function ziweiFreePan() {
+  try {
+    const y = parseInt(zwForm.year)
+    const m = parseInt(zwForm.month)
+    const d = parseInt(zwForm.day)
+    const h = parseInt(zwForm.hour)
+    const min = parseInt(zwForm.minute) || 0
+    
+    if (isNaN(y) || isNaN(m) || isNaN(d) || isNaN(h)) {
+      zwPanResult.value = '<div style="color:var(--danger);padding:16px;">请填写完整的出生时间</div>'
+      return
+    }
+    
+    const res = await uni.request({
+      url: '/api/ziwei/pan',
+      method: 'POST',
+      data: {
+        year: y, month: m, day: d, hour: h, minute: min,
+        gender: ['男', '女'][zwForm.genderIdx],
+        date_type: ['solar', 'lunar'][zwForm.dateTypeIdx]
+      }
+    })
+    
+    const data = res.data
+    if (data.error || (data.code && data.code !== 0)) {
+      zwPanResult.value = '<div style="color:var(--danger);padding:16px;">' + (data.error || data.msg || '排盘失败') + '</div>'
+      return
+    }
+    
+    const panData = data.data || data
+    zwPanResult.value = renderZiweiPan(panData)
+  } catch (e) {
+    zwPanResult.value = '<div style="color:var(--danger);padding:16px;">排盘失败</div>'
+  }
+}
+
+async function ziweiHoroscope() {
+  try {
+    const y = parseInt(zwHoroForm.year)
+    const m = parseInt(zwHoroForm.month)
+    const d = parseInt(zwHoroForm.day)
+    const h = parseInt(zwHoroForm.hour)
+    
+    if (isNaN(y) || isNaN(m) || isNaN(d) || isNaN(h)) {
+      zwHoroscopeResult.value = '<div style="color:var(--danger);padding:16px;">请填写完整的出生时间</div>'
+      return
+    }
+    
+    const ty = zwYearOptions.value[zwTargetYearIdx.value]
+    const tm = zwMonthOptions.value[zwTargetMonthIdx.value]
+    const td = zwDayOptions.value[zwTargetDayIdx.value]
+    if (!ty || !tm || !td) {
+      zwHoroscopeResult.value = '<div style="color:var(--danger);padding:16px;">请选择推运日期</div>'
+      return
+    }
+    
+    const targetYear = parseInt(ty)
+    const targetMonth = String(parseInt(tm)).padStart(2, '0')
+    const targetDay = String(parseInt(td)).padStart(2, '0')
+    const targetDate = targetYear + '-' + targetMonth + '-' + targetDay
+    
+    const res = await uni.request({
+      url: '/api/ziwei/horoscope',
+      method: 'POST',
+      data: {
+        year: y, month: m, day: d, hour: h,
+        gender: ['男', '女'][zwHoroForm.genderIdx],
+        date_type: ['solar', 'lunar'][zwHoroForm.dateTypeIdx],
+        target_date: targetDate
+      }
+    })
+    
+    const data = res.data
+    if (data.error || (data.code && data.code !== 0)) {
+      zwHoroscopeResult.value = '<div style="color:var(--danger);padding:16px;">' + (data.error || data.msg || '推运失败') + '</div>'
+      return
+    }
+    
+    const horoData = data.data || data
+    zwHoroscopeResult.value = renderZiweiHoroscopeWithPan(horoData)
+  } catch (e) {
+    zwHoroscopeResult.value = '<div style="color:var(--danger);padding:16px;">推运失败</div>'
+  }
+}
+
+// AI解读相关
+const zwAiResult = ref('')
+const zwAiLoading = ref(false)
+const zwAiChatReady = ref(false)
+const zwAiFollowUpQuestion = ref('')
 window._zwChatHistory = []
 
 async function zwAiAsk() {
   if (zwAiLoading.value) return
-  var elY = document.getElementById('zwAiYear'); var elM = document.getElementById('zwAiMonth')
-  var elD = document.getElementById('zwAiDay'); var elH = document.getElementById('zwAiHour')
-  var elMin = document.getElementById('zwAiMinute')
-  var y = elY ? parseInt(elY.value) : NaN; var m = elM ? parseInt(elM.value) : NaN
-  var d = elD ? parseInt(elD.value) : NaN; var h = elH ? parseInt(elH.value) : NaN
-  var min = elMin ? parseInt(elMin.value) : 0
+  
+  const y = parseInt(zwAiForm.year)
+  const m = parseInt(zwAiForm.month)
+  const d = parseInt(zwAiForm.day)
+  const h = parseInt(zwAiForm.hour)
+  const min = parseInt(zwAiForm.minute) || 0
+  
   if (isNaN(y) || isNaN(m) || isNaN(d) || isNaN(h)) {
-    uni.showToast({ title: '请填写完整的出生时间', icon: 'none' }); return
+    uni.showToast({ title: '请填写完整的出生时间', icon: 'none' })
+    return
   }
-  var question = ((document.getElementById('zwAiQuestion') || {}).value || '').trim()
-  var gender = ['男', '女'][zwAiGenderIdx.value]
-  var date_type = ['solar', 'lunar'][zwAiDateTypeIdx.value]
-
-  // 清理 — 先设 loading
+  
+  const question = zwAiForm.question
+  const gender = ['男', '女'][zwAiForm.genderIdx]
+  const date_type = ['solar', 'lunar'][zwAiForm.dateTypeIdx]
+  
   zwAiLoading.value = true
-  zwAiResult.value = ''; window._zwChatHistory = []
-  var streamBox = document.getElementById('zwStreamBox')
-  if (streamBox) streamBox.style.display = 'block'
-  var chatContainer = document.getElementById('zwChatContainer')
-  if (chatContainer) chatContainer.innerHTML = ''
-  var inputBar = document.getElementById('zwChatInputBar')
-  if (inputBar) inputBar.style.display = 'none'
-
-  var bubbleId = 'zwBubble_' + Date.now()
-  var bubbleHTML = '<div class="chat-bubble-ai" id="' + bubbleId + '">' +
-    '<div class="ai-stage">🔗 正在连接 DeepSeek AI 引擎...</div>' +
-    '<div class="ai-progress-bar"><div class="ai-progress-fill" style="width:20%"></div></div>' +
-    '<div class="chat-bubble-content"></div></div>'
-  if (chatContainer) chatContainer.innerHTML = bubbleHTML
-
-  _zwDoStreamSSE({
-    bubbleId: bubbleId, url: '/api/ziwei/ask/stream',
-    body: { year: y, month: m, day: d, hour: h, minute: min, gender: gender, date_type: date_type, question: question, analysis_type: zwAiAnalysisTypes[zwAiAnalysisTypeIdx] },
-    question: question,
-    onDone: function(fullText) {
-      window._zwChatHistory = [{ role: 'user', content: question }, { role: 'assistant', content: fullText }]
-      zwAiResult.value = fullText
-      var bar = document.getElementById('zwChatInputBar'); if (bar) bar.style.display = 'flex'
-    },
-    onError: function() { zwAiLoading.value = false }
-  })
-}
-
-function _zwDoStreamSSE(opts) {
-  var bubble = document.getElementById(opts.bubbleId); if (!bubble) return
-  var stageEl = bubble.querySelector('.ai-stage'); var barEl = bubble.querySelector('.ai-progress-fill')
-  var contentEl = bubble.querySelector('.chat-bubble-content')
-  var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
-  var fullText = '', charQueue = '', typeTimer = null, doneReceived = false
-  function startTypewriter() {
-    if (typeTimer) return
-    typeTimer = setInterval(function() {
-      if (charQueue.length === 0 && doneReceived) {
-        clearInterval(typeTimer); typeTimer = null
-        if (stageEl) stageEl.style.display = 'none'
-        var barWrap = bubble.querySelector('.ai-progress-bar'); if (barWrap) barWrap.style.display = 'none'
-        if (contentEl) contentEl.innerHTML = _zwRenderCards(fullText)
-        zwAiLoading.value = false
-        if (opts.onDone) opts.onDone(fullText); return
-      }
-      if (charQueue.length === 0) return
-      var take = charQueue.length > 3 ? 2 : 1
-      fullText += charQueue.substring(0, take); charQueue = charQueue.substring(take)
-      if (contentEl) contentEl.innerHTML = _stripMarkdown(fullText).replace(/\n/g, '<br>')
-    }, 35)
-  }
-  // 使用 Fetch + ReadableStream（比 XHR onprogress 更可靠）
-  fetch(opts.url, {
-    method: 'POST',
-    headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
-    body: JSON.stringify(opts.body)
-  }).then(function(resp) {
-    if (!resp.ok) { if (opts.onError) opts.onError(); return }
-    var reader = resp.body.getReader(); var decoder = new TextDecoder()
-    var buffer = ''
-    function pump() {
-      reader.read().then(function(r) {
-        if (r.done) { doneReceived = true; return }
-        buffer += decoder.decode(r.value, { stream: true })
-        var lines = buffer.split('\n')
+  zwAiResult.value = '<div class="chat-bubble-ai"><div class="ai-stage">🔗 正在连接 DeepSeek AI 引擎...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:20%"></div></div><div class="chat-bubble-content"></div></div>'
+  zwAiChatReady.value = false
+  window._zwChatHistory = []
+  
+  try {
+    let fullText = ''
+    let charQueue = ''
+    let typeTimer = null
+    let doneReceived = false
+    
+    function startTypewriter() {
+      if (typeTimer) return
+      typeTimer = setInterval(function() {
+        if (charQueue.length === 0 && doneReceived) {
+          clearInterval(typeTimer)
+          typeTimer = null
+          zwAiResult.value = '<div class="chat-bubble-ai"><div class="chat-bubble-content">' + _zwRenderCards(fullText) + '</div></div>'
+          zwAiChatReady.value = true
+          zwAiLoading.value = false
+          return
+        }
+        if (charQueue.length === 0) return
+        const take = charQueue.length > 3 ? 2 : 1
+        fullText += charQueue.substring(0, take)
+        charQueue = charQueue.substring(take)
+        zwAiResult.value = '<div class="chat-bubble-ai"><div class="ai-stage"><img class="ai-stage-logo" src="/static/images/logo.webp?v=2">正在生成解读...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div><div class="chat-bubble-content">' + _stripMarkdown(fullText).replace(/\n/g, '<br>') + '</div></div>'
+      }, 35)
+    }
+    
+    const token = uni.getStorageSync('xc_token') || ''
+    const resp = await fetch('/api/ziwei/ask/stream', {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+      body: JSON.stringify({
+        year: y, month: m, day: d, hour: h, minute: min,
+        gender: gender, date_type: date_type,
+        question: question,
+        analysis_type: zwAnalysisTypes[zwAiForm.analysisTypeIdx].key
+      })
+    })
+    
+    if (!resp.ok) {
+      zwAiResult.value = '<div style="color:var(--danger);padding:16px;">请求失败</div>'
+      zwAiLoading.value = false
+      return
+    }
+    
+    const reader = resp.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    
+    async function pump() {
+      try {
+        const { done, value } = await reader.read()
+        if (done) {
+          doneReceived = true
+          return
+        }
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
         buffer = lines.pop()
-        for (var i = 0; i < lines.length; i++) {
-          var line = lines[i]
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i]
           if (line.indexOf('data:') !== 0) continue
           try {
-            var data = JSON.parse(line.replace('data:', '').trim())
+            const data = JSON.parse(line.replace('data:', '').trim())
             if (data.type === 'progress') {
-              if (data.stage === 'connecting' && stageEl) stageEl.innerHTML = '🔗 正在连接...'
-              else if (data.stage === 'analyzing' && stageEl) stageEl.innerHTML = '🧠 排盘分析中...'
-              else if (data.stage === 'generating' && stageEl) { stageEl.innerHTML = '<img class="ai-stage-logo" src="/static/images/logo.webp?v=2">正在生成解读...'; startTypewriter() }
-              if (barEl) barEl.style.width = '60%'
-            } else if (data.type === 'chunk' || data.type === 'delta') { if (!typeTimer) startTypewriter(); charQueue += data.content }
-            else if (data.type === 'done') { doneReceived = true }
-            else if (data.type === 'error') { if (stageEl) stageEl.innerHTML = '⚠️ ' + data.message; if (opts.onError) opts.onError() }
+              if (data.stage === 'connecting') {
+                zwAiResult.value = '<div class="chat-bubble-ai"><div class="ai-stage">🔗 正在连接...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:20%"></div></div><div class="chat-bubble-content"></div></div>'
+              } else if (data.stage === 'analyzing') {
+                zwAiResult.value = '<div class="chat-bubble-ai"><div class="ai-stage">🧠 排盘分析中...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:40%"></div></div><div class="chat-bubble-content"></div></div>'
+              } else if (data.stage === 'generating') {
+                zwAiResult.value = '<div class="chat-bubble-ai"><div class="ai-stage"><img class="ai-stage-logo" src="/static/images/logo.webp?v=2">正在生成解读...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div><div class="chat-bubble-content"></div></div>'
+                startTypewriter()
+              }
+            } else if (data.type === 'chunk' || data.type === 'delta') {
+              if (!typeTimer) startTypewriter()
+              charQueue += data.content
+            } else if (data.type === 'done') {
+              doneReceived = true
+            } else if (data.type === 'error') {
+              zwAiResult.value = '<div style="color:var(--danger);padding:16px;">' + data.message + '</div>'
+              zwAiLoading.value = false
+            }
           } catch(_) {}
         }
         pump()
-      }).catch(function() { if (opts.onError) opts.onError() })
+      } catch (e) {
+        zwAiResult.value = '<div style="color:var(--danger);padding:16px;">请求失败</div>'
+        zwAiLoading.value = false
+      }
     }
     pump()
-  }).catch(function() { if (opts.onError) opts.onError() })
+  } catch (e) {
+    zwAiResult.value = '<div style="color:var(--danger);padding:16px;">请求失败</div>'
+    zwAiLoading.value = false
+  }
+}
+
+function zwSendFollowUp() {
+  const question = zwAiFollowUpQuestion.value.trim()
+  if (!question) return
+  zwAiFollowUpQuestion.value = ''
+  
+  window._zwChatHistory = window._zwChatHistory || []
+  window._zwChatHistory.push({ role: 'user', content: question })
+  
+  const userBubble = '<div class="chat-bubble-user">' + question + '</div>'
+  const aiBubbleId = 'zwFollow_' + Date.now()
+  const aiBubble = '<div class="chat-bubble-ai" id="' + aiBubbleId + '"><div class="ai-stage"><img class="ai-stage-logo" src="/static/images/logo.webp?v=2">正在生成回复...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div><div class="chat-bubble-content"></div></div>'
+  
+  zwAiResult.value = zwAiResult.value + userBubble + aiBubble
+  
+  fetch('/api/ziwei/ask/stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question: question, history: window._zwChatHistory })
+  }).then(async function(resp) {
+    if (!resp.ok) return
+    const reader = resp.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let fullText = ''
+    let charQueue = ''
+    let typeTimer = null
+    let doneReceived = false
+    
+    function startTypewriter() {
+      if (typeTimer) return
+      typeTimer = setInterval(function() {
+        if (charQueue.length === 0 && doneReceived) {
+          clearInterval(typeTimer)
+          typeTimer = null
+          window._zwChatHistory.push({ role: 'assistant', content: fullText })
+          return
+        }
+        if (charQueue.length === 0) return
+        const take = charQueue.length > 3 ? 2 : 1
+        fullText += charQueue.substring(0, take)
+        charQueue = charQueue.substring(take)
+        const bubble = document.getElementById(aiBubbleId)
+        if (bubble) {
+          const contentEl = bubble.querySelector('.chat-bubble-content')
+          if (contentEl) contentEl.innerHTML = _stripMarkdown(fullText).replace(/\n/g, '<br>')
+        }
+      }, 35)
+    }
+    
+    async function pump() {
+      try {
+        const { done, value } = await reader.read()
+        if (done) {
+          doneReceived = true
+          return
+        }
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop()
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i]
+          if (line.indexOf('data:') !== 0) continue
+          try {
+            const data = JSON.parse(line.replace('data:', '').trim())
+            if (data.type === 'chunk' || data.type === 'delta') {
+              if (!typeTimer) startTypewriter()
+              charQueue += data.content
+            } else if (data.type === 'done') {
+              doneReceived = true
+            }
+          } catch(_) {}
+        }
+        pump()
+      } catch(e) {}
+    }
+    pump()
+  })
 }
 
 function _stripMarkdown(s) {
@@ -252,21 +610,20 @@ function _stripMarkdown(s) {
 
 function _zwRenderCards(text) {
   text = _stripMarkdown(text)
-  // 同时支持 ## 标题 和 数字编号+粗体（如 "1. **卦象解读**：..."）
-  var sections = text.split(/\n(?=#{2,} |\d+\.\s+\*\*)/)
-  var html = ''
+  const sections = text.split(/\n(?=#{2,}|\d+\.\s+\*\*)/)
+  let html = ''
   sections.forEach(function(sec) {
-    var title = ''
-    var body = sec
-    var m = sec.match(/^(#{2,})\s+(.+)/)
+    let title = ''
+    let body = sec
+    let m = sec.match(/^(#{2,})\s+(.+)/)
     if (m) {
       title = m[2]
       body = sec.substring(m[0].length).trim()
     } else {
-      var m2 = sec.match(/^(\d+\.)\s+\*\*(.+?)\*\*[：:]\s*/)
-      if (m2) {
-        title = m2[2]
-        body = sec.substring(m2[0].length).trim()
+      m = sec.match(/^(\d+\.)\s+\*\*(.+?)\*\*[：:]\s*/)
+      if (m) {
+        title = m[2]
+        body = sec.substring(m[0].length).trim()
       }
     }
     body = body.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')
@@ -280,57 +637,11 @@ function _zwRenderCards(text) {
   return html
 }
 
-function zwSendFollowUp() {
-  var input = document.querySelector('#zwChatInput input') || document.getElementById('zwChatInput'); if (!input) return
-  var question = input.value.trim(); if (!question) return; input.value = ''
-  var chatContainer = document.getElementById('zwChatContainer'); if (!chatContainer) return
-  var userBubble = document.createElement('view'); userBubble.className = 'chat-bubble-user'; userBubble.textContent = question
-  chatContainer.appendChild(userBubble)
-  var bubbleId = 'zwFollow_' + Date.now()
-  var aiBubble = document.createElement('view'); aiBubble.className = 'chat-bubble-ai'; aiBubble.id = bubbleId
-  aiBubble.innerHTML = '<div class="ai-stage"><img class="ai-stage-logo" src="/static/images/logo.webp?v=2">正在生成回复...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div><div class="chat-bubble-content"></div>'
-  chatContainer.appendChild(aiBubble); chatContainer.scrollIntoView({ behavior: 'smooth', block: 'end' })
-  var history = window._zwChatHistory || []; history.push({ role: 'user', content: question })
-  _zwDoStreamSSE({
-    bubbleId: bubbleId, url: '/api/ziwei/ask/stream', body: { question: question, history: history },
-    question: question,
-    onDone: function(fullText) { history.push({ role: 'assistant', content: fullText }); window._zwChatHistory = history },
-    onError: function() {}
-  })
-}
-
-async function ziweiFreePan() {
-  try {
-    var elY = document.getElementById('zwYear'); var elM = document.getElementById('zwMonth'); var elD = document.getElementById('zwDay')
-    var elH = document.getElementById('zwHour'); var elMin = document.getElementById('zwMinute')
-    var y = elY ? parseInt(elY.value) : NaN; var m = elM ? parseInt(elM.value) : NaN; var d = elD ? parseInt(elD.value) : NaN
-    var h = elH ? parseInt(elH.value) : NaN; var min = elMin ? parseInt(elMin.value) : 0
-    if (isNaN(y) || isNaN(m) || isNaN(d) || isNaN(h)) { zwPanResult.value = '<div style="color:var(--danger);">请填写完整的出生时间</div>'; return }
-    const res = await uni.request({ url: '/api/ziwei/pan', method: 'POST', data: { year: y, month: m, day: d, hour: h, minute: min, gender: ['男', '女'][zwGenderIdx.value], date_type: ['solar', 'lunar'][zwDateTypeIdx.value] } })
-    const data = res.data
-    if (data.error || (data.code && data.code !== 0)) { zwPanResult.value = '<div style="color:var(--danger);">' + (data.error || data.msg || '排盘失败') + '</div>'; return }
-    const panData = data.data || data
-    zwPanResult.value = renderZiweiPan(panData)
-  } catch (e) { zwPanResult.value = '<div style="color:var(--danger);">排盘失败</div>' }
-}
-async function ziweiHoroscope() {
-  try {
-    var elY = document.getElementById('zwHYear'); var elM = document.getElementById('zwHMonth'); var elD = document.getElementById('zwHDay'); var elH = document.getElementById('zwHHour')
-    var y = elY ? parseInt(elY.value) : NaN; var m = elM ? parseInt(elM.value) : NaN; var d = elD ? parseInt(elD.value) : NaN; var h = elH ? parseInt(elH.value) : NaN
-    if (isNaN(y) || isNaN(m) || isNaN(d) || isNaN(h)) { zwHoroscopeResult.value = '<div style="color:var(--danger);">请填写完整的出生时间</div>'; return }
-    var now = new Date(); var td = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0')
-    const res = await uni.request({ url: '/api/ziwei/horoscope', method: 'POST', data: { year: y, month: m, day: d, hour: h, gender: ['男', '女'][zwHGenderIdx.value], date_type: ['solar', 'lunar'][zwHDateTypeIdx.value], target_date: td } })
-    const data = res.data
-    if (data.error || (data.code && data.code !== 0)) { zwHoroscopeResult.value = '<div style="color:var(--danger);">' + (data.error || data.msg || '推运失败') + '</div>'; return }
-    const horoData = data.data || data
-    zwHoroscopeResult.value = renderZiweiHoroscope(horoData)
-  } catch (e) { zwHoroscopeResult.value = '<div style="color:var(--danger);">推运失败</div>' }
-}
-
-// ═══ 紫微斗数渲染函数 (1:1移植自Flask ziwei.js) ═══
+// 渲染函数
 function zwBasicItem(label, value) {
-  return `<div class="zw-basic-item"><span class="zw-basic-label">${label}</span><span class="zw-basic-value">${value || ''}</span></div>`
+  return '<div class="zw-basic-item"><span class="zw-basic-label">' + label + '</span><span class="zw-basic-value">' + (value || '') + '</span></div>'
 }
+
 function zwPalaceCell(p) {
   if (!p) return '<div class="zw-palace-cell"></div>'
   let cls = 'zw-palace-cell'
@@ -338,7 +649,7 @@ function zwPalaceCell(p) {
   if (p.is_body_palace) { cls += ' is-body'; badge += '<span class="zw-palace-badge zw-badge-body">身</span>' }
   if (p.name === '命宫') { cls += ' is-soul'; badge += '<span class="zw-palace-badge zw-badge-soul">命</span>' }
   let starsHtml = ''
-  ;(p.major_stars || []).forEach(s => {
+  (p.major_stars || []).forEach(function(s) {
     let mut = ''
     if (s.mutagen) {
       let mCls = ''
@@ -346,31 +657,29 @@ function zwPalaceCell(p) {
       else if (s.mutagen.includes('权')) mCls = 'zw-mutagen-quan'
       else if (s.mutagen.includes('科')) mCls = 'zw-mutagen-ke'
       else if (s.mutagen.includes('忌')) mCls = 'zw-mutagen-ji'
-      mut = `<span class="zw-mutagen ${mCls}">${s.mutagen}</span>`
+      mut = '<span class="zw-mutagen ' + mCls + '">' + s.mutagen + '</span>'
     }
-    const brightness = s.brightness ? `(${s.brightness})` : ''
-    starsHtml += `<span class="zw-star-major">${s.name}${brightness}${mut}</span>`
+    const brightness = s.brightness ? '(' + s.brightness + ')' : ''
+    starsHtml += '<span class="zw-star-major">' + s.name + brightness + mut + '</span>'
   })
-  ;(p.minor_stars || []).forEach(s => {
-    starsHtml += `<span class="zw-star-minor">${s.name}</span>`
+  (p.minor_stars || []).forEach(function(s) {
+    starsHtml += '<span class="zw-star-minor">' + s.name + '</span>'
   })
-  ;(p.adjective_stars || []).slice(0, 4).forEach(s => {
-    starsHtml += `<span class="zw-star-adj">${s.name}</span>`
+  (p.adjective_stars || []).slice(0, 4).forEach(function(s) {
+    starsHtml += '<span class="zw-star-adj">' + s.name + '</span>'
   })
   let decHtml = ''
   if (p.decadal && p.decadal.range) {
-    decHtml = `<div class="zw-palace-decadal">大限: ${p.decadal.range[0]}-${p.decadal.range[1]}岁 ${p.decadal.heavenly_stem || ''}${p.decadal.earthly_branch || ''}</div>`
+    decHtml = '<div class="zw-palace-decadal">大限: ' + p.decadal.range[0] + '-' + p.decadal.range[1] + '岁 ' + (p.decadal.heavenly_stem || '') + (p.decadal.earthly_branch || '') + '</div>'
   }
-  return `<div class="${cls}">
-    ${badge}
-    <div class="zw-palace-header">
-      <span class="zw-palace-name">${p.name}</span>
-      <span class="zw-palace-ganzhi">${p.ganzhi || ''}</span>
-    </div>
-    <div class="zw-palace-stars">${starsHtml}</div>
-    ${decHtml}
-  </div>`
+  return '<div class="' + cls + '">' +
+    badge +
+    '<div class="zw-palace-header"><span class="zw-palace-name">' + p.name + '</span><span class="zw-palace-ganzhi">' + (p.ganzhi || '') + '</span></div>' +
+    '<div class="zw-palace-stars">' + starsHtml + '</div>' +
+    decHtml +
+    '</div>'
 }
+
 function renderZiweiPan(d) {
   let html = '<div class="zw-result-wrap">'
   const bi = d.basic_info || {}
@@ -393,13 +702,7 @@ function renderZiweiPan(d) {
   html += zwPalaceCell(palaces[5])
   html += zwPalaceCell(palaces[6])
   html += zwPalaceCell(palaces[2])
-  html += `<div class="zw-center-info">
-    <div class="zw-center-title">紫微斗数命盘</div>
-    <div class="zw-center-wuxing">${cp.five_elements_class || ''}</div>
-    <div class="zw-center-soul">命主: ${cp.soul_star || ''}</div>
-    <div class="zw-center-soul">身主: ${cp.body_star || ''}</div>
-    <div class="zw-center-date">${bi.solar_date || ''} ${bi.shichen || ''}</div>
-  </div>`
+  html += '<div class="zw-center-info"><div class="zw-center-title">紫微斗数命盘</div><div class="zw-center-wuxing">' + (cp.five_elements_class || '') + '</div><div class="zw-center-soul">命主: ' + (cp.soul_star || '') + '</div><div class="zw-center-soul">身主: ' + (cp.body_star || '') + '</div><div class="zw-center-date">' + (bi.solar_date || '') + ' ' + (bi.shichen || '') + '</div></div>'
   html += zwPalaceCell(palaces[7])
   html += zwPalaceCell(palaces[1])
   html += zwPalaceCell(palaces[8])
@@ -409,24 +712,23 @@ function renderZiweiPan(d) {
   html += zwPalaceCell(palaces[9])
   html += '</div>'
   if (d.decadal_overview && d.decadal_overview.length > 0) {
-    html += '<div class="zw-decadal-card">'
-    html += '<div class="zw-decadal-title">📅 大限概览</div>'
-    html += '<table class="zw-decadal-table">'
-    html += '<tr><th>宫位</th><th>年龄范围</th><th>干支</th></tr>'
-    d.decadal_overview.forEach(dec => {
+    html += '<div class="zw-decadal-card"><div class="zw-decadal-title">📅 大限概览</div><table class="zw-decadal-table"><tr><th>宫位</th><th>年龄范围</th><th>干支</th></tr>'
+    d.decadal_overview.forEach(function(dec) {
       const range = dec.age_range || []
-      html += `<tr><td>${dec.palace_name || ''}</td><td>${range[0] || ''}-${range[1] || ''}岁</td><td>${dec.ganzhi || ''}</td></tr>`
+      html += '<tr><td>' + (dec.palace_name || '') + '</td><td>' + (range[0] || '') + '-' + (range[1] || '') + '岁</td><td>' + (dec.ganzhi || '') + '</td></tr>'
     })
     html += '</table></div>'
   }
-  html += '<div class="disclaimer-note" style="margin-top:16px;">⚠️ 以上内容仅为民俗文化与传统命理科普参考，不构成任何决策建议</div>'
+  html += '<div class="privacy-note" style="margin-top:16px;">⚠️ 以上内容仅为民俗文化与传统命理科普参考，不构成任何决策建议</div>'
   html += '</div>'
   return html
 }
-function renderZiweiHoroscope(d) {
-  const hd = d.horoscope || d
+
+function renderZiweiHoroscopeWithPan(d) {
   let html = '<div class="zw-result-wrap">'
-  html += `<div class="zw-horoscope-title">🔮 推运信息 - ${d.target_date || ''}</div>`
+  const hd = d.horoscope || d
+  
+  html += '<div class="zw-horoscope-title">🔮 推运信息 - ' + (d.target_date || '') + '</div>'
   html += '<div class="zw-period-grid">'
   const periods = [
     { key: 'decadal', label: '大限' },
@@ -434,64 +736,102 @@ function renderZiweiHoroscope(d) {
     { key: 'yearly', label: '流年' },
     { key: 'monthly', label: '流月' },
     { key: 'daily', label: '流日' },
-    { key: 'hourly', label: '流时' },
+    { key: 'hourly', label: '流时' }
   ]
-  periods.forEach(p => {
+  periods.forEach(function(p) {
     const pd = hd[p.key]
     if (!pd) return
     html += '<div class="zw-period-card">'
-    html += `<div class="zw-period-name">${pd.name || p.label}</div>`
-    html += `<div class="zw-period-ganzhi">${pd.ganzhi || ''}</div>`
-    if (pd.range) html += `<div class="zw-period-range">${pd.range[0]}-${pd.range[1]}岁</div>`
-    if (pd.nominal_age) html += `<div class="zw-period-range">虚岁${pd.nominal_age}</div>`
+    html += '<div class="zw-period-name">' + (pd.name || p.label) + '</div>'
+    html += '<div class="zw-period-ganzhi">' + (pd.ganzhi || '') + '</div>'
+    if (pd.range) html += '<div class="zw-period-range">' + pd.range[0] + '-' + pd.range[1] + '岁</div>'
+    if (pd.nominal_age) html += '<div class="zw-period-range">虚岁' + pd.nominal_age + '</div>'
     if (pd.mutagen && pd.mutagen.length > 0) {
-      html += '<div class="zw-period-mutagen">'
-      html += '<span style="color:var(--text-4);font-size:0.6875rem;">四化:</span>'
-      pd.mutagen.forEach(m => {
+      html += '<div class="zw-period-mutagen"><span style="color:var(--text-4);font-size:0.6875rem;">四化:</span>'
+      pd.mutagen.forEach(function(m) {
         let mCls = ''
         if (m.includes('禄')) mCls = 'zw-mutagen-lu'
         else if (m.includes('权')) mCls = 'zw-mutagen-quan'
         else if (m.includes('科')) mCls = 'zw-mutagen-ke'
         else if (m.includes('忌')) mCls = 'zw-mutagen-ji'
-        html += `<span class="zw-mutagen ${mCls}">${m}</span>`
+        html += '<span class="zw-mutagen ' + mCls + '">' + m + '</span>'
       })
       html += '</div>'
     }
     html += '</div>'
   })
   html += '</div>'
-  html += '<div class="disclaimer-note" style="margin-top:16px;">⚠️ 以上内容仅为民俗文化与传统命理科普参考，不构成任何决策建议</div>'
+  
+  if (d.pan && d.pan.twelve_palaces) {
+    const panData = d.pan
+    const bi = panData.basic_info || {}
+    const cp = panData.core_palace || {}
+    html += '<div class="zw-basic-card"><div class="zw-basic-grid">'
+    html += zwBasicItem('阳历', bi.solar_date)
+    html += zwBasicItem('农历', bi.lunar_date)
+    html += zwBasicItem('八字', bi.chinese_date)
+    html += zwBasicItem('时辰', (bi.shichen || '') + ' ' + (bi.shichen_range || ''))
+    html += zwBasicItem('生肖', bi.zodiac)
+    html += zwBasicItem('星座', bi.sign)
+    html += zwBasicItem('五行局', cp.five_elements_class)
+    html += zwBasicItem('命主', cp.soul_star)
+    html += zwBasicItem('身主', cp.body_star)
+    html += '</div></div>'
+    const palaces = panData.twelve_palaces || []
+    html += '<div class="zw-palace-grid">'
+    html += zwPalaceCell(palaces[4])
+    html += zwPalaceCell(palaces[3])
+    html += zwPalaceCell(palaces[5])
+    html += zwPalaceCell(palaces[6])
+    html += zwPalaceCell(palaces[2])
+    html += '<div class="zw-center-info"><div class="zw-center-title">紫微斗数命盘</div><div class="zw-center-wuxing">' + (cp.five_elements_class || '') + '</div><div class="zw-center-soul">命主: ' + (cp.soul_star || '') + '</div><div class="zw-center-soul">身主: ' + (cp.body_star || '') + '</div><div class="zw-center-date">' + (bi.solar_date || '') + ' ' + (bi.shichen || '') + '</div></div>'
+    html += zwPalaceCell(palaces[7])
+    html += zwPalaceCell(palaces[1])
+    html += zwPalaceCell(palaces[8])
+    html += zwPalaceCell(palaces[0])
+    html += zwPalaceCell(palaces[11])
+    html += zwPalaceCell(palaces[10])
+    html += zwPalaceCell(palaces[9])
+    html += '</div>'
+  } else if (d.twelve_palaces) {
+    const bi = d.basic_info || {}
+    const cp = d.core_palace || {}
+    html += '<div class="zw-basic-card"><div class="zw-basic-grid">'
+    html += zwBasicItem('阳历', bi.solar_date)
+    html += zwBasicItem('农历', bi.lunar_date)
+    html += zwBasicItem('八字', bi.chinese_date)
+    html += zwBasicItem('时辰', (bi.shichen || '') + ' ' + (bi.shichen_range || ''))
+    html += zwBasicItem('生肖', bi.zodiac)
+    html += zwBasicItem('星座', bi.sign)
+    html += zwBasicItem('五行局', cp.five_elements_class)
+    html += zwBasicItem('命主', cp.soul_star)
+    html += zwBasicItem('身主', cp.body_star)
+    html += '</div></div>'
+    const palaces = d.twelve_palaces || []
+    html += '<div class="zw-palace-grid">'
+    html += zwPalaceCell(palaces[4])
+    html += zwPalaceCell(palaces[3])
+    html += zwPalaceCell(palaces[5])
+    html += zwPalaceCell(palaces[6])
+    html += zwPalaceCell(palaces[2])
+    html += '<div class="zw-center-info"><div class="zw-center-title">紫微斗数命盘</div><div class="zw-center-wuxing">' + (cp.five_elements_class || '') + '</div><div class="zw-center-soul">命主: ' + (cp.soul_star || '') + '</div><div class="zw-center-soul">身主: ' + (cp.body_star || '') + '</div><div class="zw-center-date">' + (bi.solar_date || '') + ' ' + (bi.shichen || '') + '</div></div>'
+    html += zwPalaceCell(palaces[7])
+    html += zwPalaceCell(palaces[1])
+    html += zwPalaceCell(palaces[8])
+    html += zwPalaceCell(palaces[0])
+    html += zwPalaceCell(palaces[11])
+    html += zwPalaceCell(palaces[10])
+    html += zwPalaceCell(palaces[9])
+    html += '</div>'
+  }
+  
+  html += '<div class="privacy-note" style="margin-top:16px;">⚠️ 以上内容仅为民俗文化与传统命理科普参考，不构成任何决策建议</div>'
   html += '</div>'
   return html
 }
 
-// ═══ 注入全局样式（合并所有stylesheet） ═══
-function _unscopeStyles() {
-  if (document.getElementById('zw-unscoped')) return
-  let css = ''
-  for (let i = 0; i < document.styleSheets.length; i++) {
-    try {
-      const sheet = document.styleSheets[i]
-      if (!sheet.cssRules) continue
-      for (let j = 0; j < sheet.cssRules.length; j++) {
-        let t = sheet.cssRules[j].cssText
-        t = t.replace(/\[data-v-[^\]]*\]/g, '')
-        t = t.replace(/-[a-f0-9]{7,}\b/g, '')
-        css += t
-      }
-    } catch(e) {}
-  }
-  if (!css) return
-  const old = document.getElementById('zw-unscoped')
-  if (old) old.remove()
-  const style = document.createElement('style')
-  style.id = 'zw-unscoped'
-  style.textContent = css
-  document.head.appendChild(style)
-}
-
-onShow(() => {
-  var t = uni.getStorageSync('xc_theme')
+onShow(function() {
+  const t = uni.getStorageSync('xc_theme')
   if (t && t !== theme.value) {
     theme.value = t
     try {
@@ -501,168 +841,13 @@ onShow(() => {
   }
 })
 
-onMounted(() => {
-  _unscopeStyles()
-  // 全局排盘函数（解决 tabBar 多实例 @tap 失效问题）
-  if (!window._xc_ziweiFreePan) {
-    window._xc_ziweiFreePan = async function() {
-      try {
-        var elY = document.getElementById('zwYear'); var elM = document.getElementById('zwMonth'); var elD = document.getElementById('zwDay')
-        var elH = document.getElementById('zwHour'); var elMin = document.getElementById('zwMinute')
-        var y = elY ? parseInt(elY.value) : NaN; var m = elM ? parseInt(elM.value) : NaN; var d = elD ? parseInt(elD.value) : NaN
-        var h = elH ? parseInt(elH.value) : NaN; var min = elMin ? parseInt(elMin.value) : 0
-        if (isNaN(y) || isNaN(m) || isNaN(d) || isNaN(h)) { zwPanResult.value = '<div style="color:var(--danger);">请填写完整的出生时间</div>'; return }
-        const res = await uni.request({ url: '/api/ziwei/pan', method: 'POST', data: { year: y, month: m, day: d, hour: h, minute: min, gender: ['男', '女'][zwGenderIdx.value], date_type: ['solar', 'lunar'][zwDateTypeIdx.value] } })
-        const data = res.data
-         if (data.error || (data.code && data.code !== 0)) { zwPanResult.value = '<div style="color:var(--danger);">' + (data.error || data.msg || '排盘失败') + '</div>'; return }
-        const panData = data.data || data
-        zwPanResult.value = renderZiweiPan(panData)
-      } catch (e) { zwPanResult.value = '<div style="color:var(--danger);">排盘失败</div>' }
-    }
-  }
-  if (!window._xc_zwResetPan) {
-    window._xc_zwResetPan = function() {
-      zwPanResult.value = ''
-      try {
-        var ids = ['zwYear', 'zwMonth', 'zwDay', 'zwHour', 'zwMinute']
-        ids.forEach(function(id) { var el = document.getElementById(id); if (el) el.value = '' })
-      } catch(_) {}
-    }
-  }
-  if (!window._xc_ziweiHoroscope) {
-    window._xc_ziweiHoroscope = async function() {
-      try {
-        var elY = document.getElementById('zwHYear'); var elM = document.getElementById('zwHMonth'); var elD = document.getElementById('zwHDay'); var elH = document.getElementById('zwHHour')
-        var y = elY ? parseInt(elY.value) : NaN; var m = elM ? parseInt(elM.value) : NaN; var d = elD ? parseInt(elD.value) : NaN; var h = elH ? parseInt(elH.value) : NaN
-        if (isNaN(y) || isNaN(m) || isNaN(d) || isNaN(h)) { zwHoroscopeResult.value = '<div style="color:var(--danger);">请填写完整的出生时间</div>'; return }
-        var now = new Date(); var td = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0')
-        const res = await uni.request({ url: '/api/ziwei/horoscope', method: 'POST', data: { year: y, month: m, day: d, hour: h, gender: ['男', '女'][zwHGenderIdx.value], date_type: ['solar', 'lunar'][zwHDateTypeIdx.value], target_date: td } })
-        const data = res.data
-        if (data.error || (data.code && data.code !== 0)) { zwHoroscopeResult.value = '<div style="color:var(--danger);">' + (data.error || data.msg || '推运失败') + '</div>'; return }
-        const horoData = data.data || data
-        zwHoroscopeResult.value = renderZiweiHoroscope(horoData)
-      } catch (e) { zwHoroscopeResult.value = '<div style="color:var(--danger);">推运失败</div>' }
-    }
-  }
-  if (!window._xc_zwResetHoroscope) {
-    window._xc_zwResetHoroscope = function() {
-      zwHoroscopeResult.value = ''
-      try {
-        var ids = ['zwHYear', 'zwHMonth', 'zwHDay', 'zwHHour']
-        ids.forEach(function(id) { var el = document.getElementById(id); if (el) el.value = '' })
-      } catch(_) {}
-    }
-  }
-  // 全局Tab切换函数
-  if (!window._xc_switchZwTab) {
-    window._xc_switchZwTab = function(tab) {
-      activeTab.value = tab
-    }
-  }
-  
-  // 导出AI函数到window
-	  window._zwAiAsk = zwAiAsk
-	  window._zwSendFollowUp = zwSendFollowUp
-
-
-  // DOM事件委托：修复<view onclick>在uni-app H5中不生效的问题
-  try {
-    document.querySelector('.tool-tabs')?.addEventListener('click', function(e) {
-      var target = e.target; var depth = 8
-      while (target && target !== this && depth > 0) {
-        if (target.dataset && target.dataset.zwTab) {
-          window._xc_switchZwTab(target.dataset.zwTab); return
-        }
-        target = target.parentElement; depth--
-      }
-    })
-    document.querySelectorAll('.btn-row').forEach(function(btnRow) {
-      btnRow.addEventListener('click', function(e) {
-        var target = e.target; var depth = 8
-        while (target && target !== this && depth > 0) {
-          if (target.dataset && target.dataset.zwAction) {
-            var action = target.dataset.zwAction
-            if (action === 'freePan') window._xc_ziweiFreePan()
-            else if (action === 'resetPan') window._xc_zwResetPan()
-            else if (action === 'aiAsk' && window._zwAiAsk) window._zwAiAsk()
-            else if (action === 'aiFollowUp' && window._zwSendFollowUp) window._zwSendFollowUp()
-            else if (action === 'aiType') {
-              var idx = parseInt(target.dataset.zwTypeIdx)
-              if (!isNaN(idx)) zwAiAnalysisTypeIdx.value = idx
-            }
-            return
-          }
-          target = target.parentElement; depth--
-        }
-      })
-    })
-    // 推运按钮行（在zwHoroContent内）
-    var horoContent = document.getElementById('zwHoroContent')
-    if (horoContent) {
-      horoContent.addEventListener('click', function(e) {
-        var target = e.target; var depth = 8
-        while (target && target !== this && depth > 0) {
-          if (target.dataset && target.dataset.zwAction) {
-            var action = target.dataset.zwAction
-            if (action === 'horoscope') window._xc_ziweiHoroscope()
-            else if (action === 'resetHoroscope') window._xc_zwResetHoroscope()
-            return
-          }
-          target = target.parentElement; depth--
-        }
-      })
-    }
-  } catch(_) {}
-  // 创建原生输入框
-  function createNativeInput(wrapId, type, placeholder, extra) {
-    if (typeof document === 'undefined') return null
-    var wrap = document.getElementById(wrapId)
-    if (!wrap) return null
-    var inp = document.createElement('input')
-    inp.type = type
-    inp.id = wrapId.replace('-wrap', '')
-    if (placeholder) inp.placeholder = placeholder
-    inp.style.cssText = 'width:100%;padding:10px 14px;border-radius:10px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--text-1);font-size:0.875rem;outline:none;box-sizing:border-box;transition:border-color 0.2s,box-shadow 0.2s'
-    inp.onfocus = function() { this.style.borderColor = 'var(--accent)'; this.style.boxShadow = '0 0 0 2px var(--accent-glow)' }
-    inp.onblur = function() { this.style.borderColor = 'var(--input-border)'; this.style.boxShadow = 'none' }
-    if (type === 'text') inp.setAttribute('maxlength', extra || '100')
-    if (type === 'number') { inp.min = '0'; inp.max = '999' }
-    wrap.appendChild(inp)
-    return inp
-  }
-  createNativeInput('zwYear-wrap', 'number', 'yyyy')
-  createNativeInput('zwMonth-wrap', 'number', '1-12')
-  createNativeInput('zwDay-wrap', 'number', '1-31')
-  createNativeInput('zwHour-wrap', 'number', '0-23')
-  createNativeInput('zwMinute-wrap', 'number', '0-59')
-  createNativeInput('zwHYear-wrap', 'number', 'yyyy')
-  createNativeInput('zwHMonth-wrap', 'number', '1-12')
-  createNativeInput('zwHDay-wrap', 'number', '1-31')
-  createNativeInput('zwHHour-wrap', 'number', '0-23')
-  // AI 表单
-  createNativeInput('zwAiYear-wrap', 'number', 'yyyy')
-  createNativeInput('zwAiMonth-wrap', 'number', '1-12')
-  createNativeInput('zwAiDay-wrap', 'number', '1-31')
-  createNativeInput('zwAiHour-wrap', 'number', '0-23')
-  createNativeInput('zwAiMinute-wrap', 'number', '0-59')
-  createNativeInput('zwAiQuestion-wrap', 'text', '请输入您想问的问题', '200')
+onMounted(function() {
+  initDatePickers()
   const now = new Date()
-  // 默认填充当前时间
-  var elY = document.getElementById('zwYear'); if (elY) elY.value = now.getFullYear()
-  var elM = document.getElementById('zwMonth'); if (elM) elM.value = now.getMonth() + 1
-  var elD = document.getElementById('zwDay'); if (elD) elD.value = now.getDate()
-  var elH = document.getElementById('zwHour'); if (elH) elH.value = now.getHours()
-  var elMin = document.getElementById('zwMinute'); if (elMin) elMin.value = now.getMinutes()
-  var elHY = document.getElementById('zwHYear'); if (elHY) elHY.value = now.getFullYear()
-  var elHM = document.getElementById('zwHMonth'); if (elHM) elHM.value = now.getMonth() + 1
-  var elHD = document.getElementById('zwHDay'); if (elHD) elHD.value = now.getDate()
-  var elHH = document.getElementById('zwHHour'); if (elHH) elHH.value = now.getHours()
-  zwTargetDate.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
-  // 初始化面板显隐
-  try {
-    var pc = document.getElementById('zwPanContent'); var hc = document.getElementById('zwHoroContent')
-    if (pc) pc.style.display = ''; if (hc) hc.style.display = 'none'
-  } catch(_) {}
+  const day = now.getDate()
+  if (zwDayOptions.value.length > day - 1) {
+    zwTargetDayIdx.value = day - 1
+  }
 })
 </script>
 
@@ -683,113 +868,80 @@ onMounted(() => {
 .tool-hero-desc { font-size: 0.9375rem; color: var(--text-3); letter-spacing: 2px; }
 .tool-container { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; backdrop-filter: blur(20px); box-shadow: var(--card-shadow); max-width: 720px; margin: 0 auto; }
 .tool-tabs { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid var(--card-border); }
-.tool-tab { padding: 12px 20px; border-radius: 10px 10px 0 0; font-size: 0.875rem; cursor: pointer; border: 1px solid transparent; border-bottom: none; color: var(--text-3); background: transparent; }
+.tool-tab { padding: 12px 20px; border-radius: 10px 10px 0 0; font-size: 0.875rem; cursor: pointer; border: 1px solid transparent; border-bottom: none; color: var(--text-3); background: transparent; transition: all 0.2s; }
 .tool-tab.active { color: var(--accent); background: var(--accent-glow); border-color: var(--accent); font-weight: 600; }
+.tool-tab:hover { color: var(--accent); }
 .tab-badge { font-size: 0.5625rem; padding: 1px 5px; border-radius: 4px; background: var(--accent); color: #fff; margin-left: 4px; }
 .tab-badge.free { background: var(--success); }
 .form-group { margin-bottom: 16px; }
 .form-label { display: block; font-size: 0.75rem; color: var(--text-3); margin-bottom: 6px; letter-spacing: 1px; }
 .form-input, .form-select-picker { width: 100%; padding: 10px 14px; border-radius: 10px; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-1); font-size: 0.875rem; outline: none; box-sizing: border-box; }
+.form-input .uni-input-wrapper { height: 22px; }
+.form-input .uni-input-input { height: 22px !important; padding: 0 !important; margin: 0; border: none !important; background: transparent !important; font-size: inherit !important; color: inherit !important; line-height: 22px !important; }
 .form-hint { font-size: 0.6875rem; color: var(--text-3); }
-.submit-btn { width: 100%; padding: 14px; border-radius: 30px; border: none; background: hsl(35, 38%, 52%); color: #fff; font-size: 1rem; font-weight: 600; cursor: pointer; letter-spacing: 2px; margin-top: 8px; text-align: center; }
+.submit-btn { width: 100%; padding: 14px; border-radius: 30px; border: none; background: hsl(35, 38%, 52%); color: #fff; font-size: 1rem; font-weight: 600; cursor: pointer; letter-spacing: 2px; margin-top: 8px; text-align: center; transition: opacity 0.2s; }
+.submit-btn:hover { opacity: 0.9; }
 .btn-row { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
 .btn-row .submit-btn { flex: 1; margin-top: 0; }
 .btn-ghost { background: transparent; border: 1px solid var(--card-border); color: var(--text-3); padding: 7px 18px; border-radius: 10px; font-size: 0.8125rem; }
-.disclaimer-note { margin-top: 16px; padding: 10px 14px; border-radius: 10px; background: rgba(110,195,135,0.08); border: 1px solid rgba(110,195,135,0.15); font-size: 0.75rem; color: var(--success); text-align: center; }
+.privacy-note { margin-top: 12px; padding: 10px 14px; border-radius: 10px; background: rgba(110,195,135,0.08); border: 1px solid rgba(110,195,135,0.15); font-size: 0.75rem; color: var(--success); text-align: center; }
 .zw-form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
 .zw-result { margin-top: 16px; }
 .zw-result-card { background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid var(--card-border); }
 .zw-result-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 10px; color: var(--accent); letter-spacing: 2px; }
 
-/* ═══ 紫微斗数排盘结果样式 — 低饱和水墨风格 ═══ */
-.zw-result-wrap { margin-top: 24px; font-family: 'STKaiti', 'KaiTi', 'Songti SC', 'Noto Serif SC', serif; }
+.qf-datetime-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.qf-dt-col { flex: 1; min-width: 60px; }
+.qf-dt-col-narrow { flex: 0 0 70px; }
+.qf-datetime-select { width: 100%; padding: 10px 14px; border-radius: 10px; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-1); font-size: 0.875rem; text-align: center; }
+
+.zw-result-wrap { margin-top: 24px; }
 .zw-basic-card { background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
 .zw-basic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 .zw-basic-item { display: flex; flex-direction: column; gap: 2px; }
-.zw-basic-label { font-size: 0.7rem; color: var(--text-3); letter-spacing: 2px; }
-.zw-basic-value { font-size: 0.95rem; font-weight: 500; color: hsl(38, 35%, 50%); }
+.zw-basic-label { font-size: 0.75rem; color: var(--text-4); letter-spacing: 1px; }
+.zw-basic-value { font-size: 0.9375rem; font-weight: 600; color: var(--accent); }
 .zw-palace-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 20px; }
-.zw-palace-cell { background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 10px 8px; min-height: 105px; position: relative; transition: all 0.2s; cursor: default; }
-.zw-palace-cell:hover { border-color: var(--accent); box-shadow: 0 0 20px rgba(212,168,71,0.06); }
-.zw-palace-cell.is-soul { border-color: hsl(38, 40%, 55%); box-shadow: 0 0 14px rgba(212,168,71,0.08); }
-.zw-palace-cell.is-body { border-color: hsl(6, 45%, 55%); }
-.zw-palace-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
-.zw-palace-name { font-size: 0.8rem; font-weight: 600; color: hsl(38, 40%, 48%); letter-spacing: 1px; }
-.zw-palace-ganzhi { font-size: 0.65rem; color: var(--text-3); }
-.zw-palace-badge { font-size: 0.55rem; padding: 1px 5px; border-radius: 3px; position: absolute; top: 4px; right: 4px; font-family: var(--font-sans); }
-.zw-badge-soul { background: rgba(212,168,71,0.12); color: hsl(38, 35%, 50%); }
-.zw-badge-body { background: rgba(180,80,60,0.10); color: hsl(6, 40%, 50%); }
-.zw-palace-stars { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 3px; font-family: 'STKaiti', 'KaiTi', 'Songti SC', 'Noto Serif SC', serif; }
-.zw-star-major { display: inline-block; padding: 2px 7px; background: rgba(180,150,100,0.10); color: hsl(38, 35%, 50%); border-radius: 4px; font-size: 0.78rem; font-weight: 500; letter-spacing: 0.5px; }
-.zw-star-minor { display: inline-block; padding: 1px 6px; background: rgba(80,140,180,0.08); color: hsl(204, 30%, 55%); border-radius: 4px; font-size: 0.72rem; font-weight: 400; }
-.zw-star-adj { display: inline-block; padding: 1px 4px; color: hsl(145, 25%, 48%); font-size: 0.68rem; font-weight: 400; }
-.zw-mutagen { font-size: 0.6rem; padding: 1px 4px; border-radius: 3px; margin-left: 2px; font-weight: 500; font-family: var(--font-sans); }
-.zw-mutagen-lu { background: rgba(39,174,96,0.12); color: hsl(145, 30%, 45%); }
-.zw-mutagen-quan { background: rgba(180,80,60,0.12); color: hsl(6, 35%, 50%); }
-.zw-mutagen-ke { background: rgba(60,130,180,0.12); color: hsl(204, 30%, 50%); }
-.zw-mutagen-ji { background: rgba(120,80,150,0.12); color: hsl(282, 25%, 50%); }
-.zw-palace-decadal { margin-top: 5px; font-size: 0.65rem; color: var(--text-3); border-top: 1px solid var(--border); padding-top: 4px; letter-spacing: 0.5px; font-family: var(--font-sans); }
-.zw-center-info { grid-column: 2 / 4; grid-row: 2 / 4; background: var(--bg-2); border: 1.5px solid hsl(38, 30%, 55%); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-.zw-center-title { font-size: 1.05rem; color: hsl(38, 35%, 45%); font-weight: 500; letter-spacing: 3px; margin-bottom: 6px; }
-.zw-center-wuxing { font-size: 0.9rem; color: hsl(282, 20%, 48%); font-weight: 500; margin-bottom: 4px; }
-.zw-center-soul { font-size: 0.78rem; color: var(--text-2); margin: 1px 0; font-family: var(--font-sans); }
-.zw-center-date { font-size: 0.72rem; color: var(--text-3); margin-top: 4px; }
-.zw-decadal-card { background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 18px; }
-.zw-decadal-title { font-size: 0.9rem; font-weight: 500; color: hsl(38, 35%, 48%); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; font-family: 'STKaiti', 'KaiTi', 'Songti SC', 'Noto Serif SC', serif; }
-.zw-decadal-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; font-family: var(--font-sans); }
-.zw-decadal-table th, .zw-decadal-table td { padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--border); }
-.zw-decadal-table th { color: var(--text-3); font-weight: 500; font-size: 0.7rem; letter-spacing: 1px; }
-.zw-decadal-table td { color: var(--text-1); }
-.zw-horoscope-title { font-size: 0.9rem; font-weight: 500; color: hsl(282, 20%, 48%); margin-bottom: 14px; font-family: 'STKaiti', 'KaiTi', 'Songti SC', 'Noto Serif SC', serif; }
-.zw-period-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
-.zw-period-card { background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; transition: all 0.2s; font-family: var(--font-sans); }
-.zw-period-card:hover { border-color: hsl(282, 20%, 55%); box-shadow: 0 0 10px rgba(120,80,150,0.08); }
-.zw-period-name { font-weight: 500; color: hsl(38, 35%, 48%); margin-bottom: 3px; font-size: 0.82rem; letter-spacing: 1px; }
-.zw-period-ganzhi { font-size: 0.82rem; color: hsl(282, 20%, 48%); font-weight: 500; }
-.zw-period-range { font-size: 0.7rem; color: var(--text-3); margin-top: 2px; }
-.zw-period-mutagen { font-size: 0.72rem; color: var(--text-2); margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
-@media (max-width: 768px) { .zw-palace-grid { grid-template-columns: repeat(2, 1fr); } .zw-center-info { grid-column: 1 / -1; grid-row: auto; } .zw-form-grid { grid-template-columns: 1fr 1fr; } .zw-basic-grid { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 480px) {
-  .zw-palace-grid { gap: 4px; }
-  .zw-palace-cell { min-height: 72px; padding: 5px; }
-  .zw-palace-header { margin-bottom: 3px; }
-  .zw-palace-name { font-size: 0.68rem; }
-  .zw-palace-ganzhi { font-size: 0.55rem; }
-  .zw-palace-stars { gap: 2px; }
-  .zw-star-major { font-size: 0.62rem; padding: 1px 4px; }
-  .zw-star-minor { font-size: 0.58rem; padding: 1px 3px; }
-  .zw-star-adj { font-size: 0.55rem; padding: 0 3px; }
-  .zw-mutagen { font-size: 0.52rem; padding: 0 3px; }
-  .zw-palace-decadal { font-size: 0.55rem; margin-top: 3px; padding-top: 3px; }
-  .zw-center-title { font-size: 0.82rem; }
-  .zw-center-wuxing { font-size: 0.72rem; }
-  .zw-center-soul { font-size: 0.62rem; }
-  .zw-center-date { font-size: 0.58rem; }
-  .zw-basic-card { padding: 14px; }
-  .zw-basic-grid { gap: 6px; }
-  .zw-basic-label { font-size: 0.6rem; }
-  .zw-basic-value { font-size: 0.78rem; }
-  .zw-period-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
-  .zw-period-card { padding: 8px; }
-  .zw-period-name { font-size: 0.72rem; }
-  .zw-period-ganzhi { font-size: 0.72rem; }
-  .zw-period-range { font-size: 0.6rem; }
-  .zw-period-mutagen { font-size: 0.62rem; }
-  .zw-palace-badge { font-size: 0.5rem; padding: 0 4px; }
-}
-.modal-overlay { display: none; position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.55); backdrop-filter: blur(8px); align-items: center; justify-content: center; }
-.modal-overlay.open { display: flex; }
-.modal-box { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; width: 360px; backdrop-filter: blur(40px); }
-.modal-title { font-family: var(--font-serif); font-size: 1.1rem; letter-spacing: 2px; text-align: center; margin-bottom: 24px; color: var(--text-1); }
-.field { margin-bottom: 14px; }
-.field-label { display: block; font-size: 0.75rem; color: var(--text-3); margin-bottom: 4px; }
-.field-input { width: 100%; padding: 10px 14px; border-radius: 10px; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-1); font-size: 0.875rem; outline: none; box-sizing: border-box; }
-.modal-btns { display: flex; gap: 10px; margin-top: 20px; }
-.modal-btns .btn { flex: 1; text-align: center; }
-.modal-error { color: var(--danger); font-size: 0.75rem; text-align: center; margin-top: 10px; min-height: 18px; }
-@media (max-width: 768px) { .tool-hero { padding: 40px 16px 24px; } .tool-hero-title { font-size: 1.5rem; } .tool-container { padding: 20px 16px; } .section { padding: 48px 16px; } .zw-form-grid { grid-template-columns: 1fr 1fr; } }
+.zw-palace-cell { background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; min-height: 110px; position: relative; transition: all 0.2s; cursor: default; }
+.zw-palace-cell:hover { border-color: var(--accent); box-shadow: 0 0 20px rgba(212,168,71,0.08); }
+.zw-palace-cell.is-soul { border-color: var(--accent); box-shadow: 0 0 16px rgba(212,168,71,0.12); }
+.zw-palace-cell.is-body { border-color: var(--danger); }
+.zw-palace-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.zw-palace-name { font-size: 0.875rem; font-weight: 700; color: var(--accent); }
+.zw-palace-ganzhi { font-size: 0.6875rem; color: var(--text-4); }
+.zw-palace-badge { font-size: 0.5625rem; padding: 1px 5px; border-radius: 3px; position: absolute; top: 5px; right: 5px; }
+.zw-badge-soul { background: rgba(212,168,71,0.15); color: var(--accent); }
+.zw-badge-body { background: rgba(231,76,60,0.12); color: var(--danger); }
+.zw-palace-stars { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 3px; }
+.zw-star-major { display: inline-block; padding: 2px 7px; background: rgba(212,168,71,0.1); color: var(--accent); border-radius: 4px; font-size: 0.8125rem; font-weight: 600; }
+.zw-star-minor { display: inline-block; padding: 1px 6px; background: rgba(41,128,185,0.08); color: #5dade2; border-radius: 4px; font-size: 0.75rem; }
+.zw-star-adj { display: inline-block; padding: 1px 4px; color: #7dcea0; font-size: 0.6875rem; }
+.zw-mutagen { font-size: 0.625rem; padding: 1px 4px; border-radius: 3px; margin-left: 2px; font-weight: 600; }
+.zw-mutagen-lu { background: rgba(39,174,96,0.15); color: #27ae60; }
+.zw-mutagen-quan { background: rgba(231,76,60,0.12); color: #e74c3c; }
+.zw-mutagen-ke { background: rgba(52,152,219,0.12); color: #3498db; }
+.zw-mutagen-ji { background: rgba(142,68,173,0.12); color: #8e44ad; }
+.zw-palace-decadal { margin-top: 6px; font-size: 0.6875rem; color: var(--text-4); border-top: 1px solid var(--border); padding-top: 4px; }
+.zw-center-info { grid-column: 2 / 4; grid-row: 2 / 4; background: var(--bg-2); border: 2px solid var(--accent); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.zw-center-title { font-size: 1.125rem; color: var(--accent); font-weight: 700; letter-spacing: 3px; margin-bottom: 8px; }
+.zw-center-wuxing { font-size: 1rem; color: #c39bd3; font-weight: 600; margin-bottom: 6px; }
+.zw-center-soul { font-size: 0.8125rem; color: var(--text-3); margin: 2px 0; }
+.zw-center-date { font-size: 0.75rem; color: var(--text-4); margin-top: 6px; }
+.zw-decadal-card { background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+.zw-decadal-title { font-size: 0.9375rem; font-weight: 600; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+.zw-decadal-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+.zw-decadal-table th, .zw-decadal-table td { padding: 8px 10px; text-align: center; border-bottom: 1px solid var(--border); }
+.zw-decadal-table th { color: var(--text-4); font-weight: 500; font-size: 0.75rem; letter-spacing: 1px; }
+.zw-decadal-table td { color: var(--text-2); }
+.zw-horoscope-title { font-size: 0.9375rem; font-weight: 600; color: #c39bd3; margin-bottom: 16px; }
+.zw-period-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.zw-period-card { background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; transition: all 0.2s; }
+.zw-period-card:hover { border-color: #c39bd3; box-shadow: 0 0 12px rgba(155,89,182,0.08); }
+.zw-period-name { font-weight: 600; color: var(--accent); margin-bottom: 4px; font-size: 0.875rem; }
+.zw-period-ganzhi { font-size: 0.875rem; color: #c39bd3; }
+.zw-period-range { font-size: 0.75rem; color: var(--text-4); margin-top: 2px; }
+.zw-period-mutagen { font-size: 0.75rem; color: var(--text-3); margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
 
-/* ═══ 流式解读 + 对话气泡 ═══ */
 .qai-stream-box { margin-top: 20px; padding: 16px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; }
 .qai-card-item { background: var(--section-alt); border: 1px solid var(--card-border); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
 .qai-card-title { font-size: 0.9rem; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
@@ -806,9 +958,49 @@ onMounted(() => {
 .chat-input-bar { display: flex; gap: 8px; margin-top: 16px; padding: 10px 14px; background: var(--section-alt); border-radius: 12px; border: 1px solid var(--card-border); }
 .chat-input { flex: 1; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--card-border); background: var(--input-bg); color: var(--text-1); font-size: 0.875rem; outline: none; }
 .chat-send-btn { padding: 8px 20px; background: var(--accent); color: #fff; border-radius: 8px; font-size: 0.875rem; cursor: pointer; white-space: nowrap; }
-
-/* 分析类型选择器 */
 .analysis-type-row { display: flex; flex-wrap: wrap; gap: 6px; }
-.analysis-type-btn { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--card-border); background: transparent; color: var(--text-3); font-size: 0.75rem; cursor: pointer; text-align: center; white-space: nowrap; transition: all .15s; }
+.analysis-type-btn { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--card-border); background: transparent; color: var(--text-3); font-size: 0.75rem; cursor: pointer; text-align: center; white-space: nowrap; transition: all 0.15s; }
 .analysis-type-btn.active { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); }
+
+@media (max-width: 768px) {
+  .section { padding: 48px 16px; }
+  .tool-hero { padding: 40px 16px 24px; }
+  .tool-hero-title { font-size: 1.5rem; }
+  .tool-container { padding: 20px 16px; }
+  .zw-form-grid { grid-template-columns: 1fr 1fr; }
+  .zw-basic-grid { grid-template-columns: 1fr 1fr; }
+  .zw-palace-grid { grid-template-columns: repeat(4, 1fr); }
+  .zw-center-info { grid-column: 2 / 4; grid-row: 2 / 4; }
+  .qf-datetime-row { gap: 6px; }
+  .qf-dt-col { min-width: 55px; }
+  .qf-dt-col-narrow { flex: 0 0 60px; }
+}
+
+@media (max-width: 480px) {
+  .tool-tabs { overflow-x: auto; gap: 2px; }
+  .tool-tab { padding: 10px 14px; font-size: 0.8125rem; white-space: nowrap; }
+  .zw-result-wrap { overflow-x: hidden; }
+  .zw-palace-grid { grid-template-columns: repeat(4, 1fr); gap: 3px; }
+  .zw-palace-cell { min-height: 70px; padding: 5px; }
+  .zw-star-major { font-size: 0.625rem; padding: 1px 3px; }
+  .zw-star-minor { font-size: 0.5625rem; padding: 1px 3px; }
+  .zw-star-adj { font-size: 0.5rem; }
+  .zw-palace-name { font-size: 0.7rem; }
+  .zw-palace-ganzhi { font-size: 0.5rem; }
+  .zw-center-info { padding: 8px; }
+  .zw-center-title { font-size: 0.875rem; letter-spacing: 2px; }
+  .zw-center-wuxing { font-size: 0.75rem; }
+  .zw-center-soul { font-size: 0.625rem; }
+  .zw-center-date { font-size: 0.5625rem; }
+  .zw-period-grid { grid-template-columns: 1fr 1fr; }
+  .zw-form-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .zw-basic-grid { grid-template-columns: 1fr 1fr; }
+  .qf-datetime-row { gap: 4px; }
+  .qf-dt-col { min-width: 50px; }
+  .qf-dt-col-narrow { flex: 0 0 55px; }
+  .qf-datetime-select { padding: 8px 10px; font-size: 0.8125rem; }
+  .zw-palace-decadal { font-size: 0.5rem; padding-top: 2px; }
+  .zw-palace-badge { font-size: 0.4375rem; padding: 1px 2px; }
+  .zw-mutagen { font-size: 0.5rem; padding: 1px 2px; }
+}
 </style>
