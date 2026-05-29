@@ -141,7 +141,7 @@
             <view class="zw-form-grid">
               <view class="form-group zw-birth-time-group">
                 <text class="form-label">出生时间</text>
-                <view class="zw-birth-row zw-birth-row-compact">
+                <view class="zw-birth-row">
                   <view class="zw-birth-col zw-birth-col-year">
                     <picker :range="birthYearOptions" :value="birthYearIndex(zwHoroForm)" @change="setBirthPart(zwHoroForm, 'year', $event)">
                       <view class="zw-birth-select">{{ zwHoroForm.year }}年</view>
@@ -160,6 +160,11 @@
                   <view class="zw-birth-col">
                     <picker :range="birthHourOptions" :value="birthHourIndex(zwHoroForm)" @change="setBirthPart(zwHoroForm, 'hour', $event)">
                       <view class="zw-birth-select">{{ pad2(zwHoroForm.hour) }}时</view>
+                    </picker>
+                  </view>
+                  <view class="zw-birth-col zw-birth-col-minute">
+                    <picker :range="birthMinuteOptions" :value="birthMinuteIndex(zwHoroForm)" @change="setBirthPart(zwHoroForm, 'minute', $event)">
+                      <view class="zw-birth-select">{{ pad2(zwHoroForm.minute) }}分</view>
                     </picker>
                   </view>
                 </view>
@@ -267,7 +272,7 @@ const zwAnalysisTypes = [
 
 // 推运表单
 const zwHoroForm = reactive({
-  year: 2000, month: 8, day: 16, hour: 12,
+  year: 2000, month: 8, day: 16, hour: 12, minute: 0,
   genderIdx: 0, dateTypeIdx: 0
 })
 
@@ -435,7 +440,8 @@ async function ziweiFreePan() {
     const panData = data.data || data
     zwPanResult.value = renderZiweiPan(panData)
   } catch (e) {
-    zwPanResult.value = '<div style="color:var(--danger);padding:16px;">排盘失败</div>'
+    const errMsg = (e && e.errMsg) || (e && e.message) || (e && String(e)) || '未知错误'
+    zwPanResult.value = '<div style="color:var(--danger);padding:16px;">排盘失败: ' + errMsg + '</div>'
   }
 }
 
@@ -445,8 +451,9 @@ async function ziweiHoroscope() {
     const m = parseInt(zwHoroForm.month)
     const d = parseInt(zwHoroForm.day)
     const h = parseInt(zwHoroForm.hour)
+    const mi = parseInt(zwHoroForm.minute)
     
-    if (isNaN(y) || isNaN(m) || isNaN(d) || isNaN(h)) {
+    if (isNaN(y) || isNaN(m) || isNaN(d) || isNaN(h) || isNaN(mi)) {
       zwHoroscopeResult.value = '<div style="color:var(--danger);padding:16px;">请填写完整的出生时间</div>'
       return
     }
@@ -468,7 +475,7 @@ async function ziweiHoroscope() {
       url: '/api/ziwei/horoscope',
       method: 'POST',
       data: {
-        year: y, month: m, day: d, hour: h,
+        year: y, month: m, day: d, hour: h, minute: mi,
         gender: ['男', '女'][zwHoroForm.genderIdx],
         date_type: ['solar', 'lunar'][zwHoroForm.dateTypeIdx],
         target_date: targetDate
@@ -738,7 +745,7 @@ function zwPalaceCell(p) {
   if (p.is_body_palace) { cls += ' is-body'; badge += '<span class="zw-palace-badge zw-badge-body">身</span>' }
   if (p.name === '命宫') { cls += ' is-soul'; badge += '<span class="zw-palace-badge zw-badge-soul">命</span>' }
   let starsHtml = ''
-  (p.major_stars || []).forEach(function(s) {
+  ;(p.major_stars || []).forEach(function(s) {
     let mut = ''
     if (s.mutagen) {
       let mCls = ''
@@ -751,10 +758,10 @@ function zwPalaceCell(p) {
     const brightness = s.brightness ? '(' + s.brightness + ')' : ''
     starsHtml += '<span class="zw-star-major">' + s.name + brightness + mut + '</span>'
   })
-  (p.minor_stars || []).forEach(function(s) {
+  ;(p.minor_stars || []).forEach(function(s) {
     starsHtml += '<span class="zw-star-minor">' + s.name + '</span>'
   })
-  (p.adjective_stars || []).slice(0, 4).forEach(function(s) {
+  ;(p.adjective_stars || []).slice(0, 4).forEach(function(s) {
     starsHtml += '<span class="zw-star-adj">' + s.name + '</span>'
   })
   let decHtml = ''
@@ -780,7 +787,7 @@ function renderZiweiPan(d) {
   html += zwBasicItem('时辰', (bi.shichen || '') + ' ' + (bi.shichen_range || ''))
   html += zwBasicItem('生肖', bi.zodiac)
   html += zwBasicItem('星座', bi.sign)
-  html += zwBasicItem('五行局', cp.five_elements_class)
+  html += zwBasicItem('五行局', bi.five_elements_class)
   html += zwBasicItem('命主', cp.soul_star)
   html += zwBasicItem('身主', cp.body_star)
   html += '</div></div>'
@@ -977,7 +984,6 @@ onMounted(function() {
 .zw-form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
 .zw-birth-time-group { grid-column: 1 / -1; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--card-border); background: var(--section-alt); margin-bottom: 4px; }
 .zw-birth-row { display: grid; grid-template-columns: minmax(104px, 1.25fr) repeat(4, minmax(64px, 1fr)); gap: 8px; align-items: center; }
-.zw-birth-row-compact { grid-template-columns: minmax(104px, 1.25fr) repeat(3, minmax(64px, 1fr)); }
 .zw-birth-col { min-width: 0; }
 .zw-birth-select { width: 100%; min-height: 40px; padding: 9px 22px 9px 10px; border: 1.5px solid var(--card-border); border-radius: 8px; background-color: var(--card-bg); color: var(--text-1); font-size: 0.85rem; font-weight: 600; line-height: 20px; text-align: center; box-sizing: border-box; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M5 7L1 3h8z' fill='%23999'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; transition: border-color 0.18s, background-color 0.18s, box-shadow 0.18s; }
 .zw-birth-select:hover { border-color: var(--accent); background-color: var(--input-bg); }
@@ -1064,8 +1070,7 @@ onMounted(function() {
   .tool-container { padding: 20px 16px; }
   .zw-form-grid { grid-template-columns: 1fr 1fr; }
   .zw-birth-time-group { padding: 12px; }
-  .zw-birth-row,
-  .zw-birth-row-compact { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .zw-birth-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .zw-birth-col-year { grid-column: span 1; }
   .zw-birth-col-minute { grid-column: span 1; }
   .zw-basic-grid { grid-template-columns: 1fr 1fr; }
@@ -1095,8 +1100,7 @@ onMounted(function() {
   .zw-period-grid { grid-template-columns: 1fr 1fr; }
   .zw-form-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
   .zw-birth-time-group { padding: 10px; }
-  .zw-birth-row,
-  .zw-birth-row-compact { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .zw-birth-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
   .zw-birth-col-year { grid-column: span 2; }
   .zw-birth-select { min-height: 38px; padding: 8px 20px 8px 8px; font-size: 0.8125rem; }
   .zw-basic-grid { grid-template-columns: 1fr 1fr; }
