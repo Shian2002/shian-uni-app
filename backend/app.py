@@ -3873,6 +3873,22 @@ def resolve_comprehensive_profile(data):
     }
 
 
+def resolve_comprehensive_profiles(data):
+    profiles = data.get('profiles')
+    if isinstance(profiles, list) and profiles:
+        result = []
+        for item in profiles[:5]:
+            if not isinstance(item, dict):
+                continue
+            item_data = {'profile': item}
+            if item.get('source') == 'profile' and item.get('id'):
+                item_data['profile_id'] = item.get('id')
+            result.append(resolve_comprehensive_profile(item_data))
+        if result:
+            return result
+    return [resolve_comprehensive_profile(data)]
+
+
 def _split_birth_time(birth_time):
     raw = ''.join(ch for ch in str(birth_time or '') if ch.isdigit())
     if len(raw) < 8:
@@ -4065,7 +4081,7 @@ def build_meihua_context_from_question(question=''):
     }
 
 
-def build_comprehensive_paipan_context(profile, tool_models, question=''):
+def build_single_comprehensive_paipan_context(profile, tool_models, question=''):
     context = {}
     for tool in tool_models:
         try:
@@ -4082,6 +4098,18 @@ def build_comprehensive_paipan_context(profile, tool_models, question=''):
         except Exception as exc:
             context[tool] = {'error': str(exc)}
     return context
+
+
+def build_comprehensive_paipan_context(profiles, tool_models, question=''):
+    profile_list = profiles if isinstance(profiles, list) else [profiles]
+    if len(profile_list) == 1:
+        return build_single_comprehensive_paipan_context(profile_list[0], tool_models, question)
+    return {
+        'profiles': [{
+            'profile': profile,
+            'paipan': build_single_comprehensive_paipan_context(profile, tool_models, question),
+        } for profile in profile_list]
+    }
 
 
 def save_comprehensive_conversation(data, question, profile, tool_models, paipan_context, model_id, cost, history, answer):
@@ -4173,7 +4201,9 @@ def api_comprehensive_ask_stream():
     tool_models = normalize_tool_models(data.get('tool_models') or [])
     model_id = data.get('llm_model') or 'basic'
     is_followup = bool(history)
-    cost = calculate_cost(model_id, tool_models, is_followup=is_followup)
+    requested_profiles = data.get('profiles') if isinstance(data.get('profiles'), list) else None
+    profile_count = len(requested_profiles) if requested_profiles else 1
+    cost = calculate_cost(model_id, tool_models, is_followup=is_followup, profile_count=profile_count)
 
     def _event(payload):
         return 'data: %s\n\n' % json.dumps(payload, ensure_ascii=False)
@@ -4190,11 +4220,12 @@ def api_comprehensive_ask_stream():
     def generate():
         try:
             yield _event({'stage': 'profile', 'message': '正在读取命盘档案...'})
-            profile = resolve_comprehensive_profile(data)
+            profiles = resolve_comprehensive_profiles(data)
+            profile = profiles[0] if len(profiles) == 1 else profiles
             paipan_context = data.get('paipan') or {}
             if not is_followup or not paipan_context:
                 yield _event({'stage': 'paipan', 'message': '正在生成所选术数盘面...'})
-                paipan_context = build_comprehensive_paipan_context(profile, tool_models, question)
+                paipan_context = build_comprehensive_paipan_context(profiles, tool_models, question)
             add_points(current_user.id, 'comprehensive_ai', -cost, '综合 AI ' + ('追问' if is_followup else '解读'))
             messages = build_comprehensive_messages(question, profile, tool_models, paipan_context, history)
             full_text = ''

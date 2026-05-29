@@ -41,7 +41,7 @@ def normalize_tool_models(tool_models):
     return result
 
 
-def calculate_cost(model_id, tool_models, is_followup=False):
+def calculate_cost(model_id, tool_models, is_followup=False, profile_count=1):
     model = get_llm_model(model_id)
     if is_followup:
         return int(model.get("followup_cost", 1))
@@ -49,7 +49,8 @@ def calculate_cost(model_id, tool_models, is_followup=False):
     tool_cost_map = {item["id"]: int(item.get("cost", 0)) for item in COMPREHENSIVE_TOOL_MODELS}
     tools_cost = sum(tool_cost_map.get(item, 0) for item in selected)
     multiplier = float(model.get("cost_multiplier", 1))
-    return int(round(int(model.get("cost_base", 0)) + tools_cost * multiplier))
+    count = max(1, int(profile_count or 1))
+    return int(round(int(model.get("cost_base", 0)) + tools_cost * count * multiplier))
 
 
 def build_comprehensive_messages(question, profile, tool_models, paipan_context, history=None):

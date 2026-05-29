@@ -139,12 +139,21 @@
         </view>
         <view class="profile-options">
           <view v-if="profileGroups[profileTab].length === 0" class="profile-empty">暂无命盘档案</view>
-          <view class="profile-option" v-for="p in profileGroups[profileTab]" :key="p.id" @tap="selectProfile(p)">
+          <view
+            class="profile-option"
+            v-for="p in profileGroups[profileTab]"
+            :key="p.id"
+            :class="{ active: isProfileSelected(p) }"
+            @tap="toggleProfileSelection(p)"
+          >
             <view>
               <text class="profile-option-name">{{ p.name || '未命名' }}</text>
               <text class="profile-option-meta">{{ p.gender }} · {{ formatBirthTime(p.birthTime || p.birth_time) }}</text>
             </view>
-            <text class="profile-option-type">{{ profileTypeLabel(p.profileType || p.profile_type) }}</text>
+            <view class="profile-option-side">
+              <text class="profile-option-type">{{ profileTypeLabel(p.profileType || p.profile_type) }}</text>
+              <text class="profile-option-check">{{ isProfileSelected(p) ? '✓' : '' }}</text>
+            </view>
           </view>
         </view>
       </view>
@@ -223,7 +232,7 @@ window.addEventListener('xc-session-expired', function() { isLoggedIn.value = fa
 const comprehensiveQuestion = ref('')
 const comprehensiveLoading = ref(false)
 const profiles = ref([])
-const selectedProfile = ref(null)
+const selectedProfiles = ref([])
 const profileSheetOpen = ref(false)
 const toolSheetOpen = ref(false)
 const profileTab = ref('全部')
@@ -249,11 +258,12 @@ const llmModelNames = computed(() => llmModels.value.map(m => m.name + ' · ' + 
 const estimatedCost = computed(() => {
   if (comprehensiveMessages.value.length > 0) return selectedLlmModel.value.followup_cost || 0
   const selected = selectedToolModels.value || []
+  const profileCount = Math.max(1, selectedProfiles.value.length)
   const toolsCost = selected.reduce((sum, id) => {
     const tool = toolModels.value.find(t => t.id === id)
     return sum + (tool ? Number(tool.cost || 0) : 0)
   }, 0)
-  return Math.round((selectedLlmModel.value.cost_base || 0) + toolsCost * (selectedLlmModel.value.cost_multiplier || 1))
+  return Math.round((selectedLlmModel.value.cost_base || 0) + toolsCost * profileCount * (selectedLlmModel.value.cost_multiplier || 1))
 })
 const selectedToolSummary = computed(() => {
   const names = toolModels.value.filter(t => selectedToolModels.value.includes(t.id)).map(t => t.name)
@@ -261,9 +271,14 @@ const selectedToolSummary = computed(() => {
   if (names.length <= 2) return names.join(' + ')
   return names.slice(0, 2).join(' + ') + ' 等' + names.length + '项'
 })
-const selectedProfileName = computed(() => selectedProfile.value ? selectedProfile.value.name : '')
+const selectedProfileName = computed(() => {
+  const list = selectedProfiles.value || []
+  if (!list.length) return ''
+  if (list.length === 1) return list[0].name || '未命名'
+  return (list[0].name || '未命名') + ' 等' + list.length + '盘'
+})
 const selectedProfileMeta = computed(() => {
-  const p = selectedProfile.value
+  const p = selectedProfiles.value[0]
   if (!p) return ''
   return (p.gender || '') + ' · ' + formatBirthTime(p.birthTime || p.birth_time)
 })
@@ -315,9 +330,22 @@ function openToolPicker() {
   toolSheetOpen.value = true
 }
 
-function selectProfile(p) {
-  selectedProfile.value = p
-  profileSheetOpen.value = false
+function profileKey(p) {
+  return (p.source || 'profile') + ':' + String(p.recordId || p.id || '')
+}
+
+function isProfileSelected(p) {
+  const key = profileKey(p)
+  return selectedProfiles.value.some(item => profileKey(item) === key)
+}
+
+function toggleProfileSelection(p) {
+  const list = selectedProfiles.value.slice()
+  const key = profileKey(p)
+  const idx = list.findIndex(item => profileKey(item) === key)
+  if (idx >= 0) list.splice(idx, 1)
+  else list.push(p)
+  selectedProfiles.value = list
 }
 
 function onLlmModelChange(e) {
@@ -373,8 +401,8 @@ async function loadProfiles() {
         }
       })
     profiles.value = profileList.concat(baziList)
-    if (!selectedProfile.value && profiles.value.length) {
-      selectedProfile.value = profiles.value.find(p => p.source === 'profile' && p.isDefault) || profiles.value[0]
+    if (!selectedProfiles.value.length && profiles.value.length) {
+      selectedProfiles.value = [profiles.value.find(p => p.source === 'profile' && p.isDefault) || profiles.value[0]]
     }
   } catch (_) {
     profiles.value = []
@@ -405,7 +433,7 @@ async function startComprehensiveAsk() {
   if (!isLoggedIn.value) return uni.showToast({ title: '请先登录', icon: 'none' })
   const question = comprehensiveQuestion.value.trim()
   if (!question) return uni.showToast({ title: '请输入问题', icon: 'none' })
-  if (!selectedProfile.value) return uni.showToast({ title: '请先选择命盘', icon: 'none' })
+  if (!selectedProfiles.value.length) return uni.showToast({ title: '请先选择命盘', icon: 'none' })
   if (!selectedToolModels.value.length) return uni.showToast({ title: '请至少选择一个术数模型', icon: 'none' })
   if (currentPoints.value < estimatedCost.value) return uni.showToast({ title: '积分不足', icon: 'none' })
 
@@ -418,8 +446,9 @@ async function startComprehensiveAsk() {
   try {
     const requestBody = {
       question,
-      profile_id: selectedProfile.value.source === 'profile' ? selectedProfile.value.id : undefined,
-      profile: comprehensiveProfilePayload(selectedProfile.value),
+      profile_id: selectedProfiles.value.length === 1 && selectedProfiles.value[0].source === 'profile' ? selectedProfiles.value[0].id : undefined,
+      profile: selectedProfiles.value.length === 1 ? comprehensiveProfilePayload(selectedProfiles.value[0]) : undefined,
+      profiles: selectedProfiles.value.map(comprehensiveProfilePayload),
       llm_model: selectedLlmModel.value.id || 'basic',
       tool_models: selectedToolModels.value,
       history,
@@ -485,7 +514,7 @@ async function restoreComprehensiveConversation(id) {
     const mi = llmModels.value.findIndex(m => m.id === mid)
     if (mi >= 0) llmModelIdx.value = mi
     const p = data.profile_data || {}
-    selectedProfile.value = {
+    selectedProfiles.value = [{
       id: p.id,
       name: p.name,
       gender: p.gender,
@@ -493,7 +522,7 @@ async function restoreComprehensiveConversation(id) {
       calType: p.cal_type,
       birthAddr: p.birth_addr,
       profileType: p.profile_type,
-    }
+    }]
   } catch (_) {}
 }
 
@@ -711,7 +740,10 @@ onMounted(() => {
 .profile-option { display: flex; justify-content: space-between; gap: 16px; padding: 12px; border-radius: 12px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.035); margin-bottom: 8px; cursor: pointer; }
 .profile-option-name { display: block; color: var(--text-1); font-size: 0.88rem; }
 .profile-option-meta { display: block; margin-top: 4px; color: var(--text-3); font-size: 0.72rem; }
+.profile-option.active { border-color: rgba(178,149,93,0.62); background: var(--accent-glow); }
+.profile-option-side { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .profile-option-type { color: var(--accent); font-size: 0.72rem; white-space: nowrap; }
+.profile-option-check { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--card-border); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700; }
 .profile-empty { padding: 28px; text-align: center; color: var(--text-3); font-size: 0.84rem; }
 .tool-sheet-panel { width: min(520px, calc(100vw - 28px)); }
 .tool-options { display: grid; gap: 8px; }
