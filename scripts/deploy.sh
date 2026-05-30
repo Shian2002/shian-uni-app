@@ -9,7 +9,7 @@ H5_DIR="/var/www/xuan-cet"    # H5 静态文件根目录
 FLASK_DIR="/opt/xuan-cet/backend"  # Flask 后端目录
 FLASK_PORT=5199               # Flask 端口
 FLASK_USER="lighthouse"       # 运行 Flask 的系统用户
-DATABASE_URL="sqlite:////home/lighthouse/tianji/flask-source/backend/tianji.db"  # 生产历史数据源
+DATABASE_URL="sqlite:////opt/xuan-cet/backend/tianji.db"  # 线上生产库，部署脚本禁止覆盖
 NGINX_CONF="/etc/nginx/sites-available/xuan-cet"
 NGINX_ENABLED="/etc/nginx/sites-enabled/xuan-cet"
 SERVER_IP="119.29.128.18"
@@ -29,11 +29,18 @@ echo ""
 echo "=== 2. 部署 Flask 后端 ==="
 sudo mkdir -p "$FLASK_DIR"
 
-# 如果当前目录有 backend 文件夹，复制过去
+# 如果当前目录有 backend 文件夹，复制过去，但永远不复制 SQLite 数据库。
+# 线上 tianji.db 是生产数据，只能通过单独、显式、有备份的流程同步。
 if [ -d "./flask-source/backend" ]; then
-  sudo cp -r ./flask-source/backend/* "$FLASK_DIR/"
+  sudo find ./flask-source/backend -mindepth 1 -maxdepth 1 \
+    ! -name 'tianji.db' ! -name 'tianji.db-*' ! -name 'tianji.db.*' \
+    ! -name '.env' \
+    -exec cp -r {} "$FLASK_DIR/" \;
 elif [ -d "../flask-source/backend" ]; then
-  sudo cp -r ../flask-source/backend/* "$FLASK_DIR/"
+  sudo find ../flask-source/backend -mindepth 1 -maxdepth 1 \
+    ! -name 'tianji.db' ! -name 'tianji.db-*' ! -name 'tianji.db.*' \
+    ! -name '.env' \
+    -exec cp -r {} "$FLASK_DIR/" \;
 fi
 
 # 创建虚拟环境并安装依赖
@@ -46,6 +53,17 @@ sudo sed -i "s|os.path.expanduser('~/WorkBuddy/Claw')|'/opt/xuan-cet/paipan'|" "
 # 确保上传目录存在且有写权限
 sudo mkdir -p "$H5_DIR/static/uploads"
 sudo chown -R $FLASK_USER:$FLASK_USER "$H5_DIR/static/uploads"
+
+# 后端启动会执行 create_all/轻量迁移；重启前先备份生产库，便于回滚。
+if [ -f "$FLASK_DIR/tianji.db" ]; then
+  DB_BACKUP="$FLASK_DIR/tianji.db.bak-deploy-$(date +%Y%m%d-%H%M%S)"
+  sudo cp "$FLASK_DIR/tianji.db" "$DB_BACKUP"
+  sudo chown $FLASK_USER:$FLASK_USER "$DB_BACKUP"
+  echo "  已备份生产数据库: $DB_BACKUP"
+else
+  echo "  [ERROR] 未找到 $FLASK_DIR/tianji.db；为避免静默创建空库，部署已停止。"
+  exit 1
+fi
 
 # 创建 .env（如果不存在）
 if [ ! -f "$FLASK_DIR/.env" ] && [ -f "./flask-source/backend/.env" ]; then

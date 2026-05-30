@@ -37,6 +37,7 @@ eval "$RSYNC_CMD" \
 
 # 4. 重启后端
 echo "[4/4] 重启后端..."
+$SSH_CMD "$SERVER" "cd /opt/xuan-cet/backend && if [ -f tianji.db ]; then cp tianji.db tianji.db.bak-deploy-\$(date +%Y%m%d-%H%M%S); else echo '[ERROR] 未找到 /opt/xuan-cet/backend/tianji.db，停止部署以避免创建空库'; exit 1; fi"
 $SSH_CMD "$SERVER" "sudo fuser -k 5199/tcp 2>/dev/null; sleep 2; cd /opt/xuan-cet/backend && sudo -b env UPLOAD_FOLDER=/var/www/xuan-cet/static/uploads nohup ./venv/bin/python app.py > /tmp/xuan-cet.log 2>&1"
 sleep 2
 echo "  等待服务启动..."

@@ -19,3 +19,4 @@ test_*.py
 test-*.mjs
 *.pyc
 __pycache__/
+.gstack/
