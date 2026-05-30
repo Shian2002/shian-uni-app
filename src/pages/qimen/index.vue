@@ -184,6 +184,27 @@ function toggleSubmenu(key) { submenuOpen.value[key] = !submenuOpen.value[key] }
 const isLoggedIn = ref(!!uni.getStorageSync('xc_token'))
 window.addEventListener('xc-session-expired', function() { isLoggedIn.value = false })
 
+function releaseQimenPageScroll() {
+  // 从固定首页切到奇门时，确保移动端恢复普通页面滚动。
+  // #ifdef H5
+  try {
+    document.documentElement.classList.remove('home-fixed-page')
+    document.body.classList.remove('home-fixed-page')
+    document.documentElement.classList.add('qimen-page-active')
+    document.body.classList.add('qimen-page-active')
+    var wrappers = document.querySelectorAll('uni-page-wrapper')
+    for (var i = 0; i < wrappers.length; i++) {
+      var el = wrappers[i]
+      var rect = el.getBoundingClientRect()
+      if (rect.width > 0 && rect.height > 0) {
+        el.style.overflowY = 'auto'
+        el.style.webkitOverflowScrolling = 'touch'
+      }
+    }
+  } catch(_) {}
+  // #endif
+}
+
 // Tab切换
 const activeTab = ref('free')
 
@@ -877,6 +898,7 @@ function applyNavQuery(q) {
 }
 
 onShow(() => {
+  releaseQimenPageScroll()
   try {
     var q = sessionStorage.getItem('_nav_query')
     if (q) { sessionStorage.removeItem('_nav_query'); applyNavQuery(q) }
@@ -903,6 +925,7 @@ onShow(() => {
 })
 
 onMounted(() => {
+  releaseQimenPageScroll()
   try {
     uni.$on('nav-query', function(q) { applyNavQuery(q) })
     var q = sessionStorage.getItem('_nav_query')
@@ -1305,5 +1328,46 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .chat-send-btn {
   padding: 8px 20px; background: var(--accent); color: #fff;
   border-radius: 999px; font-size: 0.875rem; cursor: pointer; white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .page-root,
+  .page-wrap,
+  .tool-container,
+  .tool-tab-content {
+    touch-action: pan-y;
+  }
+  .qai-result {
+    max-height: none;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: auto;
+  }
+  .qai-stream-box,
+  .chat-container,
+  .chat-bubble-ai,
+  .chat-bubble-content {
+    overflow: visible;
+    touch-action: pan-y;
+  }
+  .qf-result {
+    overflow-x: auto;
+    overflow-y: visible;
+    overscroll-behavior-x: contain;
+  }
+}
+:global(html.qimen-page-active),
+:global(body.qimen-page-active) {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+:global(body.qimen-page-active uni-page-wrapper) {
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+:global(body.qimen-page-active uni-page-body) {
+  overflow: visible !important;
 }
 </style>

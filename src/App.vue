@@ -16,6 +16,113 @@ export default {
     } catch(_) {}
     document.documentElement.setAttribute('data-theme', saved)
     document.body.setAttribute('data-theme', saved)
+    function _syncHomeFixedRoute() {
+      try {
+        var hash = window.location.hash || ''
+        var isHome = hash.indexOf('#/pages/index/index') === 0 || hash === '' || hash === '#/'
+        var isQimen = hash.indexOf('#/pages/qimen/index') === 0
+        if (isHome) {
+          document.documentElement.classList.add('home-fixed-page')
+          document.body.classList.add('home-fixed-page')
+        } else {
+          document.documentElement.classList.remove('home-fixed-page')
+          document.body.classList.remove('home-fixed-page')
+        }
+        if (isQimen) {
+          document.documentElement.classList.add('qimen-page-active')
+          document.body.classList.add('qimen-page-active')
+        } else {
+          document.documentElement.classList.remove('qimen-page-active')
+          document.body.classList.remove('qimen-page-active')
+        }
+      } catch(_) {}
+    }
+    function _getActivePageScroller() {
+      try {
+        var pages = Array.prototype.slice.call(document.querySelectorAll('uni-page-wrapper'))
+        for (var i = pages.length - 1; i >= 0; i--) {
+          var el = pages[i]
+          var rect = el.getBoundingClientRect()
+          if (rect.width > 0 && rect.height > 0 && el.scrollHeight > el.clientHeight + 2) return el
+        }
+      } catch(_) {}
+      return null
+    }
+    window.addEventListener('wheel', function(e) {
+      try {
+        var hash = window.location.hash || ''
+        var isHome = hash.indexOf('#/pages/index/index') === 0 || hash === '' || hash === '#/'
+        if (isHome || !e.deltaY) return
+        var scroller = _getActivePageScroller()
+        if (!scroller) return
+        var before = scroller.scrollTop
+        scroller.scrollTop += e.deltaY
+        if (scroller.scrollTop !== before) e.preventDefault()
+      } catch(_) {}
+    }, { passive: false })
+    _syncHomeFixedRoute()
+    setTimeout(_syncHomeFixedRoute, 0)
+    setTimeout(_syncHomeFixedRoute, 200)
+    setTimeout(_syncHomeFixedRoute, 800)
+    setTimeout(_syncHomeFixedRoute, 1600)
+    window.addEventListener('load', function() { setTimeout(_syncHomeFixedRoute, 0); setTimeout(_syncHomeFixedRoute, 200) })
+    window.addEventListener('hashchange', function() { setTimeout(_syncHomeFixedRoute, 0); setTimeout(_syncHomeFixedRoute, 120) })
+    window.addEventListener('popstate', function() { setTimeout(_syncHomeFixedRoute, 0); setTimeout(_syncHomeFixedRoute, 120) })
+    document.addEventListener('click', function() { setTimeout(_syncHomeFixedRoute, 80); setTimeout(_syncHomeFixedRoute, 300) }, true)
+    function _isTypingTarget(el) {
+      if (!el) return false
+      var tag = (el.tagName || '').toLowerCase()
+      return tag === 'input' || tag === 'textarea' || tag === 'select' || el.isContentEditable
+    }
+    function _closeTopLayer() {
+      var closed = false
+      try {
+        var selectors = [
+          '.modal-overlay.open',
+          '.profile-sheet.open',
+          '.tool-sheet.open',
+          '.llm-sheet.open',
+          '.nav-btn-more.open',
+          '.nav-dropdown.open',
+          '.nav-avatar-dropdown.open',
+          '.nav-btn-drop-menu.open',
+          '.sidebar-overlay.show',
+          '.tarot-sidebar.open'
+        ]
+        selectors.forEach(function(sel) {
+          document.querySelectorAll(sel).forEach(function(el) {
+            el.classList.remove('open')
+            el.classList.remove('show')
+            closed = true
+          })
+        })
+        document.querySelectorAll('.modal-overlay[style*="display: flex"], .modal-overlay[style*="display:flex"]').forEach(function(el) {
+          el.style.display = 'none'
+          closed = true
+        })
+      } catch(_) {}
+      return closed
+    }
+    document.addEventListener('keydown', function(e) {
+      try {
+        if (e.key === 'Escape') {
+          if (_closeTopLayer()) {
+            e.preventDefault()
+            e.stopPropagation()
+          }
+          return
+        }
+        if (e.key !== 'Enter' || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return
+        if (_isTypingTarget(e.target) && (e.target.tagName || '').toLowerCase() === 'textarea') return
+        var modal = document.querySelector('.modal-overlay.open')
+        if (!modal) return
+        var primary = modal.querySelector('.btn-primary, .modal-confirm, .confirm-btn, .btn:not(.btn-outline):not(.btn-ghost):not(.btn-secondary)')
+        if (primary && !primary.classList.contains('disabled')) {
+          primary.click()
+          e.preventDefault()
+        }
+      } catch(_) {}
+    }, true)
     // 修复 uni-app H5 运行时桌面端强制缩放 rem 的问题
     // uni-app 内置 useRem() 会设 html font-size = width / 23.4375，
     // 桌面端 800px+ 视口下导致全局放大 2 倍以上。
@@ -278,6 +385,855 @@ uni-tabbar, .uni-tabbar, .uni-tabbar-bottom {
 .site-footer{margin-top:0!important;padding:16px 32px 12px!important}.site-footer .footer-disclaimer{margin-bottom:0!important}@media(max-width:768px){.site-footer{padding:12px 16px 10px!important}}
 uni-page-wrapper{min-height:0!important}
 .page-root{padding-top:60px!important}@media(max-width:768px){.page-root{padding-top:56px!important}}
+body:not(.home-fixed-page) .page-root{
+  height:auto!important;
+  min-height:calc(100dvh - 60px)!important;
+  overflow:visible!important;
+}
+body:not(.home-fixed-page) .page-wrap{
+  height:auto!important;
+  min-height:0!important;
+  overflow:visible!important;
+}
+body:not(.home-fixed-page) uni-page-body,
+body:not(.home-fixed-page) uni-page-wrapper{
+  overflow-y:auto!important;
+  -webkit-overflow-scrolling:touch;
+}
+body:not(.home-fixed-page) uni-page-wrapper{
+  height:100dvh!important;
+  max-height:100dvh!important;
+}
+body:not(.home-fixed-page) uni-page-body{
+  height:auto!important;
+  min-height:100%!important;
+  overflow:visible!important;
+}
+@media(max-width:768px){
+  body:not(.home-fixed-page) .page-root{min-height:calc(100dvh - 56px)!important}
+}
+
+/* 第二批工具页视觉优化：统一术数工具台的密度、层次和可点击状态 */
+body:not(.home-fixed-page) .tool-hero,
+body:not(.home-fixed-page) .tarot-hero{
+  padding-top:42px!important;
+  padding-bottom:22px!important;
+}
+body:not(.home-fixed-page) .tool-hero-title,
+body:not(.home-fixed-page) .tarot-hero-title{
+  font-size:clamp(1.45rem,2.2vw,2rem)!important;
+  letter-spacing:3px!important;
+  margin-bottom:8px!important;
+}
+body:not(.home-fixed-page) .tool-hero-desc,
+body:not(.home-fixed-page) .tarot-hero-desc{
+  max-width:720px;
+  margin-left:auto!important;
+  margin-right:auto!important;
+  color:var(--text-3)!important;
+}
+body:not(.home-fixed-page) .section{
+  padding-top:42px!important;
+  padding-bottom:72px!important;
+}
+body:not(.home-fixed-page) .tool-container,
+body:not(.home-fixed-page) .tarot-section{
+  position:relative;
+  border-radius:18px!important;
+  border:1px solid rgba(178,149,93,.18)!important;
+  background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.035)),var(--card-bg)!important;
+  box-shadow:0 18px 54px rgba(0,0,0,.16),inset 0 1px 0 rgba(255,255,255,.08)!important;
+  overflow:visible!important;
+}
+body:not(.home-fixed-page) .tool-container::before,
+body:not(.home-fixed-page) .tarot-section::before{
+  content:'';
+  position:absolute;
+  left:18px;
+  right:18px;
+  top:0;
+  height:1px;
+  background:linear-gradient(90deg,transparent,rgba(178,149,93,.48),transparent);
+  pointer-events:none;
+}
+body:not(.home-fixed-page) .tool-tabs{
+  display:flex!important;
+  gap:6px!important;
+  padding:5px!important;
+  margin-bottom:22px!important;
+  border:1px solid rgba(178,149,93,.14)!important;
+  border-radius:14px!important;
+  background:rgba(0,0,0,.035)!important;
+  overflow-x:auto!important;
+  scrollbar-width:none;
+}
+body:not(.home-fixed-page) .tool-tabs::-webkit-scrollbar{display:none}
+body:not(.home-fixed-page) .tool-tab{
+  flex:1 0 auto;
+  min-height:38px;
+  display:inline-flex!important;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  padding:9px 14px!important;
+  border:1px solid transparent!important;
+  border-radius:10px!important;
+  color:var(--text-2)!important;
+  background:transparent!important;
+  white-space:nowrap;
+  transition:background .18s ease,border-color .18s ease,color .18s ease,transform .18s ease!important;
+}
+body:not(.home-fixed-page) .tool-tab.active{
+  color:var(--accent)!important;
+  border-color:rgba(178,149,93,.34)!important;
+  background:linear-gradient(180deg,rgba(178,149,93,.16),rgba(178,149,93,.07))!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10);
+}
+body:not(.home-fixed-page) .tool-tab:hover{transform:translateY(-1px)}
+body:not(.home-fixed-page) .tab-badge{
+  border-radius:999px!important;
+  padding:1px 6px!important;
+  letter-spacing:0!important;
+}
+body:not(.home-fixed-page) .qf-datetime-section,
+body:not(.home-fixed-page) .wz-advanced-box,
+body:not(.home-fixed-page) .tarot-settings,
+body:not(.home-fixed-page) .ly-auto-info{
+  border:1px solid rgba(178,149,93,.14)!important;
+  background:rgba(255,255,255,.045)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+}
+body:not(.home-fixed-page) .qf-datetime-row,
+body:not(.home-fixed-page) .wz-datetime-row{
+  display:grid!important;
+  grid-template-columns:repeat(auto-fit,minmax(92px,1fr))!important;
+  gap:8px!important;
+}
+body:not(.home-fixed-page) .qf-dt-col,
+body:not(.home-fixed-page) .wz-dt-col,
+body:not(.home-fixed-page) .wz-dt-hour,
+body:not(.home-fixed-page) .wz-dt-minute,
+body:not(.home-fixed-page) .qf-dt-col-narrow{
+  min-width:0!important;
+  width:100%!important;
+  flex:initial!important;
+}
+body:not(.home-fixed-page) .qf-datetime-select,
+body:not(.home-fixed-page) .wz-datetime-select,
+body:not(.home-fixed-page) .form-select-picker,
+body:not(.home-fixed-page) .wz-form-input,
+body:not(.home-fixed-page) .dom-input-wrap .native-input{
+  min-height:38px!important;
+  border-radius:10px!important;
+  border-color:rgba(178,149,93,.18)!important;
+  background:rgba(255,255,255,.06)!important;
+  color:var(--text-1)!important;
+}
+body:not(.home-fixed-page) .qf-datetime-select:focus,
+body:not(.home-fixed-page) .wz-datetime-select:focus,
+body:not(.home-fixed-page) .form-select-picker:focus,
+body:not(.home-fixed-page) .wz-form-input:focus,
+body:not(.home-fixed-page) .dom-input-wrap .native-input:focus{
+  border-color:rgba(178,149,93,.58)!important;
+  box-shadow:0 0 0 3px rgba(178,149,93,.10)!important;
+}
+body:not(.home-fixed-page) .submit-btn,
+body:not(.home-fixed-page) .wz-submit-btn,
+body:not(.home-fixed-page) .tarot-draw-btn,
+body:not(.home-fixed-page) .tarot-btn-primary,
+body:not(.home-fixed-page) .zeji-submit{
+  min-height:42px!important;
+  border-radius:999px!important;
+  background:linear-gradient(135deg,#7f6128,#c39a45 48%,#8c6a2b)!important;
+  color:#fff!important;
+  border:1px solid rgba(255,255,255,.18)!important;
+  box-shadow:0 10px 24px rgba(105,73,18,.22),inset 0 1px 0 rgba(255,255,255,.18)!important;
+  text-shadow:0 1px 1px rgba(0,0,0,.18);
+  transition:transform .18s ease,box-shadow .18s ease,filter .18s ease!important;
+}
+body:not(.home-fixed-page) .submit-btn:hover,
+body:not(.home-fixed-page) .wz-submit-btn:hover,
+body:not(.home-fixed-page) .tarot-draw-btn:hover,
+body:not(.home-fixed-page) .tarot-btn-primary:hover,
+body:not(.home-fixed-page) .zeji-submit:hover{
+  transform:translateY(-1px);
+  filter:saturate(1.05);
+  box-shadow:0 14px 30px rgba(105,73,18,.28),inset 0 1px 0 rgba(255,255,255,.22)!important;
+}
+body:not(.home-fixed-page) .btn-ghost,
+body:not(.home-fixed-page) .tarot-btn-outline{
+  min-height:40px!important;
+  border-radius:999px!important;
+  border-color:rgba(178,149,93,.22)!important;
+  color:var(--text-2)!important;
+  background:rgba(255,255,255,.04)!important;
+}
+body:not(.home-fixed-page) .record-page{
+  border:1px solid rgba(178,149,93,.12);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+}
+body:not(.home-fixed-page) .record-toolbar,
+body:not(.home-fixed-page) .record-filter-row{
+  gap:8px!important;
+}
+body:not(.home-fixed-page) .record-search{
+  border:1px solid rgba(178,149,93,.14)!important;
+  background:rgba(255,255,255,.055)!important;
+}
+body:not(.home-fixed-page) .record-filter-tag,
+body:not(.home-fixed-page) .action-btn{
+  border-radius:999px!important;
+}
+body:not(.home-fixed-page) .bz-card{
+  border-radius:12px!important;
+  border-color:rgba(178,149,93,.14)!important;
+  background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.025)),var(--card-bg)!important;
+  box-shadow:0 8px 22px rgba(0,0,0,.08);
+}
+body:not(.home-fixed-page) .bz-card:hover{
+  transform:translateY(-1px);
+  box-shadow:0 12px 28px rgba(0,0,0,.12);
+}
+body:not(.home-fixed-page) .tarot-hero-icon{
+  font-size:3.25rem!important;
+  margin-bottom:10px!important;
+}
+body:not(.home-fixed-page) .spread-card{
+  border-radius:12px!important;
+  border-color:rgba(178,149,93,.16)!important;
+  background:rgba(255,255,255,.05)!important;
+}
+@media(max-width:768px){
+  body:not(.home-fixed-page) .tool-hero,
+  body:not(.home-fixed-page) .tarot-hero{padding:30px 16px 16px!important}
+  body:not(.home-fixed-page) .section{padding:28px 14px 56px!important}
+  body:not(.home-fixed-page) .tool-container,
+  body:not(.home-fixed-page) .tarot-section{border-radius:16px!important}
+  body:not(.home-fixed-page) .qf-datetime-row,
+  body:not(.home-fixed-page) .wz-datetime-row{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  body:not(.home-fixed-page) .btn-row{gap:8px!important}
+}
+
+/* 第三批工具页体验优化：首屏可达、吸顶导航、记录与结果区阅读性 */
+body:not(.home-fixed-page) .tool-tabs{
+  position:sticky!important;
+  top:68px;
+  z-index:20;
+  backdrop-filter:blur(18px) saturate(150%);
+}
+body:not(.home-fixed-page) .record-tabs{
+  position:sticky;
+  top:68px;
+  z-index:18;
+  background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.04)),var(--card-bg);
+  backdrop-filter:blur(18px) saturate(150%);
+}
+body:not(.home-fixed-page) .record-tab{
+  min-height:44px;
+  display:flex;
+  align-items:center;
+  border-bottom-width:3px!important;
+}
+body:not(.home-fixed-page) .record-empty{
+  margin:14px 20px 22px!important;
+  padding:42px 20px!important;
+  border:1px dashed rgba(178,149,93,.22);
+  border-radius:16px;
+  background:rgba(255,255,255,.035);
+}
+body:not(.home-fixed-page) .empty-icon{
+  opacity:.72!important;
+  filter:drop-shadow(0 8px 18px rgba(120,80,12,.12));
+}
+body:not(.home-fixed-page) .qai-stream-box,
+body:not(.home-fixed-page) .qai-result,
+body:not(.home-fixed-page) .ly-result-card,
+body:not(.home-fixed-page) .qf-result-card,
+body:not(.home-fixed-page) .tarot-reading-section,
+body:not(.home-fixed-page) .chat-bubble-ai{
+  border-radius:16px!important;
+  border-color:rgba(178,149,93,.16)!important;
+  background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.025)),var(--card-bg)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06)!important;
+}
+body:not(.home-fixed-page) .qai-card-title,
+body:not(.home-fixed-page) .reading-title,
+body:not(.home-fixed-page) .qf-result-title{
+  letter-spacing:1px!important;
+}
+body:not(.home-fixed-page) .chat-input-bar{
+  border-radius:14px!important;
+  border:1px solid rgba(178,149,93,.16)!important;
+  background:rgba(255,255,255,.045)!important;
+}
+body:not(.home-fixed-page) .chat-input{
+  min-height:38px!important;
+  border-radius:999px!important;
+  border-color:rgba(178,149,93,.16)!important;
+  background:rgba(255,255,255,.055)!important;
+}
+body:not(.home-fixed-page) .chat-send-btn{
+  min-height:38px!important;
+  border-radius:999px!important;
+  display:flex!important;
+  align-items:center;
+  justify-content:center;
+  background:linear-gradient(135deg,#7f6128,#c39a45 48%,#8c6a2b)!important;
+  box-shadow:0 8px 18px rgba(105,73,18,.18);
+}
+body:not(.home-fixed-page) .tarot-btn-row,
+body:not(.home-fixed-page) .btn-row,
+body:not(.home-fixed-page) .wz-smart-btns{
+  align-items:stretch!important;
+}
+body:not(.home-fixed-page) .tarot-btn-row .btn-ghost,
+body:not(.home-fixed-page) .btn-row .btn-ghost{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+@media(max-width:480px){
+  body:not(.home-fixed-page) .page-root{padding-top:52px!important}
+  body:not(.home-fixed-page) .tool-hero,
+  body:not(.home-fixed-page) .tarot-hero{padding:18px 14px 10px!important}
+  body:not(.home-fixed-page) .tool-hero-title,
+  body:not(.home-fixed-page) .tarot-hero-title{font-size:1.16rem!important;letter-spacing:1.5px!important}
+  body:not(.home-fixed-page) .tool-hero-desc,
+  body:not(.home-fixed-page) .tarot-hero-desc{font-size:.72rem!important;line-height:1.55!important;letter-spacing:.5px!important}
+  body:not(.home-fixed-page) .section{padding:14px 10px 48px!important}
+  body:not(.home-fixed-page) .tool-container,
+  body:not(.home-fixed-page) .tarot-section{padding:14px 10px!important}
+  body:not(.home-fixed-page) .tool-tabs{top:56px;margin-bottom:14px!important}
+  body:not(.home-fixed-page) .record-tabs{top:56px;padding:0 10px!important}
+  body:not(.home-fixed-page) .tool-tab{min-height:34px!important;padding:7px 10px!important;font-size:.72rem!important}
+  body:not(.home-fixed-page) .tab-badge{font-size:.48rem!important}
+  body:not(.home-fixed-page) .qf-datetime-row,
+  body:not(.home-fixed-page) .wz-datetime-row{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important}
+  body:not(.home-fixed-page) .qf-datetime-select,
+  body:not(.home-fixed-page) .wz-datetime-select,
+  body:not(.home-fixed-page) .form-select-picker,
+  body:not(.home-fixed-page) .wz-form-input,
+  body:not(.home-fixed-page) .dom-input-wrap .native-input{min-height:36px!important;font-size:.78rem!important}
+  body:not(.home-fixed-page) .submit-btn,
+  body:not(.home-fixed-page) .wz-submit-btn,
+  body:not(.home-fixed-page) .tarot-draw-btn,
+  body:not(.home-fixed-page) .tarot-btn-primary,
+  body:not(.home-fixed-page) .zeji-submit{min-height:40px!important;font-size:.84rem!important;letter-spacing:1px!important}
+  body:not(.home-fixed-page) .tarot-btn-row,
+  body:not(.home-fixed-page) .btn-row{display:grid!important;grid-template-columns:1fr!important}
+  body:not(.home-fixed-page) .tarot-btn-row > *,
+  body:not(.home-fixed-page) .btn-row > *,
+  body:not(.home-fixed-page) .wz-smart-btns > *{width:100%!important;max-width:100%!important;box-sizing:border-box!important}
+  body:not(.home-fixed-page) .spread-grid{grid-template-columns:1fr 1fr!important;gap:8px!important}
+  body:not(.home-fixed-page) .spread-card{min-height:72px!important;padding:9px 10px!important}
+  body:not(.home-fixed-page) .spread-card-desc{-webkit-line-clamp:2!important}
+  body:not(.home-fixed-page) .record-toolbar{padding:10px 12px 4px!important}
+  body:not(.home-fixed-page) .record-filter-row{padding:8px 12px 10px!important}
+  body:not(.home-fixed-page) .case-cards,
+  body:not(.home-fixed-page) .star-cards{padding:12px!important}
+  body:not(.home-fixed-page) .bz-card .card-gz{min-width:104px!important;gap:6px!important;padding:6px!important}
+  body:not(.home-fixed-page) .bz-card .gz-col{flex-basis:24px!important;min-width:24px!important}
+  body:not(.home-fixed-page) .bz-card .gz-circle{width:22px!important;height:22px!important}
+  body:not(.home-fixed-page) .record-empty{margin:12px!important;padding:32px 14px!important}
+}
+
+/* 第四批内容页视觉收口：个人中心、积分中心、专属日历、社区、关于我们 */
+body:not(.home-fixed-page) .about-hero,
+body:not(.home-fixed-page) .calendar-hero{
+  padding-top:46px!important;
+  padding-bottom:24px!important;
+}
+body:not(.home-fixed-page) .about-hero-title,
+body:not(.home-fixed-page) .calendar-hero-title{
+  font-size:clamp(1.36rem,2vw,1.86rem)!important;
+  letter-spacing:2.5px!important;
+  margin-bottom:10px!important;
+}
+body:not(.home-fixed-page) .about-hero-desc,
+body:not(.home-fixed-page) .calendar-hero-desc{
+  color:var(--text-3)!important;
+  max-width:720px!important;
+}
+body:not(.home-fixed-page) .points-card,
+body:not(.home-fixed-page) .calendar-card,
+body:not(.home-fixed-page) .profile-card,
+body:not(.home-fixed-page) .settings-list,
+body:not(.home-fixed-page) .community-post-card,
+body:not(.home-fixed-page) .up-header,
+body:not(.home-fixed-page) .faq-panel,
+body:not(.home-fixed-page) .trust-authority,
+body:not(.home-fixed-page) .case-card,
+body:not(.home-fixed-page) .feature-card,
+body:not(.home-fixed-page) .scenario-card,
+body:not(.home-fixed-page) .edu-card,
+body:not(.home-fixed-page) .hero-card{
+  border-color:rgba(178,149,93,.16)!important;
+  box-shadow:0 16px 42px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.07)!important;
+}
+body:not(.home-fixed-page) .calendar-card,
+body:not(.home-fixed-page) .settings-list,
+body:not(.home-fixed-page) .community-post-card,
+body:not(.home-fixed-page) .up-header,
+body:not(.home-fixed-page) .faq-panel,
+body:not(.home-fixed-page) .trust-authority,
+body:not(.home-fixed-page) .case-card,
+body:not(.home-fixed-page) .feature-card,
+body:not(.home-fixed-page) .scenario-card,
+body:not(.home-fixed-page) .edu-card,
+body:not(.home-fixed-page) .hero-card{
+  background:linear-gradient(180deg,rgba(255,255,255,.065),rgba(255,255,255,.026)),var(--card-bg)!important;
+}
+body:not(.home-fixed-page) .points-card{
+  background:
+    radial-gradient(circle at 82% 0%,rgba(255,255,255,.22),transparent 34%),
+    linear-gradient(135deg,#84662b 0%,#c5a14e 48%,#7a5b22 100%)!important;
+  border:1px solid rgba(255,255,255,.18)!important;
+  overflow:hidden!important;
+}
+body:not(.home-fixed-page) .signin-btn,
+body:not(.home-fixed-page) .load-more,
+body:not(.home-fixed-page) .cal-nav-btn,
+body:not(.home-fixed-page) .pd-back,
+body:not(.home-fixed-page) .pd-like-btn,
+body:not(.home-fixed-page) .pd-edit-btn,
+body:not(.home-fixed-page) .img-upload-btn{
+  border-radius:999px!important;
+  border-color:rgba(178,149,93,.22)!important;
+}
+body:not(.home-fixed-page) .pkg-scroll{
+  gap:12px!important;
+  padding:4px 2px 10px!important;
+  overflow-x:auto!important;
+  scrollbar-width:none;
+}
+body:not(.home-fixed-page) .pkg-scroll::-webkit-scrollbar{display:none}
+body:not(.home-fixed-page) .pkg-card{
+  border-radius:14px!important;
+  border-color:rgba(178,149,93,.16)!important;
+  background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.025)),var(--card-bg)!important;
+  box-shadow:0 8px 22px rgba(0,0,0,.08)!important;
+}
+body:not(.home-fixed-page) .pkg-card:first-child{
+  background:linear-gradient(180deg,rgba(178,149,93,.20),rgba(178,149,93,.06)),var(--card-bg)!important;
+  border-color:rgba(178,149,93,.46)!important;
+}
+body:not(.home-fixed-page) .dp-tabs,
+body:not(.home-fixed-page) .case-tabs,
+body:not(.home-fixed-page) .category-tab,
+body:not(.home-fixed-page) .sort-tab{
+  gap:8px!important;
+  overflow-x:auto!important;
+  flex-wrap:nowrap!important;
+  scrollbar-width:none;
+}
+body:not(.home-fixed-page) .dp-tabs::-webkit-scrollbar,
+body:not(.home-fixed-page) .case-tabs::-webkit-scrollbar,
+body:not(.home-fixed-page) .category-tab::-webkit-scrollbar,
+body:not(.home-fixed-page) .sort-tab::-webkit-scrollbar{display:none}
+body:not(.home-fixed-page) .dp-tab,
+body:not(.home-fixed-page) .case-tab,
+body:not(.home-fixed-page) .ctab,
+body:not(.home-fixed-page) .stab{
+  flex:0 0 auto!important;
+  border-radius:999px!important;
+  border-color:rgba(178,149,93,.18)!important;
+  background:rgba(255,255,255,.035)!important;
+  color:var(--text-2)!important;
+}
+body:not(.home-fixed-page) .dp-tab.active,
+body:not(.home-fixed-page) .case-tab.active,
+body:not(.home-fixed-page) .ctab.active,
+body:not(.home-fixed-page) .stab.active{
+  color:var(--accent)!important;
+  background:rgba(178,149,93,.14)!important;
+  border-color:rgba(178,149,93,.46)!important;
+}
+body:not(.home-fixed-page) .dp-list{
+  border-color:rgba(178,149,93,.16)!important;
+  background:rgba(255,255,255,.025)!important;
+}
+body:not(.home-fixed-page) .dp-item{
+  min-height:58px!important;
+  gap:12px!important;
+}
+body:not(.home-fixed-page) .cal-grid{
+  gap:5px!important;
+}
+body:not(.home-fixed-page) .cal-cell{
+  min-height:72px!important;
+  border-radius:10px!important;
+  background:rgba(255,255,255,.045)!important;
+  border-color:rgba(178,149,93,.08)!important;
+}
+body:not(.home-fixed-page) .cal-cell.today,
+body:not(.home-fixed-page) .cal-cell.selected{
+  background:rgba(178,149,93,.14)!important;
+  border-color:rgba(178,149,93,.52)!important;
+  box-shadow:0 0 0 1px rgba(178,149,93,.18)!important;
+}
+body:not(.home-fixed-page) .cal-detail-item,
+body:not(.home-fixed-page) .compliance-notice,
+body:not(.home-fixed-page) .search-row .form-input,
+body:not(.home-fixed-page) .settings-accordion{
+  border:1px solid rgba(178,149,93,.14)!important;
+  background:rgba(255,255,255,.045)!important;
+}
+body:not(.home-fixed-page) .search-row .form-input:focus{
+  border-color:rgba(178,149,93,.55)!important;
+  box-shadow:0 0 0 3px rgba(178,149,93,.10)!important;
+}
+body:not(.home-fixed-page) .community-post-card{
+  padding:22px!important;
+}
+body:not(.home-fixed-page) .post-avatar,
+body:not(.home-fixed-page) .up-avatar,
+body:not(.home-fixed-page) .profile-card-avatar{
+  box-shadow:0 8px 22px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.12)!important;
+}
+body:not(.home-fixed-page) .post-badge{
+  border-color:rgba(178,149,93,.35)!important;
+  background:rgba(178,149,93,.12)!important;
+}
+body:not(.home-fixed-page) .post-actions,
+body:not(.home-fixed-page) .pd-actions{
+  border-top-color:rgba(178,149,93,.12)!important;
+}
+body:not(.home-fixed-page) .settings-item{
+  min-height:50px!important;
+  border-bottom-color:rgba(178,149,93,.10)!important;
+}
+body:not(.home-fixed-page) .settings-item:hover,
+body:not(.home-fixed-page) .dp-item:hover,
+body:not(.home-fixed-page) .community-post-card:hover,
+body:not(.home-fixed-page) .hero-card:hover,
+body:not(.home-fixed-page) .scenario-card:hover{
+  background:rgba(178,149,93,.08)!important;
+  border-color:rgba(178,149,93,.32)!important;
+}
+body:not(.home-fixed-page) .settings-logout{
+  border-radius:999px!important;
+  background:rgba(215,125,110,.05)!important;
+}
+body:not(.home-fixed-page) .profile-empty,
+body:not(.home-fixed-page) .com-empty,
+body:not(.home-fixed-page) .com-loading,
+body:not(.home-fixed-page) .record-empty{
+  border-radius:16px!important;
+  background:rgba(255,255,255,.035)!important;
+}
+body:not(.home-fixed-page) .section-alt,
+body:not(.home-fixed-page) .site-footer{
+  border-top:1px solid rgba(178,149,93,.10)!important;
+}
+body:not(.home-fixed-page) .section-title{
+  letter-spacing:1.2px!important;
+}
+@media(max-width:768px){
+  body:not(.home-fixed-page) .about-hero,
+  body:not(.home-fixed-page) .calendar-hero{padding:30px 16px 16px!important}
+  body:not(.home-fixed-page) .points-card{padding:24px 18px 22px!important}
+  body:not(.home-fixed-page) .points-number{font-size:2.45rem!important}
+  body:not(.home-fixed-page) .pkg-card{flex:0 0 132px!important}
+  body:not(.home-fixed-page) .calendar-card{padding:16px!important}
+  body:not(.home-fixed-page) .cal-grid{gap:4px!important}
+  body:not(.home-fixed-page) .cal-cell{min-height:64px!important;padding:4px 1px!important}
+  body:not(.home-fixed-page) .community-post-card{padding:16px!important}
+  body:not(.home-fixed-page) .post-badge{margin-left:0!important}
+}
+@media(max-width:480px){
+  body:not(.home-fixed-page) .about-hero,
+  body:not(.home-fixed-page) .calendar-hero{padding:20px 14px 12px!important}
+  body:not(.home-fixed-page) .about-hero-title,
+  body:not(.home-fixed-page) .calendar-hero-title{font-size:1.12rem!important;letter-spacing:1.2px!important}
+  body:not(.home-fixed-page) .about-hero-desc,
+  body:not(.home-fixed-page) .calendar-hero-desc{font-size:.72rem!important;line-height:1.55!important}
+  body:not(.home-fixed-page) .points-card{margin-bottom:16px!important}
+  body:not(.home-fixed-page) .pkg-scroll{margin-left:-2px!important;margin-right:-2px!important}
+  body:not(.home-fixed-page) .pkg-card{flex-basis:118px!important;padding:14px 10px!important}
+  body:not(.home-fixed-page) .dp-item{padding:12px!important}
+  body:not(.home-fixed-page) .cal-nav{gap:8px!important}
+  body:not(.home-fixed-page) .cal-nav-title{font-size:.82rem!important;letter-spacing:1px!important}
+  body:not(.home-fixed-page) .cal-cell{min-height:54px!important;border-radius:8px!important}
+  body:not(.home-fixed-page) .cal-lunar,
+  body:not(.home-fixed-page) .cal-gz,
+  body:not(.home-fixed-page) .cal-jc{font-size:.46rem!important}
+  body:not(.home-fixed-page) .search-row{gap:8px!important}
+  body:not(.home-fixed-page) .category-tab,
+  body:not(.home-fixed-page) .sort-tab{margin-bottom:14px!important}
+  body:not(.home-fixed-page) .profile-card{gap:12px!important;padding-bottom:18px!important;margin-bottom:18px!important}
+  body:not(.home-fixed-page) .settings-item{padding:12px!important}
+  body:not(.home-fixed-page) .hero-card,
+  body:not(.home-fixed-page) .trust-authority,
+  body:not(.home-fixed-page) .case-card,
+  body:not(.home-fixed-page) .feature-card,
+  body:not(.home-fixed-page) .scenario-card,
+  body:not(.home-fixed-page) .edu-card,
+  body:not(.home-fixed-page) .faq-panel{box-shadow:0 10px 24px rgba(0,0,0,.10),inset 0 1px 0 rgba(255,255,255,.06)!important}
+}
+
+/* 第五批交互质感：焦点、按压、加载与键盘可达性 */
+:focus{outline:none}
+:focus-visible{
+  outline:2px solid rgba(178,149,93,.62)!important;
+  outline-offset:3px!important;
+}
+body:not(.home-fixed-page) .btn,
+body:not(.home-fixed-page) .btn-primary,
+body:not(.home-fixed-page) .btn-outline,
+body:not(.home-fixed-page) .btn-ghost,
+body:not(.home-fixed-page) .submit-btn,
+body:not(.home-fixed-page) .wz-submit-btn,
+body:not(.home-fixed-page) .tarot-draw-btn,
+body:not(.home-fixed-page) .tarot-btn-primary,
+body:not(.home-fixed-page) .tarot-btn-outline,
+body:not(.home-fixed-page) .zeji-submit,
+body:not(.home-fixed-page) .chat-send-btn,
+body:not(.home-fixed-page) .home-ai-send,
+body:not(.home-fixed-page) .signin-btn,
+body:not(.home-fixed-page) .load-more,
+body:not(.home-fixed-page) .cal-nav-btn,
+body:not(.home-fixed-page) .pd-back,
+body:not(.home-fixed-page) .pd-like-btn,
+body:not(.home-fixed-page) .pd-edit-btn,
+body:not(.home-fixed-page) .img-upload-btn,
+body:not(.home-fixed-page) .settings-item,
+body:not(.home-fixed-page) .record-filter-tag,
+body:not(.home-fixed-page) .action-btn,
+body:not(.home-fixed-page) .tool-tab,
+body:not(.home-fixed-page) .record-tab,
+body:not(.home-fixed-page) .dp-tab,
+body:not(.home-fixed-page) .case-tab,
+body:not(.home-fixed-page) .ctab,
+body:not(.home-fixed-page) .stab{
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+  transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease,background .16s ease,color .16s ease,opacity .16s ease!important;
+}
+body:not(.home-fixed-page) .btn:active,
+body:not(.home-fixed-page) .btn-primary:active,
+body:not(.home-fixed-page) .btn-outline:active,
+body:not(.home-fixed-page) .btn-ghost:active,
+body:not(.home-fixed-page) .submit-btn:active,
+body:not(.home-fixed-page) .wz-submit-btn:active,
+body:not(.home-fixed-page) .tarot-draw-btn:active,
+body:not(.home-fixed-page) .tarot-btn-primary:active,
+body:not(.home-fixed-page) .tarot-btn-outline:active,
+body:not(.home-fixed-page) .zeji-submit:active,
+body:not(.home-fixed-page) .chat-send-btn:active,
+body:not(.home-fixed-page) .home-ai-send:active,
+body:not(.home-fixed-page) .signin-btn:active,
+body:not(.home-fixed-page) .load-more:active,
+body:not(.home-fixed-page) .cal-nav-btn:active,
+body:not(.home-fixed-page) .pd-back:active,
+body:not(.home-fixed-page) .pd-like-btn:active,
+body:not(.home-fixed-page) .pd-edit-btn:active,
+body:not(.home-fixed-page) .img-upload-btn:active,
+body:not(.home-fixed-page) .tool-tab:active,
+body:not(.home-fixed-page) .record-tab:active,
+body:not(.home-fixed-page) .dp-tab:active,
+body:not(.home-fixed-page) .case-tab:active,
+body:not(.home-fixed-page) .ctab:active,
+body:not(.home-fixed-page) .stab:active{
+  transform:translateY(1px) scale(.985)!important;
+}
+body:not(.home-fixed-page) .disabled,
+body:not(.home-fixed-page) [disabled],
+body:not(.home-fixed-page) .btn.disabled,
+body:not(.home-fixed-page) .submit-btn.disabled,
+body:not(.home-fixed-page) .tarot-draw-btn.disabled{
+  cursor:not-allowed!important;
+  opacity:.55!important;
+  filter:saturate(.8)!important;
+  box-shadow:none!important;
+}
+body:not(.home-fixed-page) .com-loading,
+body:not(.home-fixed-page) .record-loading,
+body:not(.home-fixed-page) .loading,
+body:not(.home-fixed-page) .loading-text,
+body:not(.home-fixed-page) #calLoadingMsg{
+  position:relative;
+  overflow:hidden;
+}
+body:not(.home-fixed-page) .com-loading::after,
+body:not(.home-fixed-page) .record-loading::after,
+body:not(.home-fixed-page) .loading::after,
+body:not(.home-fixed-page) .loading-text::after,
+body:not(.home-fixed-page) #calLoadingMsg::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  transform:translateX(-100%);
+  background:linear-gradient(90deg,transparent,rgba(178,149,93,.12),transparent);
+  animation:xc-shimmer 1.45s ease-in-out infinite;
+  pointer-events:none;
+}
+@keyframes xc-shimmer{100%{transform:translateX(100%)}}
+body:not(.home-fixed-page) ::selection{
+  background:rgba(178,149,93,.28);
+  color:var(--text-1);
+}
+body:not(.home-fixed-page) *{
+  scrollbar-width:thin;
+  scrollbar-color:rgba(178,149,93,.34) transparent;
+}
+body:not(.home-fixed-page) *::-webkit-scrollbar{width:8px;height:8px}
+body:not(.home-fixed-page) *::-webkit-scrollbar-thumb{background:rgba(178,149,93,.30);border-radius:999px}
+body:not(.home-fixed-page) *::-webkit-scrollbar-track{background:transparent}
+
+/* 第六批表单与弹层收口：弹窗可达、输入清晰、底部操作不被遮挡 */
+body:not(.home-fixed-page) .modal-overlay{
+  padding:18px!important;
+  box-sizing:border-box!important;
+  overscroll-behavior:contain!important;
+}
+body:not(.home-fixed-page) .modal-box{
+  width:min(92vw,460px)!important;
+  max-height:min(82dvh,720px)!important;
+  overflow:auto!important;
+  border-radius:20px!important;
+  border:1px solid rgba(178,149,93,.18)!important;
+  background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.03)),var(--card-bg)!important;
+  box-shadow:0 24px 76px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.08)!important;
+}
+body:not(.home-fixed-page) .modal-title{
+  margin-bottom:18px!important;
+  line-height:1.35!important;
+}
+body:not(.home-fixed-page) .modal-btns{
+  position:sticky;
+  bottom:-1px;
+  padding-top:12px;
+  background:linear-gradient(180deg,transparent,var(--card-bg) 34%);
+}
+body:not(.home-fixed-page) .modal-btns .btn,
+body:not(.home-fixed-page) .modal-btns > *{
+  min-height:40px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+body:not(.home-fixed-page) input,
+body:not(.home-fixed-page) textarea,
+body:not(.home-fixed-page) select,
+body:not(.home-fixed-page) .form-input,
+body:not(.home-fixed-page) .field-input,
+body:not(.home-fixed-page) .chat-input,
+body:not(.home-fixed-page) .record-search-input,
+body:not(.home-fixed-page) .native-input,
+body:not(.home-fixed-page) .dom-input-wrap .native-input{
+  caret-color:var(--accent)!important;
+}
+body:not(.home-fixed-page) textarea,
+body:not(.home-fixed-page) .form-textarea{
+  line-height:1.7!important;
+  resize:vertical;
+}
+body:not(.home-fixed-page) input::placeholder,
+body:not(.home-fixed-page) textarea::placeholder,
+body:not(.home-fixed-page) .form-input::placeholder,
+body:not(.home-fixed-page) .field-input::placeholder,
+body:not(.home-fixed-page) .chat-input::placeholder{
+  color:var(--text-4)!important;
+}
+body:not(.home-fixed-page) .field-label,
+body:not(.home-fixed-page) .form-label,
+body:not(.home-fixed-page) .settings-group-title,
+body:not(.home-fixed-page) .modal-error{
+  letter-spacing:.8px!important;
+}
+body:not(.home-fixed-page) .modal-error{
+  border-radius:10px!important;
+}
+body:not(.home-fixed-page) .profile-sheet-panel,
+body:not(.home-fixed-page) .tool-sheet-panel,
+body:not(.home-fixed-page) .llm-sheet-panel{
+  border:1px solid rgba(178,149,93,.18)!important;
+  box-shadow:0 24px 76px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.08)!important;
+}
+
+/* 第七批移动与暗黑一致性：安全区、阅读宽度、降级动效 */
+body:not(.home-fixed-page) .page-root{
+  padding-bottom:max(34px,env(safe-area-inset-bottom))!important;
+}
+body:not(.home-fixed-page) .qai-result,
+body:not(.home-fixed-page) .qai-stream-box,
+body:not(.home-fixed-page) .ly-result-card,
+body:not(.home-fixed-page) .qf-result-card,
+body:not(.home-fixed-page) .tarot-reading-section,
+body:not(.home-fixed-page) .chat-bubble-ai,
+body:not(.home-fixed-page) .post-content,
+body:not(.home-fixed-page) .sidebar-detail-body,
+body:not(.home-fixed-page) .history-markdown{
+  text-wrap:pretty;
+  word-break:break-word;
+}
+[data-theme="dark"] body:not(.home-fixed-page) .modal-box,
+[data-theme="dark"] body:not(.home-fixed-page) .tool-container,
+[data-theme="dark"] body:not(.home-fixed-page) .tarot-section,
+[data-theme="dark"] body:not(.home-fixed-page) .calendar-card,
+[data-theme="dark"] body:not(.home-fixed-page) .community-post-card,
+[data-theme="dark"] body:not(.home-fixed-page) .settings-list,
+[data-theme="dark"] body:not(.home-fixed-page) .hero-card{
+  background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.032)),rgba(48,53,76,.90)!important;
+  border-color:rgba(255,255,255,.15)!important;
+}
+[data-theme="light"] body:not(.home-fixed-page) .modal-box,
+[data-theme="light"] body:not(.home-fixed-page) .tool-container,
+[data-theme="light"] body:not(.home-fixed-page) .tarot-section,
+[data-theme="light"] body:not(.home-fixed-page) .calendar-card,
+[data-theme="light"] body:not(.home-fixed-page) .community-post-card,
+[data-theme="light"] body:not(.home-fixed-page) .settings-list,
+[data-theme="light"] body:not(.home-fixed-page) .hero-card{
+  background:linear-gradient(180deg,rgba(255,255,255,.72),rgba(255,255,255,.44)),rgba(255,253,248,.70)!important;
+}
+@media(max-width:768px){
+  body:not(.home-fixed-page) .modal-overlay{
+    align-items:flex-end!important;
+    padding:12px!important;
+    padding-bottom:max(12px,env(safe-area-inset-bottom))!important;
+  }
+  body:not(.home-fixed-page) .modal-box{
+    width:100%!important;
+    max-height:84dvh!important;
+    border-radius:22px 22px 16px 16px!important;
+    padding:22px 18px 18px!important;
+  }
+  body:not(.home-fixed-page) .modal-btns{
+    display:grid!important;
+    grid-template-columns:1fr 1fr!important;
+    gap:8px!important;
+  }
+  body:not(.home-fixed-page) .modal-btns > *:only-child{
+    grid-column:1 / -1;
+  }
+}
+@media(max-width:480px){
+  body:not(.home-fixed-page) .tool-container,
+  body:not(.home-fixed-page) .tarot-section,
+  body:not(.home-fixed-page) .calendar-card,
+  body:not(.home-fixed-page) .community-post-card,
+  body:not(.home-fixed-page) .settings-list,
+  body:not(.home-fixed-page) .points-card,
+  body:not(.home-fixed-page) .hero-card{
+    border-radius:16px!important;
+  }
+  body:not(.home-fixed-page) .sidebar-detail-body,
+  body:not(.home-fixed-page) .history-markdown,
+  body:not(.home-fixed-page) .post-content{
+    font-size:.82rem!important;
+    line-height:1.75!important;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  *,
+  *::before,
+  *::after{
+    animation-duration:.001ms!important;
+    animation-iteration-count:1!important;
+    scroll-behavior:auto!important;
+    transition-duration:.001ms!important;
+  }
+}
 .dp-list{border:1px solid var(--card-border);border-radius:12px;overflow:hidden}.dp-item{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--card-border);transition:background .12s}.dp-item:last-child{border-bottom:none}.dp-item:hover{background:var(--accent-glow)}.dp-left{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}.dp-desc{font-size:.85rem;color:var(--text-1);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dp-date{font-size:.7rem;color:var(--text-3)}.dp-points{font-size:1rem;font-weight:700;flex-shrink:0;min-width:60px;text-align:right}.dp-plus{color:var(--accent)}.dp-minus{color:var(--danger)}
 .dp-tabs{display:flex;gap:8px;margin-bottom:12px}.dp-tab{padding:6px 18px;border-radius:18px;font-size:.8rem;color:var(--text-3);background:var(--card-bg);border:1px solid var(--card-border);cursor:pointer;transition:all .15s}.dp-tab.active{background:var(--accent-glow);color:var(--accent);border-color:var(--accent)}.dp-tab:hover{background:var(--accent-glow)}.dp-pager{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px}.dp-page-btn{padding:4px 12px;border-radius:8px;font-size:.85rem;color:var(--accent);cursor:pointer;background:var(--card-bg);border:1px solid var(--card-border);transition:all .12s}.dp-page-btn:hover{background:var(--accent-glow)}.dp-page-num{padding:4px 10px;border-radius:6px;font-size:.78rem;color:var(--text-3);cursor:pointer;transition:all .12s;min-width:28px;text-align:center}.dp-page-num:hover{background:var(--accent-glow)}.dp-page-cur{background:var(--accent-glow);color:var(--accent);font-weight:600}.dp-page-ellipsis{padding:4px 8px;font-size:.78rem;color:var(--text-3);cursor:default}
 </style>

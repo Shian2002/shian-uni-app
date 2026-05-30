@@ -9,6 +9,7 @@ H5_DIR="/var/www/xuan-cet"    # H5 静态文件根目录
 FLASK_DIR="/opt/xuan-cet/backend"  # Flask 后端目录
 FLASK_PORT=5199               # Flask 端口
 FLASK_USER="lighthouse"       # 运行 Flask 的系统用户
+DATABASE_URL="sqlite:////home/lighthouse/tianji/flask-source/backend/tianji.db"  # 生产历史数据源
 NGINX_CONF="/etc/nginx/sites-available/xuan-cet"
 NGINX_ENABLED="/etc/nginx/sites-enabled/xuan-cet"
 SERVER_IP="119.29.128.18"
@@ -42,8 +43,6 @@ sudo "$FLASK_DIR/venv/bin/pip" install -r "$FLASK_DIR/requirements.txt" || echo 
 
 # 修正 app.py 中 PAIPAN_DIR 路径（服务器上不需要排盘脚本）
 sudo sed -i "s|os.path.expanduser('~/WorkBuddy/Claw')|'/opt/xuan-cet/paipan'|" "$FLASK_DIR/app.py" 2>/dev/null || true
-# 修正上传路径——让 Flask 保存到 Nginx 静态目录下，确保图片可访问
-sudo sed -i "s|os.path.join(_ACTUAL_PARENT, 'static', 'uploads')|'$H5_DIR/static/uploads'|" "$FLASK_DIR/app.py" 2>/dev/null || true
 # 确保上传目录存在且有写权限
 sudo mkdir -p "$H5_DIR/static/uploads"
 sudo chown -R $FLASK_USER:$FLASK_USER "$H5_DIR/static/uploads"
@@ -64,6 +63,8 @@ Type=simple
 User=$FLASK_USER
 WorkingDirectory=$FLASK_DIR
 Environment=FLASK_ENV=production
+Environment=DATABASE_URL=$DATABASE_URL
+Environment=UPLOAD_FOLDER=$H5_DIR/static/uploads
 ExecStart=$FLASK_DIR/venv/bin/python app.py
 Restart=always
 RestartSec=5

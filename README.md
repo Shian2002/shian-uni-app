@@ -18,8 +18,7 @@ shian-uni-app/
 │   ├── tarot_engine.py   # 塔罗引擎
 │   ├── ziwei_engine.py   # 紫微斗数引擎
 │   ├── deepseek_service.py # DeepSeek AI 服务
-│   ├── templates/        # Jinja2 模板
-│   ├── static/           # 静态资源
+│   ├── uploads/          # 本地开发上传目录（生产用 UPLOAD_FOLDER 指向 H5 静态目录）
 │   └── requirements.txt  # Python 依赖
 │
 ├── database/             # 数据库 Schema

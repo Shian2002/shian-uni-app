@@ -12,9 +12,8 @@ except ImportError:
 import os, json, threading, subprocess, time, secrets, shutil, hashlib, logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
-from flask import Flask, render_template, request, jsonify, make_response, session, redirect, send_file, send_from_directory, Response, stream_with_context
+from flask import Flask, request, jsonify, make_response, session, redirect, Response, stream_with_context
 from flask_login import login_user, logout_user, login_required, current_user
-from flask_wtf.csrf import generate_csrf
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import or_
 from sqlalchemy.exc import OperationalError
@@ -51,9 +50,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PARENT_DIR = os.path.dirname(BASE_DIR)
 _ACTUAL_PARENT = BASE_DIR if PARENT_DIR == "/" else PARENT_DIR
 
-app = Flask(__name__,
-    template_folder=os.path.join(_ACTUAL_PARENT, 'templates'),
-    static_folder=os.path.join(_ACTUAL_PARENT, 'static'))
+app = Flask(__name__, static_folder=None)
 
 PAIPAN_DIR = os.path.expanduser('~/WorkBuddy/Claw')
 PAIPAN_SH = os.path.join(PAIPAN_DIR, 'paipan_auto.sh')
@@ -85,7 +82,7 @@ else:
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['REMEMBER_COOKIE_DURATION'] = 86400 * 30  # 30天
-app.config['UPLOAD_FOLDER'] = os.path.join(_ACTUAL_PARENT, 'static', 'uploads')
+app.config['UPLOAD_FOLDER'] = os.environ.get('UPLOAD_FOLDER', os.path.join(BASE_DIR, 'uploads'))
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB 上传限制
 
 # ═══════ 初始化扩展（从 extensions 模块） ═══════
@@ -492,158 +489,116 @@ def sitemap():
 
 @app.route('/')
 def home():
-    """主页 — uni-app H5 SPA"""
-    return send_file(os.path.join(_ACTUAL_PARENT, 'templates', 'index.html'))
+    """后端健康检查。前端由 Nginx/H5 静态目录承载。"""
+    return jsonify({
+        'success': True,
+        'service': 'xuan-cet-backend',
+        'mode': 'api-only',
+        'message': '后端仅提供 API；前端页面由 H5 静态服务承载。',
+    })
 
 
-@app.route('/assets/<path:filename>')
-def serve_assets(filename):
-    """服务 uni-app 构建产物 /assets/ 路径"""
-    return send_from_directory(os.path.join(_ACTUAL_PARENT, 'static', 'assets'), filename)
+def _frontend_removed(route_name, frontend_hash=None):
+    """旧版 Flask 页面已移除，避免后端继续混入前端模板。"""
+    payload = {
+        'success': False,
+        'error': 'legacy_frontend_removed',
+        'message': f'{route_name} 旧版 Flask 页面已移除，请访问 H5 前端。',
+    }
+    if frontend_hash:
+        payload['frontend_hash'] = frontend_hash
+    return jsonify(payload), 410
 
 @app.route('/tool')
 def tool():
-    """工具页 — 已迁移至新版独立页面，重定向到首页"""
-    return redirect('/')
+    """旧工具页已由 H5 接管。"""
+    return _frontend_removed('工具页', '#/')
 
 @app.route('/calendar')
 def calendar():
-    """专属日历 — 黄历宜忌运势日历"""
-    resp = make_response(render_template('calendar.html', csrf_token=generate_csrf()))
-    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    resp.headers['Pragma'] = 'no-cache'
-    resp.headers['Expires'] = '0'
-    return resp
+    """旧专属日历页已由 H5 接管。"""
+    return _frontend_removed('专属日历', '#/pages/calendar/index')
 
 @app.route('/about')
 def about():
-    """关于我们 — 信任背书 + 新手入门"""
-    resp = make_response(render_template('about.html', csrf_token=generate_csrf()))
-    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    resp.headers['Pragma'] = 'no-cache'
-    resp.headers['Expires'] = '0'
-    return resp
+    """旧关于我们页已由 H5 接管。"""
+    return _frontend_removed('关于我们', '#/pages/about/index')
 
 @app.route('/algorithm')
 def algorithm_review():
-    """排盘算法开源可审查页面"""
-    return render_template('algorithm_review.html')
+    """旧算法说明页已由 H5 接管。"""
+    return _frontend_removed('排盘算法说明')
 
 @app.route('/qimen')
 def qimen_page():
-    """奇门遁甲 — AI系统 + 免费排盘"""
-    resp = make_response(render_template('qimen.html', csrf_token=generate_csrf()))
-    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    resp.headers['Pragma'] = 'no-cache'
-    resp.headers['Expires'] = '0'
-    return resp
+    """旧奇门遁甲页已由 H5 接管。"""
+    return _frontend_removed('奇门遁甲', '#/pages/qimen/index?tab=free')
 
 @app.route('/bazi-page')
 def bazi_page():
-    """八字排盘 — 免费排盘 + AI报告"""
-    resp = make_response(render_template('bazi_page.html', csrf_token=generate_csrf()))
-    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    resp.headers['Pragma'] = 'no-cache'
-    resp.headers['Expires'] = '0'
-    return resp
+    """旧八字排盘页已由 H5 接管。"""
+    return _frontend_removed('八字排盘', '#/pages/bazi-index/index?tab=free')
 
 @app.route('/meihua')
 def meihua_page():
-    """梅花易数 — AI系统 + 免费排盘"""
-    resp = make_response(render_template('meihua.html', csrf_token=generate_csrf()))
-    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    resp.headers['Pragma'] = 'no-cache'
-    resp.headers['Expires'] = '0'
-    return resp
+    """旧梅花易数页已由 H5 接管。"""
+    return _frontend_removed('梅花易数', '#/pages/meihua/index')
 
 
 @app.route('/community')
 def community_page():
-    """社区 — 民俗文化探讨"""
-    resp = make_response(render_template('community.html', csrf_token=generate_csrf()))
-    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    resp.headers['Pragma'] = 'no-cache'
-    resp.headers['Expires'] = '0'
-    return resp
+    """旧社区页已由 H5 接管。"""
+    return _frontend_removed('社区', '#/pages/community/index')
 
 @app.route('/bazi')
 def bazi_result():
-    """八字排盘结果页 — 独立展示（pro=1时展示问真专业细盘模板）"""
-    if request.args.get('pro') == '1':
-        return app.send_static_file('bazi.html')
-    resp = make_response(render_template('bazi_result.html', csrf_token=generate_csrf()))
-    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    resp.headers['Pragma'] = 'no-cache'
-    resp.headers['Expires'] = '0'
-    return resp
+    """旧八字结果页已由 H5 接管。"""
+    return _frontend_removed('八字排盘结果', '#/pages/bazi-result/index')
 
 
 @app.route('/bazi-pro')
 def bazi_pro_pan():
-    """问真八字专业细盘 — 1:1复刻模板"""
-    return app.send_static_file('bazi.html')
+    """旧问真八字专业细盘页已由 H5 接管。"""
+    return _frontend_removed('问真八字专业细盘', '#/pages/bazi-result/index')
 
 
 @app.route('/hepan')
 def hepan():
-    """八字合盘页"""
-    resp = make_response(render_template('hepan.html', csrf_token=generate_csrf()))
-    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    return resp
+    """旧八字合盘页已由 H5 接管。"""
+    return _frontend_removed('八字合盘')
 
 
 @app.route('/liuyao')
 def liuyao_page():
-    """六爻排盘 — AI系统 + 免费排盘"""
-    resp = make_response(render_template('liuyao.html', csrf_token=generate_csrf()))
-    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    resp.headers['Pragma'] = 'no-cache'
-    resp.headers['Expires'] = '0'
-    return resp
+    """旧六爻排盘页已由 H5 接管。"""
+    return _frontend_removed('六爻排盘', '#/pages/liuyao/index')
 
 @app.route('/ziwei')
 def ziwei_page():
-    """紫微斗数 — 十二宫排盘·大限流年推运"""
-    resp = make_response(render_template('ziwei.html', csrf_token=generate_csrf()))
-    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    resp.headers['Pragma'] = 'no-cache'
-    resp.headers['Expires'] = '0'
-    return resp
+    """旧紫微斗数页已由 H5 接管。"""
+    return _frontend_removed('紫微斗数', '#/pages/ziwei/index')
 
 @app.route('/tarot')
 def tarot_page():
-    """塔罗牌 — 多牌阵选择，直觉引导"""
-    resp = make_response(render_template('tarot.html', csrf_token=generate_csrf()))
-    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    resp.headers['Pragma'] = 'no-cache'
-    resp.headers['Expires'] = '0'
-    return resp
+    """旧塔罗牌页已由 H5 接管。"""
+    return _frontend_removed('塔罗牌', '#/pages/tarot/index')
 
 @app.route('/zeji')
 def zeji_page():
-    """择吉工具 — 即将上线"""
-    resp = make_response(render_template('tool_coming.html', csrf_token=generate_csrf(),
-        tool_name='择吉工具', tool_icon='📅', tool_desc='黄历择吉，婚嫁乔迁开业动土，择良辰选吉日。即将上线，敬请期待！'))
-    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    return resp
+    """旧择吉工具页已由 H5 接管。"""
+    return _frontend_removed('择吉工具', '#/pages/zeji/index')
 
 
 @app.route('/profile')
 def profile_page():
-    """个人中心 — 命盘存档与账号管理"""
-    resp = make_response(render_template('profile.html', csrf_token=generate_csrf()))
-    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    resp.headers['Pragma'] = 'no-cache'
-    resp.headers['Expires'] = '0'
-    return resp
+    """旧个人中心页已由 H5 接管。"""
+    return _frontend_removed('个人中心', '#/pages/profile/index')
 
 
 @app.route('/history')
 def bazi_history():
-    """排盘历史页"""
-    resp = make_response(render_template('history.html', csrf_token=generate_csrf()))
-    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    return resp
+    """旧排盘历史页已由 H5 接管。"""
+    return _frontend_removed('排盘历史', '#/pages/bazi-index/index?tab=record')
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -5742,14 +5697,42 @@ def api_bazi_history_rename():
 
 
 def _migrate_session_history():
-    """将 session 中的旧 bazi_history 迁移到数据库（仅执行一次）"""
-    old_history = session.pop('bazi_history', None)
+    """将 session 中的旧 bazi_history 合并迁移到数据库。"""
+    old_history = session.get('bazi_history')
     if not old_history:
         return
-    # 如果数据库已有该用户记录，不重复迁移
-    if BaziRecord.query.filter_by(user_id=current_user.id).first():
-        return
+    existing_keys = set()
+    existing_records = BaziRecord.query.filter_by(user_id=current_user.id).all()
+    for rec in existing_records:
+        existing_keys.add((
+            rec.name or '',
+            rec.gender or '',
+            rec.birth_time or '',
+            rec.cal_type or '',
+            rec.record_type or '',
+            rec.pillars or '',
+        ))
+    migrated = 0
     for item in old_history:
+        if not isinstance(item, dict):
+            continue
+        record_type = item.get('type') or item.get('record_type') or 'paipan'
+        key = (
+            item.get('name', ''),
+            item.get('gender', '男'),
+            item.get('birth_time', ''),
+            item.get('cal_type', '公历'),
+            record_type,
+            item.get('pillars', ''),
+        )
+        if key in existing_keys:
+            continue
+        created_at = datetime.utcnow()
+        if item.get('created_at'):
+            try:
+                created_at = datetime.fromisoformat(str(item.get('created_at')).replace('Z', '+00:00'))
+            except Exception:
+                created_at = datetime.utcnow()
         rec = BaziRecord(
             user_id=current_user.id,
             name=item.get('name', ''),
@@ -5758,16 +5741,22 @@ def _migrate_session_history():
             cal_type=item.get('cal_type', '公历'),
             birth_addr=item.get('birth_addr', ''),
             pillars=item.get('pillars', ''),
-            record_type=item.get('type', 'paipan'),
+            record_type=record_type,
             starred=item.get('starred', False),
+            pinned=item.get('pinned', False),
             category=item.get('category', '全部'),
             params_json=json.dumps(item.get('params', {}), ensure_ascii=False),
             hepan_json=json.dumps(item.get('hepan_data', {}), ensure_ascii=False) if item.get('hepan_data') else '',
-            created_at=datetime.fromisoformat(item['created_at']) if item.get('created_at') else datetime.utcnow(),
+            created_at=created_at,
         )
         db.session.add(rec)
+        existing_keys.add(key)
+        migrated += 1
     db.session.commit()
+    session.pop('bazi_history', None)
     session.modified = True
+    if migrated:
+        logger.info('已迁移旧版八字排盘历史 %s 条，user_id=%s', migrated, current_user.id)
 
 
 @app.route('/api/paipan', methods=['POST'])
@@ -9693,10 +9682,8 @@ def api_paid_contents_create():
 
 # ═══════ 全局错误处理 ═══════
 def _error_response(e, code, msg):
-    """智能错误响应 — 浏览器返回HTML页面，API调用返回JSON"""
-    if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
-        return jsonify({'success': False, 'error': msg, 'detail': str(e)}), code
-    return render_template('error.html', code=code, message=msg, detail=str(e) if app.debug else ''), code
+    """API-only 错误响应。"""
+    return jsonify({'success': False, 'error': msg, 'detail': str(e)}), code
 
 # ═══════ CORS 中间件（小程序端必需） ═══════
 @app.after_request

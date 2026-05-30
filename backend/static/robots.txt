@@ -1,9 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /api/
-Disallow: /tool
-Disallow: /bazi
-Disallow: /profile
-Disallow: /history
-
-Sitemap: /sitemap.xml

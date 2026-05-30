@@ -38,6 +38,13 @@
 
           <view class="home-ai-console" :class="{ 'has-chat': comprehensiveMessages.length }">
             <view class="home-ai-chat" v-if="comprehensiveMessages.length">
+              <view class="home-ai-chat-head">
+                <view class="home-ai-chat-head-main">
+                  <text class="home-ai-chat-title">综合解读</text>
+                  <text class="home-ai-chat-sub">{{ homeAiContextSummary }}</text>
+                </view>
+                <view class="home-ai-new-chat" @tap="startNewComprehensiveConversation">新对话</view>
+              </view>
               <view
                 v-for="(msg, idx) in comprehensiveMessages"
                 :key="idx"
@@ -47,7 +54,16 @@
                 <text class="home-ai-role">{{ msg.role === 'user' ? '你' : '时安综合 AI' }}</text>
                 <view class="home-ai-stage-wrap" v-if="msg.stage">
                   <img class="home-ai-stage-logo" src="/static/images/logo.webp?v=2" alt="时安解忧屋" />
-                  <text class="home-ai-stage">{{ msg.stage }}</text>
+                  <view class="home-ai-stage-texts">
+                    <text class="home-ai-stage">{{ msg.stage }}</text>
+                    <text class="home-ai-stage-note">正在按所选命盘和术数生成，可继续停留在当前页</text>
+                  </view>
+                </view>
+                <view class="home-ai-step-row" v-if="msg.stage && !msg.content">
+                  <text>读取资料</text>
+                  <text>排盘核对</text>
+                  <text>模型解读</text>
+                  <text>组织回答</text>
                 </view>
                 <view class="home-ai-progress-track" v-if="msg.stage">
                   <view class="home-ai-progress-bar"></view>
@@ -63,6 +79,7 @@
                 auto-height
                 maxlength="800"
                 :placeholder="comprehensivePlaceholder"
+                @keydown="onComprehensiveInputKeydown"
               />
               <view class="home-ai-toolbar">
                 <view class="home-ai-toolbar-left">
@@ -161,7 +178,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
-import { onLoad, onShow } from '@dcloudio/uni-app'
+import { onLoad, onShow, onHide } from '@dcloudio/uni-app'
 import TopNav from '@/components/TopNav.vue'
 
 // ── 主题 ──
@@ -181,6 +198,14 @@ function toggleTheme() {
 // ── 视频背景（H5 only）──
 const videoFallback = ref(false)
 const videoVisible = ref(false)
+function setHomeFixedPage(enabled) {
+  // #ifdef H5
+  try {
+    document.documentElement.classList.toggle('home-fixed-page', !!enabled)
+    document.body.classList.toggle('home-fixed-page', !!enabled)
+  } catch(_) {}
+  // #endif
+}
 function onVideoError() {
   videoFallback.value = true
   videoVisible.value = true
@@ -233,6 +258,13 @@ let comprehensiveTypeTimer = null
 const selectedLlmModel = computed(() => llmModels.value[llmModelIdx.value] || llmModels.value[0] || {})
 const llmModelNames = computed(() => llmModels.value.map(m => m.name + ' · ' + (m.strength || '基础')))
 const comprehensivePlaceholder = computed(() => comprehensiveMessages.value.length ? '请继续输入你想问的问题' : '输入你的问题，选择术数模型后开始综合解读')
+const homeAiContextSummary = computed(() => {
+  const profileText = selectedProfileName.value || '未选择命盘'
+  const toolText = selectedToolSummary.value === '选择术数' ? '未选择术数' : selectedToolSummary.value
+  const modelText = selectedLlmModel.value.name || '基础模型'
+  const costText = estimatedCost.value ? estimatedCost.value + ' 积分' : '续问'
+  return profileText + ' · ' + toolText + ' · ' + modelText + ' · ' + costText
+})
 const estimatedCost = computed(() => {
   if (comprehensiveMessages.value.length > 0) return selectedLlmModel.value.followup_cost || 0
   const selected = selectedToolModels.value || []
@@ -639,6 +671,14 @@ async function startComprehensiveAsk() {
   }
 }
 
+function onComprehensiveInputKeydown(e) {
+  if (!e || e.isComposing) return
+  if (e.key !== 'Enter') return
+  if (e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return
+  e.preventDefault()
+  startComprehensiveAsk()
+}
+
 async function restoreComprehensiveConversation(id) {
   if (!id || !isLoggedIn.value) return
   try {
@@ -752,6 +792,7 @@ onLoad((query) => {
 })
 
 onShow(() => {
+  setHomeFixedPage(true)
   var t = uni.getStorageSync('xc_theme')
   if (t && t !== theme.value) {
     theme.value = t
@@ -779,15 +820,16 @@ onShow(() => {
   })
 })
 
+onHide(() => {
+  setHomeFixedPage(false)
+})
+
 // ── 视频加载超时处理（H5 only）──
 onMounted(() => {
   loadComprehensiveOptions()
   loadProfiles()
   // #ifdef H5
-  try {
-    document.documentElement.classList.add('home-fixed-page')
-    document.body.classList.add('home-fixed-page')
-  } catch(_) {}
+  setHomeFixedPage(true)
   window._xc_restoreComprehensive = restoreComprehensiveFromSidebar
   window._xc_newComprehensive = startNewComprehensiveConversation
   window.addEventListener('keydown', onHomeKeydown)
@@ -817,10 +859,7 @@ onBeforeUnmount(() => {
   if (window._xc_restoreComprehensive === restoreComprehensiveFromSidebar) window._xc_restoreComprehensive = null
   if (window._xc_newComprehensive === startNewComprehensiveConversation) window._xc_newComprehensive = null
   window.removeEventListener('keydown', onHomeKeydown)
-  try {
-    document.documentElement.classList.remove('home-fixed-page')
-    document.body.classList.remove('home-fixed-page')
-  } catch(_) {}
+  setHomeFixedPage(false)
   // #endif
 })
 </script>
@@ -961,6 +1000,13 @@ onBeforeUnmount(() => {
 [data-theme="light"] .home-ai-chat { background: rgba(255,253,248,0.66); }
 .home-ai-console.has-chat .home-ai-chat { flex: 1 1 auto; min-height: 0; max-height: none; height: auto; box-sizing: border-box; }
 .home-ai-console.has-chat .home-ai-input { min-height: 62px; max-height: 130px; }
+.home-ai-chat-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; margin: -4px 0 12px; border: 1px solid rgba(178,149,93,0.16); border-radius: 14px; background: rgba(34,31,25,0.62); backdrop-filter: blur(18px) saturate(145%); box-shadow: 0 10px 28px rgba(0,0,0,0.12); }
+[data-theme="light"] .home-ai-chat-head { background: rgba(255,251,242,0.86); box-shadow: 0 10px 28px rgba(80,55,18,0.08); }
+.home-ai-chat-head-main { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.home-ai-chat-title { color: var(--text-1); font-size: 0.88rem; font-weight: 700; letter-spacing: 1px; }
+.home-ai-chat-sub { color: var(--text-3); font-size: 0.72rem; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: min(680px, 62vw); }
+.home-ai-new-chat { flex-shrink: 0; height: 30px; padding: 0 12px; border-radius: 999px; display: flex; align-items: center; justify-content: center; color: var(--accent); border: 1px solid rgba(178,149,93,0.22); background: var(--accent-glow); font-size: 0.74rem; cursor: pointer; box-sizing: border-box; }
+.home-ai-new-chat:hover { border-color: rgba(178,149,93,0.48); }
 .home-ai-message { padding: 14px 16px; border-radius: 14px; margin-bottom: 12px; border: 1px solid rgba(178,149,93,0.14); }
 .home-ai-message.user { margin-left: 72px; background: rgba(178,149,93,0.13); border-color: rgba(178,149,93,0.26); }
 .home-ai-message.assistant { margin-right: 72px; background: rgba(255,255,255,0.045); }
@@ -968,6 +1014,11 @@ onBeforeUnmount(() => {
 .home-ai-stage { display: inline; font-size: 0.82rem; color: var(--accent); }
 .home-ai-stage-wrap { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
 .home-ai-stage-logo { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; animation: stage-spin 1.8s linear infinite; }
+.home-ai-stage-texts { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.home-ai-stage-note { color: var(--text-3); font-size: 0.68rem; line-height: 1.35; }
+.home-ai-step-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 10px 0 8px; }
+.home-ai-step-row text { min-width: 0; padding: 5px 6px; border-radius: 999px; color: var(--text-3); background: rgba(178,149,93,0.08); border: 1px solid rgba(178,149,93,0.10); text-align: center; font-size: 0.64rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; }
+.home-ai-step-row text:nth-child(1) { color: var(--accent); border-color: rgba(178,149,93,0.26); }
 @keyframes stage-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .home-ai-progress-track { height: 3px; margin-top: 8px; border-radius: 999px; overflow: hidden; background: rgba(178,149,93,0.12); }
 .home-ai-progress-bar { width: 38%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, transparent, var(--accent), transparent); animation: progress-sweep 1.35s ease-in-out infinite; }
@@ -1100,6 +1151,11 @@ onBeforeUnmount(() => {
   .llm-points { font-size: 0.52rem; }
   .home-ai-send { width: 30px; height: 30px; min-height: 30px; font-size: 0.95rem; }
   .home-ai-message.user, .home-ai-message.assistant { margin-left: 0; margin-right: 0; }
+  .home-ai-chat-head { align-items: flex-start; padding: 9px 10px; gap: 8px; }
+  .home-ai-chat-sub { max-width: calc(100vw - 148px); font-size: 0.66rem; }
+  .home-ai-new-chat { height: 28px; padding: 0 10px; font-size: 0.68rem; }
+  .home-ai-step-row { gap: 4px; }
+  .home-ai-step-row text { padding: 4px 3px; font-size: 0.56rem; }
   .section { padding: 48px 16px; }
   .section-title { font-size: 1.35rem; }
   .section-desc { font-size: 0.8125rem; }
@@ -1127,6 +1183,11 @@ onBeforeUnmount(() => {
   .llm-name { font-size: 0.58rem; }
   .llm-points { font-size: 0.48rem; }
   .home-ai-send { width: 26px; height: 26px; min-height: 26px; font-size: 0.9rem; }
+  .home-ai-chat-head { margin: -2px 0 10px; border-radius: 12px; }
+  .home-ai-chat-title { font-size: 0.8rem; }
+  .home-ai-chat-sub { max-width: calc(100vw - 136px); font-size: 0.6rem; }
+  .home-ai-stage-note { font-size: 0.6rem; }
+  .home-ai-step-row text { font-size: 0.5rem; }
   .section { padding: 32px 16px; }
   .section-title { font-size: 1.15rem; }
   .section-desc { font-size: 0.75rem; }

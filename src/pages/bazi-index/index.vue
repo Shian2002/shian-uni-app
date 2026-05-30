@@ -306,7 +306,7 @@
               <view class="star-section" v-if="starredRecords.length > 0 && showStarSection">
                 <view class="star-title" @tap="showStarSection = !showStarSection">⭐ 星标八字 <text class="star-toggle">{{ showStarSection ? '▾' : '▸' }}</text></view>
                 <view class="star-cards" v-show="showStarSection">
-                  <view class="bz-card" :class="{ starred: true, pinned: r.pinned }" v-for="r in starredRecords" :key="'star-'+r.id" @tap="viewRecord(r)" @contextmenu.prevent="showRecordMenu($event, r)">
+                  <view class="bz-card" :class="{ starred: true, pinned: r.pinned, 'ctx-active': recordContextMenu.show && recordContextMenu.record && recordContextMenu.record.id === r.id }" v-for="r in starredRecords" :key="'star-'+r.id" @tap="viewRecord(r)" @contextmenu.prevent="showRecordMenu($event, r)">
                     <view class="card-avatar">{{ getZodiacEmoji(r) }}</view>
                     <view class="card-userinfo">
                       <view class="card-name">{{ r.name || '未命名' }}<text class="card-sex">{{ r.gender }}</text><text class="card-star-badge" v-if="r.starred">★</text><text class="card-pin-badge" v-if="r.pinned">📌</text></view>
@@ -342,7 +342,7 @@
 
               <!-- 7. 案例列表 -->
               <view class="case-cards" v-if="filteredRecords.length > 0">
-                <view class="bz-card" :class="{ pinned: r.pinned }" v-for="(r, idx) in filteredRecords" :key="r.id" @tap="batchMode ? toggleSelectId(r.id) : viewRecord(r)" @contextmenu.prevent="showRecordMenu($event, r)">
+                <view class="bz-card" :class="{ pinned: r.pinned, 'ctx-active': recordContextMenu.show && recordContextMenu.record && recordContextMenu.record.id === r.id }" v-for="(r, idx) in filteredRecords" :key="r.id" @tap="batchMode ? toggleSelectId(r.id) : viewRecord(r)" @contextmenu.prevent="showRecordMenu($event, r)">
                   <view class="batch-checkbox" v-if="batchMode">
                     <view class="checkbox-view" :class="{ checked: selectedIds.includes(r.id) }"></view>
                   </view>
@@ -397,14 +397,16 @@
       </section>
     </view>
 
-    <view class="menu-overlay" v-if="recordContextMenu.show" @tap="hideRecordMenu()"></view>
-    <view class="record-ctx-menu" v-if="recordContextMenu.show" :style="{ left: recordContextMenu.x + 'px', top: recordContextMenu.y + 'px' }" @tap.stop>
-      <view class="ctx-menu-item" @tap="editRecord(recordContextMenu.record)">✏️ 编辑</view>
-      <view class="ctx-menu-item" @tap="togglePin(recordContextMenu.record); hideRecordMenu()">{{ recordContextMenu.record && recordContextMenu.record.pinned ? '📌 取消置顶' : '📌 置顶' }}</view>
-      <view class="ctx-menu-item" @tap="sendToAiFromMenu(recordContextMenu.record)">🔮 发AI解读</view>
-      <view class="ctx-menu-divider"></view>
-      <view class="ctx-menu-item ctx-danger" @tap="deleteRecordFromMenu(recordContextMenu.record)">🗑️ 删除</view>
-    </view>
+    <teleport to="body">
+      <view class="menu-overlay" v-if="recordContextMenu.show" @tap="hideRecordMenu()"></view>
+      <view class="record-ctx-menu" v-if="recordContextMenu.show" :style="{ left: recordContextMenu.x + 'px', top: recordContextMenu.y + 'px' }" @tap.stop>
+        <view class="ctx-menu-item" @tap="editRecord(recordContextMenu.record)">✏️ 编辑</view>
+        <view class="ctx-menu-item" @tap="togglePin(recordContextMenu.record); hideRecordMenu()">{{ recordContextMenu.record && recordContextMenu.record.pinned ? '📌 取消置顶' : '📌 置顶' }}</view>
+        <view class="ctx-menu-item" @tap="sendToAiFromMenu(recordContextMenu.record)">🔮 发AI解读</view>
+        <view class="ctx-menu-divider"></view>
+        <view class="ctx-menu-item ctx-danger" @tap="deleteRecordFromMenu(recordContextMenu.record)">🗑️ 删除</view>
+      </view>
+    </teleport>
 
   </view>
 </template>
@@ -439,6 +441,15 @@ function toggleSubmenu(key) { submenuOpen.value[key] = !submenuOpen.value[key] }
 
 const isLoggedIn = ref(!!uni.getStorageSync('xc_token'))
 window.addEventListener('xc-session-expired', function() { isLoggedIn.value = false })
+
+function releaseHomeFixedScroll() {
+  // #ifdef H5
+  try {
+    document.documentElement.classList.remove('home-fixed-page')
+    document.body.classList.remove('home-fixed-page')
+  } catch(_) {}
+  // #endif
+}
 
 // ── Tab切换 ──
 const activeTab = ref('free')
@@ -1331,12 +1342,9 @@ function sendRecordsBatchToAi() {
   uni.showToast({ title: '已加载 ' + ids.length + ' 条到AI档案', icon: 'none' })
 }
 
-var recordContextMenu = ref({ show: false, x: 0, y: 0, record: null, targetRect: null })
+var recordContextMenu = ref({ show: false, x: 0, y: 0, record: null, targetRect: null, targetId: null })
 
-function showRecordMenu(e, r) {
-  if (e && e.stopPropagation) e.stopPropagation()
-  if (e && e.preventDefault) e.preventDefault()
-
+function positionRecordMenu(targetElement, r) {
   var menuWidth = 180
   var menuHeight = 200
   var x = 20
@@ -1344,27 +1352,39 @@ function showRecordMenu(e, r) {
   var vw = window.innerWidth || 375
   var vh = window.innerHeight || 667
 
-  var targetElement = null
-
-  if (e && e.currentTarget && e.currentTarget.getBoundingClientRect) {
-    targetElement = e.currentTarget
-  } else if (e && e.target) {
-    var closest = e.target.closest ? e.target.closest('.card-ops') : null
-    if (closest) targetElement = closest
-  }
-
   if (!targetElement && r && r.id) {
     targetElement = document.querySelector('[data-ops-id="ops-' + r.id + '"]')
   }
 
   if (targetElement) {
     var rect = targetElement.getBoundingClientRect()
+    if (rect.bottom < 0 || rect.top > vh || rect.right < 0 || rect.left > vw) {
+      hideRecordMenu()
+      return null
+    }
     x = rect.right - menuWidth
     y = rect.bottom + 6
     if (y + menuHeight > vh - 10 && rect.top > menuHeight + 10) {
       y = rect.top - menuHeight - 6
     }
-  } else if (e) {
+  }
+
+  if (x < 10) x = 10
+  if (x + menuWidth > vw - 10) x = vw - menuWidth - 10
+  if (y < 10) y = 10
+  if (y + menuHeight > vh - 10) y = vh - menuHeight - 10
+
+  return { x: Math.round(x), y: Math.round(y), targetId: targetElement && targetElement.dataset ? targetElement.dataset.opsId : null }
+}
+
+function fallbackRecordMenuPosition(e) {
+  var menuWidth = 180
+  var menuHeight = 200
+  var x = 20
+  var y = 20
+  var vw = window.innerWidth || 375
+  var vh = window.innerHeight || 667
+  if (e) {
     var cx = 0, cy = 0
     if (e.touches && e.touches[0]) {
       cx = e.touches[0].clientX
@@ -1378,21 +1398,58 @@ function showRecordMenu(e, r) {
       y = cy + 10
     }
   }
-
   if (x < 10) x = 10
   if (x + menuWidth > vw - 10) x = vw - menuWidth - 10
   if (y < 10) y = 10
   if (y + menuHeight > vh - 10) y = vh - menuHeight - 10
+  return { x: Math.round(x), y: Math.round(y), targetId: null }
+}
 
-  x = Math.round(x)
-  y = Math.round(y)
+function updateRecordMenuPosition() {
+  if (!recordContextMenu.value.show) return
+  var r = recordContextMenu.value.record
+  var targetElement = null
+  if (recordContextMenu.value.targetId) {
+    targetElement = document.querySelector('[data-ops-id="' + recordContextMenu.value.targetId + '"]')
+  }
+  if (!targetElement && r && r.id) {
+    targetElement = document.querySelector('[data-ops-id="ops-' + r.id + '"]')
+  }
+  if (!targetElement) {
+    hideRecordMenu()
+    return
+  }
+  var pos = positionRecordMenu(targetElement, r)
+  if (!pos) return
+  recordContextMenu.value = Object.assign({}, recordContextMenu.value, {
+    x: pos.x,
+    y: pos.y,
+    targetId: pos.targetId || recordContextMenu.value.targetId
+  })
+}
+
+function showRecordMenu(e, r) {
+  if (e && e.stopPropagation) e.stopPropagation()
+  if (e && e.preventDefault) e.preventDefault()
+
+  var targetElement = null
+
+  if (e && e.currentTarget && e.currentTarget.getBoundingClientRect) {
+    targetElement = e.currentTarget
+  } else if (e && e.target) {
+    var closest = e.target.closest ? e.target.closest('.card-ops') : null
+    if (closest) targetElement = closest
+  }
+
+  var pos = positionRecordMenu(targetElement, r) || fallbackRecordMenuPosition(e)
 
   recordContextMenu.value = {
     show: true,
-    x: x,
-    y: y,
+    x: pos.x,
+    y: pos.y,
     record: r,
     targetRect: null,
+    targetId: pos.targetId,
     ready: true
   }
 }
@@ -1402,7 +1459,7 @@ function showMoveGroupForRecord(r) {
   selectedIds.value = [r.id]
   moveGroupModal.value = true
 }
-function hideRecordMenu() { recordContextMenu.value.show = false }
+function hideRecordMenu() { recordContextMenu.value = Object.assign({}, recordContextMenu.value, { show: false, targetId: null }) }
 
 function moveRecordCategory(r, cat) {
   var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
@@ -2236,6 +2293,7 @@ function applyNavQuery(q) {
 }
 
 onShow(() => {
+  releaseHomeFixedScroll()
   try {
     var q = sessionStorage.getItem('_nav_query')
     if (q) { sessionStorage.removeItem('_nav_query'); applyNavQuery(q) }
@@ -2258,6 +2316,7 @@ onShow(() => {
 })
 
 onMounted(() => {
+  releaseHomeFixedScroll()
   try {
     uni.$on('nav-query', function(q) { applyNavQuery(q) })
     var q = sessionStorage.getItem('_nav_query')
@@ -2324,6 +2383,8 @@ onMounted(() => {
       if (!menu) hideRecordMenu()
     }
   })
+  window.addEventListener('scroll', updateRecordMenuPosition, true)
+  window.addEventListener('resize', updateRecordMenuPosition)
 
   // ── 创建原生select日期选择（模式C：绕过Vue 3.4.21 picker bug） ──
   var curYear = now.getFullYear()
@@ -2620,15 +2681,75 @@ onMounted(() => {
 .tool-hero-desc { font-size: 0.9375rem; color: var(--text-3); letter-spacing: 2px; }
 
 /* 工具容器 */
-.tool-container { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; backdrop-filter: blur(20px); box-shadow: var(--card-shadow); max-width: 720px; margin: 0 auto; }
+.tool-container {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.30), rgba(255,255,255,0.10)),
+    var(--card-bg);
+  border: 1px solid rgba(255,255,255,0.34);
+  border-radius: 24px;
+  padding: 32px;
+  -webkit-backdrop-filter: blur(30px) saturate(170%);
+  backdrop-filter: blur(30px) saturate(170%);
+  box-shadow: 0 22px 60px rgba(72,52,22,0.13), inset 0 1px 0 rgba(255,255,255,0.58);
+  max-width: 720px;
+  margin: 0 auto;
+  position: relative;
+  overflow: visible;
+}
+[data-theme="dark"] .tool-container {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.12), rgba(255,255,255,0.035)),
+    rgba(32,36,56,0.58);
+  border-color: rgba(255,255,255,0.16);
+  box-shadow: 0 24px 68px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.14);
+}
 .dom-input-wrap { width: 100%; }
 .dom-input-wrap .native-input { width: 100%; padding: 9px 12px; border: 1.5px solid var(--card-border); border-radius: 10px; font-size: 0.85rem; background: var(--card-bg); color: var(--text-1); outline: none; box-sizing: border-box; }
 .checkbox-view { width: 18px; height: 18px; border: 2px solid var(--accent); border-radius: 3px; position: relative; cursor: pointer; transition: all 0.15s; }
 .checkbox-view.checked { background: var(--accent); }
 .checkbox-view.checked::after { content: '✓'; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); color: #fff; font-size: 12px; font-weight: bold; }
-.tool-tabs { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid var(--card-border); }
-.tool-tab { padding: 12px 20px; border-radius: 10px 10px 0 0; font-size: 0.875rem; cursor: pointer; border: 1px solid transparent; border-bottom: none; color: var(--text-3); background: transparent; }
-.tool-tab.active { color: var(--accent); background: var(--accent-glow); border-color: var(--accent); font-weight: 600; }
+.tool-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 28px;
+  padding: 6px;
+  border: 1px solid rgba(255,255,255,0.28);
+  border-radius: 18px;
+  background: rgba(255,255,255,0.26);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  backdrop-filter: blur(22px) saturate(160%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.45);
+}
+[data-theme="dark"] .tool-tabs {
+  background: rgba(8,12,24,0.28);
+  border-color: rgba(255,255,255,0.11);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.tool-tab {
+  flex: 1;
+  padding: 11px 16px;
+  border-radius: 13px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  border: 1px solid transparent;
+  color: var(--text-2);
+  background: transparent;
+  text-align: center;
+  transition: background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+.tool-tab.active {
+  color: var(--text-1);
+  background: rgba(255,255,255,0.62);
+  border-color: rgba(255,255,255,0.72);
+  font-weight: 700;
+  box-shadow: 0 8px 22px rgba(112,82,32,0.14), inset 0 1px 0 rgba(255,255,255,0.72);
+}
+[data-theme="dark"] .tool-tab.active {
+  color: rgba(248,241,230,0.98);
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.18);
+  box-shadow: 0 10px 26px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.12);
+}
 .tab-badge { font-size: 0.5625rem; padding: 1px 5px; border-radius: 4px; background: var(--accent); color: #fff; margin-left: 4px; }
 .tab-badge.free { background: var(--success); }
 .tool-tab-content { display: block; }
@@ -2713,16 +2834,105 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .result-mode-btn.active { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); }
 
 /* ── 记录案例 ── */
-.record-page { background: var(--card-bg); border-radius: 12px; overflow: visible; }
-.record-tabs { display: flex; border-bottom: 1px solid var(--card-border); padding: 0 20px; }
-.record-tab { padding: 16px 24px; font-size: 15px; color: var(--text-3); cursor: pointer; border-bottom: 2px solid transparent; }
-.record-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+.record-page {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.34), rgba(255,255,255,0.10)),
+    rgba(255,253,248,0.42);
+  border: 1px solid rgba(255,255,255,0.38);
+  border-radius: 22px;
+  overflow: visible;
+  -webkit-backdrop-filter: blur(28px) saturate(165%);
+  backdrop-filter: blur(28px) saturate(165%);
+  box-shadow: 0 18px 54px rgba(72,52,22,0.12), inset 0 1px 0 rgba(255,255,255,0.55);
+}
+[data-theme="dark"] .record-page {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.11), rgba(255,255,255,0.035)),
+    rgba(28,32,50,0.56);
+  border-color: rgba(255,255,255,0.14);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.11);
+}
+.record-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 14px 14px 0;
+  padding: 6px;
+  border: 1px solid rgba(255,255,255,0.28);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.24);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+}
+[data-theme="dark"] .record-tabs {
+  background: rgba(8,12,24,0.24);
+  border-color: rgba(255,255,255,0.10);
+}
+.record-tab {
+  flex: 1;
+  padding: 11px 18px;
+  border-radius: 12px;
+  font-size: 15px;
+  color: var(--text-2);
+  cursor: pointer;
+  border: 1px solid transparent;
+  text-align: center;
+  transition: all 0.2s;
+}
+.record-tab.active {
+  color: var(--text-1);
+  background: rgba(255,255,255,0.62);
+  border-color: rgba(255,255,255,0.70);
+  font-weight: 700;
+  box-shadow: 0 8px 20px rgba(112,82,32,0.13), inset 0 1px 0 rgba(255,255,255,0.72);
+}
+[data-theme="dark"] .record-tab.active {
+  color: rgba(248,241,230,0.98);
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.18);
+}
 .record-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px 4px; gap: 10px; flex-wrap: wrap; }
 .record-filter-row { display: flex; align-items: center; gap: 6px; padding: 8px 20px 10px; flex-wrap: wrap; }
 .record-filter-label { font-size: 13px; color: var(--text-3); margin-right: 2px; }
-.record-filter-tag { padding: 4px 12px; border-radius: 6px; font-size: 12px; border: 1px solid var(--card-border); color: var(--text-3); cursor: pointer; transition: all 0.15s; }
-.record-filter-tag.active { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); font-weight: 600; }
-.record-search { display: flex; align-items: center; background: var(--input-bg); border-radius: 20px; padding: 4px 4px 4px 14px; flex: 1; max-width: 400px; }
+.record-filter-tag {
+  padding: 5px 13px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid rgba(255,255,255,0.42);
+  color: var(--text-2);
+  background: rgba(255,255,255,0.24);
+  cursor: pointer;
+  transition: all 0.15s;
+  -webkit-backdrop-filter: blur(12px) saturate(145%);
+  backdrop-filter: blur(12px) saturate(145%);
+}
+.record-filter-tag.active {
+  background: rgba(178,149,93,0.16);
+  color: var(--accent);
+  border-color: rgba(178,149,93,0.46);
+  font-weight: 700;
+}
+[data-theme="dark"] .record-filter-tag {
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.12);
+}
+.record-search {
+  display: flex;
+  align-items: center;
+  background: rgba(255,255,255,0.48);
+  border: 1px solid rgba(255,255,255,0.58);
+  border-radius: 20px;
+  padding: 4px 4px 4px 14px;
+  flex: 1;
+  max-width: 400px;
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.55);
+}
+[data-theme="dark"] .record-search {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.14);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.10);
+}
 .record-search .dom-input-wrap { flex: 1; }
 .record-search .dom-input-wrap .native-input { border: none; background: none; outline: none; padding: 8px 10px; font-size: 14px; flex: 1; color: var(--text-1); }
 .search-btn { background: var(--accent); color: #fff; border: none; border-radius: 16px; padding: 8px 20px; font-size: 14px; cursor: pointer; }
@@ -2744,7 +2954,7 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .star-section { padding: 0 20px 8px; }
 .star-title { font-size: 15px; font-weight: 600; color: var(--text-1); padding: 12px 0 10px; border-top: 1px solid var(--card-border); cursor: pointer; display: flex; align-items: center; gap: 6px; }
 .star-toggle { font-size: 12px; color: var(--text-3); }
-.star-cards { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px; }
+.star-cards { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 10px; }
 .batch-bar { display: flex; align-items: center; gap: 12px; padding: 10px 20px; background: var(--section-alt); border-top: 1px solid var(--card-border); border-bottom: 1px solid var(--card-border); flex-wrap: wrap; }
 .batch-select-all { font-size: 14px; color: var(--text-3); cursor: pointer; }
 .batch-count { font-size: 14px; color: var(--accent); font-weight: 600; }
@@ -2752,11 +2962,12 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .batch-move-btn:hover { border-color: var(--accent); color: var(--accent); }
 .batch-confirm-btn { background: #e74c3c; color: #fff; border: none; border-radius: 6px; padding: 6px 16px; font-size: 13px; cursor: pointer; }
 .batch-cancel-btn { background: var(--input-bg); color: var(--text-3); border: 1px solid var(--card-border); border-radius: 6px; padding: 6px 16px; font-size: 13px; cursor: pointer; }
-.case-cards { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px 20px 20px; }
+.case-cards { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 10px; padding: 14px 20px 20px; }
 .bz-card { width: auto !important; display: flex; align-items: center; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; position: relative; cursor: pointer; height: 80px; transition: border-color 0.2s, background 0.2s; overflow: hidden; }
 .bz-card:hover { border-color: var(--accent); background: var(--accent-glow); }
 .bz-card.starred { border-color: rgba(241,196,15,0.4); background: rgba(241,196,15,0.04); }
 .bz-card.pinned { border-color: rgba(46,204,113,0.6); background: rgba(46,204,113,0.06); box-shadow: 0 0 0 1px rgba(46,204,113,0.3), 0 4px 12px rgba(46,204,113,0.15); }
+.bz-card.ctx-active { border-color: var(--accent) !important; background: var(--accent-glow) !important; box-shadow: 0 0 0 2px rgba(178,149,93,0.22), var(--card-shadow) !important; }
 .bz-card.pinned::before {
   content: '';
   position: absolute;
@@ -2789,9 +3000,9 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .bz-card .card-sex { font-size: 10px; color: var(--text-3); background: var(--input-bg); padding: 0 5px; border-radius: 3px; flex-shrink: 0; }
 .bz-card .card-star-badge { color: #f1c40f; font-size: 12px; }
 .bz-card .card-date { font-size: 11px; color: var(--text-3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bz-card .card-gz { display: flex; gap: 4px; flex: 1; justify-content: center; min-width: 0; align-items: center; padding: 6px 4px; }
-.bz-card .gz-col { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1; min-width: 0; }
-.bz-card .gz-circle { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0; }
+.bz-card .card-gz { display: flex; gap: 8px; flex: 1; justify-content: center; min-width: 120px; align-items: center; padding: 6px 8px; box-sizing: border-box; }
+.bz-card .gz-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 0 0 26px; min-width: 26px; }
+.bz-card .gz-circle { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0; line-height: 1; }
 .bz-card .gz-placeholder { background: var(--card-border); color: var(--text-3); }
 .bz-card .card-ops {
   width: 50px;
@@ -2822,6 +3033,149 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 }
 .bz-card .batch-checkbox { position: absolute; left: -6px; top: 50%; transform: translateY(-50%); z-index: 2; }
 .batch-ai-btn { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 6px 14px; font-size: 13px; cursor: pointer; }
+
+/* 苹果式毛玻璃：排盘记录与案例卡片 */
+.record-page {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.34), rgba(255,255,255,0.10)),
+    rgba(255,253,248,0.42);
+  border: 1px solid rgba(255,255,255,0.38);
+  border-radius: 22px;
+  -webkit-backdrop-filter: blur(28px) saturate(165%);
+  backdrop-filter: blur(28px) saturate(165%);
+  box-shadow: 0 18px 54px rgba(72,52,22,0.12), inset 0 1px 0 rgba(255,255,255,0.55);
+}
+[data-theme="dark"] .record-page {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.11), rgba(255,255,255,0.035)),
+    rgba(28,32,50,0.56);
+  border-color: rgba(255,255,255,0.14);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.11);
+}
+.record-tabs {
+  gap: 8px;
+  margin: 14px 14px 0;
+  padding: 6px;
+  border: 1px solid rgba(255,255,255,0.28);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.24);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+}
+[data-theme="dark"] .record-tabs {
+  background: rgba(8,12,24,0.24);
+  border-color: rgba(255,255,255,0.10);
+}
+.record-tab {
+  flex: 1;
+  padding: 11px 18px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  color: var(--text-2);
+  text-align: center;
+}
+.record-tab.active {
+  color: var(--text-1);
+  background: rgba(255,255,255,0.62);
+  border-color: rgba(255,255,255,0.70);
+  box-shadow: 0 8px 20px rgba(112,82,32,0.13), inset 0 1px 0 rgba(255,255,255,0.72);
+}
+[data-theme="dark"] .record-tab.active {
+  color: rgba(248,241,230,0.98);
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.18);
+}
+.record-search {
+  background: rgba(255,255,255,0.48);
+  border: 1px solid rgba(255,255,255,0.58);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.55);
+}
+[data-theme="dark"] .record-search {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.14);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.10);
+}
+.record-filter-tag,
+.action-btn,
+.batch-move-btn,
+.batch-cancel-btn {
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.36);
+  background: rgba(255,255,255,0.20);
+  color: var(--text-2);
+  -webkit-backdrop-filter: blur(12px) saturate(145%);
+  backdrop-filter: blur(12px) saturate(145%);
+}
+[data-theme="dark"] .record-filter-tag,
+[data-theme="dark"] .action-btn,
+[data-theme="dark"] .batch-move-btn,
+[data-theme="dark"] .batch-cancel-btn {
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.12);
+}
+.record-filter-tag.active,
+.action-btn.active {
+  background: rgba(178,149,93,0.18);
+  color: var(--accent);
+  border-color: rgba(178,149,93,0.48);
+  font-weight: 700;
+}
+.bz-card {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.38), rgba(255,255,255,0.16)),
+    rgba(255,253,248,0.48);
+  border-color: rgba(255,255,255,0.46);
+  border-radius: 16px;
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: 0 10px 28px rgba(72,52,22,0.09), inset 0 1px 0 rgba(255,255,255,0.55);
+}
+[data-theme="dark"] .bz-card {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.10), rgba(255,255,255,0.035)),
+    rgba(32,36,56,0.60);
+  border-color: rgba(255,255,255,0.13);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.09);
+}
+.bz-card:hover {
+  border-color: rgba(178,149,93,0.52);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.48), rgba(255,255,255,0.20)),
+    rgba(178,149,93,0.10);
+  box-shadow: 0 14px 34px rgba(72,52,22,0.13), inset 0 1px 0 rgba(255,255,255,0.60);
+}
+[data-theme="dark"] .bz-card:hover {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.13), rgba(255,255,255,0.045)),
+    rgba(178,149,93,0.10);
+}
+.bz-card .card-name { color: var(--text-1); }
+.bz-card .card-date,
+.bz-card .card-sex,
+.bz-card .ops-dots { color: var(--text-2); }
+.bz-card .card-sex {
+  background: rgba(255,255,255,0.28);
+  border: 1px solid rgba(255,255,255,0.32);
+}
+[data-theme="dark"] .bz-card .card-sex {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.12);
+}
+.bz-card .card-ops {
+  background: rgba(255,255,255,0.14);
+  border-left-color: rgba(255,255,255,0.28);
+}
+[data-theme="dark"] .bz-card .card-ops {
+  background: rgba(255,255,255,0.05);
+  border-left-color: rgba(255,255,255,0.10);
+}
+.bz-card.ctx-active {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.48), rgba(255,255,255,0.20)),
+    rgba(178,149,93,0.12) !important;
+}
 
 /* 移动分组弹窗 */
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 600; display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); }

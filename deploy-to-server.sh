@@ -20,8 +20,8 @@ eval "$RSYNC_CMD" \
     "$LOCAL_DIR/backend/models.py" \
     "$SERVER:/opt/xuan-cet/backend/"
 
-# 1b. 修正上传路径，使头像可被 Nginx 访问
-$SSH_CMD "$SERVER" "sudo sed -i \"s|os.path.join(_ACTUAL_PARENT, 'static', 'uploads')|'/var/www/xuan-cet/static/uploads'|\" /opt/xuan-cet/backend/app.py 2>/dev/null; sudo mkdir -p /var/www/xuan-cet/static/uploads; sudo chown -R lighthouse:lighthouse /var/www/xuan-cet/static/uploads"
+# 1b. 确保上传目录存在，使头像可被 Nginx 访问
+$SSH_CMD "$SERVER" "sudo mkdir -p /var/www/xuan-cet/static/uploads; sudo chown -R lighthouse:lighthouse /var/www/xuan-cet/static/uploads"
 
 # 2. 清理服务器旧的 assets（清理混合版本文件）
 echo "[2/4] 清理旧文件..."
@@ -37,7 +37,7 @@ eval "$RSYNC_CMD" \
 
 # 4. 重启后端
 echo "[4/4] 重启后端..."
-$SSH_CMD "$SERVER" "sudo fuser -k 5199/tcp 2>/dev/null; sleep 2; cd /opt/xuan-cet/backend && sudo -b nohup ./venv/bin/python app.py > /tmp/xuan-cet.log 2>&1"
+$SSH_CMD "$SERVER" "sudo fuser -k 5199/tcp 2>/dev/null; sleep 2; cd /opt/xuan-cet/backend && sudo -b env UPLOAD_FOLDER=/var/www/xuan-cet/static/uploads nohup ./venv/bin/python app.py > /tmp/xuan-cet.log 2>&1"
 sleep 2
 echo "  等待服务启动..."
 $SSH_CMD "$SERVER" "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5199/ 2>/dev/null" | grep -q 200 && echo "  后端 200 OK" || echo "  ⚠️ 后端可能未正常启动，检查 /tmp/xuan-cet.log"

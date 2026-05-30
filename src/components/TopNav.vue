@@ -1179,6 +1179,23 @@ function go(hash) {
   var fullPath = uniPath + queryStr
   var isTab = TAB_PATHS.indexOf(pathOnly) > -1
 
+  // 从其他术数页点“八字排盘”时，优先回到本次会话最后看的八字结果页。
+  // 只使用 window 变量，刷新页面后失效，避免把旧结果永久记住。
+  try {
+    var currentRoute = getCurrentRoute()
+    var lastBaziResult = window.__xc_lastBaziResultRoute || ''
+    if (
+      pathOnly === '/pages/bazi-index/index' &&
+      queryStr.indexOf('tab=free') > -1 &&
+      lastBaziResult.indexOf('/pages/bazi-result/index') === 0 &&
+      currentRoute.indexOf('/pages/bazi-index/index') !== 0 &&
+      currentRoute.indexOf('/pages/bazi-result/index') !== 0
+    ) {
+      uni.navigateTo({ url: lastBaziResult })
+      return
+    }
+  } catch(_) {}
+
   if (queryStr) {
     try { sessionStorage.setItem('_nav_query', queryStr) } catch(_) {}
   }
@@ -1274,9 +1291,9 @@ function updateNavOverflow() {
         clone.className = 'nav-btn-drop-item'
         clone.setAttribute('data-href', btn.getAttribute('data-href'))
         clone.textContent = btn.textContent.replace(' ▾','').trim()
-        clone.style.cssText = 'display:block;padding:8px 16px;font-size:0.78rem;color:var(--text-2);cursor:pointer;white-space:nowrap;transition:background 0.15s,color 0.15s'
+        clone.style.cssText = 'display:block;padding:8px 16px;font-size:0.78rem;color:var(--text-1);cursor:pointer;white-space:nowrap;transition:background 0.15s,color 0.15s'
         clone.onmouseenter = function() { this.style.background = 'var(--accent-glow)'; this.style.color = 'var(--accent)' }
-        clone.onmouseleave = function() { this.style.background = ''; this.style.color = 'var(--text-2)' }
+        clone.onmouseleave = function() { this.style.background = ''; this.style.color = 'var(--text-1)' }
         clone.onclick = function(e) {
           var href = clone.getAttribute('data-href')
           if (window._xc_dropItemGo) {
@@ -1354,8 +1371,10 @@ onMounted(() => {
   window.__topNavGo.avatarLoad = loadAvatar
 
   var _xc_applyFrost = function(el) {
-    if (!el || window.innerWidth > 768) return
+    if (!el) return
     var parent = el.parentElement
+    var isMoreMenu = parent && parent.classList && parent.classList.contains('nav-btn-more')
+    if (window.innerWidth > 768 && !isMoreMenu) return
     if (parent && parent !== document.body) {
       el._xc_origParent = parent
       el._xc_origNext = el.nextElementSibling
@@ -1384,6 +1403,28 @@ onMounted(() => {
         el.style.setProperty('left', 'auto', 'important')
         el.style.setProperty('transform', 'translateZ(0)', 'important')
       }
+    } else if (isMoreMenu || (el._xc_origParent && el._xc_origParent.classList && el._xc_origParent.classList.contains('nav-btn-more'))) {
+      var moreAnchor = el._xc_origParent || parent
+      var moreRect = moreAnchor ? moreAnchor.getBoundingClientRect() : null
+      var vw = window.innerWidth || document.documentElement.clientWidth || 0
+      var vh = window.innerHeight || document.documentElement.clientHeight || 0
+      var gap = 10
+      var pageZoom = 1
+      try { pageZoom = parseFloat(window.getComputedStyle(document.body).zoom) || 1 } catch(_) {}
+      var top = moreRect ? Math.max(52, moreRect.bottom + 8) : 60
+      var maxHeight = Math.max(140, vh - top - gap)
+      el.style.setProperty('min-width', '160px', 'important')
+      el.style.setProperty('max-width', 'min(240px, calc(100vw - 20px))', 'important')
+      el.style.setProperty('max-height', (maxHeight / pageZoom) + 'px', 'important')
+      el.style.setProperty('overflow-y', 'auto', 'important')
+      el.style.setProperty('overflow-x', 'hidden', 'important')
+      var menuWidth = Math.min(Math.max(el.getBoundingClientRect().width || 160, 160), Math.max(160, vw - gap * 2))
+      var left = moreRect ? (moreRect.right - menuWidth) : (vw - menuWidth - gap)
+      left = Math.max(gap, Math.min(left, vw - menuWidth - gap))
+      el.style.setProperty('top', (top / pageZoom) + 'px', 'important')
+      el.style.setProperty('left', (left / pageZoom) + 'px', 'important')
+      el.style.setProperty('right', 'auto', 'important')
+      el.style.setProperty('transform', 'translateZ(0)', 'important')
     } else {
       el.style.setProperty('top', '60px', 'important')
       el.style.setProperty('left', '50%', 'important')
@@ -1405,6 +1446,11 @@ onMounted(() => {
     el.style.removeProperty('box-shadow')
     el.style.removeProperty('-webkit-backdrop-filter')
     el.style.removeProperty('backdrop-filter')
+    el.style.removeProperty('min-width')
+    el.style.removeProperty('max-width')
+    el.style.removeProperty('max-height')
+    el.style.removeProperty('overflow-y')
+    el.style.removeProperty('overflow-x')
     el.style.removeProperty('z-index')
     el.style.removeProperty('padding')
     el.style.removeProperty('color')
@@ -1435,6 +1481,7 @@ onMounted(() => {
         if (m._xc_origParent) _xc_restoreMenu(m)
       })
     }
+    window._xc_closeAllDropdowns = _xc_closeAllDropdowns
 
     window._xc_toggleDrop = function(event) {
       event.stopPropagation()
@@ -1511,7 +1558,10 @@ onMounted(() => {
   // 窗口 resize 时重新检测按钮溢出（仅注册一次，避免多实例重复监听）
   if (!window.__topnavResizeDelegated) {
     window.__topnavResizeDelegated = true
-    window.addEventListener('resize', updateNavOverflow)
+    window.addEventListener('resize', function() {
+      if (window._xc_closeAllDropdowns) window._xc_closeAllDropdowns()
+      updateNavOverflow()
+    })
   }
   // 初始主题DOM同步（render effect bug: :data-theme 不响应）
   try {
@@ -1823,6 +1873,9 @@ onMounted(() => {
   color: var(--text-2);
   cursor: pointer;
   white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: background 0.15s, color 0.15s;
 }
 .nav-btn-drop-item:hover { background: var(--accent-glow); color: var(--accent); }
@@ -1831,8 +1884,23 @@ onMounted(() => {
 
 /* "更多"按钮 */
 .nav-btn-more { position: relative; }
-.nav-btn-more .nav-btn-drop-menu { left: auto; right: 0; transform: translateY(4px); }
+.nav-btn-more .nav-btn-drop-menu {
+  left: auto;
+  right: 0;
+  max-width: min(240px, calc(100vw - 20px));
+  max-height: calc(100dvh - 70px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  transform: translateY(4px);
+}
 .nav-btn-more.open .nav-btn-drop-menu { transform: translateY(2px); }
+body > #navBtnMoreMenu.nav-btn-drop-menu {
+  transform: translateZ(0) !important;
+  max-width: min(240px, calc(100vw - 20px));
+  max-height: calc(100dvh - 70px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
 
 /* 按钮 */
 .btn {
@@ -1929,16 +1997,25 @@ onMounted(() => {
     top: 60px !important;
     left: 50% !important;
     transform: translateX(-50%) translateZ(0) !important;
-    background: rgba(255,255,255,0.65) !important;
-    border-color: rgba(255,255,255,0.3) !important;
+    background: rgba(28,32,52,0.98) !important;
+    border-color: rgba(255,255,255,0.14) !important;
     border-radius: 20px !important;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.4) !important;
+    box-shadow: 0 14px 40px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.08) !important;
     -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
     backdrop-filter: blur(20px) saturate(180%) !important;
     isolation: isolate !important;
     padding: 6px 0 !important;
-    color: #333 !important;
+    color: rgba(246,241,232,0.98) !important;
     z-index: 9999 !important;
+  }
+  .nav-btn-drop-item,
+  .avatar-dropdown-item {
+    color: rgba(246,241,232,0.96) !important;
+  }
+  .nav-btn-drop-item:hover,
+  .avatar-dropdown-item:hover {
+    background: rgba(178,149,93,0.16) !important;
+    color: var(--accent) !important;
   }
   
   /* 覆盖主题切换的浅色样式 */
@@ -1953,6 +2030,10 @@ onMounted(() => {
     isolation: isolate !important;
     padding: 6px 0 !important;
     color: #333 !important;
+  }
+  [data-theme="light"] .nav-btn-drop-item,
+  [data-theme="light"] .avatar-dropdown-item {
+    color: rgba(70,58,40,0.92) !important;
   }
 }
 @media (max-width: 480px) {

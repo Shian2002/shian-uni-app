@@ -30,6 +30,7 @@
                 <view id="baziTabWzpro" class="tab-btn" :class="{ active: activeTab === 'wzpro' }" @tap="switchTab('wzpro')">专业排盘</view>
                 <view id="baziTabNotes" class="tab-btn" :class="{ active: activeTab === 'notes' }" @tap="switchTab('notes')">📝 笔记</view>
                 <view id="baziTabSettings" class="tab-btn" :class="{ active: activeTab === 'settings' }" @tap="switchTab('settings')">⚙ 设置</view>
+                <view class="tab-btn tab-return-btn" @tap="goBaziHome">↩ 返回排盘</view>
               </view>
               <!-- 内容区 -->
               <view class="tab-content-area">
@@ -794,6 +795,7 @@ const activeTab = ref(uni.getStorageSync('xc_bazi_activeTab') || 'wzpro')
 function switchTab(tab) {
   activeTab.value = tab
   uni.setStorageSync('xc_bazi_activeTab', tab)
+  rememberBaziResultRoute()
   if (tab === 'wzpro') {
     loadWzProData()
   }
@@ -807,6 +809,20 @@ function switchTab(tab) {
     var panel = document.getElementById(panelIds[i])
     if (panel) { panel.style.display = tab === tabs[i] ? 'block' : 'none' }
   }
+}
+
+function rememberBaziResultRoute() {
+  // 只保存在当前 H5 会话的 window 上，刷新页面后自然失效。
+  // 用于从其他术数页点回“八字排盘”时恢复刚才看的结果页。
+  // #ifdef H5
+  try {
+    var hash = window.location.hash || ''
+    var idx = hash.indexOf('/pages/bazi-result/index')
+    if (idx >= 0) {
+      window.__xc_lastBaziResultRoute = hash.substring(idx)
+    }
+  } catch(_) {}
+  // #endif
 }
 
 async function loadWzProData() {
@@ -1839,7 +1855,9 @@ function setupDragScroll(el) {
   el._dragScrolled = true
   var isDown = false
   var isDragging = false
+  var touchMode = ''
   var startX = 0
+  var startY = 0
   var scrollLeft = 0
   el.addEventListener('mousedown', function(e) {
     isDown = true
@@ -1869,6 +1887,30 @@ function setupDragScroll(el) {
       setTimeout(function() { el.removeAttribute('data-drag-moved') }, 100)
     }
   })
+  el.addEventListener('touchstart', function(e) {
+    if (!e.touches || !e.touches[0]) return
+    touchMode = ''
+    startX = e.touches[0].clientX
+    startY = e.touches[0].clientY
+    scrollLeft = el.scrollLeft
+  }, { passive: true })
+  el.addEventListener('touchmove', function(e) {
+    if (!e.touches || !e.touches[0]) return
+    var dx = e.touches[0].clientX - startX
+    var dy = e.touches[0].clientY - startY
+    if (!touchMode) {
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return
+      touchMode = Math.abs(dx) > Math.abs(dy) * 1.15 ? 'x' : 'y'
+    }
+    if (touchMode === 'x') {
+      e.preventDefault()
+      e.stopPropagation()
+      el.scrollLeft = scrollLeft - dx
+    }
+  }, { passive: false })
+  el.addEventListener('touchend', function() {
+    touchMode = ''
+  }, { passive: true })
 }
 
 function updateYunActiveDOM() {
@@ -2183,6 +2225,34 @@ function goBack() {
   uni.navigateBack({ delta: 1 })
 }
 
+function goBaziHome() {
+  // 用户主动回八字首页时，清掉本次会话的结果页记忆。
+  // #ifdef H5
+  try {
+    delete window.__xc_lastBaziResultRoute
+    sessionStorage.removeItem('xc_bazi_params')
+    sessionStorage.setItem('_nav_query', 'tab=free')
+    window.location.hash = '#/pages/bazi-index/index?tab=free'
+    setTimeout(function() {
+      try {
+        if (location.hash.indexOf('/pages/bazi-index/index') >= 0) {
+          uni.switchTab({ url: '/pages/bazi-index/index' })
+        }
+      } catch(_) {}
+    }, 60)
+    return
+  } catch(_) {}
+  // #endif
+  uni.switchTab({
+    url: '/pages/bazi-index/index',
+    fail: function() {
+      // #ifdef H5
+      try { location.hash = '#/pages/bazi-index/index?tab=free' } catch(_) {}
+      // #endif
+    }
+  })
+}
+
 function toggleTMS() { showTMS.value = !showTMS.value }
 function showSharePanel() { sharePanelOpen.value = true; try { document.getElementById('sharePanelModal')?.classList.add('open') } catch(_) {} }
 function shareAsImage() {
@@ -2437,6 +2507,7 @@ function deleteNote(id) {
 
 // ═══ 页面加载 ═══
 onMounted(async () => {
+  rememberBaziResultRoute()
   // 获取页面参数
   let params = null
 
@@ -2452,9 +2523,14 @@ onMounted(async () => {
 
     // #ifdef H5
     var _hashQs = ''
-    var _hashMatch = location.hash.match(/\?(.+)$/)
+    var _hashMatch = location.hash.match(/\?([^#]*)$/)
     if (_hashMatch) _hashQs = _hashMatch[1]
-    const urlP = new URLSearchParams(location.search || '?' + _hashQs)
+    const urlP = new URLSearchParams(location.search || '')
+    if (_hashQs) {
+      new URLSearchParams(_hashQs).forEach(function(value, key) {
+        urlP.set(key, value)
+      })
+    }
     const uy = urlP.get('y'), um = urlP.get('m'), ud = urlP.get('d')
     const uh = urlP.get('h'), umi = urlP.get('mi'), us = urlP.get('s')
     var uCal = urlP.get('cal')
@@ -2652,6 +2728,23 @@ onMounted(async () => {
 .tab-sidebar { width: 100px; flex-shrink: 0; display: flex; flex-direction: column; gap: 2px; }
 .tab-btn { display: flex; align-items: center; gap: 6px; padding: 14px 12px; border: none; cursor: pointer; font-size: 0.85rem; font-weight: 500; color: var(--text-3); background: var(--sidebar-bg); border-radius: var(--radius-md) 0 0 var(--radius-md); transition: all 0.25s var(--ease); text-align: left; border: 1px solid transparent; border-right: none; position: relative; }
 .tab-btn.active { color: var(--accent); background: var(--card-bg); border-color: var(--card-border); border-right-color: var(--card-bg); font-weight: 700; z-index: 2; }
+.tab-return-btn {
+  margin-top: 10px;
+  color: var(--text-2);
+  background: rgba(255,255,255,0.18);
+  border: 1px solid var(--card-border);
+  border-right: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  justify-content: center;
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+}
+.tab-return-btn:hover {
+  color: var(--accent);
+  background: var(--accent-glow);
+  border-color: rgba(178,149,93,0.36);
+}
 .tab-content-area { flex: 1; min-width: 0; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 0 var(--radius-md) var(--radius-md) var(--radius-md); overflow: visible; }
 .tab-panel { display: none; padding: 20px; animation: fadeIn 0.3s var(--ease); }
 .tab-panel.active { display: block; }
@@ -2835,7 +2928,7 @@ onMounted(async () => {
 .wz-yun-tab { flex: 1; text-align: center; padding: 8px 12px; font-size: 0.74rem; font-weight: 700; cursor: pointer; color: var(--text-3); transition: all 0.2s; border-bottom: 2px solid transparent; }
 .wz-yun-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--card-bg); }
 .wz-yun-items-wrap { position: relative; padding: 0; }
-.wz-yun-items { display: flex; flex-wrap: nowrap; gap: 0; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; position: relative; scrollbar-width: none; -ms-overflow-style: none; }
+.wz-yun-items { display: flex; flex-wrap: nowrap; gap: 0; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; position: relative; scrollbar-width: none; -ms-overflow-style: none; touch-action: pan-x; overscroll-behavior-x: contain; overscroll-behavior-y: none; }
 .wz-yun-items::-webkit-scrollbar { display: none; }
 .wz-yun-item { display: flex; flex-direction: column; align-items: center; padding: 8px 4px; min-width: 48px; flex: 0 0 auto; cursor: pointer; transition: background 0.15s; gap: 2px; min-height: 72px; justify-content: center; box-sizing: border-box; scroll-snap-align: start; }
 .wz-yun-item:hover { background: var(--accent-glow); }
@@ -2921,6 +3014,7 @@ onMounted(async () => {
   .tab-layout { flex-direction: column; }
   .tab-sidebar { width: 100%; flex-direction: row; gap: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .tab-btn { border-radius: var(--radius-md) var(--radius-md) 0 0; padding: 10px 16px; white-space: nowrap; border-right: 1px solid var(--card-border); border-bottom: none; justify-content: center; }
+  .tab-return-btn { margin-top: 0; margin-left: 8px; border-radius: var(--radius-md) var(--radius-md) 0 0; }
   .tab-btn.active { border-color: var(--card-border); border-bottom-color: var(--card-bg); }
   .tab-content-area { border-radius: 0 0 var(--radius-md) var(--radius-md); }
   .basic-layout { flex-direction: column; }

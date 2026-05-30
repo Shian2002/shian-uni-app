@@ -10,7 +10,7 @@ src/static/uploads/
 backend/venv/
 backend/.secret_key
 backend/tianji.db
-backend/static/uploads/
+backend/uploads/
 server-backup/
 temp.js
 replace.txt
