@@ -42,7 +42,6 @@
 
           <!-- AI系统 -->
           <view class="tool-tab-content" id="mhTabAiContent" style="display:none;">
-            <view class="form-group"><text class="form-label">问事类型</text><select id="mai-type" class="form-select" @change="onMaiTypeChangeDom($event)"></select></view>
             <view class="method-switch" style="margin-bottom:16px;">
               <view class="method-switch-btn" id="mhAiTimeBtn" :class="{ active: maiMethod === 'time' }" @tap.stop="switchMaiMethod('time')">⏰ 时间起卦</view>
               <view class="method-switch-btn" id="mhAiNumBtn" :class="{ active: maiMethod === 'number' }" @tap.stop="switchMaiMethod('number')">🔢 数字起卦</view>
@@ -158,14 +157,6 @@ function switchMaiMethod(m) {
 
 // 免费排盘
 const mhMethod = ref('time')
-
-function onMaiTypeChangeDom(e) {
-  const val = e.target.value
-  const questionInput = document.getElementById('mai-question')
-  if (!questionInput) return
-  const MAI_SCENE_QUESTIONS = { s_project: '这个项目能否成功？需要注意什么？', s_loveback: '我和对方复合的最佳时机是什么时候？', s_interview: '我的面试能否通过？有什么需要准备的？', s_house: '这套房子风水如何？适合购买或租住吗？', s_travel: '近期出行是否安全？需要注意什么？', s_lawsuit: '这场官司诉讼的走向如何？有什么策略？' }
-  if (MAI_SCENE_QUESTIONS[val]) { questionInput.value = MAI_SCENE_QUESTIONS[val]; questionInput.focus() }
-}
 
 async function meihuaFreePaipan() {
   const resultEl = document.getElementById('mhFreeResult')
@@ -308,12 +299,9 @@ function renderMeihuaResult(d) {
 }
 
 // AI
-const maiTypeLabels = ['事业财运', '姻缘感情', '学业考试', '健康出行', '百事占断', '💰 项目能否成功', '💕 感情复合时机', '💼 面试能否通过', '🏠 买房租房吉凶', '✈️ 出行安全预判', '⚖️ 官司诉讼参考']
-const maiTypeValues = ['career', 'love', 'study', 'health', 'general', 's_project', 's_loveback', 's_interview', 's_house', 's_travel', 's_lawsuit']
-const maiTypeIdx = ref(0); const maiMethod = ref('time')
+const maiMethod = ref('time')
 const maiLoading = ref(false); const maiResult = ref('')
 
-const MAI_SCENE_QUESTIONS = { s_project: '这个项目能否成功？需要注意什么？', s_loveback: '我和对方复合的最佳时机是什么时候？', s_interview: '我的面试能否通过？有什么需要准备的？', s_house: '这套房子风水如何？适合购买或租住吗？', s_travel: '近期出行是否安全？需要注意什么？', s_lawsuit: '这场官司诉讼的走向如何？有什么策略？' }
 // ═══ 梅花 SSE 流式解读 + 追问 ═══
 window._mhChatHistory = []
 
@@ -333,11 +321,9 @@ async function meihuaAskPaipan() {
   if (inputBar) inputBar.style.display = 'none'
 
   // 构建参数
-  var typeSelect = document.getElementById('mai-type')
-  var typeVal = typeSelect ? typeSelect.value : 'general'
   var questionInput = document.getElementById('mai-question')
   var question = questionInput ? questionInput.value : ''
-  var payload = { method: maiMethod.value, type: typeVal || 'general', question: question, is_deep: isDeepMode() }
+  var payload = { method: maiMethod.value, type: 'general', question: question, is_deep: isDeepMode() }
 
   if (maiMethod.value === 'time') {
     var y = document.getElementById('maiYear') ? document.getElementById('maiYear').value : ''
@@ -675,29 +661,6 @@ onMounted(() => {
       })
     }
   })
-  // ── 初始化AI问事类型select ──
-  var typeSel = document.getElementById('mai-type')
-  if (typeSel) {
-    var labels = ['事业财运','姻缘感情','学业考试','健康出行','百事占断','💰 项目能否成功','💕 感情复合时机','💼 面试能否通过','🏠 买房租房吉凶','✈️ 出行安全预判','⚖️ 官司诉讼参考']
-    var values = ['career','love','study','health','general','s_project','s_loveback','s_interview','s_house','s_travel','s_lawsuit']
-    // optgroup分组的Flask风格
-    var g1 = document.createElement('optgroup'); g1.label = '── 基础分类 ──'
-    var g2 = document.createElement('optgroup'); g2.label = '── 快速场景 ──'
-    for (var i = 0; i < labels.length; i++) {
-      var opt = document.createElement('option')
-      opt.value = values[i]; opt.textContent = labels[i]
-      if (i < 5) g1.appendChild(opt); else g2.appendChild(opt)
-    }
-    typeSel.appendChild(g1); typeSel.appendChild(g2)
-    typeSel.value = 'general'
-    // change事件绑定
-    typeSel.addEventListener('change', function() {
-      var qi = document.getElementById('mai-question')
-      if (!qi) return
-      var sceneQ = { s_project: '这个项目能否成功？需要注意什么？', s_loveback: '我和对方复合的最佳时机是什么时候？', s_interview: '我的面试能否通过？有什么需要准备的？', s_house: '这套房子风水如何？适合购买或租住吗？', s_travel: '近期出行是否安全？需要注意什么？', s_lawsuit: '这场官司诉讼的走向如何？有什么策略？' }
-      if (sceneQ[this.value]) { qi.value = sceneQ[this.value]; qi.focus() }
-    })
-  }
   // ── 创建原生DOM输入框（绕过uni-app <input>包装层，保证H5可用）──
   function createNativeInput(wrapId, type, placeholder) {
     var wrap = document.getElementById(wrapId)

@@ -74,11 +74,6 @@
           <!-- ══ 奇门AI系统 ══ -->
           <view class="tool-tab-content" id="qiTabAiContent" v-show="activeTab === 'ai'">
             <view id="qiAiFormArea">
-              <view class="form-group">
-                <text class="form-label">问事类型</text>
-                <select id="qai-type" class="form-select-picker"></select>
-              </view>
-
               <view class="qf-datetime-section">
                 <view class="qf-section-header">
                   <text class="form-label">🕐 起局时间</text>
@@ -226,9 +221,9 @@ function getDayLabels(year, month) {
   return getDayOptions(year, month).map(d => d + '日')
 }
 
-// 时辰选项（子时=23-1点、丑时=1-3点...）
-const hourOptions = ['子时', '丑时', '寅时', '卯时', '辰时', '巳时', '午时', '未时', '申时', '酉时', '戌时', '亥时']
-const hourValues = [23, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21]
+// 小时选项使用具体时间，避免用户看到传统时辰。
+const hourOptions = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0') + '时')
+const hourValues = Array.from({ length: 24 }, (_, i) => i)
 const minuteOptions = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0') + '分')
 
 // 免费排盘 - 5个独立picker（默认当前时间）
@@ -238,7 +233,7 @@ const qfMonthIdx = ref(_initNow.getMonth())
 const qfDayOptions = ref(getDayOptions(_initNow.getFullYear(), _initNow.getMonth() + 1))
 const qfDayLabels = ref(getDayLabels(_initNow.getFullYear(), _initNow.getMonth() + 1))
 const qfDayIdx = ref(_initNow.getDate() - 1)
-function _initHourIdx(h) { if (h === 23 || h === 0) return 0; else if (h < 3) return 1; else if (h < 5) return 2; else if (h < 7) return 3; else if (h < 9) return 4; else if (h < 11) return 5; else if (h < 13) return 6; else if (h < 15) return 7; else if (h < 17) return 8; else if (h < 19) return 9; else if (h < 21) return 10; else return 11 }
+function _initHourIdx(h) { return Math.max(0, Math.min(23, parseInt(h, 10) || 0)) }
 const qfHourIdx = ref(_initHourIdx(_initNow.getHours()))
 const qfMinuteIdx = ref(_initNow.getMinutes())
 const qfPanTypeIdx = ref(0); const qfResult = ref('')
@@ -443,10 +438,7 @@ function renderQimenPalaceGrid(data) {
 }
 
 // AI问策
-const qaiTypeLabels = ['── 基础分类 ──', '事业财运', '姻缘感情', '学业考试', '健康出行', '百事占断', '── 快速场景 ──', '💼 面试能否通过', '💰 项目能否回款', '💕 感情复合时机', '🏠 买房租房吉凶', '✈️ 出行安全预判', '⚖️ 官司诉讼参考', '🏪 开业签约择吉', '💍 结婚搬家择吉']
-const qaiTypeValues = ['_group', 'career', 'love', 'study', 'health', 'general', '_group', 's_interview', 's_project', 's_loveback', 's_house', 's_travel', 's_lawsuit', 's_business', 's_wedding']
-const qaiGroupIndices = qaiTypeLabels.map((l, i) => l.startsWith('──') ? i : -1).filter(i => i >= 0)
-const qaiTypeIdx = ref(1); const qaiYearIdx = ref(yearOptions.indexOf(_initNow.getFullYear()))
+const qaiYearIdx = ref(yearOptions.indexOf(_initNow.getFullYear()))
 const qaiMonthIdx = ref(_initNow.getMonth())
 const qaiDayOptions = ref(getDayOptions(_initNow.getFullYear(), _initNow.getMonth() + 1))
 const qaiDayLabels = ref(getDayLabels(_initNow.getFullYear(), _initNow.getMonth() + 1))
@@ -464,17 +456,6 @@ watch([qaiYearIdx, qaiMonthIdx], () => {
   qaiOnDateChange()
   nextTick(() => { try { _refillDaySelect('qai-day', qaiDayLabels.value, qaiDayIdx) } catch(e) {} })
 })
-// #ifndef H5
-watch(qaiTypeIdx, (newIdx) => {
-  if (qaiGroupIndices.includes(newIdx)) {
-    let next = newIdx + 1
-    while (next < qaiTypeLabels.length && qaiGroupIndices.includes(next)) next++
-    if (next >= qaiTypeLabels.length) { let prev = newIdx - 1; while (prev >= 0 && qaiGroupIndices.includes(prev)) prev--; qaiTypeIdx.value = prev >= 0 ? prev : 1 }
-    else qaiTypeIdx.value = next
-  }
-})
-// #endif
-
 function qaiOnDateChange() {
   const year = qaiYearIdx.value >= 0 ? yearOptions[qaiYearIdx.value] : 0
   const month = qaiMonthIdx.value >= 0 ? monthOptions[qaiMonthIdx.value] : 0
@@ -538,7 +519,7 @@ function qaiReset() {
   qaiDayOptions.value = getDayOptions(y, m)
   qaiDayLabels.value = getDayLabels(y, m)
   qaiDayIdx.value = now.getDate() - 1
-  qaiHourIdx.value = _initHourIdx(now.getHours()); qaiMinuteIdx.value = now.getMinutes(); qaiTypeIdx.value = 1
+  qaiHourIdx.value = _initHourIdx(now.getHours()); qaiMinuteIdx.value = now.getMinutes()
   qaiQuestion.value = ''; qaiResult.value = ''; showAdvanced.value = false
   deepMode.value = false; resultMode.value = 'simple'
   var qaiInp = document.getElementById('qaiQuestion')
@@ -557,7 +538,6 @@ function qaiReset() {
   if (proEl) proEl.classList.remove('active')
   qaiLoading.value = false; qaiProgress.value = 0; qaiStepText.value = ''
   nextTick(() => {
-    try { _syncSelectValue('qai-type', qaiTypeIdx.value) } catch(e) {}
     try { _syncSelectValue('qai-year', qaiYearIdx.value) } catch(e) {}
     try { _syncSelectValue('qai-month', qaiMonthIdx.value) } catch(e) {}
     try { _refillDaySelect('qai-day', qaiDayLabels.value, qaiDayIdx) } catch(e) {}
@@ -607,7 +587,7 @@ async function qimenAskPaipan() {
   var h = hourValues[qaiHourIdx.value]
   var min = parseInt(minuteOptions[qaiMinuteIdx.value] || '0')
   var panType = [2, 3][qaiJuIdx.value]
-  var type = qaiTypeValues[qaiTypeIdx.value] || 'general'
+  var type = 'general'
   window._qaiPanTime = { year: y, month: m, day: d, hour: h, minute: min, panType: panType }
 
   _qaiDoStreamSSE({
@@ -838,27 +818,6 @@ function _fillAllSelects() {
   _fillSelect('qf-minute', minuteOptions, qfMinuteIdx.value, function(v) { qfMinuteIdx.value = v })
   _fillSelect('qf-pantype', ['拆补法', '置闰法'], qfPanTypeIdx.value, function(v) { qfPanTypeIdx.value = v })
   // AI版
-  var typeLabels = qaiTypeLabels.map(function(l, i) { return l })
-  _fillSelect('qai-type', typeLabels, qaiTypeIdx.value, function(v) {
-    // 跳过分组行
-    if (qaiGroupIndices.includes(v)) {
-      var next = v + 1
-      while (next < qaiTypeLabels.length && qaiGroupIndices.includes(next)) next++
-      var target = next < qaiTypeLabels.length ? next : 1
-      qaiTypeIdx.value = target
-      var sel = document.getElementById('qai-type')
-      if (sel) sel.value = String(target)
-    } else {
-      qaiTypeIdx.value = v
-    }
-  })
-  // 分组行加 disabled
-  var qaiTypeSel = document.getElementById('qai-type')
-  if (qaiTypeSel) {
-    qaiGroupIndices.forEach(function(i) {
-      if (qaiTypeSel.options[i]) qaiTypeSel.options[i].disabled = true
-    })
-  }
   _fillSelect('qai-year', yearLabels, qaiYearIdx.value, function(v) { qaiYearIdx.value = v })
   _fillSelect('qai-month', monthLabels, qaiMonthIdx.value, function(v) { qaiMonthIdx.value = v })
   _fillSelect('qai-day', qaiDayLabels.value, qaiDayIdx.value, function(v) { qaiDayIdx.value = v })
@@ -992,8 +951,6 @@ onMounted(() => {
   const scenario = params.get('scenario') || hash.match(/scenario=([^&]+)/)?.[1]
   if (scenario) {
     activeTab.value = 'ai'
-    const idx = qaiTypeLabels.findIndex(l => l.includes(scenario.replace('s_', '')))
-    if (idx > 0) qaiTypeIdx.value = idx
   }
   // #endif
 
