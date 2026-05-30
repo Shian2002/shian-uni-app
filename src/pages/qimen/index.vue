@@ -387,8 +387,8 @@ function renderQimenPalaceGrid(data) {
     let menColor = C_DEFAULT; let menWeight = '500'
     if (isZhiShi) { menColor = C_ZHISHI; menWeight = '700' }
     if (hasMenPo) { menColor = C_MENPO; menWeight = '700' }
-    let tianHtml = ''; tianGanArr.filter(Boolean).forEach(g => { let c = C_DEFAULT, w = '400'; if (g === dayGan) { c = C_RIGAN; w = '700' } else if (g === hourGan) { c = C_SHIGAN; w = '700' } else if (jiXingTianSet.has(g)) { c = C_JIXING; w = '700' } else if (ruMuTianSet.has(g)) { c = C_RUMU; w = '700' }; tianHtml += `<span style="color:${c};font-weight:${w};">${g}</span>` })
-    let diHtml = ''; diGanArr.filter(Boolean).forEach(g => { let c = C_DIGAN, w = '400'; if (g === dayGan) { c = C_RIGAN; w = '700' } else if (g === hourGan) { c = C_SHIGAN; w = '700' } else if (jiXingDiSet.has(g)) { c = C_JIXING; w = '700' } else if (ruMuDiSet.has(g)) { c = C_RUMU; w = '700' }; diHtml += `<span style="color:${c};font-weight:${w};">${g}</span>` })
+    let tianHtml = ''; tianGanArr.filter(Boolean).forEach(g => { let c = C_DEFAULT, w = '400'; if (jiXingTianSet.has(g)) { c = C_JIXING; w = '700' } else if (ruMuTianSet.has(g)) { c = C_RUMU; w = '700' }; tianHtml += `<span style="color:${c};font-weight:${w};">${g}</span>` })
+    let diHtml = ''; diGanArr.filter(Boolean).forEach(g => { let c = C_DIGAN, w = '400'; if (jiXingDiSet.has(g)) { c = C_JIXING; w = '700' } else if (ruMuDiSet.has(g)) { c = C_RUMU; w = '700' }; diHtml += `<span style="color:${c};font-weight:${w};">${g}</span>` })
     const gongLabel = `${gongNum}·${baguaSimple[p.bagua]||p.bagua}`
     const FS = '0.65rem'
     html += `<div style="background:#fff;aspect-ratio:1;position:relative;color:${C_DEFAULT};padding:4px 4px;display:flex;flex-direction:column;justify-content:space-between;box-sizing:border-box;">`
@@ -403,8 +403,7 @@ function renderQimenPalaceGrid(data) {
     const isDayYin = dayGan && p.yinGan === dayGan
     const isHourYin = hourGan && p.yinGan === hourGan
     let yinColor = C_YINGAN; let yinWeight = '400'
-    if (isDayYin) { yinColor = C_RIGAN; yinWeight = '700' } else if (isHourYin) { yinColor = C_SHIGAN; yinWeight = '700' }
-    html += `<span style="white-space:nowrap;">${p.menFull?`<span style="color:${menColor};font-weight:${menWeight};font-size:${FS};">${p.menFull}</span>`:''}${hasMenPo?`<span style="color:${C_MENPO};font-size:0.5rem;font-weight:600;margin-left:2px;">门迫</span>`:''}</span>`
+    html += `<span style="white-space:nowrap;">${p.menFull?`<span style="color:${menColor};font-weight:${menWeight};font-size:${FS};">${p.menFull}</span>`:''}</span>`
     html += `<span style="color:${yinColor};font-weight:${yinWeight};font-size:${FS};white-space:nowrap;">${p.yinGan||''}</span></div>`
     html += `<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:0.45rem;color:#d0d0d0;font-weight:400;pointer-events:none;">${gongLabel}</div>`
     html += `</div>`
@@ -416,9 +415,7 @@ function renderQimenPalaceGrid(data) {
   html += `<span><span style="color:${C_JIXING};font-weight:700;">击刑</span></span>`
   html += `<span><span style="color:${C_RUMU};font-weight:700;">入墓</span></span>`
   html += `<span><span style="color:${C_KONG};">○</span>空亡</span>`
-  html += `<span><span style="color:${C_MAHORSE};">🐎</span>马星</span>`
-  html += `<span><span style="color:#E74C3C;font-weight:700;">日干</span></span>`
-  html += `<span><span style="color:#E74C3C;font-weight:700;">时干</span></span></div>`
+  html += `<span><span style="color:${C_MAHORSE};">🐎</span>马星</span></div>`
   html += `<div style="text-align:center;font-size:0.65rem;color:var(--text-3);margin-top:8px;">⚠️ 以上内容仅为民俗文化参考，不构成任何决策建议</div>`
   html += `</div>`
   return html
@@ -1240,37 +1237,38 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 /* ═══ 流式解读卡片 ═══ */
 .qai-stream-box {
   margin-top: 20px; padding: 16px;
-  background: var(--card-bg); border: 1px solid var(--card-border);
-  border-radius: 14px;
+  background: var(--card-bg); border: 1px solid rgba(178,149,93,0.16);
+  border-radius: 16px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
 }
 .qai-card-item {
-  background: var(--bg); border: 1px solid var(--card-border);
-  border-radius: 10px; padding: 14px 16px; margin-bottom: 10px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(178,149,93,0.14);
+  border-radius: 14px; padding: 14px 16px; margin-bottom: 10px;
 }
 .qai-card-title {
-  font-size: 0.9rem; font-weight: 700;
+  font-size: 0.92rem; font-weight: 700; letter-spacing: 0.5px;
   color: var(--accent); margin-bottom: 6px;
 }
-.qai-card-body { font-size: 0.82rem; color: var(--text-2); line-height: 1.7; }
+.qai-card-body { font-size: 0.86rem; color: var(--text-2); line-height: 1.86; }
 .qai-card-body strong { color: var(--text-1); }
 
 /* ═══ 对话气泡 ═══ */
 .chat-container { display: flex; flex-direction: column; gap: 12px; }
 .chat-bubble-ai {
   align-self: flex-start;
-  background: var(--section-alt); border: 1px solid var(--card-border);
-  border-radius: 14px 14px 14px 4px;
-  padding: 16px 20px; max-width: 92%; width: 100%; box-sizing: border-box;
+  background: rgba(255,255,255,0.045); border: 1px solid rgba(178,149,93,0.16);
+  border-radius: 16px;
+  padding: 16px 18px; max-width: 94%; width: 100%; box-sizing: border-box;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
 }
 .chat-bubble-user {
   align-self: flex-end;
   background: var(--accent); color: #fff;
-  border-radius: 14px 14px 4px 14px;
+  border-radius: 16px;
   padding: 10px 16px; max-width: 80%;
-  font-size: 0.9rem; line-height: 1.5;
+  font-size: 0.9rem; line-height: 1.6;
 }
 .chat-bubble-content {
-  font-size: 0.875rem; color: var(--text-2); line-height: 1.9;
+  font-size: 0.9rem; color: var(--text-2); line-height: 1.86; word-break: break-word;
 }
 .ai-stage {
   font-size: 0.9rem; color: var(--text-1);
@@ -1282,7 +1280,7 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 }
 .ai-progress-fill {
   height: 100%; width: 20%;
-  background: linear-gradient(90deg, var(--accent), #8b5cf6);
+  background: linear-gradient(90deg, transparent, var(--accent), #d6b46d, transparent);
   border-radius: 2px;
   animation: ai-progress-pulse 1.5s ease-in-out infinite;
   transition: width 0.3s ease;
@@ -1295,17 +1293,17 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 /* ═══ 追问输入栏 ═══ */
 .chat-input-bar {
   display: flex; gap: 8px; margin-top: 16px;
-  padding: 10px 14px; background: var(--section-alt);
-  border-radius: 12px; border: 1px solid var(--card-border);
+  padding: 10px 14px; background: rgba(255,255,255,0.045);
+  border-radius: 16px; border: 1px solid rgba(178,149,93,0.16);
 }
 .chat-input {
-  flex: 1; padding: 8px 14px; border-radius: 8px;
-  border: 1px solid var(--card-border);
+  flex: 1; padding: 8px 14px; border-radius: 999px;
+  border: 1px solid rgba(178,149,93,0.16);
   background: var(--input-bg); color: var(--text-1);
   font-size: 0.875rem; outline: none;
 }
 .chat-send-btn {
   padding: 8px 20px; background: var(--accent); color: #fff;
-  border-radius: 8px; font-size: 0.875rem; cursor: pointer; white-space: nowrap;
+  border-radius: 999px; font-size: 0.875rem; cursor: pointer; white-space: nowrap;
 }
 </style>

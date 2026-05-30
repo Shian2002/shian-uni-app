@@ -1155,6 +1155,10 @@ function _checkTarotRestore() {
   cursor: pointer;
   transition: all 0.25s ease;
   overflow: hidden;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 .spread-card::before { display: none; }
 .spread-card:hover {
@@ -1190,11 +1194,14 @@ function _checkTarotRestore() {
 .spread-card-desc {
   font-size: 0.75rem;
   color: var(--text-3);
-  line-height: 1;
+  line-height: 1.2;
   opacity: 0.7;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 140px;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  white-space: normal;
 }
 
 /* ── 设置区域 ── */

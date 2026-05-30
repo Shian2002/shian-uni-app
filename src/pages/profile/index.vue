@@ -20,7 +20,7 @@
           <!-- 头像卡片 -->
           <view class="profile-card" v-if="isLoggedIn">
             <view class="profile-card-avatar" @tap="clickProfileAvatar" title="点击更换头像">
-              <image v-if="userInfo.avatar" :src="userInfo.avatar" class="profile-card-avatar-img" mode="aspectFill" />
+              <image v-if="userInfo.avatar" :src="userInfo.avatar" class="profile-card-avatar-img" mode="aspectFill" @error="handleProfileAvatarError" />
               <text v-else class="profile-card-avatar-text">{{ (userInfo.username || '用').charAt(0).toUpperCase() }}</text>
             </view>
             <view class="profile-card-info">
@@ -171,6 +171,7 @@ window.addEventListener('xc-session-expired', function() { isLoggedIn.value = fa
 const hasPassword = ref(uni.getStorageSync('xc_has_password') === '1')
 const accordionOpen = ref('')
 const accordionInputsCreated = {}
+const DEFAULT_AVATAR_URL = '/static/images/logo.webp?v=2'
 function toggleAccordion(name) {
   accordionOpen.value = accordionOpen.value === name ? '' : name
   if (accordionOpen.value === name && !accordionInputsCreated[name]) {
@@ -228,7 +229,7 @@ async function doLogout() {
   profiles.value = []
   userInfo.username = '用户'
   userInfo.regDate = '—'
-  userInfo.avatar = ''
+  userInfo.avatar = DEFAULT_AVATAR_URL
   uni.removeStorageSync('xc_token')
   uni.removeStorageSync('xc_user')
   uni.showToast({ title: '已退出登录', icon: 'none' })
@@ -313,8 +314,18 @@ async function changePassword() {
 const userInfo = reactive({
   username: uni.getStorageSync('xc_user') || '用户',
   regDate: '—',
-  avatar: uni.getStorageSync('xc_avatar') || ''
+  avatar: uni.getStorageSync('xc_avatar') || DEFAULT_AVATAR_URL
 })
+function setProfileAvatar(src, shouldCache) {
+  userInfo.avatar = src || DEFAULT_AVATAR_URL
+  if (shouldCache && src) uni.setStorageSync('xc_avatar', src)
+}
+function handleProfileAvatarError() {
+  if (userInfo.avatar && userInfo.avatar.indexOf(DEFAULT_AVATAR_URL) === -1) {
+    uni.removeStorageSync('xc_avatar')
+    userInfo.avatar = DEFAULT_AVATAR_URL
+  }
+}
 const oauthProviders = reactive([
   { key: 'gitee', name: 'Gitee', icon: '🟢', bound: false }
 ])
@@ -854,7 +865,7 @@ onMounted(() => {
         hasPassword.value = d.has_password !== false
         if (d.username) userInfo.username = d.username
         if (d.created_at) userInfo.regDate = new Date(d.created_at).toLocaleString('zh-CN')
-        if (d.avatar) { userInfo.avatar = d.avatar; uni.setStorageSync('xc_avatar', d.avatar) }
+        setProfileAvatar(d.avatar || DEFAULT_AVATAR_URL, !!d.avatar)
       }
     }).catch(() => {})
   }
@@ -893,7 +904,7 @@ onMounted(() => {
       uni.setStorageSync('xc_has_password', d.has_password !== false ? '1' : '0')
       hasPassword.value = d.has_password !== false
       userInfo.username = d.username
-      if (d.avatar) { userInfo.avatar = d.avatar; uni.setStorageSync('xc_avatar', d.avatar) }
+      setProfileAvatar(d.avatar || DEFAULT_AVATAR_URL, !!d.avatar)
       if (d.created_at) userInfo.regDate = new Date(d.created_at).toLocaleString('zh-CN')
       loadBindings()
     }

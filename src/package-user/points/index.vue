@@ -141,9 +141,26 @@ export default {
       var pagerHtml = ''
       if (totalPages > 1) {
         if (dpPage > 1) pagerHtml += '<view class="dp-page-btn" onclick="window._dpGo(' + (dpPage - 1) + ')">‹</view>'
-        for (var i = 1; i <= totalPages; i++) {
-          pagerHtml += '<view class="dp-page-num' + (i === dpPage ? ' dp-page-cur' : '') + '" onclick="window._dpGo(' + i + ')">' + i + '</view>'
+        var pages = []
+        if (totalPages <= 5) {
+          // 5页以内全部显示
+          for (var i = 1; i <= totalPages; i++) pages.push(i)
+        } else {
+          // 超过5页，滑动窗口
+          if (dpPage <= 3) {
+            // 前3页显示 1-5
+            for (var i = 1; i <= 5; i++) pages.push(i)
+          } else if (dpPage >= totalPages - 2) {
+            // 后3页显示最后5页
+            for (var i = totalPages - 4; i <= totalPages; i++) pages.push(i)
+          } else {
+            // 中间，当前页居中显示
+            for (var i = dpPage - 2; i <= dpPage + 2; i++) pages.push(i)
+          }
         }
+        pages.forEach(function(p) {
+          pagerHtml += '<view class="dp-page-num' + (p === dpPage ? ' dp-page-cur' : '') + '" onclick="window._dpGo(' + p + ')">' + p + '</view>'
+        })
         if (dpPage < totalPages) pagerHtml += '<view class="dp-page-btn" onclick="window._dpGo(' + (dpPage + 1) + ')">›</view>'
       }
       document.getElementById('dpPager').innerHTML = pagerHtml

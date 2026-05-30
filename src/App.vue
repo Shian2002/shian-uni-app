@@ -135,6 +135,9 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  overflow-x: hidden;
+  width: 100%;
+  box-sizing: border-box;
 }
 html[data-theme="light"], html[data-theme="light"] body {
   background: #f7f2ea;
@@ -142,6 +145,9 @@ html[data-theme="light"], html[data-theme="light"] body {
 #app, .uni-app, uni-app, uni-page-wrapper, uni-page, uni-page-body {
   background: #161a2a !important;
   background-color: #161a2a !important;
+  overflow-x: hidden;
+  width: 100%;
+  box-sizing: border-box;
 }
 html[data-theme="light"] #app,
 html[data-theme="light"] .uni-app,
@@ -218,6 +224,8 @@ uni-tabbar, .uni-tabbar, .uni-tabbar-bottom {
 .sidebar-group-items { padding:0 8px 4px; }
 /* 列表项 */
 .sidebar-item { display:flex; align-items:center; gap:8px; padding:0; border-bottom:1px solid var(--card-border); transition:background .15s; }
+.sidebar-new-item .sidebar-item-body { background:var(--accent-glow); border-radius:10px; margin:6px; padding:9px 12px; }
+.sidebar-new-item .sidebar-item-text { color:var(--accent); font-weight:600; }
 .sidebar-item-body { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; padding:10px 14px; cursor:pointer; }
 .sidebar-item-body:hover { background:var(--accent-glow); }
 .sidebar-item-icon { font-size:1.3rem; flex-shrink:0; }
@@ -271,5 +279,5 @@ uni-tabbar, .uni-tabbar, .uni-tabbar-bottom {
 uni-page-wrapper{min-height:0!important}
 .page-root{padding-top:60px!important}@media(max-width:768px){.page-root{padding-top:56px!important}}
 .dp-list{border:1px solid var(--card-border);border-radius:12px;overflow:hidden}.dp-item{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--card-border);transition:background .12s}.dp-item:last-child{border-bottom:none}.dp-item:hover{background:var(--accent-glow)}.dp-left{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}.dp-desc{font-size:.85rem;color:var(--text-1);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dp-date{font-size:.7rem;color:var(--text-3)}.dp-points{font-size:1rem;font-weight:700;flex-shrink:0;min-width:60px;text-align:right}.dp-plus{color:var(--accent)}.dp-minus{color:var(--danger)}
-.dp-tabs{display:flex;gap:8px;margin-bottom:12px}.dp-tab{padding:6px 18px;border-radius:18px;font-size:.8rem;color:var(--text-3);background:var(--card-bg);border:1px solid var(--card-border);cursor:pointer;transition:all .15s}.dp-tab.active{background:var(--accent-glow);color:var(--accent);border-color:var(--accent)}.dp-tab:hover{background:var(--accent-glow)}.dp-pager{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px}.dp-page-btn{padding:4px 12px;border-radius:8px;font-size:.85rem;color:var(--accent);cursor:pointer;background:var(--card-bg);border:1px solid var(--card-border);transition:all .12s}.dp-page-btn:hover{background:var(--accent-glow)}.dp-page-num{padding:4px 10px;border-radius:6px;font-size:.78rem;color:var(--text-3);cursor:pointer;transition:all .12s;min-width:28px;text-align:center}.dp-page-num:hover{background:var(--accent-glow)}.dp-page-cur{background:var(--accent-glow);color:var(--accent);font-weight:600}
+.dp-tabs{display:flex;gap:8px;margin-bottom:12px}.dp-tab{padding:6px 18px;border-radius:18px;font-size:.8rem;color:var(--text-3);background:var(--card-bg);border:1px solid var(--card-border);cursor:pointer;transition:all .15s}.dp-tab.active{background:var(--accent-glow);color:var(--accent);border-color:var(--accent)}.dp-tab:hover{background:var(--accent-glow)}.dp-pager{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px}.dp-page-btn{padding:4px 12px;border-radius:8px;font-size:.85rem;color:var(--accent);cursor:pointer;background:var(--card-bg);border:1px solid var(--card-border);transition:all .12s}.dp-page-btn:hover{background:var(--accent-glow)}.dp-page-num{padding:4px 10px;border-radius:6px;font-size:.78rem;color:var(--text-3);cursor:pointer;transition:all .12s;min-width:28px;text-align:center}.dp-page-num:hover{background:var(--accent-glow)}.dp-page-cur{background:var(--accent-glow);color:var(--accent);font-weight:600}.dp-page-ellipsis{padding:4px 8px;font-size:.78rem;color:var(--text-3);cursor:default}
 </style>

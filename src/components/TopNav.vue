@@ -119,6 +119,27 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['toggle-theme', 'show-login'])
+const DEFAULT_AVATAR_URL = '/static/images/logo.webp?v=2'
+
+function applySidebarAvatar(src, shouldCache) {
+  var sideImg = document.getElementById('sidebarUserAvatar')
+  var sideLetter = document.getElementById('sidebarUserLetter')
+  var avatarSrc = src || DEFAULT_AVATAR_URL
+  if (sideImg) {
+    sideImg.onerror = function() {
+      if (this.src.indexOf(DEFAULT_AVATAR_URL) === -1) {
+        try { uni.removeStorageSync('xc_avatar') } catch(_) {}
+        this.src = DEFAULT_AVATAR_URL
+      }
+    }
+    sideImg.src = avatarSrc
+    sideImg.style.display = 'block'
+  }
+  if (sideLetter) sideLetter.style.display = 'none'
+  if (shouldCache && src) {
+    try { uni.setStorageSync('xc_avatar', src) } catch(_) {}
+  }
+}
 
 // ── 全局侧边栏：在 document.body 上创建唯一实例 ──
 // 原因：uni-app custom tabBar 下每个 tab 页面各有一份 TopNav 实例，
@@ -132,10 +153,12 @@ function ensureGlobalSidebar() {
   overlay.className = 'sidebar-overlay'
   overlay.id = 'sidebarOverlayGlobal'
   overlay.onclick = function() { toggleSidebar() }
+  overlay.setAttribute('aria-hidden', 'true')
 
   var sidebar = document.createElement('div')
   sidebar.className = 'tarot-sidebar'
   sidebar.id = 'tarotSidebarGlobal'
+  sidebar.setAttribute('aria-hidden', 'true')
   sidebar.innerHTML = '<div class="sidebar-brand"><span class="sidebar-brand-icon-wrap"><img class="sidebar-brand-icon" src="/static/images/logo.webp?v=2"></span><span class="sidebar-brand-name">时安解忧屋</span></div>'
     + '<div class="sidebar-header"><span class="sidebar-title">对话历史</span></div>'
     + '<div class="sidebar-tabs"><span class="sidebar-tab" id="sidebarTabFlat" onclick="window._xc_setSidebarView(\'flat\')">全部</span><span class="sidebar-tab" id="sidebarTabComprehensive" onclick="window._xc_setSidebarView(\'comprehensive\')">综合</span><span class="sidebar-tab" id="sidebarTabGrouped" onclick="window._xc_setSidebarView(\'grouped\')">分类</span></div>'
@@ -162,13 +185,7 @@ function ensureGlobalSidebar() {
   document.body.appendChild(overlay)
   document.body.appendChild(sidebar)
   _restoreSidebarView()
-  var cachedAvatar = uni.getStorageSync('xc_avatar')
-  if (cachedAvatar) {
-    var sideImg = document.getElementById('sidebarUserAvatar')
-    var sideLetter = document.getElementById('sidebarUserLetter')
-    if (sideImg) { sideImg.src = cachedAvatar; sideImg.style.display = 'block' }
-    if (sideLetter) sideLetter.style.display = 'none'
-  }
+  applySidebarAvatar(uni.getStorageSync('xc_avatar') || DEFAULT_AVATAR_URL, false)
 }
 
 onMounted(function() {
@@ -232,6 +249,12 @@ onMounted(function() {
             wrap.appendChild(inp)
           }
         })
+        setTimeout(function() {
+          try {
+            var firstInput = modal.querySelector('#tnLoginUser, #tnLoginPhone, #tnLoginEmail')
+            if (firstInput && firstInput.focus) firstInput.focus()
+          } catch(_) {}
+        }, 60)
       }
     }
     window._openLoginModal_Close = function() {
@@ -310,6 +333,22 @@ onMounted(function() {
     }
     window._xc_sendPhoneCode = function() { _xc_sendCode({ inputId:'tnLoginPhone', btnId:'tnPhoneCodeBtn', key:'phone', url:'/api/sms/send', errMsg:'请输入正确的手机号', validate:function(v){return v.length>=11} }) }
     window._xc_sendEmailCode = function() { _xc_sendCode({ inputId:'tnLoginEmail', btnId:'tnEmailCodeBtn', key:'email', url:'/api/email/send', errMsg:'请输入正确的邮箱', validate:function(v){return v.indexOf('@')!==-1} }) }
+    if (!window.__xcLoginKeyDelegated) {
+      window.__xcLoginKeyDelegated = true
+      document.addEventListener('keydown', function(e) {
+        var modal = window._xc_getVisibleModal ? window._xc_getVisibleModal() : document.getElementById('topnavLoginModal')
+        if (!modal || !modal.classList || !modal.classList.contains('open')) return
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          window._openLoginModal_Close()
+        } else if (e.key === 'Enter') {
+          var tag = e.target && e.target.tagName ? e.target.tagName.toLowerCase() : ''
+          if (tag === 'textarea') return
+          e.preventDefault()
+          if (window._xc_doLogin) window._xc_doLogin()
+        }
+      }, true)
+    }
   })
 
 window._xc_toggleSidebar = function() { toggleSidebar() }
@@ -381,11 +420,7 @@ function _loadSidebarUserPanel() {
       document.getElementById('sidebarUserName').textContent = d.username
       var letterEl = document.getElementById('sidebarUserLetter')
       if (letterEl) letterEl.textContent = d.username.charAt(0).toUpperCase()
-      if (d.avatar) {
-        var img = document.getElementById('sidebarUserAvatar')
-        if (img) { img.src = d.avatar; img.style.display = 'block' }
-        if (letterEl) letterEl.style.display = 'none'
-      }
+      applySidebarAvatar(d.avatar || DEFAULT_AVATAR_URL, !!d.avatar)
     }
   }).catch(function() { guestEl.style.display = 'flex'; loggedEl.style.display = 'none' })
   uni.request({ url: '/api/membership', method: 'GET' }).then(function(res) {
@@ -403,17 +438,23 @@ function toggleSidebar() {
   if (!sidebar || !overlay) return
   if (sidebar.classList.contains('open')) {
     sidebar.classList.remove('open'); overlay.classList.remove('show')
+    sidebar.setAttribute('aria-hidden', 'true')
+    overlay.setAttribute('aria-hidden', 'true')
     document.body.removeEventListener('click', window.__sidebarClickAway)
     return
   }
   sidebar.classList.add('open'); overlay.classList.add('show')
+  sidebar.setAttribute('aria-hidden', 'false')
+  overlay.setAttribute('aria-hidden', 'false')
   uni.$emit('sidebar-opened')
   document.body.removeEventListener('click', window.__sidebarClickAway)
   window.__sidebarClickAway = function(e) {
     var s = document.getElementById('tarotSidebarGlobal')
     if (s && s.classList.contains('open') && !s.contains(e.target)) {
       e.stopPropagation(); s.classList.remove('open')
-      document.getElementById('sidebarOverlayGlobal').classList.remove('show')
+      s.setAttribute('aria-hidden', 'true')
+      var ov = document.getElementById('sidebarOverlayGlobal')
+      if (ov) { ov.classList.remove('show'); ov.setAttribute('aria-hidden', 'true') }
       document.body.removeEventListener('click', window.__sidebarClickAway)
     }
   }
@@ -422,6 +463,13 @@ function toggleSidebar() {
   if (!listEl) return
   // 并行加载用户面板
   _loadSidebarUserPanel()
+  var token = ''
+  try { token = uni.getStorageSync('xc_token') || '' } catch(_) {}
+  if (!token) {
+    window.__sidebarCache = null
+    listEl.innerHTML = '<div class="sidebar-empty">登录后可同步历史记录</div>'
+    return
+  }
   // 30 秒内缓存
   var now = Date.now()
   if (window.__sidebarCache && (now - window.__sidebarCache.ts) < 30000) {
@@ -519,12 +567,23 @@ function _renderSidebarGroups(groups, listEl) {
       + '<span class="sidebar-group-count">' + g.records.length + '</span>'
       + '<span class="sidebar-group-arrow">▾</span>'
       + '</div><div class="sidebar-group-items">'
+    h += _renderNewConversationItem(g.type, g.label)
     g.records.forEach(function(r) {
       h += _renderSidebarItem(r)
     })
     h += '</div></div>'
   })
   listEl.innerHTML = h
+}
+
+function _renderNewConversationItem(type, label) {
+  var text = '＋ 新对话'
+  if (label) text += ' · ' + _escHtml(label)
+  return '<div class="sidebar-item sidebar-new-item">'
+    + '<div class="sidebar-item-body" onclick="window._xc_startNewConversation(\'' + type + '\')">'
+    + '<span class="sidebar-item-text">' + text + '</span>'
+    + '<span class="sidebar-item-time">开始新的提问</span>'
+    + '</div></div>'
 }
 
 function _renderSidebarItem(r) {
@@ -606,8 +665,56 @@ window._showComprehensiveConv = function(cid) {
     if (!d || !d.id) { uni.showToast({ title: '对话不存在', icon: 'none' }); return }
     window._xc_toggleSidebar()
     try { sessionStorage.setItem('xc_comprehensive_resume_id', String(d.id)) } catch(_) {}
-    uni.switchTab({ url: '/pages/index/index' })
+    var restore = function() {
+      setTimeout(function() {
+        if (window._xc_restoreComprehensive) window._xc_restoreComprehensive(d.id)
+      }, 200)
+    }
+    uni.switchTab({ url: '/pages/index/index', success: restore, fail: restore })
+    restore()
   }, fail: function() { uni.showToast({ title: '加载失败', icon: 'none' }) } })
+}
+
+window._xc_startNewConversation = function(type) {
+  var t = type || 'comprehensive'
+  var routeMap = {
+    comprehensive: '/pages/index/index',
+    qimen: '/pages/qimen/index',
+    paipan: '/pages/bazi-index/index',
+    bazi: '/pages/bazi-index/index',
+    liuyao: '/pages/liuyao/index',
+    meihua: '/pages/meihua/index',
+    ziwei: '/pages/ziwei/index',
+    taluo: '/pages/tarot/index',
+    tarot: '/pages/tarot/index'
+  }
+  var route = routeMap[t] || '/pages/index/index'
+  try {
+    window.__xc_restoreData = null
+    sessionStorage.removeItem('xc_comprehensive_resume_id')
+    sessionStorage.removeItem('_nav_query')
+    sessionStorage.setItem('xc_start_new_conversation', t)
+    if (t === 'qimen' || t === 'bazi' || t === 'paipan') sessionStorage.setItem('_nav_query', 'tab=ai')
+  } catch(_) {}
+  window._xc_toggleSidebar()
+
+  function runReset() {
+    if (t === 'comprehensive' && window._xc_newComprehensive) window._xc_newComprehensive()
+    else if ((t === 'bazi' || t === 'paipan') && window._xc_newBazi) window._xc_newBazi()
+    else if (t === 'qimen' && window._xc_newQimen) window._xc_newQimen()
+    else if (t === 'liuyao' && window._xc_newLiuyao) window._xc_newLiuyao()
+    else if (t === 'meihua' && window._xc_newMeihua) window._xc_newMeihua()
+    else if (t === 'ziwei' && window._xc_newZiwei) window._xc_newZiwei()
+    else if ((t === 'tarot' || t === 'taluo') && window._xc_newTarot) window._xc_newTarot()
+  }
+
+  uni.switchTab({ url: route, success: function() {
+    setTimeout(runReset, 250)
+    setTimeout(runReset, 650)
+  }, fail: function() {
+    setTimeout(runReset, 250)
+  }})
+  setTimeout(runReset, 80)
 }
 
 // 塔罗旧记录跳转（从/api/records获取数据并恢复）
@@ -811,9 +918,9 @@ window._xc_setSidebarView = function(view) {
     groupedTab.classList.remove('active')
     var comprehensive = (cache.flat || []).filter(function(r) { return r.app_type === 'comprehensive' })
     comprehensive.sort(function(a, b) { return (b.created_at || '').localeCompare(a.created_at || '') })
-    var ch = ''
+    var ch = _renderNewConversationItem('comprehensive', '综合')
     comprehensive.forEach(function(r) { ch += _renderSidebarItem(r) })
-    if (!ch) ch = '<div class="sidebar-empty">暂无综合对话</div>'
+    if (!comprehensive.length) ch += '<div class="sidebar-empty">暂无综合对话</div>'
     listEl.innerHTML = ch
   } else {
     flatTab.classList.add('active')
@@ -884,8 +991,10 @@ var avatarUrl = ref('')
 var avatarLetter = ref('')
 var _avatarInstanceLoaded = false
 function onAvatarError() {
-  avatarUrl.value = ''
-  uni.removeStorageSync('xc_avatar')
+  if (avatarUrl.value && avatarUrl.value.indexOf(DEFAULT_AVATAR_URL) === -1) {
+    uni.removeStorageSync('xc_avatar')
+    avatarUrl.value = DEFAULT_AVATAR_URL
+  }
 }
 function loadAvatar() {
   if (!props.isLoggedIn) return
@@ -899,7 +1008,7 @@ function loadAvatar() {
     avatarLetter.value = cachedUser.charAt(0).toUpperCase()
   }
   var cachedAvatar = uni.getStorageSync('xc_avatar')
-  if (cachedAvatar) avatarUrl.value = cachedAvatar
+  avatarUrl.value = cachedAvatar || DEFAULT_AVATAR_URL
   if (_avatarInstanceLoaded) return
   _avatarInstanceLoaded = true
   window.__avatarLoaded = true
@@ -909,6 +1018,7 @@ function loadAvatar() {
     } else if (d && d.username) {
       avatarLetter.value = d.username.charAt(0).toUpperCase()
       if (d.avatar) { avatarUrl.value = d.avatar; uni.setStorageSync('xc_avatar', d.avatar) }
+      else avatarUrl.value = DEFAULT_AVATAR_URL
     }
   }).catch(function() {})
 }
@@ -994,7 +1104,6 @@ async function sendPhoneCode() {
     var res = await uni.request({ url: '/api/sms/send', method: 'POST', data: { phone: phone } })
     var d = res.data
     if (d.error) { var e2 = document.getElementById('tnLoginError'); if (e2) e2.textContent = d.error; if (btn) btn.removeAttribute('disabled'); return }
-    if (d.debug_code) { var codeEl = document.getElementById('tnLoginPhoneCode'); if (codeEl) codeEl.value = d.debug_code }
     var sec = 60; var timer = setInterval(function() { sec--; if (btn) btn.textContent = sec + 's'; if (sec <= 0) { clearInterval(timer); if (btn) { btn.textContent = '获取验证码'; btn.removeAttribute('disabled') } } }, 1000)
   } catch (_) { var e3 = document.getElementById('tnLoginError'); if (e3) e3.textContent = '发送失败'; if (btn) btn.removeAttribute('disabled') }
 }
@@ -1008,7 +1117,6 @@ async function sendEmailCode() {
     var res = await uni.request({ url: '/api/email/send', method: 'POST', data: { email: email } })
     var d = res.data
     if (d.error) { var e2 = document.getElementById('tnLoginError'); if (e2) e2.textContent = d.error; if (btn) btn.removeAttribute('disabled'); return }
-    if (d.debug_code) { var codeEl = document.getElementById('tnLoginEmailCode'); if (codeEl) codeEl.value = d.debug_code }
     var sec = 60; var timer = setInterval(function() { sec--; if (btn) btn.textContent = sec + 's'; if (sec <= 0) { clearInterval(timer); if (btn) { btn.textContent = '获取验证码'; btn.removeAttribute('disabled') } } }, 1000)
   } catch (_) { var e3 = document.getElementById('tnLoginError'); if (e3) e3.textContent = '发送失败'; if (btn) btn.removeAttribute('disabled') }
 }
@@ -1777,14 +1885,15 @@ onMounted(() => {
 .avatar-dropdown-divider { height: 1px; background: var(--card-border); margin: 2px 0; }
 
 /* ═══ 登录/注册弹窗 ═══ */
-.modal-overlay { position: fixed; inset: 0; z-index: 999; background: rgba(0,0,0,0.45); display: none; align-items: center; justify-content: center; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.modal-overlay { position: fixed; inset: 0; z-index: 999; background: rgba(20,16,10,0.48); display: none; align-items: center; justify-content: center; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 .modal-overlay.open { display: flex; }
-.modal-box { background: rgba(48, 53, 76, 0.94); border: 1px solid rgba(255,255,255,0.14); border-radius: 20px; padding: 28px 32px; max-width: 400px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.35); -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6); }
-[data-theme="light"] .modal-box { background: rgba(255, 253, 248, 0.94); border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 20px 60px rgba(0,0,0,0.12); }
-.modal-title { font-family: var(--font-serif); font-size: 1.2rem; text-align: center; color: var(--text-1); margin-bottom: 20px; }
+.modal-box { background: rgba(31, 29, 24, 0.94); border: 1px solid rgba(178,149,93,0.20); border-radius: 20px; padding: 28px 32px; max-width: 400px; width: 90%; box-shadow: 0 24px 80px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.08); -webkit-backdrop-filter: blur(28px) saturate(1.45); backdrop-filter: blur(28px) saturate(1.45); }
+[data-theme="light"] .modal-box { background: rgba(255, 253, 248, 0.96); border: 1px solid rgba(178,149,93,0.18); box-shadow: 0 24px 80px rgba(60,40,15,0.16), inset 0 1px 0 rgba(255,255,255,0.85); }
+.modal-title { font-family: var(--font-serif); font-size: 1.2rem; text-align: center; color: var(--text-1); margin-bottom: 20px; letter-spacing: 2px; }
 .field { margin-bottom: 14px; }
 .field-label { font-size: 0.75rem; color: var(--text-3); margin-bottom: 4px; display: block; }
-.field-input { width: 100%; padding: 10px 14px; border-radius: 10px; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-1); font-size: 0.875rem; outline: none; box-sizing: border-box; }
+.field-input { width: 100%; padding: 10px 14px; border-radius: 12px; background: var(--input-bg); border: 1px solid rgba(178,149,93,0.16); color: var(--text-1); font-size: 0.875rem; outline: none; box-sizing: border-box; transition: border-color .18s ease, box-shadow .18s ease, background .18s ease; }
+.field-input:focus { border-color: rgba(178,149,93,0.54); box-shadow: 0 0 0 3px rgba(178,149,93,0.10); }
 .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
 .modal-btns .btn { flex: 1; text-align: center; }
 .modal-error { color: var(--danger); font-size: 0.75rem; text-align: center; margin-top: 10px; min-height: 18px; }
@@ -1792,14 +1901,14 @@ onMounted(() => {
 .oauth-divider::before, .oauth-divider::after { content: ''; flex: 1; height: 1px; background: var(--card-border); }
 .oauth-divider-text { font-size: 0.72rem; color: var(--text-3); padding: 0 12px; white-space: nowrap; }
 .oauth-btns { display: flex; gap: 10px; }
-.oauth-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; border-radius: 10px; border: 1px solid var(--card-border); cursor: pointer; transition: all 0.2s; background: var(--input-bg); }
+.oauth-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; border-radius: 12px; border: 1px solid rgba(178,149,93,0.16); cursor: pointer; transition: all 0.2s; background: var(--input-bg); }
 .oauth-btn:hover { border-color: var(--accent); background: var(--accent-glow); }
 .oauth-btn-qq .oauth-btn-icon { width: 24px; height: 24px; border-radius: 50%; background: #12b7f5; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.62rem; font-weight: 700; flex-shrink: 0; }
 .oauth-btn-wechat .oauth-btn-icon { width: 24px; height: 24px; border-radius: 6px; background: #07c160; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.62rem; font-weight: 700; flex-shrink: 0; }
 .oauth-btn-label { font-size: 0.78rem; color: var(--text-2); }
 .oauth-btn-gitee .oauth-btn-icon { width: 24px; height: 24px; border-radius: 50%; background: #c71d23; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; flex-shrink: 0; }
-.login-tabs { display: flex; gap: 4px; margin-bottom: 16px; background: var(--input-bg); border-radius: 10px; padding: 3px; }
-.login-tab { flex: 1; text-align: center; padding: 8px 0; border-radius: 8px; font-size: 0.78rem; color: var(--text-3); cursor: pointer; transition: all 0.2s; }
+.login-tabs { display: flex; gap: 4px; margin-bottom: 16px; background: rgba(178,149,93,0.09); border: 1px solid rgba(178,149,93,0.12); border-radius: 12px; padding: 3px; }
+.login-tab { flex: 1; text-align: center; padding: 8px 0; border-radius: 9px; font-size: 0.78rem; color: var(--text-3); cursor: pointer; transition: all 0.2s; }
 .login-tab.active { background: var(--accent); color: #fff; font-weight: 600; }
 .code-field { margin-bottom: 10px; }
 .code-btn { white-space: nowrap; flex-shrink: 0; }

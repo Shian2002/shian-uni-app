@@ -10,6 +10,7 @@ except ImportError:
     pass  # SQLite 模式下不需要 pymysql
 
 import os, json, threading, subprocess, time, secrets, shutil, hashlib, logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, make_response, session, redirect, send_file, send_from_directory, Response, stream_with_context
 from flask_login import login_user, logout_user, login_required, current_user
@@ -4081,22 +4082,40 @@ def build_meihua_context_from_question(question=''):
     }
 
 
+_TOOL_DISPLAY = {'bazi': '八字', 'ziwei': '紫微斗数', 'qimen': '奇门遁甲', 'liuyao': '六爻', 'meihua': '梅花易数'}
+
+
+def _build_one_tool(tool, profile, question):
+    try:
+        if tool == 'bazi':
+            return tool, build_bazi_context_from_profile(profile)
+        elif tool == 'ziwei':
+            return tool, build_ziwei_context_from_profile(profile)
+        elif tool == 'qimen':
+            return tool, build_qimen_context_from_question(question)
+        elif tool == 'liuyao':
+            return tool, build_liuyao_context_from_question(question)
+        elif tool == 'meihua':
+            return tool, build_meihua_context_from_question(question)
+    except Exception as exc:
+        return tool, {'error': str(exc)}
+    return tool, None
+
+
 def build_single_comprehensive_paipan_context(profile, tool_models, question=''):
+    if len(tool_models) <= 1:
+        context = {}
+        for t, v in [_build_one_tool(tool_models[0], profile, question)] if tool_models else []:
+            if v is not None:
+                context[t] = v
+        return context
     context = {}
-    for tool in tool_models:
-        try:
-            if tool == 'bazi':
-                context['bazi'] = build_bazi_context_from_profile(profile)
-            elif tool == 'ziwei':
-                context['ziwei'] = build_ziwei_context_from_profile(profile)
-            elif tool == 'qimen':
-                context['qimen'] = build_qimen_context_from_question(question)
-            elif tool == 'liuyao':
-                context['liuyao'] = build_liuyao_context_from_question(question)
-            elif tool == 'meihua':
-                context['meihua'] = build_meihua_context_from_question(question)
-        except Exception as exc:
-            context[tool] = {'error': str(exc)}
+    with ThreadPoolExecutor(max_workers=min(len(tool_models), 5)) as pool:
+        futures = [pool.submit(_build_one_tool, t, profile, question) for t in tool_models]
+        for f in as_completed(futures):
+            t, v = f.result()
+            if v is not None:
+                context[t] = v
     return context
 
 
@@ -4104,12 +4123,13 @@ def build_comprehensive_paipan_context(profiles, tool_models, question=''):
     profile_list = profiles if isinstance(profiles, list) else [profiles]
     if len(profile_list) == 1:
         return build_single_comprehensive_paipan_context(profile_list[0], tool_models, question)
-    return {
-        'profiles': [{
-            'profile': profile,
-            'paipan': build_single_comprehensive_paipan_context(profile, tool_models, question),
-        } for profile in profile_list]
-    }
+    results = [None] * len(profile_list)
+    with ThreadPoolExecutor(max_workers=min(len(profile_list), 4)) as pool:
+        futures = {pool.submit(build_single_comprehensive_paipan_context, p, tool_models, question): i for i, p in enumerate(profile_list)}
+        for f in as_completed(futures):
+            idx = futures[f]
+            results[idx] = {'profile': profile_list[idx], 'paipan': f.result()}
+    return {'profiles': results}
 
 
 def save_comprehensive_conversation(data, question, profile, tool_models, paipan_context, model_id, cost, history, answer):
@@ -4219,17 +4239,56 @@ def api_comprehensive_ask_stream():
 
     def generate():
         try:
-            yield _event({'stage': 'profile', 'message': '正在读取命盘档案...'})
+            yield _event({'stage': 'profile', 'message': '正在读取命盘档案'})
             profiles = resolve_comprehensive_profiles(data)
-            profile = profiles[0] if len(profiles) == 1 else profiles
+            profile_count = len(profiles)
+            profile = profiles[0] if profile_count == 1 else profiles
             paipan_context = data.get('paipan') or {}
             if not is_followup or not paipan_context:
-                yield _event({'stage': 'paipan', 'message': '正在生成所选术数盘面...'})
-                paipan_context = build_comprehensive_paipan_context(profiles, tool_models, question)
+                if profile_count == 1:
+                    p = profiles[0]
+                    p_name = p.get('name', '未命名') if isinstance(p, dict) else getattr(p, 'name', '未命名')
+                    context = {}
+                    tool_count = len(tool_models)
+                    for ti, tool in enumerate(tool_models):
+                        t_name = _TOOL_DISPLAY.get(tool, tool)
+                        yield _event({'stage': 'paipan', 'message': '正在排盘 %s 的%s (%d/%d)' % (p_name, t_name, ti + 1, tool_count)})
+                        _, v = _build_one_tool(tool, p, question)
+                        if v is not None:
+                            context[tool] = v
+                        yield _event({'stage': 'paipan_progress', 'message': '%s 的%s 排盘完成 (%d/%d)' % (p_name, t_name, ti + 1, tool_count)})
+                    paipan_context = context
+                else:
+                    all_tasks = []
+                    for pi, p in enumerate(profiles):
+                        p_name = p.get('name', '未命名') if isinstance(p, dict) else getattr(p, 'name', '未命名')
+                        for tool in tool_models:
+                            all_tasks.append((pi, p, p_name, tool))
+                    total = len(all_tasks)
+                    yield _event({'stage': 'paipan', 'message': '正在并行排盘 %d 个命盘 × %d 种术数 (共 %d 项)' % (profile_count, len(tool_models), total)})
+                    task_results = {}
+                    with ThreadPoolExecutor(max_workers=min(total, 6)) as pool:
+                        future_map = {}
+                        for pi, p, p_name, tool in all_tasks:
+                            f = pool.submit(_build_one_tool, tool, p, question)
+                            future_map[f] = (pi, p_name, tool)
+                        done_count = 0
+                        for f in as_completed(future_map):
+                            pi, p_name, tool = future_map[f]
+                            t_name = _TOOL_DISPLAY.get(tool, tool)
+                            _, v = f.result()
+                            task_results.setdefault(pi, {})[tool] = v if v is not None else {}
+                            done_count += 1
+                            yield _event({'stage': 'paipan_progress', 'message': '%s 的%s 排盘完成 (%d/%d)' % (p_name, t_name, done_count, total)})
+                    profile_results = []
+                    for pi, p in enumerate(profiles):
+                        profile_results.append({'profile': p, 'paipan': task_results.get(pi, {})})
+                    paipan_context = {'profiles': profile_results}
+                yield _event({'stage': 'paipan_done', 'message': '所有排盘完成，正在准备解读'})
             add_points(current_user.id, 'comprehensive_ai', -cost, '综合 AI ' + ('追问' if is_followup else '解读'))
             messages = build_comprehensive_messages(question, profile, tool_models, paipan_context, history)
             full_text = ''
-            yield _event({'stage': 'generating', 'message': '正在生成综合解读...'})
+            yield _event({'stage': 'generating', 'message': '正在生成综合解读'})
             for chunk, error in get_reading_stream(messages):
                 if error:
                     yield _event({'error': error})
@@ -7141,12 +7200,12 @@ def api_register():
 @app.route('/api/login', methods=['POST'])
 @csrf.exempt
 def api_login():
-    """统一密码登录：支持用户名 / 邮箱 / 手机号 + 密码"""
     data = request.get_json(silent=True) or {}
+    if not _check_rate_limit('login_' + request.remote_addr, 10, 300):
+        return jsonify({'error': '登录尝试过于频繁，请5分钟后再试'}), 429
     login_id = (data.get('username') or '').strip()
     password = data.get('password') or ''
 
-    # 通过 username OR email OR phone 查找用户
     user = User.query.filter(
         or_(
             User.username == login_id,
@@ -7499,6 +7558,21 @@ SMTP_FROM_NAME = os.environ.get('SMTP_FROM_NAME', '时安解忧屋')
 import random as _random
 _verify_code_store = {}
 
+_rate_limit_store = {}
+_rate_limit_lock = threading.Lock()
+
+def _check_rate_limit(key, max_count=5, window=60):
+    now = time.time()
+    with _rate_limit_lock:
+        entry = _rate_limit_store.get(key)
+        if not entry or now - entry['ts'] > window:
+            _rate_limit_store[key] = {'count': 1, 'ts': now}
+            return True
+        if entry['count'] >= max_count:
+            return False
+        entry['count'] += 1
+        return True
+
 def _gen_code():
     return str(_random.randint(100000, 999999))
 
@@ -7518,17 +7592,17 @@ def _check_code(key, code):
 @app.route('/api/sms/send', methods=['POST'])
 @csrf.exempt
 def api_sms_send():
-    """发送手机验证码"""
     data = request.get_json(silent=True) or {}
     phone = (data.get('phone') or '').strip()
     if not phone or not phone.isdigit() or len(phone) < 11:
         return jsonify({'error': '手机号格式不正确'}), 400
+    if not _check_rate_limit('sms_' + phone, 3, 60) or not _check_rate_limit('sms_ip_' + request.remote_addr, 10, 60):
+        return jsonify({'error': '发送过于频繁，请稍后再试'}), 429
     if not ALIYUN_SMS_ACCESS_KEY_ID or not ALIYUN_SMS_ACCESS_KEY_SECRET:
-        # 开发模式：直接返回验证码（不真正发送）
         code = _gen_code()
         _store_code('sms_' + phone, code)
         logger.info(f"[SMS Debug] 手机 {phone} 验证码: {code}")
-        return jsonify({'ok': True, 'debug_code': code})
+        return jsonify({'ok': True})
     try:
         code = _gen_code()
         # 阿里云短信 SDK 调用
@@ -7548,10 +7622,9 @@ def api_sms_send():
         _store_code('sms_' + phone, code)
         return jsonify({'ok': True})
     except ImportError:
-        # 未安装阿里云SDK，降级为调试模式
         _store_code('sms_' + phone, code)
         logger.info(f"[SMS Debug] (无阿里云SDK) 手机 {phone} 验证码: {code}")
-        return jsonify({'ok': True, 'debug_code': code})
+        return jsonify({'ok': True})
     except Exception as e:
         logger.error(f"[SMS] 发送异常: {e}")
         return jsonify({'error': '短信发送失败，请稍后重试'}), 500
@@ -7576,16 +7649,17 @@ def api_sms_login():
 @app.route('/api/email/send', methods=['POST'])
 @csrf.exempt
 def api_email_send():
-    """发送邮箱验证码（开发模式直接返回验证码）"""
     data = request.get_json(silent=True) or {}
     addr = (data.get('email') or '').strip()
     if not addr or '@' not in addr:
         return jsonify({'error': '邮箱格式不正确'}), 400
+    if not _check_rate_limit('email_' + addr, 3, 60) or not _check_rate_limit('email_ip_' + request.remote_addr, 10, 60):
+        return jsonify({'error': '发送过于频繁，请稍后再试'}), 429
     code = _gen_code()
     _store_code('email_' + addr, code)
     logger.info(f"[Email Debug] 邮箱 {addr} 验证码: {code}")
     if not SMTP_USER or not SMTP_PASS:
-        return jsonify({'ok': True, 'debug_code': code})
+        return jsonify({'ok': True})
     try:
         import smtplib
         import email.utils
@@ -7599,10 +7673,10 @@ def api_email_send():
             server.starttls()
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(SMTP_USER, [addr], msg.as_string())
-        return jsonify({'ok': True, 'debug_code': code})
+        return jsonify({'ok': True})
     except Exception as e:
         logger.error(f"[Email] 发送异常: {e}（已回退到调试模式）")
-        return jsonify({'ok': True, 'debug_code': code})
+        return jsonify({'ok': True})
 
 @app.route('/api/email/login', methods=['POST'])
 @csrf.exempt
@@ -9679,12 +9753,18 @@ def handle_exception(e):
     return _error_response(e, 500, str(e) if app.debug else '服务器内部错误')
 
 
-# 批量豁免所有 /api/ 路由的 CSRF 校验（SPA 前端不发送 CSRF token）
 for _cr in app.url_map.iter_rules():
     if _cr.rule.startswith('/api/'):
         _cf = app.view_functions.get(_cr.endpoint)
         if _cf:
             csrf.exempt(_cf)
+
+@app.before_request
+def _require_api_header():
+    if request.method in ('POST', 'PUT', 'DELETE', 'PATCH') and request.path.startswith('/api/'):
+        ct = request.content_type or ''
+        if 'application/x-www-form-urlencoded' in ct and not request.headers.get('X-Requested-With') and not request.headers.get('Authorization'):
+            return jsonify({'error': 'Invalid request'}), 400
 
 
 if __name__ == '__main__':

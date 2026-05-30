@@ -52,10 +52,10 @@
                   <text class="wz-form-label">性别</text>
                   <view class="wz-segment-box">
                     <view id="baziGenderMale" class="wz-segment-btn" :class="{ active: baziGender === '男' }" @tap="selectBaziGender('男')">
-                      <text class="wz-segment-icon">♂</text><text>男</text>
+                      男
                     </view>
                     <view id="baziGenderFemale" class="wz-segment-btn" :class="{ active: baziGender === '女' }" @tap="selectBaziGender('女')">
-                      <text class="wz-segment-icon">♀</text><text>女</text>
+                      女
                     </view>
                   </view>
                 </view>
@@ -74,7 +74,8 @@
               <!-- 出生时间（公历/农历模式）（:class/v-show已移除，由DOM操作控制） -->
               <view class="wz-form-group" id="baziDateSection">
                 <text class="wz-form-label">出生时间</text>
-                <view class="wz-datetime-row">
+                <!-- 年月日 -->
+                <view class="wz-datetime-row wz-datetime-row-date">
                   <view class="wz-dt-col">
                     <select id="baziYear" class="wz-datetime-select"></select>
                   </view>
@@ -84,16 +85,15 @@
                   <view class="wz-dt-col">
                     <select id="baziDay" class="wz-datetime-select"></select>
                   </view>
-                  <view class="wz-dt-col wz-dt-hour">
+                </view>
+                <!-- 时分 -->
+                <view class="wz-datetime-row wz-datetime-row-time" style="margin-top: 10px;">
+                  <view class="wz-dt-col">
                     <select id="baziHour" class="wz-datetime-select"></select>
                   </view>
-                  <view class="wz-dt-col wz-dt-minute">
+                  <view class="wz-dt-col">
                     <select id="baziMinute" class="wz-datetime-select"></select>
                   </view>
-                </view>
-                <view class="wz-instant-row">
-                  <view class="wz-instant-btn" @tap="wzInstantPaipan">⚡ 即时起局</view>
-                  <view class="wz-instant-preview" v-if="instantPreview">{{ instantPreview }}</view>
                 </view>
               </view>
 
@@ -137,6 +137,15 @@
                 <view class="wz-addr-info" id="baziAddrInfo" style="display:none;">
                   <text class="wz-addr-solar" id="baziAddrSolar">真太阳时：--</text>
                   <text class="wz-addr-lng" id="baziAddrLng">经度：-- 纬度：--</text>
+                </view>
+              </view>
+
+              <!-- 即时起局 -->
+              <view class="wz-instant-row">
+                <view class="wz-instant-btn" @tap="wzInstantPaipan">⚡ 即时起局</view>
+                <view class="wz-instant-preview" v-if="instantPillars || instantCalendar">
+                  <view class="wz-instant-pillars" v-if="instantPillars">{{ instantPillars }}</view>
+                  <view class="wz-instant-calendar">{{ instantCalendar }}</view>
                 </view>
               </view>
 
@@ -442,7 +451,8 @@ const baziCalType = ref('公历')
 const baziDate = ref('')
 const baziHourIdx = ref(12)
 const baziMinuteIdx = ref(0)
-const instantPreview = ref('')
+const instantPillars = ref('')
+const instantCalendar = ref('')
 
 // 时辰选项
 const hourLabels = Array.from({ length: 24 }, (_, i) => String(i))
@@ -531,12 +541,15 @@ async function wzInstantPaipan() {
       var dz = (p.day && p.day.gan ? p.day.gan : '') + (p.day && p.day.zhi ? p.day.zhi : '')
       var hz = p.hour ? ((p.hour.gan || '') + (p.hour.zhi || '')) : ''
       var lunarStr = data.lunar_str || ''
-      instantPreview.value = `${yz} ${mz} ${dz} ${hz}\n${lunarStr ? '农历：' + lunarStr + '  ' : ''}公历：${timeStr}`
+      instantPillars.value = `${yz} ${mz} ${dz} ${hz}`
+      instantCalendar.value = `${lunarStr ? '农历：' + lunarStr + '  ' : ''}公历：${timeStr}`
     } else {
-      instantPreview.value = `公历：${timeStr}`
+      instantPillars.value = ''
+      instantCalendar.value = `公历：${timeStr}`
     }
   } catch(e) {
-    instantPreview.value = `公历：${timeStr}`
+    instantPillars.value = ''
+    instantCalendar.value = `公历：${timeStr}`
   }
 }
 
@@ -1254,6 +1267,10 @@ function _fmtRecord(r) {
 
 function loadRecords() {
   var token = ''; try { token = localStorage.getItem('xc_token') || '' } catch(_) {}
+  if (!token) {
+    records.value = []
+    return
+  }
   uni.request({
     url: '/api/bazi/history', method: 'GET',
     header: token ? { 'Authorization': 'Bearer ' + token } : {},
@@ -2627,9 +2644,8 @@ onMounted(() => {
 .wz-form-input { width: 100%; padding: 9px 12px; border: 1.5px solid var(--card-border); border-radius: 10px; font-size: 0.85rem; background: var(--card-bg); color: var(--text-1); outline: none; box-sizing: border-box; }
 .picker-display { line-height: 1.4; cursor: pointer; }
 .wz-segment-box { display: flex; gap: 6px; }
-.wz-segment-btn { padding: 7px 14px; cursor: pointer; font-size: 0.85rem; font-weight: 500; color: var(--text-2); background: var(--card-bg); border: 1.5px solid var(--card-border); border-radius: 10px; transition: all 0.25s; display: flex; align-items: center; gap: 4px; }
+.wz-segment-btn { flex: 1; padding: 7px 14px; cursor: pointer; font-size: 0.85rem; font-weight: 500; color: var(--text-2); background: var(--card-bg); border: 1.5px solid var(--card-border); border-radius: 10px; transition: all 0.25s; display: flex; align-items: center; justify-content: center; text-align: center; }
 .wz-segment-btn.active { color: #fff; background: var(--accent); border-color: var(--accent); }
-.wz-segment-icon { font-size: 0.95rem; }
 .wz-divider { border: none; border-top: 1px solid var(--card-border); margin: 14px 0; }
 .wz-form-group { margin-bottom: 14px; }
 .wz-form-hint { font-size: 0.72rem; color: var(--text-3); margin-top: 6px; line-height: 1.5; }
@@ -2644,8 +2660,10 @@ onMounted(() => {
 
 /* 即时起局 */
 .wz-instant-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
-.wz-instant-btn { padding: 7px 16px; border-radius: 10px; background: var(--accent-glow); border: 1.5px solid var(--accent); color: var(--accent); font-size: 0.85rem; font-weight: 600; cursor: pointer; }
-.wz-instant-preview { font-size: 0.72rem; color: var(--success); }
+.wz-instant-btn { padding: 7px 16px; border-radius: 10px; background: var(--accent-glow); border: 1.5px solid var(--accent); color: var(--accent); font-size: 0.85rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.wz-instant-preview { font-size: 0.72rem; color: var(--text-1); display: flex; flex-direction: column; gap: 2px; }
+.wz-instant-pillars { font-weight: 500; color: var(--text-1); }
+.wz-instant-calendar { color: var(--text-3); }
 
 /* 四柱输入 */
 .wz-sizi-grid { display: flex; flex-direction: column; gap: 10px; }
@@ -2862,7 +2880,10 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   .wz-form-row { flex-wrap: wrap; }
   .wz-flex-1 { flex: 1 1 100%; }
   .wz-datetime-row { flex-wrap: wrap; }
+  .wz-datetime-row-date, .wz-datetime-row-time { flex-wrap: nowrap; }
   .wz-dt-col { flex: 1 1 calc(33% - 8px); min-width: 60px; }
+  .wz-datetime-row-time .wz-dt-col { flex: 1 1 calc(50% - 4px); }
+  .wz-instant-row { flex-wrap: wrap; }
   .wz-addr-selects { flex-wrap: wrap; }
   .wz-switch-grid { grid-template-columns: 1fr; }
   .record-toolbar { flex-direction: column; align-items: stretch; }
@@ -2911,7 +2932,7 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   .wz-segment-btn { height: 38px; padding: 6px 12px; white-space: nowrap; font-size: 0.78rem; }
   .wz-dt-col { flex: 1 1 calc(50% - 6px); min-width: 50px; }
   .wz-datetime-select { font-size: 0.78rem; padding: 7px 4px; }
-  .wz-addr-selects { flex-direction: column; }
+  .wz-addr-selects { flex-direction: row; }
   .wz-switch-grid { grid-template-columns: 1fr 1fr; }
   .submit-btn { font-size: 0.875rem; padding: 12px 16px; }
   .tool-tab { display: inline-flex; align-items: center; padding: 8px 10px; font-size: 0.75rem; }
@@ -2920,24 +2941,24 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 }
 
 /* ═══ 流式解读 + 对话气泡 ═══ */
-.qai-stream-box { margin-top: 20px; padding: 16px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; }
-.qai-card-item { background: var(--section-alt); border: 1px solid var(--card-border); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
-.qai-card-title { font-size: 0.9rem; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
-.qai-card-body { font-size: 0.82rem; color: var(--text-2); line-height: 1.7; }
+.qai-stream-box { margin-top: 20px; padding: 16px; background: var(--card-bg); border: 1px solid rgba(178,149,93,0.16); border-radius: 16px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); }
+.qai-card-item { background: rgba(255,255,255,0.04); border: 1px solid rgba(178,149,93,0.14); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; }
+.qai-card-title { font-size: 0.92rem; font-weight: 700; letter-spacing: 0.5px; color: var(--accent); margin-bottom: 6px; }
+.qai-card-body { font-size: 0.86rem; color: var(--text-2); line-height: 1.86; }
 .qai-card-body strong { color: var(--text-1); }
 .chat-container { display: flex; flex-direction: column; gap: 12px; }
-.chat-bubble-ai { align-self: flex-start; background: var(--section-alt); border: 1px solid var(--card-border); border-radius: 14px 14px 14px 4px; padding: 16px 20px; max-width: 92%; width: 100%; box-sizing: border-box; }
-.chat-bubble-user { align-self: flex-end; background: var(--accent); color: #fff; border-radius: 14px 14px 4px 14px; padding: 10px 16px; max-width: 80%; font-size: 0.9rem; line-height: 1.5; }
-.chat-bubble-content { font-size: 0.875rem; color: var(--text-2); line-height: 1.9; }
+.chat-bubble-ai { align-self: flex-start; background: rgba(255,255,255,0.045); border: 1px solid rgba(178,149,93,0.16); border-radius: 16px; padding: 16px 18px; max-width: 94%; width: 100%; box-sizing: border-box; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05); }
+.chat-bubble-user { align-self: flex-end; background: var(--accent); color: #fff; border-radius: 16px; padding: 10px 16px; max-width: 80%; font-size: 0.9rem; line-height: 1.6; }
+.chat-bubble-content { font-size: 0.9rem; color: var(--text-2); line-height: 1.86; word-break: break-word; }
 .ai-stage { font-size: 0.9rem; color: var(--text-1); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
 .ai-stage-logo { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; flex-shrink: 0; animation: ai-logo-spin 1.8s linear infinite; box-shadow: 0 0 6px rgba(0,0,0,0.06); }
 @keyframes ai-logo-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .ai-progress-bar { height: 4px; background: var(--card-border); border-radius: 2px; overflow: hidden; margin-bottom: 16px; }
-.ai-progress-fill { height: 100%; width: 20%; background: linear-gradient(90deg, var(--accent), #8b5cf6); border-radius: 2px; animation: ai-progress-pulse 1.5s ease-in-out infinite; transition: width 0.3s ease; }
+.ai-progress-fill { height: 100%; width: 20%; background: linear-gradient(90deg, transparent, var(--accent), #d6b46d, transparent); border-radius: 2px; animation: ai-progress-pulse 1.5s ease-in-out infinite; transition: width 0.3s ease; }
 @keyframes ai-progress-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
-.chat-input-bar { display: flex; gap: 8px; margin-top: 16px; padding: 10px 14px; background: var(--section-alt); border-radius: 12px; border: 1px solid var(--card-border); }
-.chat-input { flex: 1; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--card-border); background: var(--input-bg); color: var(--text-1); font-size: 0.875rem; outline: none; }
-.chat-send-btn { padding: 8px 20px; background: var(--accent); color: #fff; border-radius: 8px; font-size: 0.875rem; cursor: pointer; white-space: nowrap; }
+.chat-input-bar { display: flex; gap: 8px; margin-top: 16px; padding: 10px 14px; background: rgba(255,255,255,0.045); border-radius: 16px; border: 1px solid rgba(178,149,93,0.16); }
+.chat-input { flex: 1; padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(178,149,93,0.16); background: var(--input-bg); color: var(--text-1); font-size: 0.875rem; outline: none; }
+.chat-send-btn { padding: 8px 20px; background: var(--accent); color: #fff; border-radius: 999px; font-size: 0.875rem; cursor: pointer; white-space: nowrap; }
 
 .analysis-type-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .analysis-type-btn { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--card-border); background: transparent; color: var(--text-3); font-size: 0.75rem; cursor: pointer; text-align: center; white-space: nowrap; transition: all .15s; }
