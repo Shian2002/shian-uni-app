@@ -144,7 +144,7 @@ export default {
       if (o) o.style.display = 'none'
       var a = document.getElementById('app')
       if (a) a.style.setProperty('visibility', 'visible', 'important')
-    }, 5000)
+    }, 1500)
     // #endif
     var TAB_PAGES = ['/pages/index/index', '/pages/qimen/index', '/pages/bazi-index/index', '/pages/tarot/index', '/pages/liuyao/index', '/pages/meihua/index', '/pages/ziwei/index', '/pages/zeji/index', '/pages/calendar/index', '/pages/community/index', '/pages/profile/index']
     document.addEventListener('click', function(e) {

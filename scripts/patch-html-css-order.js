@@ -7,8 +7,7 @@
  * 修复:
  *   1. 收集 dist/build/h5/assets/index-*.css 中未被引用的文件并追加到 <head>
  *   2. 将所有 <link rel="stylesheet"> 移到 <head> 最前面（任何 <script> 之前）
- *   3. 在 <head> 内嵌样式 #app{visibility:hidden} 防止未渲染闪白
- *   4. 在 </body> 前加 inline script, 等所有资源加载完成后显示 #app
+ *   3. 不再强制隐藏 #app，避免慢网/缓存命中旧 chunk 时出现长时间黑屏
  */
 const fs = require('fs')
 const path = require('path')
@@ -66,26 +65,6 @@ if (lastIndex < remaining.length) {
 // ── 2. 重新构建 head: CSS links first, then rest ──
 const newHeadContent = cssLinks.join('\n') + '\n' + restParts.join('')
 html = html.replace(headContent, newHeadContent)
-
-// ── 3. 在 <head> 内嵌样式 #app{visibility:hidden} ──
-// 找到 xc-hide-tabs style 并在其中添加 #app 隐藏
-const styleId = 'xc-hide-tabs'
-const styleTag = new RegExp(`<style[^>]*id=["']${styleId}["'][^>]*>([\\s\\S]*?)<\\/style>`, 'i')
-const styleMatch = html.match(styleTag)
-if (styleMatch) {
-  const newStyle = styleMatch[0].replace(styleMatch[1], styleMatch[1] + '\n#app{visibility:hidden!important}')
-  html = html.replace(styleMatch[0], newStyle)
-} else {
-  // Fallback: add a new style before </head>
-  html = html.replace('</head>', '<style>#app{visibility:hidden!important}</style>\n</head>')
-}
-
-// ── 4. 在 </body> 前添加 inline script, DOMContentLoaded 后显示 #app ──
-// 注意: 不能直接设 visibility=visible, 因为此时 <script type=module> 还没执行。
-// module script 在 HTML 解析完成后、DOMContentLoaded 之前执行,
-// 所以监听 DOMContentLoaded 确保 Vue 已渲染。
-const revealScript = '\n<script>document.addEventListener("DOMContentLoaded",function(){var e=document.getElementById("app");if(e)e.style.visibility="visible"})</script>\n'
-html = html.replace('</body>', revealScript + '</body>')
 
 fs.writeFileSync(htmlPath, html, 'utf8')
 console.log('[OK] index.html CSS order patched (moved ' + cssLinks.length + ' stylesheets before scripts)')
