@@ -4067,8 +4067,14 @@ def build_meihua_context_from_question(question=''):
         'ganzhi': result.get('ganzhi'),
         'dong_yao': result.get('dongYao'),
         'ben_gua': result.get('benGua'),
+        'ben_gua_yao': result.get('benGuaYao'),
+        'benGuaYao': result.get('benGuaYao'),
         'hu_gua': result.get('huGua'),
+        'hu_gua_yao': result.get('huGuaYao'),
+        'huGuaYao': result.get('huGuaYao'),
         'bian_gua': result.get('bianGua'),
+        'bian_gua_yao': result.get('bianGuaYao'),
+        'bianGuaYao': result.get('bianGuaYao'),
         'ti_yong': result.get('tiYong'),
     }
 
