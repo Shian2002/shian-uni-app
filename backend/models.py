@@ -200,6 +200,7 @@ class PointLog(db.Model):
     action = db.Column(db.String(50), nullable=False)
     points = db.Column(db.Integer, nullable=False)
     description = db.Column(db.String(200))
+    dedupe_key = db.Column(db.String(160), unique=True, nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user = db.relationship('User', backref=db.backref('point_logs', lazy='dynamic'))
 

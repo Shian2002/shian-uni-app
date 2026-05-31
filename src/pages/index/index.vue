@@ -36,6 +36,49 @@
             <view class="hero-brand-sub">看得懂用得上的民俗命理参考平台</view>
           </view>
 
+          <view class="home-scan-panel" v-if="!comprehensiveMessages.length">
+            <view class="home-scan-status">
+              <view class="home-scan-status-item">
+                <text class="home-scan-label">命盘</text>
+                <text class="home-scan-value">{{ selectedProfileName || '待选择' }}</text>
+              </view>
+              <view class="home-scan-status-item">
+                <text class="home-scan-label">术数</text>
+                <text class="home-scan-value">{{ selectedToolSummary }}</text>
+              </view>
+              <view class="home-scan-status-item">
+                <text class="home-scan-label">模型</text>
+                <text class="home-scan-value">{{ selectedLlmModel.name || '基础模型' }}</text>
+              </view>
+              <view class="home-scan-status-item">
+                <text class="home-scan-label">积分</text>
+                <text class="home-scan-value">{{ currentPoints }}</text>
+              </view>
+            </view>
+            <view class="home-scan-actions">
+              <view class="home-scan-action" @tap="openProfilePicker">
+                <text class="home-scan-action-mark">命</text>
+                <text class="home-scan-action-main">选择命盘</text>
+                <text class="home-scan-action-sub">载入个人或客户档案</text>
+              </view>
+              <view class="home-scan-action" @tap="openToolPicker">
+                <text class="home-scan-action-mark">术</text>
+                <text class="home-scan-action-main">配置术数</text>
+                <text class="home-scan-action-sub">支持多模型合参</text>
+              </view>
+              <view class="home-scan-action" @tap="goToPage('/pages/bazi-index/index')">
+                <text class="home-scan-action-mark">八</text>
+                <text class="home-scan-action-main">八字排盘</text>
+                <text class="home-scan-action-sub">单项排盘入口</text>
+              </view>
+              <view class="home-scan-action" @tap="goToPage('/pages/points/index')">
+                <text class="home-scan-action-mark">分</text>
+                <text class="home-scan-action-main">积分中心</text>
+                <text class="home-scan-action-sub">充值与明细</text>
+              </view>
+            </view>
+          </view>
+
           <view class="home-ai-console" :class="{ 'has-chat': comprehensiveMessages.length }">
             <view class="home-ai-chat" v-if="comprehensiveMessages.length">
               <view class="home-ai-chat-head">
@@ -928,6 +971,12 @@ onBeforeUnmount(() => {
 }
 .page-wrap { position: relative; z-index: 1; width: 100%; height: calc(100dvh - 60px); max-width: 100vw; overflow: hidden; box-sizing: border-box; }
 
+@media (min-width: 769px) {
+  :deep(.topnav) { padding-left: 16px; padding-right: 16px; }
+  :deep(.nav-btn) { padding-left: 8px; padding-right: 8px; font-size: 0.9rem; }
+  :deep(.topnav-sidebar-btn) { margin-right: 0; }
+}
+
 /* ═══ 视频背景 ═══ */
 .video-bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; opacity: 0; visibility: hidden; transition: opacity 0.4s ease, visibility 0.4s ease; }
 .video-bg.video-visible { opacity: 1; visibility: visible; }
@@ -969,6 +1018,20 @@ onBeforeUnmount(() => {
 .hero-home.chat-active .hero-brand-divider { display: none; }
 .hero-home.chat-active .hero-brand-slogan { display: none; }
 .hero-home.chat-active .hero-brand-sub { display: none; }
+
+.home-scan-panel { width: min(920px, 100%); margin: 0 auto 18px; display: grid; grid-template-columns: 1fr; gap: 10px; flex: 0 0 auto; }
+.home-scan-status { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.home-scan-status-item { min-width: 0; padding: 10px 12px; border: 1px solid rgba(178,149,93,0.14); border-radius: 12px; background: rgba(255,255,255,0.045); backdrop-filter: blur(12px); box-sizing: border-box; text-align: left; }
+[data-theme="light"] .home-scan-status-item { background: rgba(255,253,248,0.56); }
+.home-scan-label { display: block; font-size: 0.64rem; line-height: 1.2; color: var(--text-3); margin-bottom: 5px; }
+.home-scan-value { display: block; min-width: 0; color: var(--text-1); font-size: 0.82rem; line-height: 1.25; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-scan-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.home-scan-action { min-width: 0; display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: 9px; row-gap: 2px; align-items: center; padding: 10px 12px; border: 1px solid rgba(178,149,93,0.16); border-radius: 14px; background: rgba(34,31,25,0.30); color: var(--text-1); cursor: pointer; box-sizing: border-box; transition: transform .18s ease, border-color .18s ease, background .18s ease; text-align: left; }
+[data-theme="light"] .home-scan-action { background: rgba(255,253,248,0.62); }
+.home-scan-action:hover { transform: translateY(-1px); border-color: rgba(178,149,93,0.46); background: var(--accent-glow); }
+.home-scan-action-mark { grid-row: 1 / span 2; width: 28px; height: 28px; border-radius: 9px; display: flex; align-items: center; justify-content: center; background: var(--accent-glow); color: var(--accent); font-family: var(--font-serif); font-size: 0.82rem; }
+.home-scan-action-main { display: block; min-width: 0; color: var(--text-1); font-size: 0.82rem; line-height: 1.2; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-scan-action-sub { display: block; min-width: 0; color: var(--text-3); font-size: 0.66rem; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ═══ 首页综合 AI 输入框 ═══ */
 .home-ai-console { max-width: 920px; margin: 0 auto; padding-bottom: 0; text-align: left; display: flex; flex-direction: column; gap: 12px; width: 100%; min-height: 0; overflow: hidden; box-sizing: border-box; }
@@ -1095,6 +1158,9 @@ onBeforeUnmount(() => {
   .hero-brand-divider { margin: 8px auto; }
   .hero-brand-slogan { font-size: 0.82rem; letter-spacing: 3px; }
   .hero-brand-sub { display: none; }
+  .home-scan-panel { margin-bottom: 12px; }
+  .home-scan-status-item, .home-scan-action { padding-top: 8px; padding-bottom: 8px; }
+  .home-scan-action-sub { display: none; }
   .home-ai-input { min-height: 74px; max-height: 120px; }
   .home-ai-main { bottom: 14px; }
   .hero-home.chat-active { padding: 10px 32px 158px; }
@@ -1110,6 +1176,13 @@ onBeforeUnmount(() => {
   .hero-brand-icon { width: 64px; height: 64px; transform: translateY(2px); }
   .hero-brand-name { font-size: 1.45rem; letter-spacing: 4px; margin-bottom: 6px; text-indent: 4px; }
   .hero-brand-divider, .hero-brand-slogan, .hero-brand-sub { display: none; }
+  .home-scan-panel { margin-bottom: 8px; gap: 8px; }
+  .home-scan-status { display: none; }
+  .home-scan-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .home-scan-action { grid-template-columns: 22px minmax(0, 1fr); padding: 7px 8px; border-radius: 12px; }
+  .home-scan-action-mark { width: 22px; height: 22px; border-radius: 7px; font-size: 0.7rem; }
+  .home-scan-action-main { font-size: 0.72rem; }
+  .home-scan-action-sub { display: none; }
   .home-ai-input { min-height: 58px; max-height: 92px; font-size: 0.9rem; }
   .home-ai-main { padding: 10px; gap: 6px; bottom: 10px; }
   .home-ai-toolbar { min-height: 34px; }
@@ -1133,6 +1206,14 @@ onBeforeUnmount(() => {
   .hero-home.chat-active .hero-brand-slogan { font-size: 0.68rem; letter-spacing: 2px; }
   .hero-brand-name { font-size: 2rem; letter-spacing: 6px; }
   .hero-brand-slogan { font-size: 0.875rem; letter-spacing: 3px; }
+  .home-scan-panel { width: 100%; margin-bottom: 12px; gap: 8px; }
+  .home-scan-status { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .home-scan-status-item { padding: 8px 10px; border-radius: 10px; }
+  .home-scan-label { font-size: 0.58rem; margin-bottom: 3px; }
+  .home-scan-value { font-size: 0.72rem; }
+  .home-scan-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .home-scan-action { padding: 8px 9px; border-radius: 12px; }
+  .home-scan-action-sub { display: none; }
   .home-ai-console { margin-top: 0; padding-bottom: 0; }
   .home-ai-console.has-chat { width: calc(100vw - 32px); padding: 0; margin-top: 0; }
   .home-ai-console.has-chat .home-ai-chat { height: auto; min-height: 0; }
@@ -1168,6 +1249,7 @@ onBeforeUnmount(() => {
   .hero-brand-name { font-size: 1.6rem; letter-spacing: 4px; }
   .hero-brand-slogan { font-size: 0.75rem; letter-spacing: 3px; }
   .hero-brand-sub { font-size: 0.75rem; }
+  .home-scan-panel { display: none; }
   .hero-home.chat-active .hero-brand-slogan { display: none; }
   .home-ai-console.has-chat { width: calc(100vw - 32px); padding-top: 0; }
   .home-ai-console.has-chat .home-ai-chat { height: auto; min-height: 0; padding: 10px; }

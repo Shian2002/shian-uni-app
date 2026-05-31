@@ -42,7 +42,7 @@
             <view class="settings-list">
               <!-- 修改用户名 -->
               <view class="settings-item" @tap="toggleAccordion('username')">
-                <text class="settings-item-icon">👤</text>
+                <text class="settings-item-icon settings-icon-user">ID</text>
                 <text class="settings-item-label">修改用户名</text>
                 <text class="settings-item-value" id="bindUsername">{{ userInfo.username }}</text>
                 <text class="settings-item-arrow">{{ accordionOpen === 'username' ? '▲' : '›' }}</text>
@@ -58,7 +58,7 @@
 
               <!-- 密码 -->
               <view class="settings-item" @tap="toggleAccordion('password')">
-                <text class="settings-item-icon">🔑</text>
+                <text class="settings-item-icon settings-icon-password">PW</text>
                 <text class="settings-item-label">{{ hasPassword ? '修改密码' : '设置密码' }}</text>
                 <text class="settings-item-value" id="bindPassword">{{ hasPassword ? '已设置' : '未设置' }}</text>
                 <text class="settings-item-arrow">{{ accordionOpen === 'password' ? '▲' : '›' }}</text>
@@ -74,7 +74,7 @@
 
               <!-- 邮箱 -->
               <view class="settings-item" @tap="toggleAccordion('email')">
-                <text class="settings-item-icon">📧</text>
+                <text class="settings-item-icon settings-icon-email">@</text>
                 <text class="settings-item-label">绑定邮箱</text>
                 <text class="settings-item-value" id="bindEmail">未绑定</text>
                 <text class="settings-item-arrow">{{ accordionOpen === 'email' ? '▲' : '›' }}</text>
@@ -93,7 +93,7 @@
 
               <!-- 手机号 -->
               <view class="settings-item" @tap="toggleAccordion('phone')">
-                <text class="settings-item-icon">📱</text>
+                <text class="settings-item-icon settings-icon-phone">TEL</text>
                 <text class="settings-item-label">绑定手机号</text>
                 <text class="settings-item-value" id="bindPhone">未绑定</text>
                 <text class="settings-item-arrow">{{ accordionOpen === 'phone' ? '▲' : '›' }}</text>
@@ -112,7 +112,7 @@
 
               <!-- 第三方 -->
               <view class="settings-item" @tap="toggleAccordion('oauth')">
-                <text class="settings-item-icon">🔗</text>
+                <text class="settings-item-icon settings-icon-oauth">↗</text>
                 <text class="settings-item-label">第三方账号</text>
                 <text class="settings-item-value" id="bindGitee">未绑定</text>
                 <text class="settings-item-arrow">{{ accordionOpen === 'oauth' ? '▲' : '›' }}</text>
@@ -327,7 +327,7 @@ function handleProfileAvatarError() {
   }
 }
 const oauthProviders = reactive([
-  { key: 'gitee', name: 'Gitee', icon: '🟢', bound: false }
+  { key: 'gitee', name: 'Gitee', icon: 'G', bound: false }
 ])
 async function bindOAuth(provider) {
   try {
@@ -929,6 +929,12 @@ onShow(function() {
 [data-theme="light"] .bg-layer { background: radial-gradient(ellipse 72% 52% at 12% 18%, rgba(210,190,150,0.20) 0%, transparent 65%), radial-gradient(ellipse 55% 42% at 92% 85%, rgba(195,175,135,0.13) 0%, transparent 60%), linear-gradient(155deg, var(--bg-grad-1), var(--bg-grad-2) 60%, var(--bg-grad-3)); }
 .page-wrap { position: relative; z-index: 1; }
 
+@media (min-width: 769px) {
+  :deep(.topnav) { padding-left: 16px; padding-right: 16px; }
+  :deep(.nav-btn) { padding-left: 8px; padding-right: 8px; font-size: 0.9rem; }
+  :deep(.topnav-sidebar-btn) { margin-right: 0; }
+}
+
 .section { max-width: var(--max-w); margin: 0 auto; padding: 80px 32px; }
 .section-tag { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.6875rem; letter-spacing: 2px; color: var(--accent); background: var(--accent-glow); margin-bottom: 12px; }
 .tool-hero { padding: 60px 32px 32px; text-align: center; position: relative; overflow: hidden; }
@@ -959,7 +965,17 @@ onShow(function() {
 .settings-item:last-child { border-bottom: none; }
 .settings-item:hover { background: var(--accent-glow); }
 .settings-item:active { background: rgba(255,255,255,0.06); }
-.settings-item-icon { font-size: 1.05rem; flex-shrink: 0; width: 24px; text-align: center; }
+.settings-item-icon {
+  flex-shrink: 0; width: 28px; height: 28px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 9px; border: 1px solid rgba(178,149,93,0.16);
+  background: var(--accent-glow); color: var(--accent);
+  font-size: 0.66rem; line-height: 1; font-weight: 700; letter-spacing: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+  box-sizing: border-box;
+}
+.settings-icon-phone { font-size: 0.54rem; }
+.settings-icon-oauth { font-size: 0.82rem; }
 .settings-item-label { flex: 1; font-size: 0.875rem; color: var(--text-1); }
 .settings-item-value { font-size: 0.78rem; color: var(--text-3); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings-item-arrow { font-size: 0.85rem; color: var(--text-3); flex-shrink: 0; margin-left: 4px; transition: transform 0.2s; }
@@ -974,7 +990,13 @@ onShow(function() {
 .settings-oauth-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--card-border); }
 .settings-oauth-row:last-child { border-bottom: none; }
 .settings-oauth-left { display: flex; align-items: center; gap: 10px; }
-.settings-oauth-icon { font-size: 1.1rem; }
+.settings-oauth-icon {
+  width: 24px; height: 24px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(178,149,93,0.18);
+  background: var(--accent-glow); color: var(--accent);
+  font-size: 0.7rem; font-weight: 800;
+}
 .settings-oauth-label { font-size: 0.85rem; color: var(--text-2); }
 .settings-oauth-right { display: flex; align-items: center; }
 .settings-oauth-status { font-size: 0.78rem; color: var(--text-3); }

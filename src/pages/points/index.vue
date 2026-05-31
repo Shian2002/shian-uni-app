@@ -28,13 +28,18 @@
 
       <!-- 充值套餐 -->
       <view class="section">
-        <view class="section-title">充值套餐</view>
-        <view class="pkg-scroll" id="pkgScroll">
-          <view class="pkg-card" v-for="pkg in packages" :key="pkg.id" @click="selectPackage(pkg)">
-            <text class="pkg-points">{{ pkg.points }}</text>
-            <text class="pkg-label">积分</text>
-            <view class="pkg-price">¥{{ pkg.price }}</view>
-            <view class="pkg-name">{{ pkg.name }}</view>
+        <view class="section-head">
+          <view class="section-title">充值套餐</view>
+          <view class="section-hint">横向滑动查看更多</view>
+        </view>
+        <view class="pkg-scroll-wrap">
+          <view class="pkg-scroll" id="pkgScroll">
+            <view class="pkg-card" v-for="pkg in packages" :key="pkg.id" @click="selectPackage(pkg)">
+              <text class="pkg-points">{{ pkg.points }}</text>
+              <text class="pkg-label">积分</text>
+              <view class="pkg-price">¥{{ pkg.price }}</view>
+              <view class="pkg-name">{{ pkg.name }}</view>
+            </view>
           </view>
         </view>
       </view>
@@ -294,6 +299,12 @@ export default {
 .page-root { min-height: 100vh; background: var(--bg); }
 .page { max-width: 640px; margin: 0 auto; padding: 10px 16px 40px; }
 
+@media (min-width: 769px) {
+  .topnav { padding-left: 16px; padding-right: 16px; }
+  .nav-btn { padding-left: 8px; padding-right: 8px; font-size: 0.9rem; }
+  .topnav-sidebar-btn { margin-right: 0; }
+}
+
 /* 页头 */
 .page-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -341,15 +352,30 @@ export default {
 
 /* 区块标题 */
 .section { margin-bottom: 24px; }
+.section-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-bottom: 12px; padding-left: 4px;
+}
 .section-title {
   font-size: 0.92rem; font-weight: 700; color: var(--text-1);
-  margin-bottom: 12px; padding-left: 4px;
+}
+.section-hint {
+  display: none; flex-shrink: 0; align-items: center; gap: 4px;
+  font-size: 0.72rem; color: var(--text-3);
+}
+.section-hint::after {
+  content: '›'; display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  color: var(--accent); background: var(--accent-glow);
 }
 
 /* 充值套餐 */
+.pkg-scroll-wrap { position: relative; overflow: hidden; }
 .pkg-scroll {
   display: flex; gap: 10px;
   padding: 4px 0 8px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .pkg-card {
   flex: 1 1 0; min-width: 0; background: var(--card-bg); border: 1px solid var(--card-border);
@@ -411,7 +437,24 @@ export default {
 
 /* 响应式 */
 @media (max-width: 480px) {
-  .pkg-card { flex: 0 0 110px; min-width: unset; padding: 14px 12px; }
+  .section-head { padding-left: 0; }
+  .section-hint { display: inline-flex; }
+  .pkg-scroll-wrap::after {
+    content: ''; position: absolute; top: 0; right: 0; bottom: 0;
+    width: 42px; pointer-events: none;
+    background: linear-gradient(90deg, transparent, var(--bg));
+  }
+  .pkg-scroll {
+    overflow-x: auto; overflow-y: hidden;
+    padding: 4px 34px 10px 0;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+  .pkg-scroll::-webkit-scrollbar { height: 0; }
+  .pkg-card {
+    flex: 0 0 124px; min-width: 124px; padding: 14px 12px;
+    scroll-snap-align: start;
+  }
   .points-number { font-size: 2.2rem; }
 }
 </style>

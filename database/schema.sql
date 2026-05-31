@@ -194,8 +194,10 @@ CREATE TABLE IF NOT EXISTS point_log (
     action VARCHAR(50) NOT NULL,
     points INTEGER NOT NULL,
     description VARCHAR(200),
+    dedupe_key VARCHAR(160) UNIQUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+CREATE UNIQUE INDEX IF NOT EXISTS ix_point_log_dedupe_key ON point_log(dedupe_key);
 
 -- 付费内容
 CREATE TABLE IF NOT EXISTS paid_content (

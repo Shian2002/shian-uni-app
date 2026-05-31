@@ -15,8 +15,8 @@ from datetime import datetime
 from flask import Flask, request, jsonify, make_response, session, redirect, Response, stream_with_context
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy import or_
-from sqlalchemy.exc import OperationalError
+from sqlalchemy import case, or_, update
+from sqlalchemy.exc import IntegrityError, OperationalError
 from deepseek_service import get_tarot_reading_stream, get_tarot_followup_stream, get_reading_stream, is_available as deepseek_available
 import urllib.parse
 
@@ -93,10 +93,11 @@ csrf.init_app(app)
 
 # ── 启动时检查数据库表结构，添加缺失字段 ──
 # 使用模块级标志避免 Gunicorn 多 worker / reload 时重复执行
+_early_startup_checks_done = False
 _startup_checks_done = False
 with app.app_context():
-    if not _startup_checks_done:
-        _startup_checks_done = True
+    if not _early_startup_checks_done:
+        _early_startup_checks_done = True
         # 确保所有表已创建（适用于 SQLite 和 MySQL）
         try:
             db.create_all()
@@ -134,7 +135,7 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 3600  # 静态文件缓存1小时
 
 # ═══════ 导入数据模型（必须在 db.init_app 之后） ═══════
 from models import User, Record, UserProfile, FollowUp, Collection
-from models import Post, Comment, Master, PostLike, Membership, PointLog, PaidContent, Purchase, TarotConversation, LiuyaoConversation, MeihuaConversation, QimenConversation, BaziConversation, ZiweiConversation, ComprehensiveConversation
+from models import Post, Comment, Master, PostLike, Membership, PointLog, PaidContent, Purchase, RechargeOrder, TarotConversation, LiuyaoConversation, MeihuaConversation, QimenConversation, BaziConversation, ZiweiConversation, ComprehensiveConversation
 from models import BaziRecord
 from comprehensive_ai import (
     COMPREHENSIVE_LLM_MODELS,
@@ -157,10 +158,10 @@ def lunar_to_solar(birth_time, cal_type):
         new_time = f"{solar.year}{solar.month:02d}{solar.day:02d}"
         if len(birth_time) >= 12:
             new_time += birth_time[8:12]
-        logger.debug("农历转公历: {birth_time} -> {new_time}")
+        logger.debug(f"农历转公历: {birth_time} -> {new_time}")
         return new_time, '公历'
     except Exception as e:
-        logger.debug("农历转换失败: {e}")
+        logger.debug(f"农历转换失败: {e}")
         return birth_time, cal_type
 
 # ═══════ 运行目录管理 (天机问策) ═══════
@@ -263,7 +264,7 @@ def run_automation(question, run_id, record_id=None):
                                 rec.qimen_json = json.dumps(qimen, ensure_ascii=False)
                             db.session.commit()
                 except Exception as e:
-                    logger.warning("保存记录失败: {e}")
+                    logger.warning(f"保存记录失败: {e}")
         elif status.get('phase') != 'error':
             write_run_status(run_id, {'phase': 'error', 'message': '自动化完成但未获取到答案', 'progress': 0})
 
@@ -292,7 +293,7 @@ def migrate_db():
                 db.session.commit()
                 logger.info("[DB] 已添加 app_type 字段")
             except Exception as e:
-                logger.warning("app_type 迁移失败: {e}")
+                logger.warning(f"app_type 迁移失败: {e}")
 
         # 2. 创建新表（如果不存在）
         for tbl in ['user_profile', 'follow_up', 'collection', 'post', 'comment', 'master', 'post_like',
@@ -316,9 +317,36 @@ def migrate_db():
                 try:
                     db.session.execute(db.text(f'ALTER TABLE `user` ADD COLUMN {col} {ctype}'))
                     db.session.commit()
-                    logger.warning("已添加 user.{col} 字段")
+                    logger.warning(f"已添加 user.{col} 字段")
                 except Exception as e:
-                    logger.warning("user.{col} 迁移失败: {e}")
+                    logger.warning(f"user.{col} 迁移失败: {e}")
+
+        # 4. point_log.dedupe_key：用于签到、充值等积分动作幂等
+        try:
+            db.session.execute(db.text('SELECT dedupe_key FROM point_log LIMIT 1'))
+        except Exception:
+            try:
+                db.session.execute(db.text('ALTER TABLE point_log ADD COLUMN dedupe_key VARCHAR(160)'))
+                db.session.commit()
+                logger.info("[DB] 已添加 point_log.dedupe_key 字段")
+            except Exception as e:
+                db.session.rollback()
+                logger.warning(f"point_log.dedupe_key 迁移失败: {e}")
+        try:
+            dialect = db.session.bind.dialect.name if db.session.bind else ''
+            if dialect == 'sqlite':
+                db.session.execute(db.text(
+                    'CREATE UNIQUE INDEX IF NOT EXISTS ix_point_log_dedupe_key ON point_log (dedupe_key)'
+                ))
+            else:
+                db.session.execute(db.text(
+                    'CREATE UNIQUE INDEX ix_point_log_dedupe_key ON point_log (dedupe_key)'
+                ))
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            if 'already exists' not in str(e).lower() and 'duplicate' not in str(e).lower():
+                logger.warning(f"point_log.dedupe_key 唯一索引迁移失败: {e}")
 
         # 5. user.has_password
         try:
@@ -332,7 +360,7 @@ def migrate_db():
                 db.session.commit()
                 logger.info("[DB] 已添加 has_password 字段")
             except Exception as e:
-                logger.warning("has_password 迁移失败: {e}")
+                logger.warning(f"has_password 迁移失败: {e}")
 
         # 6. user_profile.profile_type / user_profile.last_used_at
         for col, ctype in [('profile_type', "VARCHAR(10) DEFAULT 'self'"), ('last_used_at', 'DATETIME')]:
@@ -2712,12 +2740,11 @@ def api_liuyao_ask_stream():
         return Response(err_gen(), mimetype='text/event-stream')
 
     cost = 1 if is_followup else 5
-    membership = get_or_create_membership(current_user.id)
-    if membership.points < cost:
+    spend = use_points(current_user.id, 'liuyao_reading', cost, '六爻 AI ' + ('追问' if is_followup else '解读'))
+    if not spend.get('ok'):
         def err_gen():
             yield f"event: error\ndata: {json.dumps({'message': f'积分不足（需要 {cost} 积分）'})}\n\n"
         return Response(err_gen(), mimetype='text/event-stream')
-    add_points(current_user.id, 'liuyao_reading', -cost, '六爻 AI ' + ('追问' if is_followup else '解读'))
 
     LIUYAO_SP = """你是一位精通六爻纳甲（六爻占卜）的资深命理专家，擅长根据六爻卦象分析问题。
 请根据用户提供的六爻排盘数据和问题，给出专业的六爻分析解读。
@@ -3012,12 +3039,11 @@ def api_meihua_ask_stream():
         return Response(err_gen(), mimetype='text/event-stream')
 
     cost = 1 if is_followup else 5
-    membership = get_or_create_membership(current_user.id)
-    if membership.points < cost:
+    spend = use_points(current_user.id, 'meihua_reading', cost, '梅花易数 AI ' + ('追问' if is_followup else '解读'))
+    if not spend.get('ok'):
         def err_gen():
             yield f"event: error\ndata: {json.dumps({'message': f'积分不足（需要 {cost} 积分）'})}\n\n"
         return Response(err_gen(), mimetype='text/event-stream')
-    add_points(current_user.id, 'meihua_reading', -cost, '梅花易数 AI ' + ('追问' if is_followup else '解读'))
 
     MEIHUA_SP = """你是一位精通梅花易数的资深命理专家，擅长根据卦象分析问题。
 请根据用户提供的梅花易数排盘数据，给出专业的分析解读。
@@ -3340,13 +3366,11 @@ def api_tarot_reading_stream():
 
     # 扣积分：首轮 5 分，追问 1 分
     cost = 1 if is_followup else 5
-    membership = get_or_create_membership(current_user.id)
-    if membership.points < cost:
+    spend = use_points(current_user.id, 'tarot_reading', cost, '塔罗牌 AI ' + ('追问' if is_followup else '解读'))
+    if not spend.get('ok'):
         def err_gen():
             yield f"event: error\ndata: {json.dumps({'message': f'积分不足（需要 {cost} 积分），每日签到可获取积分'})}\n\n"
         return Response(err_gen(), mimetype='text/event-stream')
-
-    add_points(current_user.id, 'tarot_reading', -cost, '塔罗牌 AI ' + ('追问' if is_followup else '解读'))
 
     def generate():
         yield f"event: progress\ndata: {json.dumps({'stage': 'connecting'})}\n\n"
@@ -4188,10 +4212,6 @@ def api_comprehensive_ask_stream():
     if not tool_models and not is_followup:
         return Response(_event({'error': '请至少选择一个术数模型'}), mimetype='text/event-stream')
 
-    membership = get_or_create_membership(current_user.id)
-    if membership.points < cost:
-        return Response(_event({'error': '积分不足', 'current': membership.points, 'required': cost}), mimetype='text/event-stream')
-
     def generate():
         try:
             yield _event({'stage': 'profile', 'message': '正在读取命盘档案'})
@@ -4240,7 +4260,10 @@ def api_comprehensive_ask_stream():
                         profile_results.append({'profile': p, 'paipan': task_results.get(pi, {})})
                     paipan_context = {'profiles': profile_results}
                 yield _event({'stage': 'paipan_done', 'message': '所有排盘完成，正在准备解读'})
-            add_points(current_user.id, 'comprehensive_ai', -cost, '综合 AI ' + ('追问' if is_followup else '解读'))
+            spend = use_points(current_user.id, 'comprehensive_ai', cost, '综合 AI ' + ('追问' if is_followup else '解读'))
+            if not spend.get('ok'):
+                yield _event({'error': '积分不足', 'current': spend.get('current'), 'required': cost})
+                return
             messages = build_comprehensive_messages(question, profile, tool_models, paipan_context, history)
             full_text = ''
             yield _event({'stage': 'generating', 'message': '正在生成综合解读'})
@@ -5787,7 +5810,7 @@ def api_paipan():
     if isinstance(addr_info, dict) and addr_info.get('full'):
         cmd.append(addr_info['full'])
 
-    logger.info("执行: {' '.join(cmd)}")
+    logger.info(f"执行: {' '.join(cmd)}")
 
     try:
         result = subprocess.run(
@@ -5798,7 +5821,7 @@ def api_paipan():
         stdout_text = result.stdout.strip() if result.stdout else ''
         stderr_text = result.stderr.strip() if result.stderr else ''
 
-        logger.info("{'成功' if success else '失败'}: {name}")
+        logger.info(f"{'成功' if success else '失败'}: {name}")
 
         # 保存记录
         rec = Record(
@@ -9302,23 +9325,131 @@ MEMBER_TOOL_LIMIT = {
     'vip': -1,
 }
 
-def get_or_create_membership(user_id):
+def get_or_create_membership(user_id, commit=True):
     """获取或创建会员记录"""
     m = Membership.query.filter_by(user_id=user_id).first()
     if not m:
         m = Membership(user_id=user_id, level='free', points=0)
         db.session.add(m)
-        db.session.commit()
+        if commit:
+            db.session.commit()
+        else:
+            db.session.flush()
     return m
 
-def add_points(user_id, action, points, description=''):
-    """添加积分日志并更新会员积分"""
-    log = PointLog(user_id=user_id, action=action, points=points, description=description)
+def add_points(user_id, action, points, description='', dedupe_key=None, commit=True):
+    """添加积分日志并更新会员积分。
+
+    commit=False 时由外层事务统一提交，用于订单确认等复合操作。
+    dedupe_key 用于同一业务动作幂等，例如每日签到和订单到账。
+    """
+    try:
+        log = PointLog(
+            user_id=user_id,
+            action=action,
+            points=points,
+            description=description,
+            dedupe_key=dedupe_key,
+        )
+        db.session.add(log)
+        get_or_create_membership(user_id, commit=False)
+        db.session.flush()
+        db.session.execute(
+            update(Membership)
+            .where(Membership.user_id == user_id)
+            .values(
+                points=case(
+                    (Membership.points + points < 0, 0),
+                    else_=Membership.points + points,
+                ),
+                updated_at=datetime.utcnow(),
+            )
+        )
+        db.session.flush()
+        new_points = Membership.query.filter_by(user_id=user_id).with_entities(Membership.points).scalar()
+        if commit:
+            db.session.commit()
+        return new_points
+    except IntegrityError:
+        db.session.rollback()
+        raise
+
+def create_daily_sign_in_once(user_id):
+    """每日签到幂等写入，同一用户同一天只加一次积分。"""
+    today = datetime.utcnow().strftime('%Y-%m-%d')
+    dedupe_key = f'sign_in:{user_id}:{today}'
+    try:
+        new_points = add_points(
+            user_id,
+            'sign_in',
+            POINT_RULES['sign_in'],
+            '每日签到',
+            dedupe_key=dedupe_key,
+        )
+        return {'ok': True, 'points': new_points, 'added': POINT_RULES['sign_in']}
+    except IntegrityError:
+        return {'ok': False, 'error': '今天已签到'}
+
+def use_points(user_id, action, points, description='', commit=True):
+    """原子扣减积分，余额不足时不写日志。"""
+    if points <= 0:
+        return {'ok': False, 'error': 'points 须为正整数'}
+    get_or_create_membership(user_id, commit=False)
+    changed = Membership.query.filter(
+        Membership.user_id == user_id,
+        Membership.points >= points,
+    ).update(
+        {'points': Membership.points - points, 'updated_at': datetime.utcnow()},
+        synchronize_session=False,
+    )
+    if changed != 1:
+        db.session.rollback()
+        m = get_or_create_membership(user_id)
+        return {'ok': False, 'error': '积分不足', 'current': m.points, 'required': points}
+    log = PointLog(user_id=user_id, action=action, points=-points, description=description)
     db.session.add(log)
-    m = get_or_create_membership(user_id)
-    m.points = max(0, m.points + points)
-    db.session.commit()
-    return m.points
+    db.session.flush()
+    new_points = Membership.query.filter_by(user_id=user_id).with_entities(Membership.points).scalar()
+    if commit:
+        db.session.commit()
+    return {'ok': True, 'points': new_points, 'used': points}
+
+def confirm_recharge_order_once(order_id):
+    """只确认 pending 订单一次，并在同一事务内完成到账。"""
+    now = datetime.utcnow()
+    try:
+        changed = RechargeOrder.query.filter_by(id=order_id, status='pending').update(
+            {'status': 'paid', 'updated_at': now},
+            synchronize_session=False,
+        )
+        if changed != 1:
+            db.session.rollback()
+            order = db.session.get(RechargeOrder, order_id)
+            if not order:
+                return {'ok': False, 'error': '订单不存在', 'status': None}
+            return {'ok': False, 'error': '订单状态错误', 'status': order.status}
+
+        order = db.session.get(RechargeOrder, order_id)
+        new_total = add_points(
+            order.user_id,
+            'recharge',
+            order.points,
+            f'充值到账: +{order.points}分 (¥{order.amount})',
+            dedupe_key=f'recharge_order:{order.id}',
+            commit=False,
+        )
+        db.session.commit()
+        return {
+            'ok': True,
+            'order_id': order.id,
+            'user_id': order.user_id,
+            'points': new_total,
+            'added': order.points,
+        }
+    except IntegrityError:
+        db.session.rollback()
+        order = db.session.get(RechargeOrder, order_id)
+        return {'ok': False, 'error': '订单状态错误', 'status': order.status if order else None}
 
 def check_tool_limit(user):
     """检查用户当日工具使用次数，返回 (allowed, current_count, limit)"""
@@ -9361,14 +9492,10 @@ def api_membership():
 @login_required
 def api_membership_sign_in():
     """每日签到（+10积分，每天1次）"""
-    today = datetime.utcnow().strftime('%Y-%m-%d')
-    existing = PointLog.query.filter_by(user_id=current_user.id, action='sign_in')\
-        .filter(db.func.date(PointLog.created_at) == today).first()
-    if existing:
-        return jsonify({'error': '今天已签到'}), 400
-
-    new_points = add_points(current_user.id, 'sign_in', POINT_RULES['sign_in'], '每日签到')
-    return jsonify({'ok': True, 'points': new_points, 'added': POINT_RULES['sign_in']})
+    result = create_daily_sign_in_once(current_user.id)
+    if not result.get('ok'):
+        return jsonify({'error': result.get('error', '今天已签到')}), 400
+    return jsonify(result)
 
 @app.route('/api/points/log')
 @login_required
@@ -9410,12 +9537,10 @@ def api_points_use():
     if not isinstance(points, int) or points <= 0:
         return jsonify({'error': 'points 须为正整数'}), 400
 
-    m = get_or_create_membership(current_user.id)
-    if m.points < points:
-        return jsonify({'error': '积分不足', 'current': m.points, 'required': points}), 400
-
-    new_points = add_points(current_user.id, action, -points, data.get('description', ''))
-    return jsonify({'ok': True, 'points': new_points, 'used': points})
+    result = use_points(current_user.id, action, points, data.get('description', ''))
+    if not result.get('ok'):
+        return jsonify(result), 400
+    return jsonify(result)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -9515,19 +9640,11 @@ def api_admin_confirm_recharge():
         return jsonify({'ok': True, 'user_id': target_uid, 'points': new_total, 'added': points})
 
     # 确认订单到账
-    order = RechargeOrder.query.get(order_id)
-    if not order:
-        return jsonify({'error': '订单不存在'}), 404
-    if order.status != 'pending':
-        return jsonify({'error': '订单状态错误', 'status': order.status}), 400
-
-    order.status = 'paid'
-    order.updated_at = datetime.utcnow()
-    new_total = add_points(order.user_id, 'recharge', order.points,
-                          f'充值到账: +{order.points}分 (¥{order.amount})')
-    db.session.commit()
-    return jsonify({'ok': True, 'order_id': order.id, 'user_id': order.user_id,
-                    'points': new_total, 'added': order.points})
+    result = confirm_recharge_order_once(order_id)
+    if not result.get('ok'):
+        status_code = 404 if result.get('status') is None else 400
+        return jsonify({'error': result.get('error', '订单状态错误'), 'status': result.get('status')}), status_code
+    return jsonify(result)
 
 @app.route('/api/paid-contents', methods=['GET'])
 def api_paid_contents_list():
@@ -9612,13 +9729,10 @@ def api_paid_contents_purchase(cid):
     if existing:
         return jsonify({'error': '已购买该内容'}), 409
 
-    # 检查积分
-    m = get_or_create_membership(current_user.id)
-    if m.points < content.price:
-        return jsonify({'error': '积分不足', 'current': m.points, 'required': content.price}), 400
-
     # 扣除购买者积分
-    add_points(current_user.id, 'purchase', -content.price, f'购买内容: {content.title}')
+    spend = use_points(current_user.id, 'purchase', content.price, f'购买内容: {content.title}', commit=False)
+    if not spend.get('ok'):
+        return jsonify(spend), 400
 
     # 创建购买记录
     purchase = Purchase(user_id=current_user.id, content_id=cid, points_cost=content.price)
@@ -9629,7 +9743,7 @@ def api_paid_contents_purchase(cid):
         master = db.session.get(Master, content.master_id)
         if master:
             author_points = int(content.price * 0.7)
-            add_points(master.user_id, 'purchased', author_points, f'内容被购买: {content.title}')
+            add_points(master.user_id, 'purchased', author_points, f'内容被购买: {content.title}', commit=False)
 
     db.session.commit()
 
