@@ -9215,6 +9215,136 @@ def api_admin_hide_post(pid):
     return jsonify({'ok': True, 'isHidden': post.is_hidden})
 
 
+@app.route('/api/admin/summary')
+@login_required
+def api_admin_summary():
+    """管理员：后台概览数据"""
+    if not current_user.is_admin:
+        return jsonify({'error': '需要管理员权限'}), 403
+
+    from models import Report
+    return jsonify({
+        'users': User.query.count(),
+        'posts': Post.query.count(),
+        'hidden_posts': Post.query.filter_by(is_hidden=True).count(),
+        'pending_reports': Report.query.filter_by(status='pending').count(),
+        'pending_recharge_orders': RechargeOrder.query.filter_by(status='pending').count(),
+    })
+
+
+@app.route('/api/admin/users')
+@login_required
+def api_admin_users():
+    """管理员：用户列表"""
+    if not current_user.is_admin:
+        return jsonify({'error': '需要管理员权限'}), 403
+
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 20, type=int), 50)
+    keyword = (request.args.get('q') or '').strip()
+
+    query = User.query
+    if keyword:
+        like = f'%{keyword}%'
+        query = query.filter(or_(User.username.like(like), User.email.like(like), User.phone.like(like)))
+
+    pagination = query.order_by(User.id.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    items = []
+    for u in pagination.items:
+        m = Membership.query.filter_by(user_id=u.id).first()
+        items.append({
+            'id': u.id,
+            'username': u.username,
+            'email': u.email or '',
+            'phone': u.phone or '',
+            'is_admin': bool(u.is_admin),
+            'points': m.points if m else 0,
+            'level': m.level if m else 'free',
+            'created_at': u.created_at.isoformat() if u.created_at else None,
+        })
+
+    return jsonify({'users': items, 'total': pagination.total, 'page': page, 'has_next': pagination.has_next})
+
+
+@app.route('/api/admin/posts')
+@login_required
+def api_admin_posts():
+    """管理员：帖子列表，包含隐藏内容"""
+    if not current_user.is_admin:
+        return jsonify({'error': '需要管理员权限'}), 403
+
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 20, type=int), 50)
+    status = (request.args.get('status') or 'all').strip()
+    keyword = (request.args.get('q') or '').strip()
+
+    query = Post.query
+    if status == 'hidden':
+        query = query.filter_by(is_hidden=True)
+    elif status == 'visible':
+        query = query.filter_by(is_hidden=False)
+    if keyword:
+        like = f'%{keyword}%'
+        query = query.filter(or_(Post.title.like(like), Post.content.like(like), Post.tags.like(like)))
+
+    pagination = query.order_by(Post.is_pinned.desc(), Post.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    items = []
+    for p in pagination.items:
+        author = db.session.get(User, p.user_id)
+        items.append({
+            'id': p.id,
+            'userId': p.user_id,
+            'username': author.username if author else '匿名',
+            'title': p.title,
+            'category': p.category,
+            'likesCount': p.likes_count,
+            'commentsCount': p.comments_count,
+            'isFeatured': bool(p.is_featured),
+            'isPinned': bool(p.is_pinned),
+            'isHidden': bool(p.is_hidden),
+            'createdAt': p.created_at.isoformat() if p.created_at else None,
+        })
+
+    return jsonify({'posts': items, 'total': pagination.total, 'page': page, 'has_next': pagination.has_next})
+
+
+@app.route('/api/admin/recharge/orders')
+@login_required
+def api_admin_recharge_orders():
+    """管理员：充值订单列表"""
+    if not current_user.is_admin:
+        return jsonify({'error': '需要管理员权限'}), 403
+
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 20, type=int), 50)
+    status = (request.args.get('status') or 'all').strip()
+
+    query = RechargeOrder.query
+    if status in ('pending', 'paid', 'cancelled'):
+        query = query.filter_by(status=status)
+
+    pagination = query.order_by(RechargeOrder.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    items = []
+    for o in pagination.items:
+        user = db.session.get(User, o.user_id)
+        items.append({
+            'id': o.id,
+            'user_id': o.user_id,
+            'username': user.username if user else '匿名',
+            'package_name': o.package_name,
+            'points_amount': o.points,
+            'price': o.amount,
+            'pay_method': o.pay_method,
+            'status': o.status,
+            'created_at': o.created_at.isoformat() if o.created_at else None,
+            'paid_at': o.updated_at.isoformat() if o.status == 'paid' and o.updated_at else None,
+        })
+
+    return jsonify({'orders': items, 'total': pagination.total, 'page': page, 'has_next': pagination.has_next})
+
+
 # ═══════════════════════════════════════════════════════════════
 # 分享 API
 # ═══════════════════════════════════════════════════════════════

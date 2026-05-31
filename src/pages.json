@@ -10,6 +10,7 @@
     {"path": "pages/tarot/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "塔罗牌"}},
     {"path": "pages/calendar/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "专属日历"}},
     {"path": "pages/community/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "社区"}},
+    {"path": "pages/admin/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "后台管理"}},
     {"path": "pages/profile/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "个人中心"}},
     {"path": "pages/error/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "错误页面"}},
     {"path": "pages/tool-coming/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "即将上线"}},

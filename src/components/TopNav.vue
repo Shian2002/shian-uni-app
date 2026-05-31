@@ -48,6 +48,7 @@
              <view class="avatar-dropdown-divider"></view>
              <view class="avatar-dropdown-item avatar-dropdown-action" data-href="#/pages/profile/index">个人中心 ›</view>
              <view class="avatar-dropdown-item avatar-dropdown-action" data-href="#/pages/points/index">积分中心 ›</view>
+             <view class="avatar-dropdown-item avatar-dropdown-action admin-dropdown-item" id="avatarAdminEntry" data-href="#/pages/admin/index" style="display:none;">后台管理 ›</view>
              <view class="avatar-dropdown-divider"></view>
              <view class="avatar-dropdown-item avatar-dropdown-action" data-action="logout">退出登录</view>
            </view>
@@ -1019,6 +1020,9 @@ function loadAvatar() {
       avatarLetter.value = d.username.charAt(0).toUpperCase()
       if (d.avatar) { avatarUrl.value = d.avatar; uni.setStorageSync('xc_avatar', d.avatar) }
       else avatarUrl.value = DEFAULT_AVATAR_URL
+      document.querySelectorAll('#avatarAdminEntry').forEach(function(el) {
+        el.style.display = d.is_admin ? '' : 'none'
+      })
     }
   }).catch(function() {})
 }

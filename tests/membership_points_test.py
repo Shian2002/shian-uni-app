@@ -180,3 +180,62 @@ def test_migrate_db_promotes_legacy_first_user_when_no_admin_exists(app_module, 
     with app_module.app.app_context():
         refreshed = app_module.db.session.get(app_module.User, user.id)
         assert refreshed.is_admin is True
+
+
+def test_admin_dashboard_endpoints_require_admin_and_return_operational_data(app_module, user_factory):
+    from models import Report
+
+    admin = user_factory("ops-admin", is_admin=True)
+    member = user_factory("member")
+
+    with app_module.app.app_context():
+        app_module.add_points(member.id, "admin_add", 12, "初始积分")
+        post = app_module.Post(
+            user_id=member.id,
+            title="需要审核的帖子",
+            content="后台列表应能看到这条内容",
+            category="share",
+            is_hidden=True,
+        )
+        app_module.db.session.add(post)
+        app_module.db.session.flush()
+        report = Report(user_id=member.id, target_type="post", target_id=post.id, reason="spam")
+        order = app_module.RechargeOrder(
+            user_id=member.id,
+            package_id="starter",
+            package_name="体验包",
+            points=60,
+            amount=9.9,
+            status="pending",
+        )
+        app_module.db.session.add(report)
+        app_module.db.session.add(order)
+        app_module.db.session.commit()
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(member.id)
+        sess["_fresh"] = True
+
+    denied = client.get("/api/admin/summary")
+    assert denied.status_code == 403
+
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(admin.id)
+        sess["_fresh"] = True
+
+    summary = client.get("/api/admin/summary")
+    assert summary.status_code == 200
+    assert summary.get_json()["pending_reports"] == 1
+
+    users = client.get("/api/admin/users?q=member")
+    assert users.status_code == 200
+    assert users.get_json()["users"][0]["points"] == 12
+
+    posts = client.get("/api/admin/posts?status=hidden")
+    assert posts.status_code == 200
+    assert posts.get_json()["posts"][0]["isHidden"] is True
+
+    orders = client.get("/api/admin/recharge/orders?status=pending")
+    assert orders.status_code == 200
+    assert orders.get_json()["orders"][0]["points_amount"] == 60
