@@ -14,6 +14,7 @@ backend/uploads/
 server-backup/
 temp.js
 replace.txt
+tmp/
 *.png
 test_*.py
 test-*.mjs
