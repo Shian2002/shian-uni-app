@@ -484,7 +484,7 @@ function rerenderZiweiPan() {
 function findZiweiFlowTarget(target) {
   let node = target
   while (node) {
-    if (node.dataset && (node.dataset.flowDecade || node.dataset.flowAge || node.dataset.flowYear || node.dataset.flowMonth)) return node
+    if (node.dataset && (node.dataset.flowPreage || node.dataset.flowDecade || node.dataset.flowAge || node.dataset.flowYear || node.dataset.flowMonth)) return node
     node = node.parentElement
   }
   return null
@@ -493,10 +493,12 @@ function findZiweiFlowTarget(target) {
 function handleZiweiPanClick(e) {
   const target = findZiweiFlowTarget(e && e.target)
   if (!target) return
+  const preage = target.dataset.flowPreage
   const decade = parseInt(target.dataset.flowDecade)
   const age = parseInt(target.dataset.flowAge)
   const year = parseInt(target.dataset.flowYear)
   const month = parseInt(target.dataset.flowMonth)
+  if (preage) return selectZiweiFlow('preage', 1)
   if (!isNaN(decade)) return selectZiweiFlow('decadal', decade)
   if (!isNaN(age)) return selectZiweiFlow('age', age)
   selectZiweiFlow(isNaN(year) ? 'month' : 'year', isNaN(year) ? month : year)
@@ -506,10 +508,12 @@ function handleZiweiDocumentClick(e) {
   const target = findZiweiFlowTarget(e && e.target)
   if (!target) return
   if (!target.closest || !target.closest('.zw-result')) return
+  const preage = target.dataset.flowPreage
   const decade = parseInt(target.dataset.flowDecade)
   const age = parseInt(target.dataset.flowAge)
   const year = parseInt(target.dataset.flowYear)
   const month = parseInt(target.dataset.flowMonth)
+  if (preage) return selectZiweiFlow('preage', 1)
   if (!isNaN(decade)) return selectZiweiFlow('decadal', decade)
   if (!isNaN(age)) return selectZiweiFlow('age', age)
   selectZiweiFlow(isNaN(year) ? 'month' : 'year', isNaN(year) ? month : year)
@@ -523,6 +527,12 @@ function selectZiweiFlow(type, value) {
     zwFlowState.selectedDecadeAge = n
     zwFlowState.selectedYear = birthYear + n - 1
     zwFlowState.primaryMode = 'decadal'
+  }
+  if (type === 'preage') {
+    const birthYear = zwPanData.value ? zwBirthYearFromPan(zwPanData.value) : parseInt(zwForm.year)
+    zwFlowState.selectedYear = birthYear
+    zwFlowState.selectedDecadeAge = null
+    zwFlowState.primaryMode = 'age'
   }
   if (type === 'age') {
     const birthYear = zwPanData.value ? zwBirthYearFromPan(zwPanData.value) : parseInt(zwForm.year)
@@ -1134,16 +1144,10 @@ function zwCenterInfo(bi, cp, meta, periods) {
 function zwTimeline(title, palaces, periods) {
   const decadal = periods && periods.decadal
   const age = periods && periods.age
-  const birthYear = zwBirthYearFromPan(zwPanData.value || {})
-  function ageChip(nominalAge) {
-    const year = birthYear + nominalAge - 1
-    const p = zwPalaceByAge(palaces, nominalAge)
-    const active = year === zwFlowState.selectedYear ? ' active' : ''
-    return '<span class="zw-flow-item zw-flow-clickable zw-flow-age-chip compact' + active + '" data-flow-age="' + zwEsc(nominalAge) + '"><b>' + zwEsc(String(year).slice(-2)) + '</b><em>' + zwEsc(nominalAge) + '岁</em><i>' + zwEsc(p ? p.name : '') + '</i></span>'
-  }
   const decadalPalaces = (palaces || []).filter(function(p) { return p && p.decadal && p.decadal.range })
   const firstStart = decadalPalaces.length ? ((decadalPalaces[0].decadal.range || [])[0] || 1) : 1
-  const preAgeItems = firstStart > 1 ? '<span class="zw-flow-subtitle">起运前</span>' + Array.from({ length: firstStart - 1 }, function(_, i) { return ageChip(i + 1) }).join('') : ''
+  const preAgeActive = zwFlowState.primaryMode === 'age' && !zwFlowState.selectedDecadeAge ? ' active' : ''
+  const preAgeItem = firstStart > 1 ? '<span class="zw-flow-item zw-flow-clickable zw-flow-preage' + preAgeActive + '" data-flow-preage="1"><b>小限</b><em>1-' + zwEsc(firstStart - 1) + '岁</em><i>起运前</i></span>' : ''
   const items = decadalPalaces.map(function(p) {
     const r = p.decadal.range || []
     const selectedDecadeActive = zwFlowState.selectedDecadeAge ? r[0] === zwFlowState.selectedDecadeAge : (decadal && decadal.index === p.index)
@@ -1152,16 +1156,20 @@ function zwTimeline(title, palaces, periods) {
     return '<span class="zw-flow-item zw-flow-clickable zw-flow-decade' + active + '" data-flow-decade="' + zwEsc(r[0]) + '"><b>' + zwEsc(r[0]) + '-' + zwEsc(r[1]) + '</b><em>' + zwEsc((p.decadal.heavenly_stem || '') + (p.decadal.earthly_branch || '')) + '</em><i>' + zwEsc(ageText) + '</i></span>'
   }).join('')
   const rowTitle = zwFlowState.primaryMode === 'age' ? '小限' : title
-  return '<div class="zw-flow-row"><div class="zw-flow-title">' + zwEsc(rowTitle) + '</div><div class="zw-flow-scroll">' + preAgeItems + items + '</div></div>'
+  return '<div class="zw-flow-row"><div class="zw-flow-title">' + zwEsc(rowTitle) + '</div><div class="zw-flow-scroll">' + preAgeItem + items + '</div></div>'
 }
 
 function zwYearTimeline(palaces, d) {
   const birthYear = zwBirthYearFromPan(d)
   const currentYear = new Date().getFullYear()
+  const decadalPalaces = (palaces || []).filter(function(p) { return p && p.decadal && p.decadal.range })
+  const firstStart = decadalPalaces.length ? ((decadalPalaces[0].decadal.range || [])[0] || 1) : 1
   const selectedAge = zwFlowState.selectedDecadeAge || zwDecadeStartForYear(palaces, d, zwFlowState.selectedYear)
   const selectedStartYear = selectedAge ? birthYear + selectedAge - 1 : null
   const startYear = selectedStartYear || currentYear
-  const years = Array.from({ length: 10 }, function(_, i) { return startYear + i })
+  const years = (zwFlowState.primaryMode === 'age' && !zwFlowState.selectedDecadeAge)
+    ? Array.from({ length: Math.max(firstStart - 1, 0) }, function(_, i) { return birthYear + i })
+    : Array.from({ length: 10 }, function(_, i) { return startYear + i })
   const items = years.map(function(year) {
     const age = year - birthYear + 1
     const p = zwPalaceByAge(palaces, age)
