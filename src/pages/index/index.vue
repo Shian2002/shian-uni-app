@@ -2067,7 +2067,7 @@ onBeforeUnmount(() => {
 
 .profile-sheet { position: fixed; inset: 0; z-index: 400; }
 .profile-sheet-mask { position: absolute; inset: 0; background: rgba(20,16,10,0.50); backdrop-filter: blur(10px); }
-.profile-sheet-panel { position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); width: min(640px, calc(100vw - 28px)); max-height: 72vh; overflow: hidden; border-radius: 20px; border: 1px solid rgba(178,149,93,0.20); background: rgba(31, 29, 24, 0.92); box-shadow: 0 24px 80px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.08); padding: 20px; box-sizing: border-box; backdrop-filter: blur(30px) saturate(145%); }
+.profile-sheet-panel { position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); width: min(640px, calc(100vw - 28px)); max-height: 72vh; overflow: hidden; border-radius: 20px; border: 1px solid rgba(178,149,93,0.20); background: rgba(31, 29, 24, 0.92); box-shadow: 0 24px 80px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.08); padding: 20px; box-sizing: border-box; backdrop-filter: blur(30px) saturate(145%); display: flex; flex-direction: column; }
 [data-theme="light"] .profile-sheet-panel { background: rgba(255,253,248,0.96); box-shadow: 0 24px 80px rgba(60,40,15,0.14), inset 0 1px 0 rgba(255,255,255,0.85); }
 .profile-sheet-panel::before { content: ''; display: block; width: 42px; height: 4px; border-radius: 999px; background: rgba(178,149,93,0.30); margin: 0 auto 14px; }
 .profile-sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
@@ -2077,7 +2077,7 @@ onBeforeUnmount(() => {
 .profile-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
 .profile-tabs view { flex: 1; text-align: center; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--card-border); color: var(--text-3); font-size: 0.8rem; cursor: pointer; }
 .profile-tabs view.active { background: var(--accent-glow); border-color: var(--accent); color: var(--accent); }
-.profile-options { max-height: 48vh; overflow-y: auto; }
+.profile-options { max-height: 48vh; overflow-y: auto; min-height: 0; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 .profile-option { display: flex; justify-content: space-between; gap: 16px; padding: 12px; border-radius: 14px; border: 1px solid rgba(178,149,93,0.13); background: rgba(255,255,255,0.035); margin-bottom: 8px; cursor: pointer; transition: border-color .18s ease, background .18s ease; }
 .profile-option-name { display: block; color: var(--text-1); font-size: 0.88rem; }
 .profile-option-meta { display: block; margin-top: 4px; color: var(--text-3); font-size: 0.72rem; }
@@ -2086,13 +2086,13 @@ onBeforeUnmount(() => {
 .profile-option-type { color: var(--accent); font-size: 0.72rem; white-space: nowrap; }
 .profile-option-check { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--card-border); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700; }
 .profile-empty { padding: 28px; text-align: center; color: var(--text-3); font-size: 0.84rem; }
-.sheet-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 12px; margin-top: 12px; border-top: 1px solid rgba(178,149,93,0.14); }
+.sheet-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 12px; margin-top: 12px; border-top: 1px solid rgba(178,149,93,0.14); flex-shrink: 0; }
 .sheet-btn { min-width: 88px; height: 38px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 0.82rem; cursor: pointer; border: 1px solid rgba(178,149,93,0.18); box-sizing: border-box; transition: transform .18s ease, border-color .18s ease; }
 .sheet-btn:hover { transform: translateY(-1px); border-color: rgba(178,149,93,0.45); }
 .sheet-btn-secondary { color: var(--text-2); background: var(--input-bg); }
 .sheet-btn-primary { color: #fff; background: var(--accent); border-color: var(--accent); }
 .tool-sheet-panel { width: min(520px, calc(100vw - 28px)); }
-.tool-options { display: grid; gap: 8px; }
+.tool-options { display: grid; gap: 8px; min-height: 0; max-height: min(52vh, 460px); overflow-y: auto; padding-right: 2px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 .tool-option { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 58px; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(178,149,93,0.13); background: rgba(255,255,255,0.035); cursor: pointer; box-sizing: border-box; transition: border-color .18s ease, background .18s ease; }
 .tool-option.active { border-color: rgba(178,149,93,0.62); background: var(--accent-glow); }
 .tool-option-name { display: block; color: var(--text-1); font-size: 0.88rem; }
@@ -2285,6 +2285,11 @@ onBeforeUnmount(() => {
   .home-ai-chat-sub { max-width: calc(100vw - 136px); font-size: 0.6rem; }
   .home-ai-stage-note { font-size: 0.6rem; }
   .home-ai-step-row text { font-size: 0.5rem; }
+  .profile-sheet-panel { bottom: max(10px, env(safe-area-inset-bottom)); max-height: calc(100dvh - 22px); padding: 16px; border-radius: 18px; }
+  .profile-sheet-head { flex-shrink: 0; margin-bottom: 10px; }
+  .profile-tabs { flex-shrink: 0; }
+  .profile-options { max-height: calc(100dvh - 236px); }
+  .tool-options { max-height: calc(100dvh - 122px); }
   .home-tool-card-title { font-size: 0.78rem; }
   .home-tool-card-sub { font-size: 0.62rem; }
   .home-artifact-render :deep(.artifact-grid-4),

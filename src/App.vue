@@ -246,6 +246,12 @@ html, body {
   width: 100%;
   box-sizing: border-box;
 }
+/* 禁用 uni-app H5 内置的远程 picker 阴影预加载，避免线上请求 dcloud 图片触发 CORS 告警。 */
+body::after {
+  content: none !important;
+  animation: none !important;
+  background-image: none !important;
+}
 html[data-theme="light"], html[data-theme="light"] body {
   background: #f7f2ea;
 }
