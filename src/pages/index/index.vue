@@ -179,33 +179,35 @@
 
     <view class="profile-sheet" v-if="toolSheetOpen">
       <view class="profile-sheet-mask" @tap="toolSheetOpen = false"></view>
-      <view class="profile-sheet-panel tool-sheet-panel">
+      <view class="profile-sheet-panel tool-sheet-panel" @touchmove.stop>
         <view class="profile-sheet-head">
           <text class="profile-sheet-title">选择术数模型</text>
           <text class="profile-sheet-close" @tap="toolSheetOpen = false">×</text>
         </view>
-        <view class="tool-options">
-          <view class="tool-option auto-option" :class="{ active: autoSelectTools }" @tap="toggleAutoSelectTools">
-            <view>
-              <text class="tool-option-name">自动选择术数</text>
-              <text class="tool-option-meta">按问题自动匹配八字、奇门、六爻、梅花、紫微、塔罗、择吉</text>
+        <scroll-view class="tool-options" scroll-y :show-scrollbar="true" @touchmove.stop>
+          <view class="tool-options-inner">
+            <view class="tool-option auto-option" :class="{ active: autoSelectTools }" @tap="toggleAutoSelectTools">
+              <view>
+                <text class="tool-option-name">自动选择术数</text>
+                <text class="tool-option-meta">按问题自动匹配八字、奇门、六爻、梅花、紫微、塔罗、择吉</text>
+              </view>
+              <text class="tool-option-check">{{ autoSelectTools ? '✓' : '' }}</text>
             </view>
-            <text class="tool-option-check">{{ autoSelectTools ? '✓' : '' }}</text>
-          </view>
-          <view
-            class="tool-option"
-            v-for="tool in toolModels"
-            :key="tool.id"
-            :class="{ active: selectedToolModels.includes(tool.id) }"
-            @tap="toggleToolModel(tool.id)"
-          >
-            <view>
-              <text class="tool-option-name">{{ tool.name }}</text>
-              <text class="tool-option-meta">{{ tool.cost }} 积分 · 可复选</text>
+            <view
+              class="tool-option"
+              v-for="tool in toolModels"
+              :key="tool.id"
+              :class="{ active: selectedToolModels.includes(tool.id) }"
+              @tap="toggleToolModel(tool.id)"
+            >
+              <view>
+                <text class="tool-option-name">{{ tool.name }}</text>
+                <text class="tool-option-meta">{{ tool.cost }} 积分 · 可复选</text>
+              </view>
+              <text class="tool-option-check">{{ selectedToolModels.includes(tool.id) ? '✓' : '' }}</text>
             </view>
-            <text class="tool-option-check">{{ selectedToolModels.includes(tool.id) ? '✓' : '' }}</text>
           </view>
-        </view>
+        </scroll-view>
       </view>
     </view>
 
@@ -282,11 +284,13 @@ const readingModes = [
 ]
 const llmModels = ref([{ id: 'basic', name: '基础模型', strength: '基础', cost_base: 2, cost_multiplier: 1, followup_cost: 1 }])
 const toolModels = ref([
-  { id: 'bazi', name: '八字', cost: 2 },
-  { id: 'ziwei', name: '紫微斗数', cost: 3 },
   { id: 'qimen', name: '奇门遁甲', cost: 3 },
+  { id: 'bazi', name: '八字', cost: 2 },
   { id: 'liuyao', name: '六爻', cost: 2 },
   { id: 'meihua', name: '梅花易数', cost: 2 },
+  { id: 'ziwei', name: '紫微斗数', cost: 3 },
+  { id: 'tarot', name: '塔罗牌', cost: 2 },
+  { id: 'zeji', name: '择吉工具', cost: 2 },
 ])
 const llmModelIdx = ref(0)
 const selectedToolModels = ref(loadSavedToolSelection())
@@ -2092,7 +2096,8 @@ onBeforeUnmount(() => {
 .sheet-btn-secondary { color: var(--text-2); background: var(--input-bg); }
 .sheet-btn-primary { color: #fff; background: var(--accent); border-color: var(--accent); }
 .tool-sheet-panel { width: min(520px, calc(100vw - 28px)); }
-.tool-options { display: grid; gap: 8px; min-height: 0; max-height: min(52vh, 460px); overflow-y: auto; padding-right: 2px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.tool-options { display: block; flex: 1 1 auto; min-height: 0; height: min(52vh, 460px); max-height: min(52vh, 460px); overflow-y: auto; overflow-x: hidden; padding-right: 2px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; box-sizing: border-box; }
+.tool-options-inner { display: grid; gap: 8px; padding-bottom: 2px; min-height: 100%; box-sizing: border-box; }
 .tool-option { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 58px; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(178,149,93,0.13); background: rgba(255,255,255,0.035); cursor: pointer; box-sizing: border-box; transition: border-color .18s ease, background .18s ease; }
 .tool-option.active { border-color: rgba(178,149,93,0.62); background: var(--accent-glow); }
 .tool-option-name { display: block; color: var(--text-1); font-size: 0.88rem; }
@@ -2289,7 +2294,8 @@ onBeforeUnmount(() => {
   .profile-sheet-head { flex-shrink: 0; margin-bottom: 10px; }
   .profile-tabs { flex-shrink: 0; }
   .profile-options { max-height: calc(100dvh - 236px); }
-  .tool-options { max-height: calc(100dvh - 122px); }
+  .tool-sheet-panel { max-height: calc(100dvh - 22px); }
+  .tool-options { height: calc(100dvh - 122px); max-height: calc(100dvh - 122px); }
   .home-tool-card-title { font-size: 0.78rem; }
   .home-tool-card-sub { font-size: 0.62rem; }
   .home-artifact-render :deep(.artifact-grid-4),
