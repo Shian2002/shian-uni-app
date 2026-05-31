@@ -7,7 +7,7 @@
         <view class="tool-hero-content">
           <view class="section-tag">紫微斗数</view>
           <view class="tool-hero-title">紫微斗数 · 十二宫排盘</view>
-          <view class="tool-hero-desc">出生时间排盘 · 十二宫星曜 · 四化飞星 · 大限流年推运</view>
+          <view class="tool-hero-desc">出生时间排盘 · 十二宫星曜 · 三合命盘 · 大限流年推运</view>
         </view>
       </section>
       <section class="section">
@@ -73,7 +73,7 @@
               </view>
             </view>
             <view class="submit-btn" @click="ziweiFreePan">⭐ 免费排盘</view>
-            <text class="form-hint" style="text-align:center;display:block;margin-top:12px;">基于iztro-py精确排盘，十二宫、主星辅星、四化飞星全展示。</text>
+            <text class="form-hint" style="text-align:center;display:block;margin-top:12px;">基于iztro-py精确排盘，展示十二宫、主星辅星与三合命盘。</text>
             <view class="zw-result" v-if="zwPanResult" v-html="zwPanResult"></view>
           </view>
           <!-- AI解读面板 -->
@@ -423,7 +423,6 @@ const zwFlowState = reactive({
   selectedMonth: new Date().getMonth() + 1,
   selectedDecadeAge: null,
   primaryMode: 'decadal',
-  chartMode: 'sanhe',
   flowFocus: 'yearly',
   horoscope: null,
   error: ''
@@ -468,7 +467,6 @@ async function ziweiFreePan() {
     zwFlowState.selectedMonth = new Date().getMonth() + 1
     zwFlowState.selectedDecadeAge = null
     zwFlowState.primaryMode = 'decadal'
-    zwFlowState.chartMode = 'sanhe'
     zwFlowState.flowFocus = 'yearly'
     zwFlowState.horoscope = null
     zwFlowState.error = ''
@@ -488,7 +486,7 @@ function rerenderZiweiPan() {
 function findZiweiFlowTarget(target) {
   let node = target
   while (node) {
-    if (node.dataset && (node.dataset.chartMode || node.dataset.flowPreage || node.dataset.flowDecade || node.dataset.flowAge || node.dataset.flowYear || node.dataset.flowMonth)) return node
+    if (node.dataset && (node.dataset.flowPreage || node.dataset.flowDecade || node.dataset.flowAge || node.dataset.flowYear || node.dataset.flowMonth)) return node
     node = node.parentElement
   }
   return null
@@ -497,7 +495,6 @@ function findZiweiFlowTarget(target) {
 function handleZiweiPanClick(e) {
   const target = findZiweiFlowTarget(e && e.target)
   if (!target) return
-  if (target.dataset.chartMode) return selectZiweiChartMode(target.dataset.chartMode)
   const preage = target.dataset.flowPreage
   const decade = parseInt(target.dataset.flowDecade)
   const age = parseInt(target.dataset.flowAge)
@@ -513,7 +510,6 @@ function handleZiweiDocumentClick(e) {
   const target = findZiweiFlowTarget(e && e.target)
   if (!target) return
   if (!target.closest || !target.closest('.zw-result')) return
-  if (target.dataset.chartMode) return selectZiweiChartMode(target.dataset.chartMode)
   const preage = target.dataset.flowPreage
   const decade = parseInt(target.dataset.flowDecade)
   const age = parseInt(target.dataset.flowAge)
@@ -562,13 +558,6 @@ function selectZiweiFlow(type, value) {
   }
   zwFlowState.error = ''
   refreshZiweiFlow()
-}
-
-function selectZiweiChartMode(mode) {
-  const allowed = ['sanhe', 'feixing', 'sihua']
-  if (!allowed.includes(mode)) return
-  zwFlowState.chartMode = mode
-  rerenderZiweiPan()
 }
 
 async function getZiweiFlowTargetDate(year, lunarMonth) {
@@ -1010,8 +999,7 @@ function zwMutagenClass(mutagen) {
 function zwStarHtml(star, cls) {
   if (!star || !star.name) return ''
   const brightness = star.brightness ? '<em>' + zwEsc(star.brightness) + '</em>' : ''
-  const mutagen = star.mutagen ? '<b class="zw-mutagen ' + zwMutagenClass(star.mutagen) + '">' + zwEsc(star.mutagen) + '</b>' : ''
-  return '<span class="' + cls + '">' + zwEsc(star.name) + brightness + mutagen + '</span>'
+  return '<span class="' + cls + '">' + zwEsc(star.name) + brightness + '</span>'
 }
 
 const zwGan = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸']
@@ -1236,17 +1224,8 @@ function zwPalaceCell(p, periods, overlay) {
     '</div>'
 }
 
-function zwCenterInfo(bi, cp, meta, periods, overlay) {
+function zwCenterInfo(bi, cp, meta, periods) {
   const method = meta.chart_method || '三合盘'
-  const modeItems = [
-    { key: 'sanhe', label: '三合' },
-    { key: 'feixing', label: '飞星' },
-    { key: 'sihua', label: '四化' }
-  ]
-  const modes = modeItems.map(function(m) {
-    const active = zwFlowState.chartMode === m.key ? ' active' : ''
-    return '<button type="button" class="zw-mode-chip' + active + '" data-chart-mode="' + zwEsc(m.key) + '">' + zwEsc(m.label) + '</button>'
-  }).join('')
   const yearly = periods && periods.yearly
   const monthly = periods && periods.monthly
   const age = periods && periods.age
@@ -1254,9 +1233,6 @@ function zwCenterInfo(bi, cp, meta, periods, overlay) {
   const ageText = age ? ('小限 ' + zwEsc(age.nominal_age) + '岁 ' + zwEsc(age.palace_name || '')) : ('小限 ' + zwEsc(zwSelectedNominalAge(zwPanData.value || {})) + '岁')
   const flowLine = '<div class="zw-center-flow"><span>流年 ' + zwEsc(zwFlowState.selectedYear) + ' ' + zwEsc((yearly && yearly.ganzhi) || zwGanzhiYear(zwFlowState.selectedYear)) + '</span><span>' + ageText + '</span><span>流月 ' + zwEsc(selectedMonthName) + ' ' + zwEsc((monthly && monthly.ganzhi) || zwGanzhiMonth(zwFlowState.selectedYear, zwFlowState.selectedMonth)) + '</span></div>'
   const flowStatus = zwFlowState.error ? '<div class="zw-center-error">' + zwEsc(zwFlowState.error) + '</div>' : ''
-  const overlayLegend = overlay && overlay.items && overlay.items.length ? '<div class="zw-center-sihua"><strong>' + zwEsc(overlay.periodName) + '四化</strong>' + overlay.items.map(function(item) {
-    return '<span class="' + zwEsc(item.cls) + '">' + zwEsc(item.label + item.starName) + '</span>'
-  }).join('') + '</div>' : ''
   return '<div class="zw-center-info">' +
     '<div class="zw-center-kicker">' + zwEsc(method) + '</div>' +
     '<div class="zw-center-title">紫微斗数命盘</div>' +
@@ -1268,21 +1244,8 @@ function zwCenterInfo(bi, cp, meta, periods, overlay) {
     '<div class="zw-center-two"><span>命主 ' + zwEsc(cp.soul_star || '') + '</span><span>身主 ' + zwEsc(cp.body_star || '') + '</span></div>' +
     flowLine +
     flowStatus +
-    overlayLegend +
-    '<div class="zw-center-modes">' + modes + '</div>' +
+    '<div class="zw-center-modes"><span class="zw-mode-chip active">三合</span></div>' +
     '</div>'
-}
-
-function zwChartModeBar() {
-  const modeItems = [
-    { key: 'sanhe', label: '三合' },
-    { key: 'feixing', label: '飞星' },
-    { key: 'sihua', label: '四化' }
-  ]
-  return '<div class="zw-chart-mode-bar">' + modeItems.map(function(m) {
-    const active = zwFlowState.chartMode === m.key ? ' active' : ''
-    return '<button type="button" class="zw-chart-mode-btn' + active + '" data-chart-mode="' + zwEsc(m.key) + '">' + zwEsc(m.label) + '</button>'
-  }).join('') + '</div>'
 }
 
 function zwTimeline(title, palaces, periods) {
@@ -1333,49 +1296,32 @@ function zwMonthTimeline() {
 }
 
 function renderZiweiPan(d) {
-  let html = '<div class="zw-result-wrap zw-mode-' + zwEsc(zwFlowState.chartMode) + '">'
+  let html = '<div class="zw-result-wrap zw-mode-sanhe">'
   const bi = d.basic_info || {}
   const cp = d.core_palace || {}
   const meta = d.display_meta || {}
-  const req = d.request || {}
   const palaces = d.twelve_palaces || []
   const periods = zwFlowPeriods(palaces)
-  const modeOverlay = zwFlowState.chartMode === 'sanhe' ? null : zwBuildModeOverlay(palaces, periods)
-  html += '<div class="zw-pro-header"><div><div class="zw-pro-title">' + zwEsc(req.question || meta.chart_name || '玄策专业盘') + '</div><div class="zw-pro-subtitle">' + zwEsc(meta.source_note || '基于本地算法排盘，结果供民俗文化参考。') + '</div></div><div class="zw-pro-pill">' + zwEsc(meta.time_rule || '按北京时间定时辰') + '</div></div>'
-  html += '<div class="zw-basic-card zw-pro-basic"><div class="zw-basic-grid">'
-  html += zwBasicItem('阳历', bi.solar_date)
-  html += zwBasicItem('农历', bi.lunar_date)
-  html += zwBasicItem('节气四柱', bi.chinese_date)
-  html += zwBasicItem('时辰', (bi.shichen || '') + ' ' + (bi.shichen_range || ''))
-  html += zwBasicItem('北京时间', meta.beijing_time)
-  html += zwBasicItem('真太阳时', meta.true_solar_time)
-  html += zwBasicItem('生肖', bi.zodiac)
-  html += zwBasicItem('五行局', bi.five_elements_class)
-  html += zwBasicItem('命主', cp.soul_star)
-  html += zwBasicItem('身主', cp.body_star)
-  html += '</div></div>'
   html += '<div class="zw-orientation zw-orientation-top">正南方</div>'
-  html += '<div class="zw-palace-grid zw-pro-grid zw-chart-mode-' + zwEsc(zwFlowState.chartMode) + '">'
-  if (zwFlowState.chartMode === 'sihua' && modeOverlay) html += modeOverlay.svg
-  html += zwPalaceCell(palaces[4], periods, modeOverlay)
-  html += zwPalaceCell(palaces[3], periods, modeOverlay)
-  html += zwPalaceCell(palaces[5], periods, modeOverlay)
-  html += zwPalaceCell(palaces[6], periods, modeOverlay)
-  html += zwPalaceCell(palaces[2], periods, modeOverlay)
-  html += zwCenterInfo(bi, cp, meta, periods, modeOverlay)
-  html += zwPalaceCell(palaces[7], periods, modeOverlay)
-  html += zwPalaceCell(palaces[1], periods, modeOverlay)
-  html += zwPalaceCell(palaces[8], periods, modeOverlay)
-  html += zwPalaceCell(palaces[0], periods, modeOverlay)
-  html += zwPalaceCell(palaces[11], periods, modeOverlay)
-  html += zwPalaceCell(palaces[10], periods, modeOverlay)
-  html += zwPalaceCell(palaces[9], periods, modeOverlay)
+  html += '<div class="zw-palace-grid zw-pro-grid zw-chart-mode-sanhe">'
+  html += zwPalaceCell(palaces[4], periods, null)
+  html += zwPalaceCell(palaces[3], periods, null)
+  html += zwPalaceCell(palaces[5], periods, null)
+  html += zwPalaceCell(palaces[6], periods, null)
+  html += zwPalaceCell(palaces[2], periods, null)
+  html += zwCenterInfo(bi, cp, meta, periods)
+  html += zwPalaceCell(palaces[7], periods, null)
+  html += zwPalaceCell(palaces[1], periods, null)
+  html += zwPalaceCell(palaces[8], periods, null)
+  html += zwPalaceCell(palaces[0], periods, null)
+  html += zwPalaceCell(palaces[11], periods, null)
+  html += zwPalaceCell(palaces[10], periods, null)
+  html += zwPalaceCell(palaces[9], periods, null)
   html += '</div>'
   html += '<div class="zw-orientation zw-orientation-bottom">正北方</div>'
   html += zwTimeline('大限', palaces, periods)
   html += zwYearTimeline(palaces, d)
   html += zwMonthTimeline()
-  html += zwChartModeBar()
   html += '<div class="privacy-note" style="margin-top:16px;">⚠️ 以上内容仅为民俗文化与传统命理科普参考，不构成任何决策建议</div>'
   html += '</div>'
   return html
@@ -1403,18 +1349,6 @@ function renderZiweiHoroscopeWithPan(d) {
     html += '<div class="zw-period-ganzhi">' + (pd.ganzhi || '') + '</div>'
     if (pd.range) html += '<div class="zw-period-range">' + pd.range[0] + '-' + pd.range[1] + '岁</div>'
     if (pd.nominal_age) html += '<div class="zw-period-range">虚岁' + pd.nominal_age + '</div>'
-    if (pd.mutagen && pd.mutagen.length > 0) {
-      html += '<div class="zw-period-mutagen"><span style="color:var(--text-4);font-size:0.6875rem;">四化:</span>'
-      pd.mutagen.forEach(function(m) {
-        let mCls = ''
-        if (m.includes('禄')) mCls = 'zw-mutagen-lu'
-        else if (m.includes('权')) mCls = 'zw-mutagen-quan'
-        else if (m.includes('科')) mCls = 'zw-mutagen-ke'
-        else if (m.includes('忌')) mCls = 'zw-mutagen-ji'
-        html += '<span class="zw-mutagen ' + mCls + '">' + m + '</span>'
-      })
-      html += '</div>'
-    }
     html += '</div>'
   })
   html += '</div>'
@@ -1577,10 +1511,10 @@ onUnmounted(function() {
 .qf-datetime-select { width: 100%; padding: 10px 14px; border-radius: 10px; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-1); font-size: 0.875rem; text-align: center; }
 
 .zw-result-wrap { margin-top: 24px; }
-.zw-pro-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 14px; padding: 14px 16px; border: 1px solid rgba(132,84,190,0.22); border-radius: 12px; background: linear-gradient(135deg, rgba(132,84,190,0.10), rgba(37,109,156,0.08)); }
+.zw-pro-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 14px; padding: 14px 16px; border: 1px solid rgba(180,111,39,0.22); border-radius: 12px; background: linear-gradient(135deg, rgba(180,111,39,0.10), rgba(37,109,156,0.08)); }
 .zw-pro-title { font-family: var(--font-serif); font-size: 1.05rem; font-weight: 700; color: var(--text-1); letter-spacing: 1px; }
 .zw-pro-subtitle { margin-top: 4px; font-size: 0.74rem; line-height: 1.55; color: var(--text-3); }
-.zw-pro-pill { flex: 0 0 auto; padding: 5px 9px; border-radius: 999px; background: rgba(108,92,231,0.16); color: #a48cff; border: 1px solid rgba(108,92,231,0.22); font-size: 0.7rem; white-space: nowrap; }
+.zw-pro-pill { flex: 0 0 auto; padding: 5px 9px; border-radius: 999px; background: rgba(212,168,71,0.16); color: var(--accent); border: 1px solid rgba(212,168,71,0.22); font-size: 0.7rem; white-space: nowrap; }
 .zw-pro-basic { padding: 14px 16px; margin-bottom: 14px; }
 .zw-basic-card { background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
 .zw-basic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
@@ -1603,7 +1537,7 @@ onUnmounted(function() {
 .zw-badge-soul { background: rgba(212,168,71,0.15); color: var(--accent); }
 .zw-badge-body { background: rgba(231,76,60,0.12); color: var(--danger); }
 .zw-palace-stars { margin-top: 3px; display: flex; flex-wrap: wrap; gap: 2px 4px; align-items: flex-start; }
-.zw-star-major { display: inline-flex; align-items: center; gap: 1px; color: #6f62e8; font-size: 0.82rem; font-weight: 800; line-height: 1.2; }
+.zw-star-major { display: inline-flex; align-items: center; gap: 1px; color: #b66b2d; font-size: 0.82rem; font-weight: 800; line-height: 1.2; }
 .zw-star-minor { display: inline-flex; align-items: center; gap: 1px; color: #2b89c9; font-size: 0.72rem; font-weight: 700; line-height: 1.25; }
 .zw-star-adj { display: inline-flex; align-items: center; color: var(--text-2); font-size: 0.66rem; line-height: 1.25; }
 .zw-star-major em, .zw-star-minor em, .zw-star-adj em { font-style: normal; color: var(--text-4); font-size: 0.6rem; margin-left: 1px; }
@@ -1615,17 +1549,17 @@ onUnmounted(function() {
 .zw-palace-support { margin-top: 4px; color: var(--text-4); font-size: 0.61rem; line-height: 1.35; }
 .zw-palace-flow { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
 .zw-flow-badge { display: inline-flex; align-items: center; border-radius: 4px; padding: 1px 4px; font-size: 0.56rem; font-weight: 800; line-height: 1.25; }
-.zw-flow-badge.decadal { background: rgba(132,84,190,0.14); color: #a48cff; }
+.zw-flow-badge.decadal { background: rgba(180,111,39,0.14); color: var(--accent); }
 .zw-flow-badge.age { background: rgba(39,174,96,0.14); color: #27ae60; }
 .zw-flow-badge.year { background: rgba(212,168,71,0.14); color: var(--accent); }
 .zw-flow-badge.month { background: rgba(45,156,219,0.14); color: #2d9cdb; }
 .zw-palace-decadal { margin-top: 5px; font-size: 0.65rem; color: var(--text-3); border-top: 1px solid var(--border); padding-top: 4px; line-height: 1.3; }
 .zw-palace-decadal span { color: var(--accent); margin-right: 4px; font-weight: 700; }
 .zw-palace-ages { margin-top: 2px; color: var(--text-4); font-size: 0.58rem; line-height: 1.25; }
-.zw-center-info { grid-column: 2 / 4; grid-row: 2 / 4; background: linear-gradient(180deg, rgba(255,255,255,0.055), rgba(108,92,231,0.055)); border: 1.5px solid rgba(108,92,231,0.32); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; align-items: stretch; justify-content: center; text-align: center; min-height: 318px; }
-.zw-center-kicker { font-size: 0.72rem; color: #8d7cff; font-weight: 700; }
+.zw-center-info { grid-column: 2 / 4; grid-row: 2 / 4; background: linear-gradient(180deg, rgba(255,255,255,0.055), rgba(212,168,71,0.055)); border: 1.5px solid rgba(212,168,71,0.32); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; align-items: stretch; justify-content: center; text-align: center; min-height: 318px; }
+.zw-center-kicker { font-size: 0.72rem; color: var(--accent); font-weight: 700; }
 .zw-center-title { font-family: var(--font-serif); font-size: 1.25rem; color: var(--text-1); font-weight: 800; letter-spacing: 2px; margin: 4px 0; }
-.zw-center-wuxing { font-size: 0.92rem; color: #7f6df2; font-weight: 800; margin-bottom: 8px; }
+.zw-center-wuxing { font-size: 0.92rem; color: #b66b2d; font-weight: 800; margin-bottom: 8px; }
 .zw-center-line { display: grid; grid-template-columns: 64px minmax(0,1fr); gap: 6px; align-items: baseline; text-align: left; margin: 2px 0; font-size: 0.72rem; color: var(--text-4); }
 .zw-center-line strong { color: var(--text-2); font-size: 0.76rem; font-weight: 700; word-break: break-word; }
 .zw-center-two { display: flex; justify-content: center; gap: 8px; margin: 8px 0 6px; color: var(--text-2); font-size: 0.75rem; font-weight: 700; }
@@ -1635,11 +1569,11 @@ onUnmounted(function() {
 .zw-center-error { color: var(--danger); }
 .zw-center-modes { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; margin-top: 4px; }
 .zw-mode-chip { appearance: none; padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,0.06); color: var(--text-3); font-size: 0.65rem; border: 1px solid var(--border); cursor: pointer; line-height: 1.25; }
-.zw-mode-chip.active { background: rgba(108,92,231,0.18); border-color: rgba(108,92,231,0.32); color: #a48cff; font-weight: 800; }
+.zw-mode-chip.active { background: rgba(212,168,71,0.18); border-color: rgba(212,168,71,0.32); color: var(--accent); font-weight: 800; }
 .zw-mode-chip.muted { opacity: 0.55; }
 .zw-chart-mode-bar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0 4px; padding: 6px; border-radius: 14px; background: rgba(255,255,255,0.055); border: 1px solid var(--border); }
 .zw-chart-mode-btn { appearance: none; border: 0; border-radius: 10px; padding: 9px 4px; color: var(--text-3); background: transparent; font-weight: 800; font-size: 0.82rem; cursor: pointer; }
-.zw-chart-mode-btn.active { color: #fff; background: linear-gradient(135deg, #7f6df2, #9b72f2); box-shadow: 0 5px 16px rgba(108,92,231,0.22); }
+.zw-chart-mode-btn.active { color: #fff; background: linear-gradient(135deg, #b66b2d, #d9a443); box-shadow: 0 5px 16px rgba(212,168,71,0.22); }
 .zw-palace-cell.has-fly-mutagen { border-color: rgba(190,56,56,0.45); background: linear-gradient(180deg, rgba(190,56,56,0.055), rgba(255,255,255,0.035)); }
 .zw-palace-fly { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; position: relative; z-index: 7; }
 .zw-fly-tag { display: inline-flex; align-items: center; gap: 2px; max-width: 100%; border-radius: 4px; padding: 1px 4px; font-size: 0.56rem; line-height: 1.25; font-weight: 800; border: 1px solid rgba(255,255,255,0.16); }
@@ -1674,7 +1608,7 @@ onUnmounted(function() {
 .zw-mode-feixing .zw-flow-badge { font-size: 0.62rem; }
 .zw-mode-feixing .zw-palace-cell.has-fly-mutagen { border-color: rgba(45,131,197,0.46); background: linear-gradient(180deg, rgba(45,131,197,0.055), rgba(255,255,255,0.035)); }
 .zw-flow-row { display: grid; grid-template-columns: 54px minmax(0,1fr); gap: 8px; align-items: stretch; margin-top: 8px; }
-.zw-flow-title { display: flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(108,92,231,0.16); color: #a48cff; font-weight: 800; font-size: 0.78rem; }
+.zw-flow-title { display: flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(212,168,71,0.16); color: var(--accent); font-weight: 800; font-size: 0.78rem; }
 .zw-flow-scroll { display: flex; overflow-x: auto; gap: 4px; padding-bottom: 2px; }
 .zw-flow-item { flex: 0 0 76px; min-height: 46px; border: 1px solid var(--border); border-radius: 8px; background: rgba(255,255,255,0.035); padding: 5px 6px; text-align: center; box-sizing: border-box; }
 .zw-flow-subtitle { flex: 0 0 34px; min-height: 46px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(39,174,96,0.12); color: #27ae60; font-size: 0.68rem; font-weight: 800; }
@@ -1687,7 +1621,7 @@ onUnmounted(function() {
 .zw-flow-month.active { border-color: #2d9cdb; background: rgba(45,156,219,0.13); }
 .zw-flow-item b, .zw-flow-item em, .zw-flow-item i { display: block; font-style: normal; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .zw-flow-item b { color: var(--text-1); font-size: 0.72rem; }
-.zw-flow-item em { color: #7f6df2; font-size: 0.72rem; font-weight: 800; }
+.zw-flow-item em { color: #b66b2d; font-size: 0.72rem; font-weight: 800; }
 .zw-flow-item i { color: var(--text-4); font-size: 0.62rem; }
 .zw-flow-item.compact { flex-basis: 72px; }
 .zw-decadal-card { background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
@@ -1696,12 +1630,12 @@ onUnmounted(function() {
 .zw-decadal-table th, .zw-decadal-table td { padding: 8px 10px; text-align: center; border-bottom: 1px solid var(--border); }
 .zw-decadal-table th { color: var(--text-4); font-weight: 500; font-size: 0.75rem; letter-spacing: 1px; }
 .zw-decadal-table td { color: var(--text-2); }
-.zw-horoscope-title { font-size: 0.9375rem; font-weight: 600; color: #c39bd3; margin-bottom: 16px; }
+.zw-horoscope-title { font-size: 0.9375rem; font-weight: 600; color: var(--accent); margin-bottom: 16px; }
 .zw-period-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
 .zw-period-card { background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; transition: all 0.2s; }
-.zw-period-card:hover { border-color: #c39bd3; box-shadow: 0 0 12px rgba(155,89,182,0.08); }
+.zw-period-card:hover { border-color: var(--accent); box-shadow: 0 0 12px rgba(212,168,71,0.08); }
 .zw-period-name { font-weight: 600; color: var(--accent); margin-bottom: 4px; font-size: 0.875rem; }
-.zw-period-ganzhi { font-size: 0.875rem; color: #c39bd3; }
+.zw-period-ganzhi { font-size: 0.875rem; color: var(--accent); }
 .zw-period-range { font-size: 0.75rem; color: var(--text-4); margin-top: 2px; }
 .zw-period-mutagen { font-size: 0.75rem; color: var(--text-3); margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
 
@@ -1738,7 +1672,7 @@ onUnmounted(function() {
 .zw-result :deep(.zw-palace-decadal) { margin-top: 6px; font-size: 0.6875rem; color: var(--text-4); border-top: 1px solid var(--border); padding-top: 4px; }
 .zw-result :deep(.zw-center-info) { grid-column: 2 / 4; grid-row: 2 / 4; background: var(--bg-2); border: 2px solid var(--accent); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .zw-result :deep(.zw-center-title) { font-size: 1.125rem; color: var(--accent); font-weight: 700; letter-spacing: 3px; margin-bottom: 8px; }
-.zw-result :deep(.zw-center-wuxing) { font-size: 1rem; color: #c39bd3; font-weight: 600; margin-bottom: 6px; }
+.zw-result :deep(.zw-center-wuxing) { font-size: 1rem; color: var(--accent); font-weight: 600; margin-bottom: 6px; }
 .zw-result :deep(.zw-center-soul) { font-size: 0.8125rem; color: var(--text-3); margin: 2px 0; }
 .zw-result :deep(.zw-center-date) { font-size: 0.75rem; color: var(--text-4); margin-top: 6px; }
 .zw-result :deep(.zw-decadal-card) { background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
@@ -1747,18 +1681,18 @@ onUnmounted(function() {
 .zw-result :deep(.zw-decadal-table th), .zw-result :deep(.zw-decadal-table td) { padding: 8px 10px; text-align: center; border-bottom: 1px solid var(--border); }
 .zw-result :deep(.zw-decadal-table th) { color: var(--text-4); font-weight: 500; font-size: 0.75rem; letter-spacing: 1px; }
 .zw-result :deep(.zw-decadal-table td) { color: var(--text-2); }
-.zw-result :deep(.zw-horoscope-title) { font-size: 0.9375rem; font-weight: 600; color: #c39bd3; margin-bottom: 16px; }
+.zw-result :deep(.zw-horoscope-title) { font-size: 0.9375rem; font-weight: 600; color: var(--accent); margin-bottom: 16px; }
 .zw-result :deep(.zw-period-grid) { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
 .zw-result :deep(.zw-period-card) { background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; transition: all 0.2s; }
-.zw-result :deep(.zw-period-card:hover) { border-color: #c39bd3; box-shadow: 0 0 12px rgba(155,89,182,0.08); }
+.zw-result :deep(.zw-period-card:hover) { border-color: var(--accent); box-shadow: 0 0 12px rgba(212,168,71,0.08); }
 .zw-result :deep(.zw-period-name) { font-weight: 600; color: var(--accent); margin-bottom: 4px; font-size: 0.875rem; }
-.zw-result :deep(.zw-period-ganzhi) { font-size: 0.875rem; color: #c39bd3; }
+.zw-result :deep(.zw-period-ganzhi) { font-size: 0.875rem; color: var(--accent); }
 .zw-result :deep(.zw-period-range) { font-size: 0.75rem; color: var(--text-4); margin-top: 2px; }
 .zw-result :deep(.zw-period-mutagen) { font-size: 0.75rem; color: var(--text-3); margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
-.zw-result :deep(.zw-pro-header) { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 14px; padding: 14px 16px; border: 1px solid rgba(132,84,190,0.22); border-radius: 12px; background: linear-gradient(135deg, rgba(132,84,190,0.10), rgba(37,109,156,0.08)); }
+.zw-result :deep(.zw-pro-header) { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 14px; padding: 14px 16px; border: 1px solid rgba(180,111,39,0.22); border-radius: 12px; background: linear-gradient(135deg, rgba(180,111,39,0.10), rgba(37,109,156,0.08)); }
 .zw-result :deep(.zw-pro-title) { font-family: var(--font-serif); font-size: 1.05rem; font-weight: 700; color: var(--text-1); letter-spacing: 1px; }
 .zw-result :deep(.zw-pro-subtitle) { margin-top: 4px; font-size: 0.74rem; line-height: 1.55; color: var(--text-3); }
-.zw-result :deep(.zw-pro-pill) { flex: 0 0 auto; padding: 5px 9px; border-radius: 999px; background: rgba(108,92,231,0.16); color: #a48cff; border: 1px solid rgba(108,92,231,0.22); font-size: 0.7rem; white-space: nowrap; }
+.zw-result :deep(.zw-pro-pill) { flex: 0 0 auto; padding: 5px 9px; border-radius: 999px; background: rgba(212,168,71,0.16); color: var(--accent); border: 1px solid rgba(212,168,71,0.22); font-size: 0.7rem; white-space: nowrap; }
 .zw-result :deep(.zw-pro-basic) { padding: 14px 16px; margin-bottom: 14px; }
 .zw-result :deep(.zw-orientation) { text-align: center; color: var(--text-4); font-size: 0.72rem; letter-spacing: 4px; margin: 6px 0; }
 .zw-result :deep(.zw-pro-grid) { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; margin-bottom: 12px; }
@@ -1768,7 +1702,7 @@ onUnmounted(function() {
 .zw-result :deep(.zw-pro-grid .zw-palace-ganzhi) { font-size: 0.72rem; color: var(--text-3); white-space: nowrap; }
 .zw-result :deep(.zw-pro-grid .zw-palace-badge) { font-size: 0.56rem; padding: 1px 4px; border-radius: 3px; }
 .zw-result :deep(.zw-pro-grid .zw-palace-stars) { margin-top: 3px; display: flex; flex-wrap: wrap; gap: 2px 4px; align-items: flex-start; }
-.zw-result :deep(.zw-pro-grid .zw-star-major) { display: inline-flex; align-items: center; gap: 1px; padding: 0; background: transparent; color: #6f62e8; border-radius: 0; font-size: 0.82rem; font-weight: 800; line-height: 1.2; }
+.zw-result :deep(.zw-pro-grid .zw-star-major) { display: inline-flex; align-items: center; gap: 1px; padding: 0; background: transparent; color: #b66b2d; border-radius: 0; font-size: 0.82rem; font-weight: 800; line-height: 1.2; }
 .zw-result :deep(.zw-pro-grid .zw-star-minor) { display: inline-flex; align-items: center; gap: 1px; padding: 0; background: transparent; color: #2b89c9; border-radius: 0; font-size: 0.72rem; font-weight: 700; line-height: 1.25; }
 .zw-result :deep(.zw-pro-grid .zw-star-adj) { display: inline-flex; align-items: center; padding: 0; color: var(--text-2); font-size: 0.66rem; line-height: 1.25; }
 .zw-result :deep(.zw-pro-grid .zw-star-major em), .zw-result :deep(.zw-pro-grid .zw-star-minor em), .zw-result :deep(.zw-pro-grid .zw-star-adj em) { font-style: normal; color: var(--text-4); font-size: 0.6rem; margin-left: 1px; }
@@ -1776,17 +1710,17 @@ onUnmounted(function() {
 .zw-result :deep(.zw-palace-support) { margin-top: 4px; color: var(--text-4); font-size: 0.61rem; line-height: 1.35; }
 .zw-result :deep(.zw-palace-flow) { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
 .zw-result :deep(.zw-flow-badge) { display: inline-flex; align-items: center; border-radius: 4px; padding: 1px 4px; font-size: 0.56rem; font-weight: 800; line-height: 1.25; }
-.zw-result :deep(.zw-flow-badge.decadal) { background: rgba(132,84,190,0.14); color: #a48cff; }
+.zw-result :deep(.zw-flow-badge.decadal) { background: rgba(180,111,39,0.14); color: var(--accent); }
 .zw-result :deep(.zw-flow-badge.age) { background: rgba(39,174,96,0.14); color: #27ae60; }
 .zw-result :deep(.zw-flow-badge.year) { background: rgba(212,168,71,0.14); color: var(--accent); }
 .zw-result :deep(.zw-flow-badge.month) { background: rgba(45,156,219,0.14); color: #2d9cdb; }
 .zw-result :deep(.zw-pro-grid .zw-palace-decadal) { margin-top: 5px; font-size: 0.65rem; color: var(--text-3); border-top: 1px solid var(--border); padding-top: 4px; line-height: 1.3; }
 .zw-result :deep(.zw-pro-grid .zw-palace-decadal span) { color: var(--accent); margin-right: 4px; font-weight: 700; }
 .zw-result :deep(.zw-palace-ages) { margin-top: 2px; color: var(--text-4); font-size: 0.58rem; line-height: 1.25; }
-.zw-result :deep(.zw-pro-grid .zw-center-info) { background: linear-gradient(180deg, rgba(255,255,255,0.055), rgba(108,92,231,0.055)); border: 1.5px solid rgba(108,92,231,0.32); border-radius: 6px; padding: 14px; align-items: stretch; min-height: 318px; }
-.zw-result :deep(.zw-center-kicker) { font-size: 0.72rem; color: #8d7cff; font-weight: 700; }
+.zw-result :deep(.zw-pro-grid .zw-center-info) { background: linear-gradient(180deg, rgba(255,255,255,0.055), rgba(212,168,71,0.055)); border: 1.5px solid rgba(212,168,71,0.32); border-radius: 6px; padding: 14px; align-items: stretch; min-height: 318px; }
+.zw-result :deep(.zw-center-kicker) { font-size: 0.72rem; color: var(--accent); font-weight: 700; }
 .zw-result :deep(.zw-pro-grid .zw-center-title) { font-family: var(--font-serif); font-size: 1.25rem; color: var(--text-1); font-weight: 800; letter-spacing: 2px; margin: 4px 0; }
-.zw-result :deep(.zw-pro-grid .zw-center-wuxing) { font-size: 0.92rem; color: #7f6df2; font-weight: 800; margin-bottom: 8px; }
+.zw-result :deep(.zw-pro-grid .zw-center-wuxing) { font-size: 0.92rem; color: #b66b2d; font-weight: 800; margin-bottom: 8px; }
 .zw-result :deep(.zw-center-line) { display: grid; grid-template-columns: 64px minmax(0,1fr); gap: 6px; align-items: baseline; text-align: left; margin: 2px 0; font-size: 0.72rem; color: var(--text-4); }
 .zw-result :deep(.zw-center-line strong) { color: var(--text-2); font-size: 0.76rem; font-weight: 700; word-break: break-word; }
 .zw-result :deep(.zw-center-two) { display: flex; justify-content: center; gap: 8px; margin: 8px 0 6px; color: var(--text-2); font-size: 0.75rem; font-weight: 700; }
@@ -1796,11 +1730,11 @@ onUnmounted(function() {
 .zw-result :deep(.zw-center-error) { color: var(--danger); }
 .zw-result :deep(.zw-center-modes) { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; margin-top: 4px; }
 .zw-result :deep(.zw-mode-chip) { appearance: none; padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,0.06); color: var(--text-3); font-size: 0.65rem; border: 1px solid var(--border); cursor: pointer; line-height: 1.25; }
-.zw-result :deep(.zw-mode-chip.active) { background: rgba(108,92,231,0.18); border-color: rgba(108,92,231,0.32); color: #a48cff; font-weight: 800; }
+.zw-result :deep(.zw-mode-chip.active) { background: rgba(212,168,71,0.18); border-color: rgba(212,168,71,0.32); color: var(--accent); font-weight: 800; }
 .zw-result :deep(.zw-mode-chip.muted) { opacity: 0.55; }
 .zw-result :deep(.zw-chart-mode-bar) { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0 4px; padding: 6px; border-radius: 14px; background: rgba(255,255,255,0.055); border: 1px solid var(--border); }
 .zw-result :deep(.zw-chart-mode-btn) { appearance: none; border: 0; border-radius: 10px; padding: 9px 4px; color: var(--text-3); background: transparent; font-weight: 800; font-size: 0.82rem; cursor: pointer; }
-.zw-result :deep(.zw-chart-mode-btn.active) { color: #fff; background: linear-gradient(135deg, #7f6df2, #9b72f2); box-shadow: 0 5px 16px rgba(108,92,231,0.22); }
+.zw-result :deep(.zw-chart-mode-btn.active) { color: #fff; background: linear-gradient(135deg, #b66b2d, #d9a443); box-shadow: 0 5px 16px rgba(212,168,71,0.22); }
 .zw-result :deep(.zw-palace-cell.has-fly-mutagen) { border-color: rgba(190,56,56,0.45); background: linear-gradient(180deg, rgba(190,56,56,0.055), rgba(255,255,255,0.035)); }
 .zw-result :deep(.zw-palace-fly) { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; position: relative; z-index: 7; }
 .zw-result :deep(.zw-fly-tag) { display: inline-flex; align-items: center; gap: 2px; max-width: 100%; border-radius: 4px; padding: 1px 4px; font-size: 0.56rem; line-height: 1.25; font-weight: 800; border: 1px solid rgba(255,255,255,0.16); }
@@ -1835,7 +1769,7 @@ onUnmounted(function() {
 .zw-result :deep(.zw-mode-feixing .zw-flow-badge) { font-size: 0.62rem; }
 .zw-result :deep(.zw-mode-feixing .zw-palace-cell.has-fly-mutagen) { border-color: rgba(45,131,197,0.46); background: linear-gradient(180deg, rgba(45,131,197,0.055), rgba(255,255,255,0.035)); }
 .zw-result :deep(.zw-flow-row) { display: grid; grid-template-columns: 54px minmax(0,1fr); gap: 8px; align-items: stretch; margin-top: 8px; }
-.zw-result :deep(.zw-flow-title) { display: flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(108,92,231,0.16); color: #a48cff; font-weight: 800; font-size: 0.78rem; }
+.zw-result :deep(.zw-flow-title) { display: flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(212,168,71,0.16); color: var(--accent); font-weight: 800; font-size: 0.78rem; }
 .zw-result :deep(.zw-flow-scroll) { display: flex; overflow-x: auto; gap: 4px; padding-bottom: 2px; }
 .zw-result :deep(.zw-flow-item) { flex: 0 0 76px; min-height: 46px; border: 1px solid var(--border); border-radius: 8px; background: rgba(255,255,255,0.035); padding: 5px 6px; text-align: center; box-sizing: border-box; }
 .zw-result :deep(.zw-flow-subtitle) { flex: 0 0 34px; min-height: 46px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(39,174,96,0.12); color: #27ae60; font-size: 0.68rem; font-weight: 800; }
@@ -1848,7 +1782,7 @@ onUnmounted(function() {
 .zw-result :deep(.zw-flow-month.active) { border-color: #2d9cdb; background: rgba(45,156,219,0.13); }
 .zw-result :deep(.zw-flow-item b), .zw-result :deep(.zw-flow-item em), .zw-result :deep(.zw-flow-item i) { display: block; font-style: normal; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .zw-result :deep(.zw-flow-item b) { color: var(--text-1); font-size: 0.72rem; }
-.zw-result :deep(.zw-flow-item em) { color: #7f6df2; font-size: 0.72rem; font-weight: 800; }
+.zw-result :deep(.zw-flow-item em) { color: #b66b2d; font-size: 0.72rem; font-weight: 800; }
 .zw-result :deep(.zw-flow-item i) { color: var(--text-4); font-size: 0.62rem; }
 .zw-result :deep(.zw-flow-item.compact) { flex-basis: 72px; }
 
