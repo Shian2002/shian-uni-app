@@ -179,12 +179,12 @@
 
     <view class="profile-sheet" v-if="toolSheetOpen">
       <view class="profile-sheet-mask" @tap="toolSheetOpen = false"></view>
-      <view class="profile-sheet-panel tool-sheet-panel" @touchmove.stop>
+      <view class="profile-sheet-panel tool-sheet-panel">
         <view class="profile-sheet-head">
           <text class="profile-sheet-title">选择术数模型</text>
           <text class="profile-sheet-close" @tap="toolSheetOpen = false">×</text>
         </view>
-        <scroll-view class="tool-options" scroll-y :show-scrollbar="true" @touchmove.stop>
+        <view class="tool-options" @touchmove.stop>
           <view class="tool-options-inner">
             <view class="tool-option auto-option" :class="{ active: autoSelectTools }" @tap="toggleAutoSelectTools">
               <view>
@@ -207,7 +207,7 @@
               <text class="tool-option-check">{{ selectedToolModels.includes(tool.id) ? '✓' : '' }}</text>
             </view>
           </view>
-        </scroll-view>
+        </view>
       </view>
     </view>
 

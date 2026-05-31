@@ -196,11 +196,25 @@ onMounted(function() {
   // 获取可见弹窗的辅助函数 — 兼容 uni-app H5 页面结构
   if (!window._xc_getVisibleModal) {
     window._xc_getVisibleModal = function() {
-      // 先找 .tab-page-wrapper 内的弹窗
-      var wrappers = document.querySelectorAll('.tab-page-wrapper')
-      for (var w of wrappers) { if (w.style.display !== 'none') { var modal = w.querySelector('#topnavLoginModal'); if (modal) return modal } }
-      // 找不到则直接全局查找
-      return document.getElementById('topnavLoginModal') || null
+      var modals = Array.prototype.slice.call(document.querySelectorAll('#topnavLoginModal'))
+      if (!modals.length) return null
+      var isUsable = function(el) {
+        if (!el) return false
+        var rect = el.getBoundingClientRect()
+        var style = window.getComputedStyle ? window.getComputedStyle(el) : null
+        if (style && (style.display === 'none' || style.visibility === 'hidden')) return false
+        if (rect.width <= 0 || rect.height <= 0) return false
+        var page = el.closest('.tab-page-wrapper')
+        if (page) {
+          var pageStyle = window.getComputedStyle ? window.getComputedStyle(page) : null
+          if ((pageStyle && pageStyle.display === 'none') || page.style.display === 'none') return false
+        }
+        return true
+      }
+      var openModal = modals.find(function(el) { return el.classList.contains('open') && isUsable(el) })
+      if (openModal) return openModal
+      var visibleModal = modals.find(isUsable)
+      return visibleModal || modals[modals.length - 1]
     }
   }
   // 全局登录tab切换（纯DOM操作，不依赖Vue reactive）
