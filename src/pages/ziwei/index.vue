@@ -422,9 +422,9 @@ const zwFlowState = reactive({
   selectedYear: new Date().getFullYear(),
   selectedMonth: new Date().getMonth() + 1,
   horoscope: null,
-  loading: false,
   error: ''
 })
+let zwFlowRequestSeq = 0
 
 async function ziweiFreePan() {
   try {
@@ -480,7 +480,7 @@ function rerenderZiweiPan() {
 function findZiweiFlowTarget(target) {
   let node = target
   while (node) {
-    if (node.dataset && (node.dataset.flowYear || node.dataset.flowMonth)) return node
+    if (node.dataset && (node.dataset.flowDecade || node.dataset.flowYear || node.dataset.flowMonth)) return node
     node = node.parentElement
   }
   return null
@@ -489,8 +489,10 @@ function findZiweiFlowTarget(target) {
 function handleZiweiPanClick(e) {
   const target = findZiweiFlowTarget(e && e.target)
   if (!target) return
+  const decade = parseInt(target.dataset.flowDecade)
   const year = parseInt(target.dataset.flowYear)
   const month = parseInt(target.dataset.flowMonth)
+  if (!isNaN(decade)) return selectZiweiFlow('decadal', decade)
   selectZiweiFlow(isNaN(year) ? 'month' : 'year', isNaN(year) ? month : year)
 }
 
@@ -498,16 +500,24 @@ function handleZiweiDocumentClick(e) {
   const target = findZiweiFlowTarget(e && e.target)
   if (!target) return
   if (!target.closest || !target.closest('.zw-result')) return
+  const decade = parseInt(target.dataset.flowDecade)
   const year = parseInt(target.dataset.flowYear)
   const month = parseInt(target.dataset.flowMonth)
+  if (!isNaN(decade)) return selectZiweiFlow('decadal', decade)
   selectZiweiFlow(isNaN(year) ? 'month' : 'year', isNaN(year) ? month : year)
 }
 
 function selectZiweiFlow(type, value) {
   const n = parseInt(value)
   if (isNaN(n)) return
+  if (type === 'decadal') {
+    const birthYear = zwPanData.value ? zwBirthYearFromPan(zwPanData.value) : parseInt(zwForm.year)
+    zwFlowState.selectedYear = birthYear + n - 1
+  }
   if (type === 'year') zwFlowState.selectedYear = n
   if (type === 'month') zwFlowState.selectedMonth = n
+  zwFlowState.error = ''
+  rerenderZiweiPan()
   refreshZiweiFlow()
 }
 
@@ -527,10 +537,9 @@ async function getZiweiFlowTargetDate(year, lunarMonth) {
 }
 
 async function refreshZiweiFlow() {
-  if (!zwPanData.value || zwFlowState.loading) return
-  zwFlowState.loading = true
+  if (!zwPanData.value) return
+  const seq = ++zwFlowRequestSeq
   zwFlowState.error = ''
-  rerenderZiweiPan()
   try {
     const longitude = parseFloat(zwForm.longitude)
     const targetDate = await getZiweiFlowTargetDate(zwFlowState.selectedYear, zwFlowState.selectedMonth)
@@ -552,17 +561,19 @@ async function refreshZiweiFlow() {
     })
     const data = res.data || {}
     if (data.error || (data.code && data.code !== 0)) {
+      if (seq !== zwFlowRequestSeq) return
       zwFlowState.error = data.error || data.msg || '流月切换失败'
       return
     }
     const flowData = data.data || data
+    if (seq !== zwFlowRequestSeq) return
     zwFlowState.horoscope = flowData.horoscope || null
     if (flowData.target_date) zwPanData.value.target_date = flowData.target_date
   } catch (e) {
+    if (seq !== zwFlowRequestSeq) return
     zwFlowState.error = (e && (e.errMsg || e.message)) || '流月切换失败'
   } finally {
-    zwFlowState.loading = false
-    rerenderZiweiPan()
+    if (seq === zwFlowRequestSeq) rerenderZiweiPan()
   }
 }
 
@@ -1036,7 +1047,7 @@ function zwCenterInfo(bi, cp, meta, periods) {
   const monthly = periods && periods.monthly
   const selectedMonthName = zwLunarMonthNames[zwFlowState.selectedMonth - 1] || (zwFlowState.selectedMonth + '月')
   const flowLine = '<div class="zw-center-flow"><span>流年 ' + zwEsc(zwFlowState.selectedYear) + ' ' + zwEsc((yearly && yearly.ganzhi) || zwGanzhiYear(zwFlowState.selectedYear)) + '</span><span>流月 ' + zwEsc(selectedMonthName) + ' ' + zwEsc((monthly && monthly.ganzhi) || zwGanzhiMonth(zwFlowState.selectedYear, zwFlowState.selectedMonth)) + '</span></div>'
-  const flowStatus = zwFlowState.loading ? '<div class="zw-center-loading">切换流月中...</div>' : (zwFlowState.error ? '<div class="zw-center-error">' + zwEsc(zwFlowState.error) + '</div>' : '')
+  const flowStatus = zwFlowState.error ? '<div class="zw-center-error">' + zwEsc(zwFlowState.error) + '</div>' : ''
   return '<div class="zw-center-info">' +
     '<div class="zw-center-kicker">' + zwEsc(method) + '</div>' +
     '<div class="zw-center-title">紫微斗数命盘</div>' +
@@ -1052,10 +1063,12 @@ function zwCenterInfo(bi, cp, meta, periods) {
     '</div>'
 }
 
-function zwTimeline(title, palaces) {
+function zwTimeline(title, palaces, periods) {
+  const decadal = periods && periods.decadal
   const items = (palaces || []).filter(function(p) { return p && p.decadal && p.decadal.range }).map(function(p) {
     const r = p.decadal.range || []
-    return '<span class="zw-flow-item"><b>' + zwEsc(r[0]) + '-' + zwEsc(r[1]) + '</b><em>' + zwEsc((p.decadal.heavenly_stem || '') + (p.decadal.earthly_branch || '')) + '</em><i>' + zwEsc(p.name || '') + '</i></span>'
+    const active = decadal && decadal.index === p.index ? ' active' : ''
+    return '<span class="zw-flow-item zw-flow-clickable zw-flow-decade' + active + '" data-flow-decade="' + zwEsc(r[0]) + '"><b>' + zwEsc(r[0]) + '-' + zwEsc(r[1]) + '</b><em>' + zwEsc((p.decadal.heavenly_stem || '') + (p.decadal.earthly_branch || '')) + '</em><i>' + zwEsc(p.name || '') + '</i></span>'
   }).join('')
   return '<div class="zw-flow-row"><div class="zw-flow-title">' + zwEsc(title) + '</div><div class="zw-flow-scroll">' + items + '</div></div>'
 }
@@ -1120,7 +1133,7 @@ function renderZiweiPan(d) {
   html += zwPalaceCell(palaces[9], periods)
   html += '</div>'
   html += '<div class="zw-orientation zw-orientation-bottom">正北方</div>'
-  html += zwTimeline('大限', palaces)
+  html += zwTimeline('大限', palaces, periods)
   html += zwYearTimeline(palaces, d)
   html += zwMonthTimeline()
   html += '<div class="privacy-note" style="margin-top:16px;">⚠️ 以上内容仅为民俗文化与传统命理科普参考，不构成任何决策建议</div>'
@@ -1376,8 +1389,7 @@ onUnmounted(function() {
 .zw-center-two { display: flex; justify-content: center; gap: 8px; margin: 8px 0 6px; color: var(--text-2); font-size: 0.75rem; font-weight: 700; }
 .zw-center-flow { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 5px 0 6px; }
 .zw-center-flow span { padding: 4px 5px; border-radius: 6px; background: rgba(255,255,255,0.055); border: 1px solid var(--border); color: var(--text-2); font-size: 0.66rem; font-weight: 800; }
-.zw-center-loading, .zw-center-error { margin: 2px auto 4px; font-size: 0.62rem; }
-.zw-center-loading { color: #2d9cdb; }
+.zw-center-error { margin: 2px auto 4px; font-size: 0.62rem; }
 .zw-center-error { color: var(--danger); }
 .zw-center-modes { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; margin-top: 4px; }
 .zw-mode-chip { padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,0.06); color: var(--text-3); font-size: 0.65rem; border: 1px solid var(--border); }
@@ -1496,8 +1508,7 @@ onUnmounted(function() {
 .zw-result :deep(.zw-center-two) { display: flex; justify-content: center; gap: 8px; margin: 8px 0 6px; color: var(--text-2); font-size: 0.75rem; font-weight: 700; }
 .zw-result :deep(.zw-center-flow) { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 5px 0 6px; }
 .zw-result :deep(.zw-center-flow span) { padding: 4px 5px; border-radius: 6px; background: rgba(255,255,255,0.055); border: 1px solid var(--border); color: var(--text-2); font-size: 0.66rem; font-weight: 800; }
-.zw-result :deep(.zw-center-loading), .zw-result :deep(.zw-center-error) { margin: 2px auto 4px; font-size: 0.62rem; }
-.zw-result :deep(.zw-center-loading) { color: #2d9cdb; }
+.zw-result :deep(.zw-center-error) { margin: 2px auto 4px; font-size: 0.62rem; }
 .zw-result :deep(.zw-center-error) { color: var(--danger); }
 .zw-result :deep(.zw-center-modes) { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; margin-top: 4px; }
 .zw-result :deep(.zw-mode-chip) { padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,0.06); color: var(--text-3); font-size: 0.65rem; border: 1px solid var(--border); }
@@ -1627,7 +1638,7 @@ onUnmounted(function() {
   .zw-result :deep(.zw-center-two) { gap: 4px; margin: 4px 0 3px; font-size: 0.48rem; }
   .zw-result :deep(.zw-center-flow) { gap: 3px; margin: 3px 0; }
   .zw-result :deep(.zw-center-flow span) { font-size: 0.43rem; padding: 2px 3px; }
-  .zw-result :deep(.zw-center-loading), .zw-result :deep(.zw-center-error) { font-size: 0.42rem; margin: 1px auto 2px; }
+  .zw-result :deep(.zw-center-error) { font-size: 0.42rem; margin: 1px auto 2px; }
   .zw-result :deep(.zw-flow-badge) { font-size: 0.38rem; padding: 0 2px; }
   .zw-result :deep(.zw-palace-flow) { gap: 2px; margin-top: 2px; }
   .zw-result :deep(.zw-mode-chip) { font-size: 0.45rem; padding: 2px 4px; }
