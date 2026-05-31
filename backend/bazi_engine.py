@@ -4656,8 +4656,9 @@ def _calc_geju(four_pillars, shi_shen, cang_gan_shi_shen):
     3. 透出优先级：
        a. 月干 = 月支藏干之一 → 该藏干以月干形式透出（月令司权，最有力）
        b. 藏干在年干/时干中出现 → 该藏干透出
-       c. 藏干虽未透出，但月令本气司权，可直接定格局（次优先级）
     4. 藏干优先级：本气 > 中气 > 余气
+
+    未透出的月令藏干不直接定正格，避免把没有透干依据的盘误判为伤官格等正格。
     """
     day_gan = four_pillars['day']['gan']
     month_gan = four_pillars['month']['gan']
@@ -4718,30 +4719,8 @@ def _calc_geju(four_pillars, shi_shen, cang_gan_shi_shen):
                     pos.append('时干')
                 return {'geju': GEJU_NAME[ss], 'desc': f'月支{month_zhi}藏干{cg}透于{"".join(pos)}，{ss}当权'}
 
-    # ── 第三层：月令本气司权（未透出仍可定格局）──
-    # 传统命理认为月令为八字提纲，月支本气司权即可定格局，
-    # 即使藏干未透出四柱天干，月令本气的十神仍然有效
     if cang_gan_list:
-        # 优先本气
-        ben_qi = cang_gan_list[0]
-        if ben_qi != day_gan:
-            ss = calc_shi_shen_for_gan(day_gan, ben_qi)
-            if ss in GEJU_NAME:
-                return {'geju': GEJU_NAME[ss], 'desc': f'月支{month_zhi}本气{ben_qi}司权，{ss}当权（未透出）'}
-        # 本气为比劫时，取中气
-        if len(cang_gan_list) > 1:
-            zhong_qi = cang_gan_list[1]
-            if zhong_qi != day_gan:
-                ss = calc_shi_shen_for_gan(day_gan, zhong_qi)
-                if ss in GEJU_NAME:
-                    return {'geju': GEJU_NAME[ss], 'desc': f'月支{month_zhi}中气{zhong_qi}司权，{ss}当权（本气为比劫，未透出）'}
-        # 中气也为比劫时，取余气
-        if len(cang_gan_list) > 2:
-            yu_qi = cang_gan_list[2]
-            if yu_qi != day_gan:
-                ss = calc_shi_shen_for_gan(day_gan, yu_qi)
-                if ss in GEJU_NAME:
-                    return {'geju': GEJU_NAME[ss], 'desc': f'月支{month_zhi}余气{yu_qi}司权，{ss}当权（本气中气为比劫，未透出）'}
+        return {'geju': '普通格', 'desc': f'月支{month_zhi}藏干未透出四柱天干，暂不按正格定格局'}
 
     return {'geju': '普通格', 'desc': '未成特殊格局'}
 

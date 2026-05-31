@@ -68,10 +68,10 @@
                 <view class="home-ai-progress-track" v-if="msg.stage">
                   <view class="home-ai-progress-bar"></view>
                 </view>
-                <view class="home-tool-cards" v-if="msg.artifacts && msg.artifacts.length">
+                <view class="home-tool-cards" v-if="visibleArtifactList(msg).length">
                   <view
                     class="home-tool-card"
-                    v-for="artifact in msg.artifacts"
+                    v-for="artifact in visibleArtifactList(msg)"
                     :key="artifact.key"
                     :class="{ collapsed: artifact.collapsed }"
                   >
@@ -563,9 +563,15 @@ function pillarText(pillar) {
   return pillar.gan_zhi || ((pillar.gan || '') + (pillar.zhi || '')) || String(pillar)
 }
 
-function artifactListFromMap(map) {
+function artifactListFromMap(map, options) {
   const order = ['qimen.pan', 'bazi.basic', 'bazi.yun', 'liuyao.pan', 'meihua.pan', 'ziwei.pan', 'tarot.cards', 'zeji.days']
   const source = map || {}
+  const opts = options || {}
+  const existing = opts.existing || []
+  const existingMap = {}
+  existing.forEach(function(item) {
+    if (item && item.key) existingMap[item.key] = item
+  })
   return Object.keys(source)
     .sort(function(a, b) {
       const ai = order.indexOf(a)
@@ -574,12 +580,31 @@ function artifactListFromMap(map) {
     })
     .map(function(key) {
       const artifact = source[key] || {}
+      const previous = existingMap[key] || {}
       return Object.assign({}, artifact, {
         key: artifact.key || key,
         title: artifact.title || artifactTitle(key, artifact.tool),
-        collapsed: !!artifact.collapsed,
+        collapsed: previous.collapsed !== undefined ? !!previous.collapsed : !!artifact.collapsed,
+        visible: previous.visible !== undefined ? !!previous.visible : (opts.defaultVisible !== undefined ? !!opts.defaultVisible : artifact.visible !== false),
+        analysis: artifact.analysis || previous.analysis || '',
       })
     })
+}
+
+function visibleArtifactList(msg) {
+  return ((msg && msg.artifacts) || []).filter(function(artifact) {
+    return artifact && artifact.visible !== false
+  })
+}
+
+function revealArtifact(aiIndex, artifactKey) {
+  const current = comprehensiveMessages.value[aiIndex]
+  if (!current || !artifactKey) return
+  const artifacts = (current.artifacts || []).map(function(artifact) {
+    if (artifact.key !== artifactKey) return artifact
+    return Object.assign({}, artifact, { visible: true, collapsed: false })
+  })
+  updateComprehensiveAssistant(aiIndex, { artifacts }, { shouldFollow: isComprehensiveChatNearBottom() })
 }
 
 function appendArtifactAnalysis(aiIndex, artifactKey, content) {
@@ -589,6 +614,7 @@ function appendArtifactAnalysis(aiIndex, artifactKey, content) {
   const artifacts = (current.artifacts || []).map(function(artifact) {
     if (artifact.key !== artifactKey) return artifact
     return Object.assign({}, artifact, {
+      visible: true,
       collapsed: false,
       analysis: stripComprehensiveMarkdown((artifact.analysis || '') + content)
     })
@@ -662,9 +688,12 @@ function renderBaziBasicArtifact(data) {
     const pillar = row[1] || {}
     const gan = pillar.gan || String(pillarText(pillar) || '').slice(0, 1)
     const zhi = pillar.zhi || String(pillarText(pillar) || '').slice(1, 2)
-    return '<div class="bz-artifact-pillar"><span class="bz-artifact-label">' + htmlEscape(row[0]) + '</span><div class="bz-artifact-gz"><b class="wx-color-' + wxClass(ganWuxing(gan)) + '">' + htmlEscape(gan || '-') + '</b><b class="wx-color-' + wxClass(zhiWuxing(zhi)) + '">' + htmlEscape(zhi || '-') + '</b></div><span class="bz-artifact-sub">' + htmlEscape(pillar.nayin || '') + '</span></div>'
+    return '<div class="bz-artifact-pillar"><span class="bz-artifact-label">' + htmlEscape(row[0]) + '</span><div class="bz-artifact-gz bz-artifact-gz-vertical"><b class="wx-color-' + wxClass(ganWuxing(gan)) + '">' + htmlEscape(gan || '-') + '</b><b class="wx-color-' + wxClass(zhiWuxing(zhi)) + '">' + htmlEscape(zhi || '-') + '</b></div><span class="bz-artifact-sub">' + htmlEscape(pillar.nayin || '') + '</span></div>'
   }).join('')
   const wuxing = data.wu_xing || data.wuxing_stats || {}
+  const strength = data.strength || data.wang_shuai || data.day_master_strength || (data.wang_shuai_detail && (data.wang_shuai_detail.strength || data.wang_shuai_detail.level)) || '-'
+  const geju = (data.geju && (data.geju.geju || data.geju.name)) || data.geju_name || '-'
+  const birthAddr = data.birth_addr || data.birth_place || (data.location && (data.location.addr || data.location.name)) || '未填写'
   const wuxingHtml = ['金', '木', '水', '火', '土'].map(function(k) {
     return '<span class="bz-wuxing-chip wx-color-' + wxClass(k) + '">' + k + ' ' + htmlEscape(wuxing[k] === undefined ? '-' : wuxing[k]) + '</span>'
   }).join('')
@@ -673,9 +702,9 @@ function renderBaziBasicArtifact(data) {
     '<div class="bz-artifact-pillars">' + rows + '</div>' +
     '<div class="bz-artifact-meta">' +
     '<span>日主 <b>' + htmlEscape(data.day_master || (fp.day && fp.day.gan) || '-') + '</b></span>' +
-    '<span>强弱 <b>' + htmlEscape(data.strength || (data.wang_shuai_detail && data.wang_shuai_detail.strength) || '-') + '</b></span>' +
-    '<span>格局 <b>' + htmlEscape((data.geju && data.geju.geju) || '-') + '</b></span>' +
-    '<span>出生地 <b>' + htmlEscape(data.birth_addr || (data.location && data.location.addr) || '-') + '</b></span>' +
+    '<span>强弱 <b>' + htmlEscape(strength) + '</b></span>' +
+    '<span>格局 <b>' + htmlEscape(geju) + '</b></span>' +
+    '<span>出生地 <b>' + htmlEscape(birthAddr) + '</b></span>' +
     '</div><div class="bz-wuxing-row">' + wuxingHtml + '</div>' +
     '</div>'
 }
@@ -856,51 +885,98 @@ function normalizeQimenData(data) {
     xunShou: pickValue(data, ['xunShou', 'xun_shou'], ''),
     zhiFu: pickValue(data, ['zhiFu', 'zhi_fu'], ''),
     zhiShi: pickValue(data, ['zhiShi', 'zhi_shi'], ''),
+    zhiFuStar: pickValue(data, ['zhiFuStar', 'zhi_fu_star'], ''),
+    zhiShiMen: pickValue(data, ['zhiShiMen', 'zhi_shi_men'], ''),
+    zhiFuGong: pickValue(data, ['zhiFuGong', 'zhi_fu_gong'], ''),
+    zhiShiGong: pickValue(data, ['zhiShiGong', 'zhi_shi_gong'], ''),
+    dayGan: pickValue(data, ['dayGan', 'day_gan'], ''),
+    hourGan: pickValue(data, ['hourGan', 'hour_gan'], ''),
+    tianYi: pickValue(data, ['tianYi', 'tian_yi'], ''),
+    maXing: data.maXing || data.ma_xing || {},
   }
 }
 
-function qimenPillarStackHtml(label, value) {
-  const text = String(value || '')
-  return '<div class="qm-pillar-stack"><span>' + htmlEscape(label) + '</span><strong>' + verticalGzHtml(text) + '</strong></div>'
+function coloredGzInline(value) {
+  const text = String(value || '').trim()
+  if (!text) return '-'
+  return text.split('').map(function(ch) {
+    const wx = ganWuxing(ch) || zhiWuxing(ch)
+    return '<span class="wx-text-' + wxClass(wx) + '">' + htmlEscape(ch) + '</span>'
+  }).join('<span class="qm-gz-gap"></span>')
+}
+
+function qimenArrayValue(value) {
+  if (Array.isArray(value)) return value.filter(Boolean).join('')
+  return value || ''
 }
 
 function renderQimenArtifact(data) {
   const d = normalizeQimenData(data)
   const palaces = d.palaces || []
-  const luoOrder = [4, 9, 2, 3, 5, 7, 8, 1, 6]
   const fp = d.fourPillars || {}
-  let html = '<div class="qm-result-wrap"><div class="qm-summary qm-summary-rich">'
-  html += '<div class="qm-summary-line"><span><b>盘式：</b>' + htmlEscape(d.panType || '转盘奇门') + '</span>'
+  const luoOrder = [4, 9, 2, 3, 5, 7, 8, 1, 6]
+  const baguaSimple = { '坎': '坎', '坤': '坤', '震': '震', '巽': '巽', '中': '中', '乾': '乾', '兌': '兑', '兑': '兑', '艮': '艮', '離': '离', '离': '离' }
+  const xk = d.xunKong || {}
+  const mx = d.maXing || {}
+  const maList = []
+  if (mx['驛馬'] || mx['驿马']) maList.push('驿马->' + (mx['驛馬'] || mx['驿马']))
+  if (mx['丁馬'] || mx['丁马']) maList.push('丁马->' + (mx['丁馬'] || mx['丁马']))
+  if (mx['天馬'] || mx['天马']) maList.push('天马->' + (mx['天馬'] || mx['天马']))
+  let html = '<div class="qm-result-wrap qm-free-layout">'
+  html += '<div class="qm-free-summary"><div class="qm-free-title">奇门遁甲排盘</div>'
+  html += '<div class="qm-free-line"><span><b>盘式：</b>转盘奇门 · ' + htmlEscape(d.panType || '拆补法') + '</span>'
   if (d.solarDate) html += '<span><b>时间：</b>' + htmlEscape(d.solarDate) + '</span>'
-  if (d.ju) html += '<span><b>局数：</b>' + htmlEscape(d.ju) + '</span>'
+  html += '</div><div class="qm-free-pillars">'
+  ;[['年柱', fp.year], ['月柱', fp.month], ['日柱', fp.day], ['时柱', fp.hour]].forEach(function(item) {
+    if (item[1]) html += '<span><b>' + htmlEscape(item[0]) + '</b><strong>' + coloredGzInline(item[1]) + '</strong></span>'
+  })
+  html += '</div>'
+  if (xk.day || xk.hour) {
+    html += '<div class="qm-free-line"><span><b>旬空：</b>'
+    if (xk.day) html += '日空' + htmlEscape(xk.day)
+    if (xk.day && xk.hour) html += ' '
+    if (xk.hour) html += '时空' + htmlEscape(xk.hour)
+    html += '</span></div>'
+  }
+  html += '<div class="qm-free-line">'
   if (d.solarTerm) html += '<span><b>节气：</b>' + htmlEscape(d.solarTerm) + '</span>'
-  html += '</div><div class="qm-pillar-row">'
-  html += qimenPillarStackHtml('年柱', fp.year)
-  html += qimenPillarStackHtml('月柱', fp.month)
-  html += qimenPillarStackHtml('日柱', fp.day)
-  html += qimenPillarStackHtml('时柱', fp.hour)
-  html += '</div></div><div class="qm-nine-grid">'
+  if (d.ju) html += '<span><b>局数：</b>' + htmlEscape(d.ju) + '</span>'
+  if (d.xunShou) html += '<span><b>旬首：</b>' + htmlEscape(d.xunShou) + '</span>'
+  html += '</div><div class="qm-free-line">'
+  if (d.zhiFu) html += '<span><b>值符：</b>' + htmlEscape(d.zhiFu) + '</span>'
+  if (d.zhiShi) html += '<span><b>值使：</b>' + htmlEscape(d.zhiShi) + '</span>'
+  if (d.tianYi) html += '<span><b>天乙：</b>' + htmlEscape(d.tianYi) + '</span>'
+  if (maList.length) html += '<span><b>马星：</b>' + htmlEscape(maList.join(' ')) + '</span>'
+  html += '</div></div><div class="qm-nine-grid qm-nine-grid-free">'
   luoOrder.forEach(function(gongNum) {
     const p = palaces[gongNum - 1] || palaces.find(function(x) { return Number(x.gong || x.gong_num || x.number) === gongNum }) || {}
     if (gongNum === 5) {
-      html += '<div class="qm-palace center"><div class="qm-center-title">奇门遁甲</div><div class="qm-center-meta">' + htmlEscape([d.ju, d.xunShou && ('旬首 ' + d.xunShou), d.zhiFu && ('值符 ' + d.zhiFu), d.zhiShi && ('值使 ' + d.zhiShi)].filter(Boolean).join(' · ')) + '</div></div>'
+      const xunMap = { '戊': '甲子', '己': '甲戌', '庚': '甲申', '辛': '甲午', '壬': '甲辰', '癸': '甲寅' }
+      const dateStr = String(d.solarDate || '').split(' ')[0]
+      html += '<div class="qm-palace center"><div class="qm-center-date">' + htmlEscape(dateStr || '奇门遁甲') + '</div>'
+      html += '<div class="qm-center-xun">' + (xunMap[d.xunShou] ? coloredGzInline(xunMap[d.xunShou]) + '旬' : '') + (xk.hour ? ' ' + coloredGzInline(xk.hour) + '空' : '') + '</div>'
+      html += '<div class="qm-center-pillars">' + [fp.year, fp.month, fp.day, fp.hour].filter(Boolean).map(coloredGzInline).join(' ') + '</div>'
+      html += '<div class="qm-center-title">' + htmlEscape([d.solarTerm, d.ju].filter(Boolean).join(' ')) + '</div>'
+      if (d.zhiFu) html += '<div class="qm-center-meta">' + htmlEscape(d.zhiFu) + '</div>'
+      if (d.zhiShi) html += '<div class="qm-center-meta">' + htmlEscape(d.zhiShi) + '</div>'
+      html += '</div>'
       return
     }
-    const name = p.name || p.gong || p.palace || (gongNum + '宫')
-    const tianGan = pickValue(p, ['tianGan', 'tian_gan'], '')
-    const diGan = pickValue(p, ['diGan', 'di_gan'], '')
-    const men = pickValue(p, ['men', 'door'], '')
-    const xing = pickValue(p, ['xing', 'star'], '')
-    const shen = pickValue(p, ['shen', 'god'], '')
-    const tianPan = pickValue(p, ['tianPan', 'tian_pan'], '')
-    const diPan = pickValue(p, ['diPan', 'di_pan'], '')
+    const shen = pickValue(p, ['shenFull', 'shen_full', 'shen', 'god'], '')
+    const xing = qimenArrayValue(p.xingFull || p.xing_full || p.xing || p.star)
+    const men = pickValue(p, ['menFull', 'men_full', 'men', 'door'], '')
+    const yinGan = pickValue(p, ['yinGan', 'yin_gan'], '')
+    const tianGan = qimenArrayValue(p.tianGan || p.tian_gan || p.tianPan || p.tian_pan)
+    const diGan = qimenArrayValue(p.diGan || p.di_gan || p.diPan || p.di_pan)
+    const bagua = baguaSimple[p.bagua] || p.bagua || ''
     html += '<div class="qm-palace">'
-    html += '<div class="qm-palace-head"><b>' + htmlEscape(name) + '</b><span>' + htmlEscape(gongNum + '宫') + '</span></div>'
-    html += '<div class="qm-star-row"><span class="qm-star red">' + htmlEscape(tianGan || tianPan) + '</span><span class="qm-star blue">' + htmlEscape(xing) + '</span><span class="qm-star green">' + htmlEscape(men) + '</span></div>'
-    html += '<div class="qm-info-row"><span>' + htmlEscape(shen) + '</span><span>' + htmlEscape(diGan || diPan) + '</span></div>'
+    html += '<div class="qm-palace-line"><span class="qm-shen">' + htmlEscape(shen) + (p.isKong ? '<em>○</em>' : '') + '</span><span class="qm-gan">' + coloredGzInline(tianGan) + (p.isMa ? '<i>马</i>' : '') + '</span></div>'
+    html += '<div class="qm-palace-line"><span class="qm-xing' + (xing === d.zhiFuStar ? ' highlight' : '') + '">' + htmlEscape(xing) + '</span><span class="qm-gan di">' + coloredGzInline(diGan) + '</span></div>'
+    html += '<div class="qm-palace-line"><span class="qm-men' + (men === d.zhiShiMen ? ' highlight' : '') + (p.isMenPo ? ' menpo' : '') + '">' + htmlEscape(men) + '</span><span class="qm-yingan">' + htmlEscape(yinGan) + '</span></div>'
+    html += '<div class="qm-gong-label">' + htmlEscape(gongNum + '·' + bagua) + '</div>'
     html += '</div>'
   })
-  html += '</div></div>'
+  html += '</div><div class="qm-legend"><span><b class="green">值使</b></span><span><b class="red">门迫</b></span><span><b class="purple">击刑</b></span><span><b class="brown">入墓</b></span><span>○ 空亡</span><span>马星</span></div></div>'
   return html
 }
 
@@ -1233,6 +1309,9 @@ async function startComprehensiveAsk() {
         if (data.message) {
           updateComprehensiveAssistant(aiIndex, { stage: data.message, _lastServerStageAt: Date.now() })
         }
+        if (data.stage === 'tool_analysis_start' && data.tool_key) {
+          revealArtifact(aiIndex, data.tool_key)
+        }
         if (data.content) {
           if (data.tool_key) {
             appendArtifactAnalysis(aiIndex, data.tool_key, data.content)
@@ -1249,7 +1328,13 @@ async function startComprehensiveAsk() {
         }
         if (data.artifacts) {
           currentArtifacts.value = data.artifacts || {}
-          updateComprehensiveAssistant(aiIndex, { artifacts: artifactListFromMap(currentArtifacts.value) })
+          const existingArtifacts = (comprehensiveMessages.value[aiIndex] && comprehensiveMessages.value[aiIndex].artifacts) || []
+          updateComprehensiveAssistant(aiIndex, {
+            artifacts: artifactListFromMap(currentArtifacts.value, {
+              existing: existingArtifacts,
+              defaultVisible: false,
+            })
+          })
         }
         if (typeof data.points_left === 'number') currentPoints.value = data.points_left
         if (typeof data.ai_single_credits === 'number') aiSingleCredits.value = data.ai_single_credits
@@ -1680,13 +1765,13 @@ onBeforeUnmount(() => {
 @keyframes progress-sweep { 0% { transform: translateX(-110%); } 100% { transform: translateX(280%); } }
 .home-ai-content { display: block; white-space: pre-wrap; font-size: 0.9rem; color: var(--text-2); line-height: 1.86; letter-spacing: 0; word-break: break-word; }
 .home-tool-cards { display: grid; gap: 10px; margin: 10px 0 12px; }
-.home-tool-card { border: 1px solid rgba(178,149,93,0.18); border-radius: 12px; background: rgba(178,149,93,0.055); overflow: hidden; }
+.home-tool-card { min-height: 92px; border: 1px solid rgba(178,149,93,0.18); border-radius: 12px; background: rgba(178,149,93,0.055); overflow: hidden; }
 .home-tool-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; cursor: pointer; }
 .home-tool-card-title { display: block; color: var(--text-1); font-size: 0.84rem; font-weight: 700; }
 .home-tool-card-sub { display: block; margin-top: 3px; color: var(--text-3); font-size: 0.68rem; line-height: 1.35; }
 .home-tool-card-toggle { flex-shrink: 0; color: var(--accent); font-size: 0.68rem; }
-.home-tool-card-body { padding: 0 12px 12px; display: grid; gap: 12px; }
-.home-artifact-render { width: 100%; max-height: min(60vh, 620px); overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; border-radius: 12px; }
+.home-tool-card-body { min-height: 360px; padding: 0 12px 12px; display: grid; gap: 12px; }
+.home-artifact-render { width: 100%; min-height: 300px; max-height: min(60vh, 620px); overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; border-radius: 12px; }
 .home-artifact-analysis { margin-top: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(178,149,93,.16); background: rgba(178,149,93,.055); color: var(--text-2); line-height: 1.8; white-space: pre-wrap; font-size: .84rem; }
 .home-artifact-analysis-title { color: var(--accent); font-weight: 800; font-size: .78rem; margin-bottom: 6px; letter-spacing: 1px; }
 .home-artifact-render :deep(.artifact-panel) { display: grid; gap: 10px; color: var(--text-2); font-size: 0.74rem; }
@@ -1739,6 +1824,7 @@ onBeforeUnmount(() => {
 .home-artifact-render :deep(.bz-artifact-pillar) { min-width: 0; padding: 12px 10px; border: 1px solid rgba(178,149,93,.14); border-radius: 12px; text-align: center; background: rgba(255,255,255,.045); }
 .home-artifact-render :deep(.bz-artifact-label) { display: block; color: var(--text-3); font-size: .68rem; margin-bottom: 8px; }
 .home-artifact-render :deep(.bz-artifact-gz) { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.home-artifact-render :deep(.bz-artifact-gz-vertical) { flex-direction: column; gap: 6px; }
 .home-artifact-render :deep(.bz-artifact-gz b) { width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: 1rem; font-weight: 800; box-shadow: 0 6px 16px rgba(0,0,0,.12); }
 .home-artifact-render :deep(.bz-artifact-sub) { display: block; min-height: 16px; margin-top: 7px; color: var(--text-3); font-size: .66rem; }
 .home-artifact-render :deep(.bz-artifact-meta) { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
@@ -1811,7 +1897,7 @@ onBeforeUnmount(() => {
 .home-artifact-render :deep(.ti-yong-box.ti) { background: rgba(110,195,135,.07); border-color: rgba(110,195,135,.20); }
 .home-artifact-render :deep(.ti-yong-box.yong) { background: rgba(124,147,195,.07); border-color: rgba(124,147,195,.20); }
 .home-artifact-render :deep(.ti-yong-label) { font-size: .72rem; color: var(--text-3); margin-bottom: 4px; letter-spacing: 1px; }
-.home-artifact-render :deep(.ti-yong-gua) { font-family: var(--font-serif); font-size: 1.45rem; font-weight: 700; color: var(--text-1); }
+.home-artifact-render :deep(.ti-yong-gua) { font-family: var(--font-serif); font-size: 1.85rem; font-weight: 800; color: var(--text-1); line-height: 1.15; }
 .home-artifact-render :deep(.ti-yong-wx) { font-size: .8rem; color: var(--text-2); margin-top: 4px; }
 .home-artifact-render :deep(.ti-yong-rel) { text-align: center; padding: 8px 16px; font-size: .84rem; font-weight: 700; border-radius: 8px; letter-spacing: 1px; white-space: nowrap; }
 .home-artifact-render :deep(.ti-yong-rel.ji) { background: rgba(110,195,135,.12); color: var(--success); }
@@ -1834,24 +1920,49 @@ onBeforeUnmount(() => {
 .home-artifact-render :deep(.ws-tag.qiu) { background: rgba(215,125,110,.10); color: #D77D6E; }
 .home-artifact-render :deep(.ws-tag.si) { background: rgba(160,140,100,.10); color: #A08C64; }
 
-.home-artifact-render :deep(.qm-nine-grid) { display: grid; grid-template-columns: repeat(3, minmax(94px, 1fr)); gap: 2px; width: min(100%, 360px); margin: 0 auto; border: 2px solid rgba(184,176,160,.88); border-radius: 12px; overflow: hidden; background: #d5cfc2; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
-.home-artifact-render :deep(.qm-palace) { aspect-ratio: 1; min-height: 98px; padding: 7px; background: rgba(255,253,248,.94); color: #222; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; }
-.home-artifact-render :deep(.qm-palace.center) { justify-content: center; align-items: center; text-align: center; background: #f0ede5; }
-.home-artifact-render :deep(.qm-center-title) { color: #8a6319; font-weight: 800; letter-spacing: 2px; font-size: .92rem; }
-.home-artifact-render :deep(.qm-center-meta) { color: #6f6250; font-size: .66rem; line-height: 1.5; }
-.home-artifact-render :deep(.qm-palace-head) { display: flex; align-items: center; justify-content: space-between; color: #6f6250; font-size: .68rem; }
-.home-artifact-render :deep(.qm-palace-head b) { color: #8a6319; font-size: .8rem; }
-.home-artifact-render :deep(.qm-star-row) { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; align-items: center; font-size: .9rem; font-weight: 800; text-align: center; }
-.home-artifact-render :deep(.qm-star.red) { color: #E74C3C; }
-.home-artifact-render :deep(.qm-star.blue) { color: #2980B9; }
-.home-artifact-render :deep(.qm-star.green) { color: #27AE60; }
-.home-artifact-render :deep(.qm-info-row) { display: flex; justify-content: space-between; color: #444; font-size: .7rem; margin-top: auto; }
+.home-artifact-render :deep(.qm-free-layout) { padding: 18px; border: 1px solid var(--card-border); border-radius: 14px; background: var(--card-bg); box-sizing: border-box; }
+.home-artifact-render :deep(.qm-free-summary) { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--card-border); }
+.home-artifact-render :deep(.qm-free-title) { margin-bottom: 10px; color: var(--accent); font-size: 1.05rem; font-weight: 800; letter-spacing: 2px; }
+.home-artifact-render :deep(.qm-free-line),
+.home-artifact-render :deep(.qm-free-pillars) { display: flex; flex-wrap: wrap; gap: 7px 16px; margin-bottom: 7px; color: var(--text-2); font-size: .82rem; line-height: 1.7; }
+.home-artifact-render :deep(.qm-free-line b),
+.home-artifact-render :deep(.qm-free-pillars b) { color: var(--text-1); }
+.home-artifact-render :deep(.qm-free-pillars span) { display: inline-flex; align-items: baseline; gap: 6px; }
+.home-artifact-render :deep(.qm-free-pillars strong) { display: inline-flex; align-items: baseline; gap: 0; font-family: var(--font-serif); font-size: .92rem; letter-spacing: 0; }
+.home-artifact-render :deep(.qm-gz-gap) { display: inline-block; width: .38em; }
+.home-artifact-render :deep(.qm-nine-grid) { display: grid; grid-template-columns: repeat(3, minmax(94px, 1fr)); gap: 2px; width: min(100%, 320px); margin: 0 auto; border: 2px solid #b8b0a0; border-radius: 12px; overflow: hidden; background: #d5cfc2; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+.home-artifact-render :deep(.qm-palace) { aspect-ratio: 1; min-height: 96px; padding: 5px; background: #fff; color: #222; position: relative; display: flex; flex-direction: column; justify-content: space-between; gap: 2px; box-sizing: border-box; line-height: 1.25; }
+.home-artifact-render :deep(.qm-palace.center) { justify-content: center; align-items: center; text-align: center; background: #f0ede5; font-size: .55rem; color: #222; }
+.home-artifact-render :deep(.qm-center-date) { font-size: .58rem; font-weight: 800; color: #222; }
+.home-artifact-render :deep(.qm-center-xun),
+.home-artifact-render :deep(.qm-center-pillars),
+.home-artifact-render :deep(.qm-center-meta) { color: #6f6250; font-size: .52rem; line-height: 1.25; }
+.home-artifact-render :deep(.qm-center-title) { color: #8a6319; font-weight: 800; font-size: .56rem; line-height: 1.25; }
+.home-artifact-render :deep(.qm-palace-line) { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-height: 17px; font-size: .65rem; white-space: nowrap; }
+.home-artifact-render :deep(.qm-shen),
+.home-artifact-render :deep(.qm-xing),
+.home-artifact-render :deep(.qm-men) { font-weight: 600; color: #222; }
+.home-artifact-render :deep(.qm-shen em) { margin-left: 2px; color: #444; font-style: normal; font-weight: 800; }
+.home-artifact-render :deep(.qm-xing.highlight),
+.home-artifact-render :deep(.qm-men.highlight) { color: #27AE60; font-weight: 800; }
+.home-artifact-render :deep(.qm-men.menpo) { color: #E74C3C; font-weight: 800; }
+.home-artifact-render :deep(.qm-gan),
+.home-artifact-render :deep(.qm-yingan) { display: inline-flex; align-items: baseline; color: #555; gap: 0; }
+.home-artifact-render :deep(.qm-gan i) { margin-left: 2px; color: #D4A017; font-size: .55rem; font-style: normal; }
+.home-artifact-render :deep(.qm-gong-label) { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #d0d0d0; font-size: .45rem; pointer-events: none; }
+.home-artifact-render :deep(.qm-legend) { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin-top: 10px; color: var(--text-3); font-size: .65rem; }
+.home-artifact-render :deep(.qm-legend b) { font-weight: 800; }
+.home-artifact-render :deep(.qm-legend .green) { color: #27AE60; }
+.home-artifact-render :deep(.qm-legend .red) { color: #E74C3C; }
+.home-artifact-render :deep(.qm-legend .purple) { color: #9B59B6; }
+.home-artifact-render :deep(.qm-legend .brown) { color: #8B4513; }
 
 .home-artifact-render :deep(.ly-ben-bian-box) { border: 1px solid var(--card-border); border-radius: 14px; background: rgba(255,255,255,.035); padding: 16px; }
 .home-artifact-render :deep(.ly-ben-bian-top) { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; margin-bottom: 14px; }
-.home-artifact-render :deep(.ly-ben-bian-name-block) { text-align: center; border: 1px solid rgba(178,149,93,.16); border-radius: 12px; padding: 10px; background: rgba(255,255,255,.035); }
+.home-artifact-render :deep(.ly-ben-bian-name-block) { min-height: 98px; text-align: center; border: 1px solid rgba(178,149,93,.16); border-radius: 12px; padding: 10px; background: rgba(255,255,255,.035); display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box; }
 .home-artifact-render :deep(.ly-ben-bian-label) { font-size: .66rem; color: var(--text-3); letter-spacing: 2px; }
 .home-artifact-render :deep(.ly-ben-bian-name-text) { margin-top: 4px; font-family: var(--font-serif); font-size: 1.1rem; font-weight: 800; color: var(--accent); letter-spacing: 2px; }
+.home-artifact-render :deep(.ly-ben-bian-trigrams) { width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 .home-artifact-render :deep(.ly-ben-bian-top-arrow) { color: var(--accent); font-size: 1.2rem; font-weight: 800; }
 .home-artifact-render :deep(.ly-ben-bian-body) { display: grid; gap: 7px; }
 .home-artifact-render :deep(.ly-paired-row) { display: grid; grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr); gap: 8px; align-items: center; padding: 8px; border-radius: 10px; background: rgba(255,255,255,.035); border: 1px solid rgba(178,149,93,.10); }
