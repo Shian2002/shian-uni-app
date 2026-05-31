@@ -184,7 +184,7 @@
           <text class="profile-sheet-title">选择术数模型</text>
           <text class="profile-sheet-close" @tap="toolSheetOpen = false">×</text>
         </view>
-        <view class="tool-options" @touchmove.stop>
+        <view class="tool-options">
           <view class="tool-options-inner">
             <view class="tool-option auto-option" :class="{ active: autoSelectTools }" @tap="toggleAutoSelectTools">
               <view>
@@ -2082,7 +2082,7 @@ onBeforeUnmount(() => {
 .mini-gua-name, .mini-tarot-name { display: block; color: var(--text-1); font-size: 0.76rem; font-weight: 700; line-height: 1.35; }
 
 .profile-sheet { position: fixed; inset: 0; z-index: 400; }
-.profile-sheet-mask { position: absolute; inset: 0; background: rgba(20,16,10,0.50); backdrop-filter: blur(10px); }
+.profile-sheet-mask { position: absolute; inset: 0; background: rgba(20,16,10,0.50); backdrop-filter: blur(10px); touch-action: none; }
 .profile-sheet-panel { position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); width: min(640px, calc(100vw - 28px)); max-height: 72vh; overflow: hidden; border-radius: 20px; border: 1px solid rgba(178,149,93,0.20); background: rgba(31, 29, 24, 0.92); box-shadow: 0 24px 80px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.08); padding: 20px; box-sizing: border-box; backdrop-filter: blur(30px) saturate(145%); display: flex; flex-direction: column; }
 [data-theme="light"] .profile-sheet-panel { background: rgba(255,253,248,0.96); box-shadow: 0 24px 80px rgba(60,40,15,0.14), inset 0 1px 0 rgba(255,255,255,0.85); }
 .profile-sheet-panel::before { content: ''; display: block; width: 42px; height: 4px; border-radius: 999px; background: rgba(178,149,93,0.30); margin: 0 auto 14px; }
@@ -2107,8 +2107,8 @@ onBeforeUnmount(() => {
 .sheet-btn:hover { transform: translateY(-1px); border-color: rgba(178,149,93,0.45); }
 .sheet-btn-secondary { color: var(--text-2); background: var(--input-bg); }
 .sheet-btn-primary { color: #fff; background: var(--accent); border-color: var(--accent); }
-.tool-sheet-panel { width: min(520px, calc(100vw - 28px)); }
-.tool-options { display: block; flex: 1 1 auto; min-height: 0; height: min(52vh, 460px); max-height: min(52vh, 460px); overflow-y: auto; overflow-x: hidden; padding-right: 2px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; box-sizing: border-box; }
+.tool-sheet-panel { width: min(520px, calc(100vw - 28px)); max-height: min(86dvh, 640px); min-height: 0; }
+.tool-options { display: block; flex: 1 1 auto; min-height: 0; height: auto; max-height: none; overflow-y: auto; overflow-x: hidden; padding-right: 2px; padding-bottom: max(2px, env(safe-area-inset-bottom)); -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; box-sizing: border-box; }
 .tool-options :deep(.uni-scroll-view) { height: 100% !important; overflow-y: auto !important; overflow-x: hidden !important; -webkit-overflow-scrolling: touch; touch-action: pan-y; overscroll-behavior: contain; }
 .tool-options :deep(.uni-scroll-view-content) { min-height: max-content; height: auto !important; }
 .tool-options-inner { display: grid; gap: 8px; padding-bottom: 2px; min-height: 100%; box-sizing: border-box; }
@@ -2309,8 +2309,9 @@ onBeforeUnmount(() => {
   .profile-sheet-head { flex-shrink: 0; margin-bottom: 10px; }
   .profile-tabs { flex-shrink: 0; }
   .profile-options { max-height: calc(100dvh - 236px); }
-  .tool-sheet-panel { max-height: calc(100dvh - 22px); }
-  .tool-options { height: calc(100dvh - 122px); max-height: calc(100dvh - 122px); }
+  .tool-sheet-panel { height: calc(100dvh - 22px); max-height: calc(100dvh - 22px); min-height: 0; }
+  .tool-sheet-panel .profile-sheet-head { flex-shrink: 0; }
+  .tool-options { flex: 1 1 auto; height: auto; max-height: none; min-height: 0; }
   .home-tool-card-title { font-size: 0.78rem; }
   .home-tool-card-sub { font-size: 0.62rem; }
   .home-artifact-render :deep(.artifact-grid-4),
