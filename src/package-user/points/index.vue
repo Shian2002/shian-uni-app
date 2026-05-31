@@ -70,15 +70,16 @@
         <view class="alipay-panel">
           <image class="alipay-qr" src="/static/alipay-recharge.jpg" mode="widthFix" />
           <view class="pay-hint">请用支付宝扫码付款，付款金额必须与当前套餐一致。</view>
-          <input
-            class="payment-input"
-            v-model="paymentReference"
-            type="text"
-            placeholder="填写支付宝订单号/付款备注"
-            maxlength="80"
-          />
+          <view class="service-window">
+            <text class="service-title">大额充值人工确认时间</text>
+            <text class="service-text">每日 10:00 - 24:00 在线处理，在线时间内响应较及时；非在线时间提交后可能延迟到账。</text>
+          </view>
+          <view class="proof-picker" @click="choosePaymentProof">
+            <text class="proof-picker-title">{{ paymentProofName || '上传支付宝付款成功截图' }}</text>
+            <text class="proof-picker-desc">系统识别金额和收款方，小额符合规则可自动到账</text>
+          </view>
           <view class="btn btn-primary verify-pay-btn" :class="{ disabled: paymentChecking }" @click="verifyAlipayPayment">
-            {{ paymentChecking ? '识别中...' : '已付款，自动识别到账' }}
+            {{ paymentChecking ? '识别中...' : '提交截图并识别到账' }}
           </view>
         </view>
         <view class="modal-btns">
@@ -116,7 +117,8 @@ export default {
     var dpPerPage = 5
     var currentPackage = null
     var currentOrderId = ref(null)
-    var paymentReference = ref('')
+    var paymentProofPath = ref('')
+    var paymentProofName = ref('')
     var paymentChecking = ref(false)
 
     function renderDpLogs() {
@@ -261,7 +263,8 @@ export default {
     function selectPackage(pkg) {
       currentPackage = pkg
       currentOrderId.value = null
-      paymentReference.value = ''
+      paymentProofPath.value = ''
+      paymentProofName.value = ''
       var modal = document.getElementById('rechargeModal')
       if (!modal) return
       modal.classList.add('open')
@@ -308,30 +311,50 @@ export default {
       })
     }
 
+    function choosePaymentProof() {
+      uni.chooseImage({
+        count: 1,
+        sizeType: ['compressed', 'original'],
+        sourceType: ['album', 'camera'],
+        success: function(res) {
+          var filePath = (res.tempFilePaths && res.tempFilePaths[0]) || ''
+          if (!filePath) return
+          paymentProofPath.value = filePath
+          paymentProofName.value = filePath.split('/').pop() || '已选择付款截图'
+        }
+      })
+    }
+
     function verifyAlipayPayment() {
       if (paymentChecking.value) return
       if (!currentPackage) {
         uni.showToast({ title: '请选择充值套餐', icon: 'none' })
         return
       }
-      var reference = (paymentReference.value || '').trim()
-      if (reference.length < 4) {
-        uni.showToast({ title: '请填写支付宝订单号或付款备注', icon: 'none' })
+      if (!paymentProofPath.value) {
+        uni.showToast({ title: '请先上传付款成功截图', icon: 'none' })
         return
       }
       paymentChecking.value = true
       ensureRechargeOrder(function(orderId) {
-        uni.request({
+        var headers = { 'X-Requested-With': 'XMLHttpRequest' }
+        try {
+          var token = localStorage.getItem('xc_token') || ''
+          if (token) headers.Authorization = 'Bearer ' + token
+        } catch(_) {}
+        uni.uploadFile({
           url: '/api/recharge/verify-payment',
-          method: 'POST',
-          data: {
+          filePath: paymentProofPath.value,
+          name: 'file',
+          header: headers,
+          formData: {
             order_id: orderId,
-            paid_amount: currentPackage.price,
-            payment_reference: reference,
-            payment_proof: '用户在积分中心提交支付宝扫码付款凭证'
+            expected_amount: currentPackage.price,
+            payment_proof: '用户上传支付宝付款成功截图'
           },
           success: function(res) {
-            var d = res.data || {}
+            var d = {}
+            try { d = typeof res.data === 'string' ? JSON.parse(res.data) : (res.data || {}) } catch(_) {}
             if (!d.ok) {
               uni.showToast({ title: d.error || '识别失败', icon: 'none' })
               return
@@ -370,13 +393,15 @@ export default {
       isLoggedIn,
       toggleTheme,
       packages,
-      paymentReference,
+      paymentProofPath,
+      paymentProofName,
       paymentChecking,
       goBack,
       doSignin,
       loadMoreLogs,
       selectPackage,
       closeRechargeModal,
+      choosePaymentProof,
       verifyAlipayPayment,
     }
   }
@@ -523,13 +548,23 @@ export default {
   margin: 0 auto; border-radius: 12px; border: 1px solid var(--card-border);
   background: #fff;
 }
-.payment-input {
-  width: 100%; height: 42px; padding: 0 12px; box-sizing: border-box;
-  border: 1px solid var(--card-border); border-radius: 10px;
-  background: var(--bg); color: var(--text-1); font-size: 0.82rem;
+.proof-picker {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  width: 100%; padding: 12px; box-sizing: border-box;
+  border: 1px dashed var(--accent); border-radius: 10px;
+  background: var(--accent-glow); cursor: pointer;
 }
+.proof-picker-title { font-size: 0.82rem; font-weight: 700; color: var(--text-1); }
+.proof-picker-desc { font-size: 0.68rem; line-height: 1.4; color: var(--text-3); text-align: center; }
 .verify-pay-btn { width: 100%; }
 .pay-hint { font-size: 0.72rem; line-height: 1.5; color: var(--text-3); text-align: center; padding: 0 4px; }
+.service-window {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 10px 12px; border-radius: 10px;
+  background: rgba(178,149,93,0.10); border: 1px solid rgba(178,149,93,0.22);
+}
+.service-title { font-size: 0.76rem; font-weight: 700; color: var(--text-1); }
+.service-text { font-size: 0.7rem; line-height: 1.45; color: var(--text-3); }
 
 /* 响应式 */
 @media (max-width: 480px) {

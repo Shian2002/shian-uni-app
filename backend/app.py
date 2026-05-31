@@ -9,7 +9,7 @@ try:
 except ImportError:
     pass  # SQLite 模式下不需要 pymysql
 
-import os, json, threading, subprocess, time, secrets, shutil, hashlib, logging
+import os, json, threading, subprocess, time, secrets, shutil, hashlib, logging, re, tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, make_response, session, redirect, Response, stream_with_context
@@ -10039,38 +10039,153 @@ def _parse_payment_amount(value):
     return round(amount, 2)
 
 
+RECHARGE_SMALL_AUTO_LIMIT = float(os.environ.get('RECHARGE_SMALL_AUTO_LIMIT', '29.9'))
+RECHARGE_MANUAL_MESSAGE = '付款截图已提交，大额充值每日 10:00 - 24:00 在线确认，非在线时间可能延迟到账'
+
+
+def _extract_amounts_from_payment_text(text):
+    """从付款截图 OCR 文本中提取可能的金额。"""
+    amounts = []
+    for raw in re.findall(r'(?:¥|￥|金额|实付|付款|支付)?\s*([0-9]+(?:\.[0-9]{1,2})?)', text or ''):
+        amount = _parse_payment_amount(raw)
+        if amount is not None and 0 < amount <= 10000:
+            amounts.append(amount)
+    return amounts
+
+
+def _payment_text_matches_receiver(text):
+    """校验 OCR 文本是否包含本站收款名。"""
+    receiver = os.environ.get('ALIPAY_RECEIVER_NAME', '时安解忧屋').strip()
+    if not receiver:
+        return True
+    compact = re.sub(r'\s+', '', text or '')
+    return receiver in compact
+
+
+def _ocr_payment_image(path):
+    """尽量用服务器本地 tesseract 识别付款截图；不可用时返回空文本。"""
+    if not shutil.which('tesseract'):
+        return ''
+    try:
+        with tempfile.NamedTemporaryFile(suffix='.txt', delete=True) as out:
+            base = out.name[:-4]
+        cmd = ['tesseract', path, base, '-l', 'chi_sim+eng', '--psm', '6']
+        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=8, check=False)
+        txt_path = base + '.txt'
+        if os.path.exists(txt_path):
+            with open(txt_path, 'r', encoding='utf-8', errors='ignore') as f:
+                text = f.read()
+            try:
+                os.remove(txt_path)
+            except OSError:
+                pass
+            return text
+    except Exception as e:
+        logger.warning(f"付款截图 OCR 失败: {e}")
+    return ''
+
+
+def _save_recharge_proof_file(file_storage):
+    """保存付款截图并返回 URL、哈希和 OCR 文本。"""
+    if not file_storage or not file_storage.filename:
+        return None, '', ''
+    if not allowed_file(file_storage.filename):
+        raise ValueError('不支持的文件格式，仅支持 jpg/png/gif/webp')
+    ext = file_storage.filename.rsplit('.', 1)[1].lower()
+    raw = file_storage.read()
+    if not raw:
+        raise ValueError('付款截图为空')
+    proof_hash = hashlib.sha256(raw).hexdigest()
+    upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'recharge')
+    os.makedirs(upload_dir, exist_ok=True)
+    fname = f"{int(time.time())}_{secrets.token_hex(6)}.{ext}"
+    fpath = os.path.join(upload_dir, fname)
+    with open(fpath, 'wb') as f:
+        f.write(raw)
+    text = _ocr_payment_image(fpath)
+    return f"/static/uploads/recharge/{fname}", proof_hash, text
+
+
 @app.route('/api/recharge/verify-payment', methods=['POST'])
 @login_required
+@csrf.exempt
 def api_recharge_verify_payment():
     """支付宝二维码付款后自动核验并入账。"""
-    data = request.get_json(silent=True) or {}
+    data = request.get_json(silent=True) if request.is_json else request.form
+    data = data or {}
     order_id = data.get('order_id', 0)
-    paid_amount = _parse_payment_amount(data.get('paid_amount'))
+    expected_amount = _parse_payment_amount(data.get('expected_amount') or data.get('paid_amount'))
     payment_reference = (data.get('payment_reference') or '').strip()[:120]
+    proof_text = (data.get('payment_proof_text') or '').strip()
     payment_proof = (data.get('payment_proof') or '').strip()[:2000]
+    proof_hash = (data.get('payment_proof_hash') or '').strip()[:120]
+    proof_url = ''
+
+    try:
+        proof_file = request.files.get('file') or request.files.get('payment_proof')
+        if proof_file:
+            proof_url, image_hash, ocr_text = _save_recharge_proof_file(proof_file)
+            proof_hash = proof_hash or image_hash
+            if ocr_text:
+                proof_text = (proof_text + '\n' + ocr_text).strip()
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
 
     if not order_id:
         return jsonify({'error': '缺少订单'}), 400
-    if paid_amount is None:
-        return jsonify({'error': '付款金额无效'}), 400
-    if len(payment_reference) < 4 and len(payment_proof) < 6:
-        return jsonify({'error': '请填写付款凭证后再识别'}), 400
+    if len(payment_reference) < 4 and len(payment_proof) < 6 and len(proof_text) < 6 and not proof_hash:
+        return jsonify({'error': '请上传付款截图后再识别'}), 400
 
     order = db.session.get(RechargeOrder, int(order_id))
     if not order or order.user_id != current_user.id:
         return jsonify({'error': '订单不存在'}), 404
     if order.status != 'pending':
         return jsonify({'error': '订单状态错误', 'status': order.status}), 400
-    if abs(round(float(order.amount), 2) - paid_amount) > 0.01:
+
+    payment_reference = proof_hash or payment_reference
+    if payment_reference:
+        reused = RechargeOrder.query.filter(
+            RechargeOrder.id != order.id,
+            RechargeOrder.payment_reference == payment_reference,
+        ).first()
+        if reused:
+            return jsonify({'error': '付款截图已提交过'}), 400
+
+    expected = round(float(order.amount), 2)
+    text_amounts = _extract_amounts_from_payment_text(proof_text)
+    paid_amount = expected_amount
+    if text_amounts:
+        matched_amount = next((a for a in text_amounts if abs(a - expected) <= 0.01), None)
+        if matched_amount is None:
+            return jsonify({'error': '付款金额与订单金额不一致'}), 400
+        paid_amount = matched_amount
+    elif paid_amount is None:
+        paid_amount = expected
+
+    if abs(expected - paid_amount) > 0.01:
         return jsonify({'error': '付款金额与订单金额不一致'}), 400
+
+    proof_detail = {
+        'text': proof_text[:1200],
+        'url': proof_url,
+        'expected_amount': expected,
+        'detected_amounts': text_amounts,
+    }
+    if payment_proof:
+        proof_detail['note'] = payment_proof
 
     proof_update = {
         'pay_method': 'alipay_qr',
         'payment_reference': payment_reference,
-        'payment_proof': payment_proof,
+        'payment_proof': json.dumps(proof_detail, ensure_ascii=False),
         'verified_at': datetime.utcnow(),
     }
-    if os.environ.get('ALIPAY_QR_AUTO_CONFIRM') != '1':
+
+    receiver_ok = _payment_text_matches_receiver(proof_text) if proof_text else False
+    small_auto_allowed = expected <= RECHARGE_SMALL_AUTO_LIMIT and receiver_ok and bool(payment_reference)
+    force_auto = os.environ.get('ALIPAY_QR_AUTO_CONFIRM') == '1'
+
+    if not force_auto and not small_auto_allowed:
         RechargeOrder.query.filter_by(id=order.id, status='pending').update(
             proof_update,
             synchronize_session=False,
@@ -10080,7 +10195,8 @@ def api_recharge_verify_payment():
             'ok': True,
             'order_id': order.id,
             'status': 'pending',
-            'message': '付款凭证已提交，后台确认后自动到账',
+            'auto_confirmed': False,
+            'message': RECHARGE_MANUAL_MESSAGE,
         })
 
     result = confirm_recharge_order_once(order.id, {
@@ -10094,6 +10210,7 @@ def api_recharge_verify_payment():
         'points': result.get('points'),
         'added': result.get('added'),
         'status': 'paid',
+        'auto_confirmed': True,
     })
 
 

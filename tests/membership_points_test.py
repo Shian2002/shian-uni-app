@@ -265,6 +265,128 @@ def test_alipay_recharge_verification_can_auto_confirm_when_enabled(app_module, 
         assert len(logs) == 1
 
 
+def test_small_recharge_screenshot_auto_confirms_when_amount_and_receiver_match(app_module, user_factory):
+    member = user_factory("small-auto-buyer")
+
+    with app_module.app.app_context():
+        order = app_module.RechargeOrder(
+            user_id=member.id,
+            package_id="starter",
+            package_name="体验包",
+            points=60,
+            amount=9.9,
+            status="pending",
+        )
+        app_module.db.session.add(order)
+        app_module.db.session.commit()
+        order_id = order.id
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(member.id)
+        sess["_fresh"] = True
+
+    response = client.post("/api/recharge/verify-payment", json={
+        "order_id": order_id,
+        "payment_proof_text": "支付宝支付成功 收款方 时安解忧屋 支付金额 ¥9.90",
+        "payment_proof_hash": "proof-small-unique",
+    })
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["status"] == "paid"
+    assert body["auto_confirmed"] is True
+    assert body["added"] == 60
+
+    with app_module.app.app_context():
+        refreshed = app_module.db.session.get(app_module.RechargeOrder, order_id)
+        membership = app_module.Membership.query.filter_by(user_id=member.id).one()
+        assert refreshed.status == "paid"
+        assert refreshed.payment_reference == "proof-small-unique"
+        assert membership.points == 60
+
+
+def test_large_recharge_screenshot_waits_for_manual_confirmation(app_module, user_factory):
+    member = user_factory("large-manual-buyer")
+
+    with app_module.app.app_context():
+        order = app_module.RechargeOrder(
+            user_id=member.id,
+            package_id="premium",
+            package_name="畅享包",
+            points=650,
+            amount=68,
+            status="pending",
+        )
+        app_module.db.session.add(order)
+        app_module.db.session.commit()
+        order_id = order.id
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(member.id)
+        sess["_fresh"] = True
+
+    response = client.post("/api/recharge/verify-payment", json={
+        "order_id": order_id,
+        "payment_proof_text": "支付宝支付成功 收款方 时安解忧屋 支付金额 ¥68.00",
+        "payment_proof_hash": "proof-large-unique",
+    })
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["status"] == "pending"
+    assert body["auto_confirmed"] is False
+    assert "10:00 - 24:00" in body["message"]
+
+    with app_module.app.app_context():
+        refreshed = app_module.db.session.get(app_module.RechargeOrder, order_id)
+        membership = app_module.Membership.query.filter_by(user_id=member.id).first()
+        assert refreshed.status == "pending"
+        assert refreshed.payment_reference == "proof-large-unique"
+        assert membership is None
+
+
+def test_recharge_screenshot_proof_cannot_be_reused(app_module, user_factory):
+    member = user_factory("duplicate-proof-buyer")
+
+    with app_module.app.app_context():
+        first_order = app_module.RechargeOrder(
+            user_id=member.id,
+            package_id="starter",
+            package_name="体验包",
+            points=60,
+            amount=9.9,
+            status="paid",
+            payment_reference="duplicate-proof-hash",
+        )
+        second_order = app_module.RechargeOrder(
+            user_id=member.id,
+            package_id="starter",
+            package_name="体验包",
+            points=60,
+            amount=9.9,
+            status="pending",
+        )
+        app_module.db.session.add_all([first_order, second_order])
+        app_module.db.session.commit()
+        order_id = second_order.id
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(member.id)
+        sess["_fresh"] = True
+
+    response = client.post("/api/recharge/verify-payment", json={
+        "order_id": order_id,
+        "payment_proof_text": "支付宝支付成功 收款方 时安解忧屋 支付金额 ¥9.90",
+        "payment_proof_hash": "duplicate-proof-hash",
+    })
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "付款截图已提交过"
+
+
 def test_alipay_recharge_verification_rejects_mismatched_amount(app_module, user_factory):
     member = user_factory("mismatch-buyer")
 
