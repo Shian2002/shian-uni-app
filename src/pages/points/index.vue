@@ -567,6 +567,36 @@ export default {
 .service-title { font-size: 0.76rem; font-weight: 700; color: var(--text-1); }
 .service-text { font-size: 0.7rem; line-height: 1.45; color: var(--text-3); }
 
+body:not(.home-fixed-page) .recharge-modal {
+  max-height: min(90dvh, 720px) !important;
+  padding: 18px 20px 14px !important;
+}
+body:not(.home-fixed-page) .recharge-modal .modal-btns {
+  position: static !important;
+  display: flex !important;
+  grid-template-columns: none !important;
+  padding-top: 0 !important;
+  margin-top: 8px !important;
+  background: transparent !important;
+}
+body:not(.home-fixed-page) .recharge-modal .modal-btns > * {
+  width: 100% !important;
+}
+
+@media (max-height: 780px) {
+  .recharge-modal .modal-title { margin-bottom: 10px; }
+  .recharge-summary { padding: 9px 14px; margin-bottom: 10px; }
+  .alipay-panel { gap: 8px; margin-bottom: 10px; }
+  .alipay-qr { width: min(100%, 200px); max-height: 300px; }
+  .pay-hint { font-size: 0.68rem; }
+  .service-window { padding: 7px 10px; }
+  .service-title { font-size: 0.72rem; }
+  .service-text { font-size: 0.66rem; }
+  .proof-picker { padding: 9px; }
+  .proof-picker-title { font-size: 0.78rem; }
+  .proof-picker-desc { font-size: 0.64rem; }
+}
+
 /* 响应式 */
 @media (max-width: 480px) {
   .section-head { padding-left: 0; }
