@@ -35,6 +35,7 @@ echo "[1/4] 同步后端代码..."
 eval "$RSYNC_CMD" \
     "$LOCAL_DIR/backend/app.py" \
     "$LOCAL_DIR/backend/models.py" \
+    "$LOCAL_DIR/backend/requirements.txt" \
     "$SERVER:/opt/xuan-cet/backend/"
 
 # 1b. 确保上传目录存在，使头像可被 Nginx 访问
@@ -56,12 +57,34 @@ eval "$RSYNC_CMD" \
 # 4. 重启后端
 echo "[4/4] 重启后端..."
 $SSH_CMD "$SERVER" "cd /opt/xuan-cet/backend && if [ -f tianji.db ]; then cp tianji.db tianji.db.bak-deploy-\$(date +%Y%m%d-%H%M%S); else echo '[ERROR] 未找到 /opt/xuan-cet/backend/tianji.db，停止部署以避免创建空库'; exit 1; fi"
+$SSH_CMD "$SERVER" "cd /opt/xuan-cet/backend && ./venv/bin/pip install -q -r requirements.txt"
+$SSH_CMD "$SERVER" "sudo tee /etc/systemd/system/xuan-cet-flask.service > /dev/null <<'EOF'
+[Unit]
+Description=时安解忧屋 Gunicorn Backend
+After=network.target
+
+[Service]
+Type=simple
+User=$SERVER_USER
+WorkingDirectory=/opt/xuan-cet/backend
+Environment=FLASK_ENV=production
+Environment=DATABASE_URL=sqlite:////opt/xuan-cet/backend/tianji.db
+Environment=UPLOAD_FOLDER=/var/www/xuan-cet/static/uploads
+ExecStart=/opt/xuan-cet/backend/venv/bin/gunicorn --workers 2 --threads 4 --timeout 180 --bind 127.0.0.1:5199 app:app
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF"
 $SSH_CMD "$SERVER" "sudo fuser -k 5199/tcp 2>/dev/null || true"
 wait_for_port_free 5199
-$SSH_CMD "$SERVER" "cd /opt/xuan-cet/backend && : > /tmp/xuan-cet.log && sudo -b -u $SERVER_USER env UPLOAD_FOLDER=/var/www/xuan-cet/static/uploads nohup ./venv/bin/python app.py > /tmp/xuan-cet.log 2>&1"
+$SSH_CMD "$SERVER" "sudo systemctl daemon-reload && sudo systemctl enable xuan-cet-flask >/dev/null && sudo systemctl restart xuan-cet-flask"
 sleep 2
 echo "  等待服务启动..."
-$SSH_CMD "$SERVER" "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5199/ 2>/dev/null" | grep -q 200 && echo "  后端 200 OK" || echo "  ⚠️ 后端可能未正常启动，检查 /tmp/xuan-cet.log"
+$SSH_CMD "$SERVER" "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5199/ 2>/dev/null" | grep -q 200 && echo "  后端 200 OK" || echo "  ⚠️ 后端可能未正常启动，检查: sudo journalctl -u xuan-cet-flask -n 80"
 
 echo ""
 echo "============================================"

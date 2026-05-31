@@ -3,6 +3,7 @@ Flask-SQLAlchemy>=2.5
 Flask-Login>=0.6
 Flask-WTF>=1.0
 Flask-Compress>=1.0
+gunicorn>=22.0
 Werkzeug>=2.0
 sxtwl>=2.0
 ephem>=4.0

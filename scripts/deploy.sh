@@ -47,6 +47,7 @@ fi
 sudo python3 -m venv "$FLASK_DIR/venv"
 sudo "$FLASK_DIR/venv/bin/pip" install --upgrade pip
 sudo "$FLASK_DIR/venv/bin/pip" install -r "$FLASK_DIR/requirements.txt" || echo "[WARN] pip install 部分失败，请手动检查"
+sudo "$FLASK_DIR/venv/bin/pip" install "gunicorn>=22.0"
 
 # 修正 app.py 中 PAIPAN_DIR 路径（服务器上不需要排盘脚本）
 sudo sed -i "s|os.path.expanduser('~/WorkBuddy/Claw')|'/opt/xuan-cet/paipan'|" "$FLASK_DIR/app.py" 2>/dev/null || true
@@ -73,7 +74,7 @@ fi
 # 创建 systemd 服务
 sudo tee /etc/systemd/system/xuan-cet-flask.service > /dev/null << EOF
 [Unit]
-Description=时安解忧屋 Flask Backend
+Description=时安解忧屋 Gunicorn Backend
 After=network.target
 
 [Service]
@@ -83,7 +84,7 @@ WorkingDirectory=$FLASK_DIR
 Environment=FLASK_ENV=production
 Environment=DATABASE_URL=$DATABASE_URL
 Environment=UPLOAD_FOLDER=$H5_DIR/static/uploads
-ExecStart=$FLASK_DIR/venv/bin/python app.py
+ExecStart=$FLASK_DIR/venv/bin/gunicorn --workers 2 --threads 4 --timeout 180 --bind 127.0.0.1:$FLASK_PORT app:app
 Restart=always
 RestartSec=5
 StandardOutput=journal
