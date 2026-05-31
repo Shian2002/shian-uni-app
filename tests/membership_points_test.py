@@ -170,6 +170,12 @@ def test_admin_recharge_requires_is_admin_flag(app_module, user_factory):
     assert allowed.status_code == 200
     assert allowed.get_json()["added"] == 60
 
+    with app_module.app.app_context():
+        audit = app_module.AdminAuditLog.query.filter_by(action="recharge_confirm").one()
+        assert audit.admin_id == real_admin.id
+        assert audit.target_type == "recharge_order"
+        assert audit.target_id == order_id
+
 
 def test_migrate_db_promotes_legacy_first_user_when_no_admin_exists(app_module, user_factory):
     user = user_factory("legacy-owner", is_admin=False)
@@ -239,3 +245,35 @@ def test_admin_dashboard_endpoints_require_admin_and_return_operational_data(app
     orders = client.get("/api/admin/recharge/orders?status=pending")
     assert orders.status_code == 200
     assert orders.get_json()["orders"][0]["points_amount"] == 60
+
+
+def test_admin_actions_write_and_expose_audit_logs(app_module, user_factory):
+    admin = user_factory("ops-admin", is_admin=True)
+    member = user_factory("member")
+
+    with app_module.app.app_context():
+        post = app_module.Post(
+            user_id=member.id,
+            title="审计测试帖子",
+            content="管理员改动需要记录",
+            category="share",
+        )
+        app_module.db.session.add(post)
+        app_module.db.session.commit()
+        post_id = post.id
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(admin.id)
+        sess["_fresh"] = True
+
+    changed = client.post(f"/api/admin/posts/{post_id}/hide", json={"hidden": True})
+    assert changed.status_code == 200
+
+    logs = client.get("/api/admin/audit-logs")
+    assert logs.status_code == 200
+    data = logs.get_json()["logs"]
+    assert data[0]["action"] == "post_hide"
+    assert data[0]["admin_id"] == admin.id
+    assert data[0]["target_id"] == post_id
+    assert data[0]["detail"]["hidden"] is True

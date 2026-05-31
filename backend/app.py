@@ -135,7 +135,7 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 3600  # 静态文件缓存1小时
 
 # ═══════ 导入数据模型（必须在 db.init_app 之后） ═══════
 from models import User, Record, UserProfile, FollowUp, Collection
-from models import Post, Comment, Master, PostLike, Membership, PointLog, PaidContent, Purchase, RechargeOrder, TarotConversation, LiuyaoConversation, MeihuaConversation, QimenConversation, BaziConversation, ZiweiConversation, ComprehensiveConversation
+from models import Post, Comment, Master, PostLike, Membership, PointLog, PaidContent, Purchase, RechargeOrder, AdminAuditLog, TarotConversation, LiuyaoConversation, MeihuaConversation, QimenConversation, BaziConversation, ZiweiConversation, ComprehensiveConversation
 from models import BaziRecord
 from comprehensive_ai import (
     COMPREHENSIVE_LLM_MODELS,
@@ -297,7 +297,8 @@ def migrate_db():
 
         # 2. 创建新表（如果不存在）
         for tbl in ['user_profile', 'follow_up', 'collection', 'post', 'comment', 'master', 'post_like',
-                     'membership', 'point_log', 'paid_content', 'purchase', 'tarot_conversation']:
+                     'membership', 'point_log', 'paid_content', 'purchase', 'recharge_order',
+                     'admin_audit_log', 'tarot_conversation']:
             try:
                 db.session.execute(db.text(f'SELECT 1 FROM {tbl} LIMIT 1'))
             except Exception:
@@ -9127,6 +9128,25 @@ def api_admin_reports():
     return jsonify({'reports': items, 'total': pagination.total, 'page': page, 'has_next': pagination.has_next})
 
 
+def record_admin_audit(action, target_type, target_id=None, detail=None):
+    """记录管理员写操作，随外层事务一起提交。"""
+    payload = detail or {}
+    try:
+        detail_text = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    except TypeError:
+        detail_text = json.dumps({'detail': str(payload)}, ensure_ascii=False)
+    log = AdminAuditLog(
+        admin_id=current_user.id,
+        action=action,
+        target_type=target_type,
+        target_id=target_id,
+        detail=detail_text,
+        ip_address=request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip(),
+    )
+    db.session.add(log)
+    return log
+
+
 @app.route('/api/admin/reports/<int:rid>/resolve', methods=['POST'])
 @login_required
 def api_admin_report_resolve(rid):
@@ -9156,6 +9176,12 @@ def api_admin_report_resolve(rid):
     else:
         return jsonify({'error': '无效操作，可选: resolve/dismiss'}), 400
 
+    record_admin_audit(
+        'report_' + action,
+        'report',
+        report.id,
+        {'target_type': report.target_type, 'target_id': report.target_id, 'reason': report.reason},
+    )
     db.session.commit()
     return jsonify({'ok': True})
 
@@ -9177,6 +9203,7 @@ def api_admin_pin_post(pid):
     data = request.get_json(silent=True) or {}
     pinned = data.get('pinned', not post.is_pinned)
     post.is_pinned = bool(pinned)
+    record_admin_audit('post_pin', 'post', post.id, {'pinned': bool(pinned), 'title': post.title})
     db.session.commit()
     return jsonify({'ok': True, 'isPinned': post.is_pinned})
 
@@ -9194,6 +9221,7 @@ def api_admin_feature_post(pid):
     data = request.get_json(silent=True) or {}
     featured = data.get('featured', not post.is_featured)
     post.is_featured = bool(featured)
+    record_admin_audit('post_feature', 'post', post.id, {'featured': bool(featured), 'title': post.title})
     db.session.commit()
     return jsonify({'ok': True, 'isFeatured': post.is_featured})
 
@@ -9211,6 +9239,7 @@ def api_admin_hide_post(pid):
     data = request.get_json(silent=True) or {}
     hidden = data.get('hidden', not post.is_hidden)
     post.is_hidden = bool(hidden)
+    record_admin_audit('post_hide', 'post', post.id, {'hidden': bool(hidden), 'title': post.title})
     db.session.commit()
     return jsonify({'ok': True, 'isHidden': post.is_hidden})
 
@@ -9343,6 +9372,46 @@ def api_admin_recharge_orders():
         })
 
     return jsonify({'orders': items, 'total': pagination.total, 'page': page, 'has_next': pagination.has_next})
+
+
+@app.route('/api/admin/audit-logs')
+@login_required
+def api_admin_audit_logs():
+    """管理员：查看最近操作审计"""
+    if not current_user.is_admin:
+        return jsonify({'error': '需要管理员权限'}), 403
+
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 20, type=int), 50)
+    action = (request.args.get('action') or '').strip()
+
+    query = AdminAuditLog.query
+    if action:
+        query = query.filter_by(action=action)
+
+    pagination = query.order_by(AdminAuditLog.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    items = []
+    for log in pagination.items:
+        admin = db.session.get(User, log.admin_id)
+        try:
+            detail = json.loads(log.detail) if log.detail else {}
+        except json.JSONDecodeError:
+            detail = {'raw': log.detail}
+        items.append({
+            'id': log.id,
+            'admin_id': log.admin_id,
+            'admin_name': admin.username if admin else '未知管理员',
+            'action': log.action,
+            'target_type': log.target_type,
+            'target_id': log.target_id,
+            'detail': detail,
+            'ip_address': log.ip_address or '',
+            'created_at': log.created_at.isoformat() if log.created_at else None,
+        })
+
+    return jsonify({'logs': items, 'total': pagination.total, 'page': page, 'has_next': pagination.has_next})
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -9802,7 +9871,14 @@ def api_admin_confirm_recharge():
         remark = (data.get('remark') or '').strip()
         if not target_uid or not points:
             return jsonify({'error': '参数不完整'}), 400
-        new_total = add_points(target_uid, 'admin_add', int(points), remark or '管理员加积分')
+        new_total = add_points(target_uid, 'admin_add', int(points), remark or '管理员加积分', commit=False)
+        record_admin_audit(
+            'points_add',
+            'user',
+            int(target_uid),
+            {'points': int(points), 'remark': remark or '管理员加积分', 'new_total': new_total},
+        )
+        db.session.commit()
         return jsonify({'ok': True, 'user_id': target_uid, 'points': new_total, 'added': points})
 
     # 确认订单到账
@@ -9810,6 +9886,13 @@ def api_admin_confirm_recharge():
     if not result.get('ok'):
         status_code = 404 if result.get('status') is None else 400
         return jsonify({'error': result.get('error', '订单状态错误'), 'status': result.get('status')}), status_code
+    record_admin_audit(
+        'recharge_confirm',
+        'recharge_order',
+        result.get('order_id'),
+        {'user_id': result.get('user_id'), 'added': result.get('added'), 'points': result.get('points')},
+    )
+    db.session.commit()
     return jsonify(result)
 
 @app.route('/api/paid-contents', methods=['GET'])

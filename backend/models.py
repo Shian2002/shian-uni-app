@@ -246,6 +246,20 @@ class RechargeOrder(db.Model):
     user = db.relationship('User', backref=db.backref('recharge_orders', lazy='dynamic'))
 
 
+class AdminAuditLog(db.Model):
+    """管理员操作审计"""
+    __tablename__ = 'admin_audit_log'
+    id = db.Column(db.Integer, primary_key=True)
+    admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    action = db.Column(db.String(50), nullable=False, index=True)
+    target_type = db.Column(db.String(50), nullable=False, index=True)
+    target_id = db.Column(db.Integer, nullable=True, index=True)
+    detail = db.Column(db.Text, default='')
+    ip_address = db.Column(db.String(64), default='')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    admin = db.relationship('User', backref=db.backref('admin_audit_logs', lazy='dynamic'))
+
+
 class BaziRecord(db.Model):
     """八字排盘/合盘历史记录"""
     __tablename__ = 'bazi_record'
