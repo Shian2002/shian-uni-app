@@ -10,7 +10,7 @@
         <view class="tool-hero-content">
           <view class="section-tag">择吉工具</view>
           <view class="tool-hero-title">择吉工具 · 婚嫁搬家开业 · 吉日吉时</view>
-          <view class="tool-hero-desc">AI择吉建议 · 传统民俗参考</view>
+          <view class="tool-hero-desc">择吉分析工具 · 传统民俗参考</view>
         </view>
       </section>
 

@@ -22,7 +22,7 @@
             <view class="tool-tab" id="qiTabFree" :class="{ active: activeTab === 'free' }" @click="switchQiTab('free')" @tap="switchQiTab('free')">
               ☯️ 奇门排盘<text class="tab-badge free">免费</text>
             </view>
-            <view class="tool-tab" id="qiTabAi" :class="{ active: activeTab === 'ai' }" @click="switchQiTab('ai')" @tap="switchQiTab('ai')">
+            <view v-if="false" class="tool-tab" id="qiTabAi" :class="{ active: activeTab === 'ai' }" @click="switchQiTab('ai')" @tap="switchQiTab('ai')">
               🔮 时安奇门系统<text class="tab-badge">PRO</text>
             </view>
           </view>
@@ -65,14 +65,14 @@
             </view>
 
             <view class="submit-btn" @tap="qimenFreePaipan" style="margin-top:14px;">☯️ 免费排盘</view>
-            <text class="form-hint" style="text-align:center;display:block;margin-top:10px;">本地精准排盘，不含解读。如需深度解读请使用时安奇门系统。</text>
+            <text class="form-hint" style="text-align:center;display:block;margin-top:10px;">本地精准排盘，不含 AI 解读。深度解读请回首页选择奇门遁甲或自动选术数。</text>
 
             <!-- 排盘结果 -->
             <view class="qf-result" v-if="qfResult" v-html="qfResult"></view>
           </view>
 
           <!-- ══ 奇门AI系统 ══ -->
-          <view class="tool-tab-content" id="qiTabAiContent" v-show="activeTab === 'ai'">
+          <view v-if="false" class="tool-tab-content" id="qiTabAiContent" v-show="activeTab === 'ai'">
             <view id="qiAiFormArea">
               <view class="qf-datetime-section">
                 <view class="qf-section-header">

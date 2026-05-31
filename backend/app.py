@@ -142,6 +142,7 @@ from comprehensive_ai import (
     COMPREHENSIVE_TOOL_MODELS,
     calculate_cost,
     normalize_tool_models,
+    recommend_tool_models,
     build_comprehensive_messages,
 )
 
@@ -417,8 +418,14 @@ def migrate_db():
             if 'already exists' not in str(e).lower() and 'duplicate' not in str(e).lower():
                 logger.warning(f"is_admin 索引迁移失败: {e}")
 
-        # 7. user_profile.profile_type / user_profile.last_used_at
-        for col, ctype in [('profile_type', "VARCHAR(10) DEFAULT 'self'"), ('last_used_at', 'DATETIME')]:
+        # 8. user_profile 扩展字段：统一命盘档案来源与排盘参数
+        for col, ctype in [
+            ('profile_type', "VARCHAR(10) DEFAULT 'self'"),
+            ('source', "VARCHAR(30) DEFAULT 'manual'"),
+            ('source_record_id', 'INTEGER'),
+            ('meta_json', 'TEXT DEFAULT \'\''),
+            ('last_used_at', 'DATETIME'),
+        ]:
             try:
                 db.session.execute(db.text(f'SELECT {col} FROM user_profile LIMIT 1'))
             except Exception:
@@ -428,6 +435,23 @@ def migrate_db():
                     logger.info(f"[DB] 已添加 user_profile.{col} 字段")
                 except Exception as e:
                     logger.warning(f"user_profile.{col} 迁移失败: {e}")
+
+        # 9. membership AI 次数包字段
+        for col, ctype in [
+            ('ai_single_credits', 'INTEGER DEFAULT 0'),
+            ('ai_combo_credits', 'INTEGER DEFAULT 0'),
+            ('daily_ai_light_used_at', "VARCHAR(10) DEFAULT ''"),
+        ]:
+            try:
+                db.session.execute(db.text(f'SELECT {col} FROM membership LIMIT 1'))
+            except Exception:
+                try:
+                    db.session.execute(db.text(f'ALTER TABLE membership ADD COLUMN {col} {ctype}'))
+                    db.session.commit()
+                    logger.info(f"[DB] 已添加 membership.{col} 字段")
+                except Exception as e:
+                    db.session.rollback()
+                    logger.warning(f"membership.{col} 迁移失败: {e}")
 
         # 5. post.image_url
         try:
@@ -3876,6 +3900,7 @@ def _json_loads_safe(text, default):
 
 
 def _profile_to_comprehensive_dict(profile):
+    meta = _json_loads_safe(getattr(profile, 'meta_json', ''), {})
     return {
         'id': profile.id,
         'name': profile.name,
@@ -3884,6 +3909,9 @@ def _profile_to_comprehensive_dict(profile):
         'birth_time': profile.birth_time,
         'birth_addr': profile.birth_addr,
         'profile_type': profile.profile_type or 'self',
+        'source': getattr(profile, 'source', '') or 'manual',
+        'source_record_id': getattr(profile, 'source_record_id', None),
+        'meta': meta,
     }
 
 
@@ -3905,6 +3933,7 @@ def resolve_comprehensive_profile(data):
         'birth_time': profile.get('birth_time') or profile.get('birthTime') or '',
         'birth_addr': profile.get('birth_addr') or profile.get('birthAddr') or '',
         'profile_type': profile.get('profile_type') or profile.get('profileType') or 'self',
+        'meta': profile.get('meta') or {},
     }
 
 
@@ -3939,13 +3968,19 @@ def _split_birth_time(birth_time):
 
 def build_bazi_context_from_profile(profile):
     from bazi_engine import paipan as bazi_paipan
+    meta = profile.get('meta') or {}
     result = bazi_paipan(
         profile.get('name') or '未命名',
         profile.get('gender') or '男',
         profile.get('birth_time') or '',
         profile.get('cal_type') or '公历',
         profile.get('birth_addr') or '',
-        use_solar_time=True,
+        is_dst=bool(meta.get('isDst', False)),
+        night_zi_mode=meta.get('nightZiMode', '夜子时不换日'),
+        sizi_pillars=meta.get('siziPillars'),
+        use_solar_time=bool(meta.get('useSolarTime', True)),
+        is_leap_month=bool(meta.get('isLeapMonth', False)),
+        longitude=meta.get('birthLng') if meta.get('birthLng') else None,
     )
     if not result.get('success'):
         return {'error': result.get('error') or '八字排盘失败'}
@@ -3967,6 +4002,7 @@ def build_bazi_context_from_profile(profile):
 def build_ziwei_context_from_profile(profile):
     if not HAS_ZIWEI:
         return {'error': '紫微斗数引擎不可用'}
+    meta = profile.get('meta') or {}
     year, month, day, hour, minute = _split_birth_time(profile.get('birth_time'))
     date_type = 'lunar' if profile.get('cal_type') == '农历' else 'solar'
     result = _zw_engine.calculate(
@@ -3977,6 +4013,7 @@ def build_ziwei_context_from_profile(profile):
         minute=minute,
         gender=profile.get('gender') or '男',
         date_type=date_type,
+        longitude=meta.get('birthLng') if meta.get('birthLng') else None,
     )
     palaces = []
     for palace in result.get('twelve_palaces') or []:
@@ -4116,7 +4153,56 @@ def build_meihua_context_from_question(question=''):
     }
 
 
-_TOOL_DISPLAY = {'bazi': '八字', 'ziwei': '紫微斗数', 'qimen': '奇门遁甲', 'liuyao': '六爻', 'meihua': '梅花易数'}
+def build_tarot_context_from_question(question=''):
+    if not _tarot_draw:
+        return {'error': '塔罗引擎不可用'}
+    q = str(question or '')
+    spread_name = 'three'
+    if any(k in q for k in ['是', '否', '能不能', '要不要']):
+        spread_name = 'single'
+    elif any(k in q for k in ['关系', '感情', '复合', '回来']):
+        spread_name = 'relationship'
+    result = _tarot_draw(spread_name=spread_name, enable_reversed=True)
+    return {
+        'question': q,
+        'spread_name': spread_name,
+        'spread': result.get('spread') or {},
+        'cards': result.get('cards') or [],
+    }
+
+
+def build_zeji_context_from_question(question=''):
+    q = str(question or '')
+    zeji_type = '择吉'
+    for item in ['婚嫁', '开业', '搬家', '出行', '签约', '动土', '入宅', '领证', '装修']:
+        if item in q:
+            zeji_type = '搬家' if item == '入宅' else item
+            break
+    start_dt = datetime.now()
+    days = []
+    for offset in range(0, 15):
+        cursor = start_dt + timedelta(days=offset)
+        h = _compute_huangli_local(cursor.year, cursor.month, cursor.day)
+        score, reasons, warnings = _score_zeji_day(zeji_type, h)
+        days.append({
+            'date': cursor.strftime('%Y-%m-%d'),
+            'lunar': h.get('lunarDate'),
+            'gan_zhi_day': h.get('ganZhiDay'),
+            'jian_chu': h.get('jianChu'),
+            'zhi_shen': h.get('zhiShen'),
+            'score': score,
+            'reasons': reasons[:3],
+            'warnings': warnings[:3],
+        })
+    return {
+        'question': q,
+        'zeji_type': zeji_type,
+        'range': '未来15日',
+        'best_days': sorted(days, key=lambda x: x['score'], reverse=True)[:5],
+    }
+
+
+_TOOL_DISPLAY = {'bazi': '八字', 'ziwei': '紫微斗数', 'qimen': '奇门遁甲', 'liuyao': '六爻', 'meihua': '梅花易数', 'tarot': '塔罗牌', 'zeji': '择吉工具'}
 
 
 def _build_one_tool(tool, profile, question):
@@ -4131,6 +4217,10 @@ def _build_one_tool(tool, profile, question):
             return tool, build_liuyao_context_from_question(question)
         elif tool == 'meihua':
             return tool, build_meihua_context_from_question(question)
+        elif tool == 'tarot':
+            return tool, build_tarot_context_from_question(question)
+        elif tool == 'zeji':
+            return tool, build_zeji_context_from_question(question)
     except Exception as exc:
         return tool, {'error': str(exc)}
     return tool, None
@@ -4189,6 +4279,36 @@ def save_comprehensive_conversation(data, question, profile, tool_models, paipan
     return conv
 
 
+def spend_comprehensive_quota(user_id, tool_models, cost, is_followup=False):
+    membership = get_or_create_membership(user_id)
+    today = datetime.utcnow().strftime('%Y-%m-%d')
+    if not is_followup and cost <= 2 and membership.daily_ai_light_used_at != today:
+        membership.daily_ai_light_used_at = today
+        db.session.add(PointLog(
+            user_id=user_id,
+            action='daily_ai_light',
+            points=0,
+            description='每日轻量 AI 体验额度',
+            dedupe_key=f'daily_ai_light:{user_id}:{today}',
+        ))
+        db.session.commit()
+        return {'ok': True, 'points': membership.points, 'used_credit': 'daily_light', 'used': 0}
+    if not is_followup:
+        if len(tool_models or []) > 1 and int(membership.ai_combo_credits or 0) > 0:
+            membership.ai_combo_credits = int(membership.ai_combo_credits or 0) - 1
+            db.session.add(PointLog(user_id=user_id, action='ai_combo_credit_use', points=0, description='首页多术数合参次数 -1'))
+            db.session.commit()
+            return {'ok': True, 'points': membership.points, 'used_credit': 'ai_combo_credits', 'used': 1}
+        if len(tool_models or []) == 1 and int(membership.ai_single_credits or 0) > 0:
+            membership.ai_single_credits = int(membership.ai_single_credits or 0) - 1
+            db.session.add(PointLog(user_id=user_id, action='ai_single_credit_use', points=0, description='首页单术数 AI 次数 -1'))
+            db.session.commit()
+            return {'ok': True, 'points': membership.points, 'used_credit': 'ai_single_credits', 'used': 1}
+    spend = use_points(user_id, 'comprehensive_ai', cost, '综合 AI ' + ('追问' if is_followup else '解读'))
+    spend['used_credit'] = 'points' if spend.get('ok') else ''
+    return spend
+
+
 @app.route('/api/comprehensive/options')
 @login_required
 def api_comprehensive_options():
@@ -4197,6 +4317,24 @@ def api_comprehensive_options():
         'llm_models': COMPREHENSIVE_LLM_MODELS,
         'tool_models': COMPREHENSIVE_TOOL_MODELS,
         'points': membership.points,
+        'ai_single_credits': int(membership.ai_single_credits or 0),
+        'ai_combo_credits': int(membership.ai_combo_credits or 0),
+        'daily_light_available': membership.daily_ai_light_used_at != datetime.utcnow().strftime('%Y-%m-%d'),
+    })
+
+
+@app.route('/api/comprehensive/recommend-tools', methods=['POST'])
+@login_required
+def api_comprehensive_recommend_tools():
+    data = request.get_json(silent=True) or {}
+    question = (data.get('question') or '').strip()
+    tools, reason = recommend_tool_models(question)
+    model_id = data.get('llm_model') or 'basic'
+    profile_count = max(1, int(data.get('profile_count') or 1))
+    return jsonify({
+        'tool_models': tools,
+        'reason': reason,
+        'estimated_cost': calculate_cost(model_id, tools, is_followup=False, profile_count=profile_count),
     })
 
 
@@ -4252,7 +4390,11 @@ def api_comprehensive_ask_stream():
     data = request.get_json(silent=True) or {}
     question = (data.get('question') or '').strip()
     history = data.get('history') or []
-    tool_models = normalize_tool_models(data.get('tool_models') or [])
+    auto_select_tools = bool(data.get('auto_select_tools', False))
+    if auto_select_tools or not data.get('tool_models'):
+        tool_models = normalize_tool_models(recommend_tool_models(question)[0])
+    else:
+        tool_models = normalize_tool_models(data.get('tool_models') or [])
     model_id = data.get('llm_model') or 'basic'
     is_followup = bool(history)
     requested_profiles = data.get('profiles') if isinstance(data.get('profiles'), list) else None
@@ -4314,8 +4456,8 @@ def api_comprehensive_ask_stream():
                     for pi, p in enumerate(profiles):
                         profile_results.append({'profile': p, 'paipan': task_results.get(pi, {})})
                     paipan_context = {'profiles': profile_results}
-                yield _event({'stage': 'paipan_done', 'message': '所有排盘完成，正在准备解读'})
-            spend = use_points(current_user.id, 'comprehensive_ai', cost, '综合 AI ' + ('追问' if is_followup else '解读'))
+                yield _event({'stage': 'paipan_done', 'message': '所有排盘完成，正在准备解读', 'paipan': paipan_context, 'tool_models': tool_models})
+            spend = spend_comprehensive_quota(current_user.id, tool_models, cost, is_followup=is_followup)
             if not spend.get('ok'):
                 yield _event({'error': '积分不足', 'current': spend.get('current'), 'required': cost})
                 return
@@ -4331,7 +4473,17 @@ def api_comprehensive_ask_stream():
                     yield _event({'content': chunk})
             conv = save_comprehensive_conversation(data, question, profile, tool_models, paipan_context, model_id, cost, history, full_text)
             points_left = get_or_create_membership(current_user.id).points
-            yield _event({'done': True, 'conversation_id': conv.id, 'points_left': points_left, 'paipan': paipan_context})
+            membership = get_or_create_membership(current_user.id)
+            yield _event({
+                'done': True,
+                'conversation_id': conv.id,
+                'points_left': points_left,
+                'ai_single_credits': int(membership.ai_single_credits or 0),
+                'ai_combo_credits': int(membership.ai_combo_credits or 0),
+                'used_credit': spend.get('used_credit'),
+                'tool_models': tool_models,
+                'paipan': paipan_context,
+            })
         except Exception as exc:
             logger.exception("综合 AI 生成失败")
             yield _event({'error': '综合解读失败：' + str(exc)[:120]})
@@ -6336,6 +6488,8 @@ def api_bazi_paipan():
                     params_json=json.dumps(params_data, ensure_ascii=False),
                 )
                 db.session.add(bazi_rec)
+                db.session.flush()
+                sync_bazi_record_to_profile(current_user.id, bazi_rec, params_data, result)
                 db.session.commit()
             else:
                 # 未登录 → 保存到 session（降级方案）
@@ -7859,6 +8013,7 @@ def api_profiles_list():
     sort = request.args.get('sort', 'last_used')  # last_used|created
 
     try:
+        ensure_bazi_records_synced_to_profiles(current_user.id)
         query = UserProfile.query.filter_by(user_id=current_user.id)
         if profile_type:
             query = query.filter_by(profile_type=profile_type)
@@ -7880,14 +8035,22 @@ def api_profiles_list():
         logger.warning(f"查询命盘列表失败（DB schema）: {_e}")
         profiles = []
 
-    return jsonify({'profiles': [{
+    return jsonify({'profiles': [_serialize_user_profile(p) for p in profiles]})
+
+
+def _serialize_user_profile(p):
+    meta = _json_loads_safe(getattr(p, 'meta_json', ''), {})
+    return {
         'id': p.id, 'name': p.name, 'gender': p.gender,
         'calType': p.cal_type, 'birthTime': p.birth_time,
         'birthAddr': p.birth_addr, 'isDefault': p.is_default,
         'profileType': p.profile_type or 'self',
+        'source': getattr(p, 'source', '') or meta.get('source') or 'manual',
+        'sourceRecordId': getattr(p, 'source_record_id', None),
+        'meta': meta,
         'lastUsedAt': p.last_used_at.isoformat() if p.last_used_at else None,
         'createdAt': p.created_at.isoformat() if p.created_at else None,
-    } for p in profiles]})
+    }
 
 @app.route('/api/profiles', methods=['POST'])
 @login_required
@@ -7913,6 +8076,8 @@ def api_profiles_create():
         birth_addr=(data.get('birthAddr') or '').strip(),
         is_default=data.get('isDefault', False),
         profile_type=profile_type,
+        source='manual',
+        meta_json=json.dumps(data.get('meta') or {}, ensure_ascii=False),
     )
     # 如果设为默认，取消其他默认
     if p.is_default:
@@ -7943,6 +8108,76 @@ def api_profiles_touch(pid):
     p.last_used_at = datetime.utcnow()
     db.session.commit()
     return jsonify({'ok': True})
+
+
+def sync_bazi_record_to_profile(user_id, record, params_data, paipan_result=None):
+    """八字排盘记录同步为通用命盘档案，供首页和其他术数共用。"""
+    if not user_id or not record:
+        return None
+    meta = dict(params_data or {})
+    meta.update({
+        'source': 'bazi_record',
+        'record_id': record.id,
+        'pillars': record.pillars,
+        'four_pillars': (paipan_result or {}).get('four_pillars') or {},
+        'birth_solar': (paipan_result or {}).get('birth_solar') or '',
+        'birth_lunar': (paipan_result or {}).get('birth_lunar') or '',
+        'pillar_source': (paipan_result or {}).get('pillar_source') or '',
+    })
+    profile = UserProfile.query.filter_by(
+        user_id=user_id,
+        source='bazi_record',
+        source_record_id=record.id,
+    ).first()
+    if not profile:
+        profile = UserProfile(
+            user_id=user_id,
+            source='bazi_record',
+            source_record_id=record.id,
+            profile_type='self',
+            created_at=datetime.utcnow(),
+        )
+        db.session.add(profile)
+    profile.name = record.name or '未命名'
+    profile.gender = record.gender or '男'
+    profile.cal_type = record.cal_type or '公历'
+    profile.birth_time = record.birth_time or ''
+    profile.birth_addr = record.birth_addr or ''
+    profile.meta_json = json.dumps(meta, ensure_ascii=False)
+    profile.last_used_at = datetime.utcnow()
+    return profile
+
+
+def ensure_bazi_records_synced_to_profiles(user_id, limit=80):
+    """补同步旧八字排盘记录，避免首页只显示新建后的命盘档案。"""
+    if not user_id:
+        return 0
+    existing_ids = {
+        row[0] for row in db.session.query(UserProfile.source_record_id)
+        .filter(
+            UserProfile.user_id == user_id,
+            UserProfile.source == 'bazi_record',
+            UserProfile.source_record_id.isnot(None),
+        )
+        .all()
+    }
+    query = BaziRecord.query.filter(
+        BaziRecord.user_id == user_id,
+        BaziRecord.record_type == 'paipan',
+        BaziRecord.birth_time != '',
+    )
+    if existing_ids:
+        query = query.filter(~BaziRecord.id.in_(existing_ids))
+    records = query.order_by(BaziRecord.created_at.desc()).limit(limit).all()
+    if not records:
+        return 0
+    count = 0
+    for record in records:
+        params_data = _json_loads_safe(record.params_json, {})
+        sync_bazi_record_to_profile(user_id, record, params_data, None)
+        count += 1
+    db.session.commit()
+    return count
 
 
 @app.route('/api/profiles/customer', methods=['GET'])
@@ -9863,21 +10098,42 @@ def confirm_recharge_order_once(order_id, extra_update=None):
             return {'ok': False, 'error': '订单状态错误', 'status': order.status}
 
         order = db.session.get(RechargeOrder, order_id)
-        new_total = add_points(
-            order.user_id,
-            'recharge',
-            order.points,
-            f'充值到账: +{order.points}分 (¥{order.amount})',
-            dedupe_key=f'recharge_order:{order.id}',
-            commit=False,
-        )
+        pkg = next((p for p in RECHARGE_PACKAGES if p['id'] == order.package_id), None)
+        if pkg and pkg.get('package_type') == 'ai':
+            membership = get_or_create_membership(order.user_id)
+            single = int(pkg.get('ai_single_credits') or 0)
+            combo = int(pkg.get('ai_combo_credits') or 0)
+            membership.ai_single_credits = int(membership.ai_single_credits or 0) + single
+            membership.ai_combo_credits = int(membership.ai_combo_credits or 0) + combo
+            db.session.add(PointLog(
+                user_id=order.user_id,
+                action='ai_credit_recharge',
+                points=0,
+                description=f"{order.package_name}到账: 单术数+{single}次 合参+{combo}次 (¥{order.amount})",
+                dedupe_key=f'recharge_order:{order.id}',
+            ))
+            new_total = membership.points
+            added = single or combo
+            credit_type = 'ai_single_credits' if single else 'ai_combo_credits'
+        else:
+            new_total = add_points(
+                order.user_id,
+                'recharge',
+                order.points,
+                f'充值到账: +{order.points}分 (¥{order.amount})',
+                dedupe_key=f'recharge_order:{order.id}',
+                commit=False,
+            )
+            added = order.points
+            credit_type = 'points'
         db.session.commit()
         return {
             'ok': True,
             'order_id': order.id,
             'user_id': order.user_id,
             'points': new_total,
-            'added': order.points,
+            'added': added,
+            'credit_type': credit_type,
         }
     except IntegrityError:
         db.session.rollback()
@@ -9981,11 +10237,14 @@ def api_points_use():
 # ═══════════════════════════════════════════════════════════════
 
 RECHARGE_PACKAGES = [
-    {'id': 'test-cent', 'name': '测试包',  'points': 1,    'price': 0.01},
-    {'id': 'starter',  'name': '体验包',  'points': 60,   'price': 9.9},
-    {'id': 'standard', 'name': '标准包',  'points': 240,  'price': 29.9},
-    {'id': 'premium',  'name': '畅享包',  'points': 650,  'price': 68},
-    {'id': 'vip',      'name': '尊享包',  'points': 2200, 'price': 198},
+    {'id': 'test-cent', 'name': '测试包',  'points': 1,    'price': 0.01, 'package_type': 'points'},
+    {'id': 'starter',  'name': '体验包',  'points': 60,   'price': 9.9, 'package_type': 'points'},
+    {'id': 'standard', 'name': '标准包',  'points': 240,  'price': 29.9, 'package_type': 'points'},
+    {'id': 'premium',  'name': '畅享包',  'points': 650,  'price': 68, 'package_type': 'points'},
+    {'id': 'vip',      'name': '尊享包',  'points': 2200, 'price': 198, 'package_type': 'points'},
+    {'id': 'ai-starter', 'name': '入门 AI 包', 'points': 0, 'price': 9.9, 'package_type': 'ai', 'ai_single_credits': 10, 'ai_combo_credits': 0, 'description': '10 次单术数 AI'},
+    {'id': 'ai-standard', 'name': '标准 AI 包', 'points': 0, 'price': 19.9, 'package_type': 'ai', 'ai_single_credits': 25, 'ai_combo_credits': 0, 'description': '25 次单术数 AI'},
+    {'id': 'ai-combo', 'name': '深度合参包', 'points': 0, 'price': 68, 'package_type': 'ai', 'ai_single_credits': 0, 'ai_combo_credits': 20, 'description': '20 次多术数合参'},
 ]
 
 @app.route('/api/recharge/packages', methods=['GET'])
@@ -10025,6 +10284,9 @@ def api_recharge_create_order():
         'ok': True,
         'order_id': order.id,
         'points_amount': pkg['points'],
+        'package_type': pkg.get('package_type', 'points'),
+        'ai_single_credits': pkg.get('ai_single_credits', 0),
+        'ai_combo_credits': pkg.get('ai_combo_credits', 0),
         'price': pkg['price'],
         'status': 'pending',
     })
@@ -10260,6 +10522,7 @@ def api_recharge_verify_payment():
         'order_id': result.get('order_id'),
         'points': result.get('points'),
         'added': result.get('added'),
+        'credit_type': result.get('credit_type'),
         'status': 'paid',
         'auto_confirmed': True,
     })

@@ -18,7 +18,7 @@
         <view class="tool-container">
           <view class="tool-tabs">
             <view class="tool-tab" id="lyTabFree" @tap="switchTab('free')">六爻排盘<text class="tab-badge free">免费</text></view>
-            <view class="tool-tab" id="lyTabAi" @tap="switchTab('ai')">时安六爻系统<text class="tab-badge">PRO</text></view>
+            <view v-if="false" class="tool-tab" id="lyTabAi" @tap="switchTab('ai')">时安六爻系统<text class="tab-badge">PRO</text></view>
           </view>
 
           <!-- 免费排盘 -->
@@ -62,12 +62,12 @@
               <view class="submit-btn" @tap="liuyaoFreePaipan">免费排盘</view>
               <view class="btn btn-ghost" @tap="lfReset">清空</view>
             </view>
-            <text class="form-hint" style="text-align:center;display:block;margin-top:12px;">本地精准排盘，纳甲装卦、世应六亲全分析。如需深度解读请使用时安六爻系统。</text>
+            <text class="form-hint" style="text-align:center;display:block;margin-top:12px;">本地精准排盘，纳甲装卦、世应六亲全分析。深度解读请回首页选择六爻或自动选术数。</text>
             <view class="ly-result" id="lyFreeResult"></view>
           </view>
 
           <!-- AI系统 -->
-          <view class="tool-tab-content" id="lyTabAiContent">
+          <view v-if="false" class="tool-tab-content" id="lyTabAiContent">
             <view class="form-group">
               <text class="form-label">问事类型</text>
               <picker :range="laiTypeLabels" :value="laiTypeIdx" @change="onLaiTypeChange($event)">

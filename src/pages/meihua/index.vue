@@ -8,7 +8,7 @@
         <view class="tool-container">
           <view class="tool-tabs">
             <view class="tool-tab" id="mhTabFree" :class="{ active: activeTab === 'free' }" @tap.stop="switchMhTab('free')">🌸 梅花排盘<text class="tab-badge free">免费</text></view>
-            <view class="tool-tab" id="mhTabAi" :class="{ active: activeTab === 'ai' }" @tap.stop="switchMhTab('ai')">🔮 时安梅花系统<text class="tab-badge">PRO</text></view>
+            <view v-if="false" class="tool-tab" id="mhTabAi" :class="{ active: activeTab === 'ai' }" @tap.stop="switchMhTab('ai')">🔮 时安梅花系统<text class="tab-badge">PRO</text></view>
           </view>
 
           <!-- 免费排盘 -->
@@ -36,12 +36,12 @@
             <view class="btn-row">
               <view class="submit-btn" @tap="meihuaFreePaipan">🌸 免费排盘</view>
             </view>
-            <text class="form-hint" style="text-align:center;display:block;margin-top:12px;">本地精准排盘，体用生克全分析。如需深度解读请使用时安梅花系统。</text>
+            <text class="form-hint" style="text-align:center;display:block;margin-top:12px;">本地精准排盘，体用生克全分析。深度解读请回首页选择梅花易数或自动选术数。</text>
             <view class="mh-result" id="mhFreeResult"></view>
           </view>
 
           <!-- AI系统 -->
-          <view class="tool-tab-content" id="mhTabAiContent" style="display:none;">
+          <view v-if="false" class="tool-tab-content" id="mhTabAiContent" style="display:none;">
             <view class="method-switch" style="margin-bottom:16px;">
               <view class="method-switch-btn" id="mhAiTimeBtn" :class="{ active: maiMethod === 'time' }" @tap.stop="switchMaiMethod('time')">⏰ 时间起卦</view>
               <view class="method-switch-btn" id="mhAiNumBtn" :class="{ active: maiMethod === 'number' }" @tap.stop="switchMaiMethod('number')">🔢 数字起卦</view>

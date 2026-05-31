@@ -21,7 +21,7 @@
             <view id="baziTabFree" class="tool-tab" :class="{ active: activeTab === 'free' }" @tap="switchBaziTab('free')">
               八字排盘<text class="tab-badge free">免费</text>
             </view>
-            <view id="baziTabAi" class="tool-tab" :class="{ active: activeTab === 'ai' }" @tap="switchBaziTab('ai')">
+            <view v-if="false" id="baziTabAi" class="tool-tab" :class="{ active: activeTab === 'ai' }" @tap="switchBaziTab('ai')">
               时安八字系统<text class="tab-badge">PRO</text>
             </view>
             <view id="baziTabRecords" class="tool-tab" :class="{ active: activeTab === 'records' }" @tap="switchBaziTab('records')">
@@ -185,13 +185,13 @@
               </view>
 
               <view class="wz-submit-btn" @tap="baziFreePaipan">📜 免费排盘</view>
-              <text class="wz-form-hint" style="text-align:center;display:block;">基础命盘结果，不含AI解读。如需深度解读请使用时安八字系统。</text>
+              <text class="wz-form-hint" style="text-align:center;display:block;">基础命盘结果，不含 AI 解读。深度解读请回首页选择八字或自动选术数。</text>
             </view>
           </view>
 
 
           <!-- ══ 八字AI系统（共用免费排盘表单）══ -->
-          <view class="tool-tab-content" id="baziTabAiContent" v-show="activeTab === 'ai'">
+          <view v-if="false" class="tool-tab-content" id="baziTabAiContent" v-show="activeTab === 'ai'">
             <view class="wz-form">
               <view class="wz-form-row">
                 <view class="wz-form-item wz-flex-3">

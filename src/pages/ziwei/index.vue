@@ -15,7 +15,7 @@
           <!-- Tab 切换 -->
           <view class="tool-tabs">
             <view class="tool-tab" :class="{ active: activeTab === 'pan' }" @click="switchTab('pan')">⭐ 排盘<text class="tab-badge free">免费</text></view>
-            <view class="tool-tab" :class="{ active: activeTab === 'ai' }" @click="switchTab('ai')">🤖 AI解读</view>
+            <view v-if="false" class="tool-tab" :class="{ active: activeTab === 'ai' }" @click="switchTab('ai')">🤖 AI解读</view>
             <view class="tool-tab" :class="{ active: activeTab === 'horoscope' }" @click="switchTab('horoscope')">📅 推运<text class="tab-badge">PRO</text></view>
           </view>
           <!-- 排盘面板 -->
@@ -73,11 +73,11 @@
               </view>
             </view>
             <view class="submit-btn" @click="ziweiFreePan">⭐ 免费排盘</view>
-            <text class="form-hint" style="text-align:center;display:block;margin-top:12px;">基于iztro-py精确排盘，展示十二宫、主星辅星与三合命盘。</text>
+            <text class="form-hint" style="text-align:center;display:block;margin-top:12px;">基于 iztro-py 精确排盘，展示十二宫、主星辅星与三合命盘。深度解读请回首页选择紫微斗数或自动选术数。</text>
             <view class="zw-result" v-if="zwPanResult" v-html="zwPanResult"></view>
           </view>
           <!-- AI解读面板 -->
-          <view class="tool-tab-content" v-show="activeTab === 'ai'">
+          <view v-if="false" class="tool-tab-content" v-show="activeTab === 'ai'">
             <view class="zw-form-grid">
               <view class="form-group zw-birth-time-group">
                 <text class="form-label">出生时间</text>

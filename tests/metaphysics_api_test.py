@@ -1,8 +1,11 @@
 import importlib
+import json
 import os
 import sys
 
 import pytest
+from types import SimpleNamespace
+from werkzeug.security import generate_password_hash
 
 
 @pytest.fixture()
@@ -27,6 +30,23 @@ def app_module(tmp_path, monkeypatch):
 @pytest.fixture()
 def client(app_module):
     return app_module.app.test_client()
+
+
+@pytest.fixture()
+def user_factory(app_module):
+    def create_user(username="member", is_admin=False):
+        with app_module.app.app_context():
+            user = app_module.User(
+                username=username,
+                password_hash=generate_password_hash("secret123", method="pbkdf2:sha256"),
+                has_password=True,
+                is_admin=is_admin,
+            )
+            app_module.db.session.add(user)
+            app_module.db.session.commit()
+            return SimpleNamespace(id=user.id, username=user.username, is_admin=user.is_admin)
+
+    return create_user
 
 
 def _post_json(client, path, payload):
@@ -209,3 +229,93 @@ def test_tarot_huangli_zeji_and_calendar_fixed_samples(client):
     assert zeji["success"] is True
     assert [item["date"] for item in zeji["bestDays"]] == ["2024-02-12", "2024-02-10", "2024-02-11"]
     assert "民俗文化参考" in zeji["result"]
+
+
+def test_comprehensive_recommend_tools_rules(app_module, user_factory):
+    user = user_factory("recommend-user")
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+      sess["_user_id"] = str(user.id)
+      sess["_fresh"] = True
+
+    samples = [
+        ("我要不要跳槽", ["bazi", "qimen"]),
+        ("这个合作靠谱吗", ["qimen", "liuyao"]),
+        ("他还会不会回来", ["liuyao", "meihua", "tarot"]),
+        ("什么时候结婚", ["bazi", "ziwei"]),
+        ("哪天开业好", ["zeji"]),
+        ("最近整体怎么样", ["bazi", "qimen"]),
+    ]
+    for question, expected in samples:
+        response = client.post("/api/comprehensive/recommend-tools", json={"question": question})
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["tool_models"] == expected
+        assert data["estimated_cost"] > 0
+
+
+def test_bazi_paipan_syncs_logged_in_profile_with_extended_meta(app_module, user_factory):
+    user = user_factory("profile-sync-user")
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+      sess["_user_id"] = str(user.id)
+      sess["_fresh"] = True
+
+    response = client.post(
+        "/api/bazi/paipan",
+        json={
+            "name": "档案样例",
+            "gender": "女",
+            "calType": "公历",
+            "birthTime": "199001271030",
+            "birthAddr": "北京",
+            "birthLng": 116.4074,
+            "birthLat": 39.9042,
+            "useSolarTime": True,
+            "nightZiMode": "夜子时不换日",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["success"] is True
+    profiles_response = client.get("/api/profiles?sort=last_used")
+    assert profiles_response.status_code == 200
+    profiles = profiles_response.get_json()["profiles"]
+    synced = next(p for p in profiles if p["name"] == "档案样例")
+    assert synced["source"] == "bazi_record"
+    assert synced["meta"]["birthLng"] == 116.4074
+    assert synced["meta"]["birthLat"] == 39.9042
+    assert synced["meta"]["useSolarTime"] is True
+    assert "four_pillars" in synced["meta"]
+
+
+def test_profiles_list_backfills_existing_bazi_records(app_module, user_factory):
+    user = user_factory("profile-backfill-user")
+    with app_module.app.app_context():
+        record = app_module.BaziRecord(
+            user_id=user.id,
+            name="旧八字记录",
+            gender="男",
+            cal_type="公历",
+            birth_time="199001271030",
+            birth_addr="北京",
+            pillars="己巳丁丑壬辰乙巳",
+            record_type="paipan",
+            params_json=json.dumps({"birthLng": 116.4074, "useSolarTime": True}, ensure_ascii=False),
+        )
+        app_module.db.session.add(record)
+        app_module.db.session.commit()
+        record_id = record.id
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+      sess["_user_id"] = str(user.id)
+      sess["_fresh"] = True
+
+    response = client.get("/api/profiles?sort=last_used")
+    assert response.status_code == 200
+    profiles = response.get_json()["profiles"]
+    synced = next(p for p in profiles if p["name"] == "旧八字记录")
+    assert synced["source"] == "bazi_record"
+    assert synced["sourceRecordId"] == record_id
+    assert synced["meta"]["birthLng"] == 116.4074

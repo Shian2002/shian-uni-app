@@ -17,11 +17,13 @@ COMPREHENSIVE_LLM_MODELS = [
 
 
 COMPREHENSIVE_TOOL_MODELS = [
-    {"id": "bazi", "name": "八字", "cost": 2},
-    {"id": "ziwei", "name": "紫微斗数", "cost": 3},
-    {"id": "qimen", "name": "奇门遁甲", "cost": 3},
-    {"id": "liuyao", "name": "六爻", "cost": 2},
-    {"id": "meihua", "name": "梅花易数", "cost": 2},
+    {"id": "bazi", "name": "八字", "cost": 2, "needs_profile": True},
+    {"id": "ziwei", "name": "紫微斗数", "cost": 3, "needs_profile": True},
+    {"id": "qimen", "name": "奇门遁甲", "cost": 3, "needs_profile": False},
+    {"id": "liuyao", "name": "六爻", "cost": 2, "needs_profile": False},
+    {"id": "meihua", "name": "梅花易数", "cost": 2, "needs_profile": False},
+    {"id": "tarot", "name": "塔罗牌", "cost": 2, "needs_profile": False},
+    {"id": "zeji", "name": "择吉工具", "cost": 2, "needs_profile": False},
 ]
 
 
@@ -39,6 +41,35 @@ def normalize_tool_models(tool_models):
         if item in allowed and item not in result:
             result.append(item)
     return result
+
+
+def recommend_tool_models(question):
+    text = str(question or "").strip()
+    if not text:
+        return ["bazi", "qimen"], "默认以八字看底盘、奇门看当下。"
+    lower = text.lower()
+    zeji_kw = ["开业", "搬家", "入宅", "签约", "婚嫁", "结婚日", "领证", "出行", "动土", "装修", "择日", "哪天", "吉日"]
+    marriage_kw = ["什么时候结婚", "何时结婚", "婚姻", "正缘", "姻缘", "对象", "伴侣"]
+    return_kw = ["回来", "复合", "还会不会", "联系我", "想我", "感情状态", "心理", "暧昧", "分手"]
+    concrete_kw = ["成败", "应期", "能不能", "是否", "靠谱吗", "合作", "官司", "失物", "找回", "结果", "面试"]
+    decision_kw = ["跳槽", "换工作", "投资", "项目", "决策", "方向", "选择", "现在", "当下", "要不要"]
+    long_kw = ["命局", "事业", "财运", "格局", "长期", "人生", "未来几年", "大运", "流年"]
+
+    if any(k in text for k in zeji_kw):
+        return ["zeji"], "问题重点在择日择时，优先使用择吉。"
+    if any(k in text for k in marriage_kw):
+        return ["bazi", "ziwei"], "婚恋时间和长期关系适合八字结合紫微。"
+    if any(k in text for k in return_kw):
+        return ["liuyao", "meihua", "tarot"], "具体情感应事以六爻、梅花为主，可补塔罗看状态。"
+    if any(k in text for k in concrete_kw):
+        if "合作" in text or "靠谱吗" in text:
+            return ["qimen", "liuyao"], "合作决策适合奇门看局势、六爻看成败。"
+        return ["liuyao", "meihua"], "一事一问和成败应期适合六爻、梅花。"
+    if any(k in text for k in decision_kw):
+        return ["bazi", "qimen"], "个人选择以八字看底层趋势、奇门看当下局势。"
+    if any(k in text for k in long_kw) or any(k in lower for k in ["career", "life"]):
+        return ["bazi", "ziwei"], "长期命局和阶段趋势适合八字结合紫微。"
+    return ["bazi", "qimen"], "无法明确归类时，默认八字看底盘、奇门看当下。"
 
 
 def calculate_cost(model_id, tool_models, is_followup=False, profile_count=1):

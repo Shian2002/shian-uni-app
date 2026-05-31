@@ -68,6 +68,61 @@
                 <view class="home-ai-progress-track" v-if="msg.stage">
                   <view class="home-ai-progress-bar"></view>
                 </view>
+                <view class="home-tool-cards" v-if="msg.cards && msg.cards.length">
+                  <view
+                    class="home-tool-card"
+                    v-for="card in msg.cards"
+                    :key="card.id"
+                    :class="{ collapsed: card.collapsed }"
+                  >
+                    <view class="home-tool-card-head" @tap="toggleResultCard(idx, card.id)">
+                      <view>
+                        <text class="home-tool-card-title">{{ card.name }}</text>
+                        <text class="home-tool-card-sub">{{ card.summary }}</text>
+                      </view>
+                      <text class="home-tool-card-toggle">{{ card.collapsed ? '展开' : '收起' }}</text>
+                    </view>
+                    <view class="home-tool-card-body" v-if="!card.collapsed">
+                      <view class="mini-grid" v-if="card.type === 'qimen'">
+                        <view class="mini-palace" v-for="p in card.items" :key="p.name">
+                          <text class="mini-palace-name">{{ p.name }}</text>
+                          <text>{{ p.tian_gan }} {{ p.men }}</text>
+                          <text>{{ p.xing }} {{ p.shen }}</text>
+                        </view>
+                      </view>
+                      <view class="mini-list" v-else-if="card.type === 'liuyao'">
+                        <view class="mini-line" v-for="y in card.items" :key="y.position">
+                          <text>{{ y.liushen || '' }} {{ y.liuqin || '' }}</text>
+                          <text>{{ y.name || y.yao_type }} {{ y.is_shi ? '世' : '' }}{{ y.is_ying ? '应' : '' }}</text>
+                        </view>
+                      </view>
+                      <view class="mini-gua-row" v-else-if="card.type === 'meihua'">
+                        <view v-for="g in card.items" :key="g.label" class="mini-gua">
+                          <text class="mini-gua-label">{{ g.label }}</text>
+                          <text class="mini-gua-name">{{ g.name }}</text>
+                        </view>
+                      </view>
+                      <view class="mini-tarot-row" v-else-if="card.type === 'tarot'">
+                        <view class="mini-tarot" v-for="c in card.items" :key="c.position_name + c.name">
+                          <text class="mini-tarot-pos">{{ c.position_name }}</text>
+                          <text class="mini-tarot-name">{{ c.name }} {{ c.orientation }}</text>
+                        </view>
+                      </view>
+                      <view class="mini-list" v-else-if="card.type === 'zeji'">
+                        <view class="mini-line" v-for="d in card.items" :key="d.date">
+                          <text>{{ d.date }} · {{ d.score }}分</text>
+                          <text>{{ d.jian_chu }} {{ d.zhi_shen }}</text>
+                        </view>
+                      </view>
+                      <view class="mini-list" v-else>
+                        <view class="mini-line" v-for="item in card.items" :key="item.label">
+                          <text>{{ item.label }}</text>
+                          <text>{{ item.value }}</text>
+                        </view>
+                      </view>
+                    </view>
+                  </view>
+                </view>
                 <text class="home-ai-content" v-if="msg.content">{{ msg.content }}</text>
               </view>
             </view>
@@ -89,7 +144,7 @@
                   </view>
                   <view class="tool-picker" @tap="openToolPicker">
                     <text class="tool-picker-icon">☷</text>
-                    <text>{{ selectedToolSummary }}</text>
+                    <text>{{ autoSelectTools ? '自动选术数' : selectedToolSummary }}</text>
                   </view>
                 </view>
                 <view class="home-ai-toolbar-right">
@@ -156,6 +211,13 @@
           <text class="profile-sheet-close" @tap="toolSheetOpen = false">×</text>
         </view>
         <view class="tool-options">
+          <view class="tool-option auto-option" :class="{ active: autoSelectTools }" @tap="toggleAutoSelectTools">
+            <view>
+              <text class="tool-option-name">自动选择术数</text>
+              <text class="tool-option-meta">按问题自动匹配八字、奇门、六爻、梅花、紫微、塔罗、择吉</text>
+            </view>
+            <text class="tool-option-check">{{ autoSelectTools ? '✓' : '' }}</text>
+          </view>
           <view
             class="tool-option"
             v-for="tool in toolModels"
@@ -237,6 +299,7 @@ const profileTab = ref('全部')
 const profileTabs = ['全部', '客户', '用户']
 const profileSelectionStorageKey = 'xc_home_selected_profile_keys_v2'
 const toolSelectionStorageKey = 'xc_home_selected_tool_models_v2'
+const autoToolStorageKey = 'xc_home_auto_tool_select_v1'
 const llmModels = ref([{ id: 'basic', name: '基础模型', strength: '基础', cost_base: 2, cost_multiplier: 1, followup_cost: 1 }])
 const toolModels = ref([
   { id: 'bazi', name: '八字', cost: 2 },
@@ -247,7 +310,11 @@ const toolModels = ref([
 ])
 const llmModelIdx = ref(0)
 const selectedToolModels = ref(loadSavedToolSelection())
+const autoSelectTools = ref(readStorageJson(autoToolStorageKey, true) !== false)
 const currentPoints = ref(0)
+const aiSingleCredits = ref(0)
+const aiComboCredits = ref(0)
+const dailyLightAvailable = ref(false)
 const comprehensiveMessages = ref([])
 const currentComprehensiveConvId = ref(null)
 const currentPaipanContext = ref({})
@@ -262,18 +329,22 @@ const homeAiContextSummary = computed(() => {
   const profileText = selectedProfileName.value || '未选择命盘'
   const toolText = selectedToolSummary.value === '选择术数' ? '未选择术数' : selectedToolSummary.value
   const modelText = selectedLlmModel.value.name || '基础模型'
-  const costText = estimatedCost.value ? estimatedCost.value + ' 积分' : '续问'
+  const costText = estimatedCost.value ? estimatedCost.value + ' 积分' : '次数包/体验额度'
   return profileText + ' · ' + toolText + ' · ' + modelText + ' · ' + costText
 })
 const estimatedCost = computed(() => {
   if (comprehensiveMessages.value.length > 0) return selectedLlmModel.value.followup_cost || 0
   const selected = selectedToolModels.value || []
+  if (selected.length > 1 && aiComboCredits.value > 0) return 0
+  if (selected.length === 1 && aiSingleCredits.value > 0) return 0
   const profileCount = Math.max(1, selectedProfiles.value.length)
   const toolsCost = selected.reduce((sum, id) => {
     const tool = toolModels.value.find(t => t.id === id)
     return sum + (tool ? Number(tool.cost || 0) : 0)
   }, 0)
-  return Math.round((selectedLlmModel.value.cost_base || 0) + toolsCost * profileCount * (selectedLlmModel.value.cost_multiplier || 1))
+  const cost = Math.round((selectedLlmModel.value.cost_base || 0) + toolsCost * profileCount * (selectedLlmModel.value.cost_multiplier || 1))
+  if (dailyLightAvailable.value && cost <= 2) return 0
+  return cost
 })
 const selectedToolSummary = computed(() => {
   const names = toolModels.value.filter(t => selectedToolModels.value.includes(t.id)).map(t => t.name)
@@ -413,12 +484,19 @@ function onLlmModelChange(e) {
 }
 
 function toggleToolModel(id) {
+  autoSelectTools.value = false
+  writeStorageJson(autoToolStorageKey, false)
   const list = selectedToolModels.value.slice()
   const idx = list.indexOf(id)
   if (idx >= 0) list.splice(idx, 1)
   else list.push(id)
   selectedToolModels.value = list
   saveSelectedToolModels()
+}
+
+function toggleAutoSelectTools() {
+  autoSelectTools.value = !autoSelectTools.value
+  writeStorageJson(autoToolStorageKey, autoSelectTools.value)
 }
 
 async function loadComprehensiveOptions() {
@@ -429,39 +507,21 @@ async function loadComprehensiveOptions() {
     if (Array.isArray(data.llm_models) && data.llm_models.length) llmModels.value = data.llm_models
     if (Array.isArray(data.tool_models) && data.tool_models.length) toolModels.value = data.tool_models
     if (typeof data.points === 'number') currentPoints.value = data.points
+    if (typeof data.ai_single_credits === 'number') aiSingleCredits.value = data.ai_single_credits
+    if (typeof data.ai_combo_credits === 'number') aiComboCredits.value = data.ai_combo_credits
+    dailyLightAvailable.value = !!data.daily_light_available
   } catch (_) {}
 }
 
 async function loadProfiles() {
   if (!isLoggedIn.value) return
   try {
-    const results = await Promise.all([
-      uni.request({ url: '/api/profiles?sort=last_used' }).catch(function() { return { data: {} } }),
-      isLoggedIn.value ? uni.request({ url: '/api/bazi/history' }).catch(function() { return { data: {} } }) : { data: {} },
-    ])
-    const profileData = results[0].data || {}
-    const baziData = results[1].data || {}
+    const res = await uni.request({ url: '/api/profiles?sort=last_used' })
+    const profileData = res.data || {}
     const profileList = (profileData.profiles || []).map(function(p) {
       return Object.assign({ source: 'profile' }, p)
     })
-    const baziList = (baziData.history || [])
-      .filter(function(r) { return r && r.type !== 'hepan' && r.birth_time })
-      .map(function(r) {
-        return {
-          id: 'bazi-' + r.id,
-          source: 'bazi_record',
-          recordId: r.id,
-          name: r.name || '八字记录',
-          gender: r.gender || '男',
-          calType: r.cal_type || '公历',
-          birthTime: r.birth_time || '',
-          birthAddr: r.birth_addr || '',
-          profileType: 'bazi_record',
-          createdAt: r.created_at,
-          pillars: r.pillars || '',
-        }
-      })
-    profiles.value = profileList.concat(baziList)
+    profiles.value = profileList
     if (!selectedProfiles.value.length && profiles.value.length) {
       const savedKeys = readStorageJson(profileSelectionStorageKey, [])
       if (Array.isArray(savedKeys) && savedKeys.length) {
@@ -483,7 +543,64 @@ function comprehensiveProfilePayload(p) {
     profile_type: p.profile_type || p.profileType || 'self',
     source: p.source || 'profile',
     record_id: p.recordId || null,
+    meta: p.meta || {},
   }
+}
+
+function getToolName(id) {
+  const tool = toolModels.value.find(t => t.id === id)
+  return tool ? tool.name : id
+}
+
+function buildResultCards(paipan, tools) {
+  const ctx = paipan && paipan.profiles ? ((paipan.profiles[0] && paipan.profiles[0].paipan) || {}) : (paipan || {})
+  return (tools || Object.keys(ctx || {})).map(function(id) {
+    const data = ctx[id] || {}
+    if (id === 'qimen') {
+      return { id, type: id, name: getToolName(id), summary: (data.ju || '') + ' · ' + (data.solar_date || ''), collapsed: false, items: (data.palaces || []).slice(0, 9) }
+    }
+    if (id === 'liuyao') {
+      return { id, type: id, name: getToolName(id), summary: (data.ben_gua || '') + ' → ' + (data.bian_gua || ''), collapsed: false, items: data.details || [] }
+    }
+    if (id === 'meihua') {
+      return { id, type: id, name: getToolName(id), summary: '动爻 ' + (data.dong_yao || '') + ' · ' + ((data.ti_yong && data.ti_yong.relation) || ''), collapsed: false, items: [
+        { label: '本卦', name: data.ben_gua && data.ben_gua.name },
+        { label: '互卦', name: data.hu_gua && data.hu_gua.name },
+        { label: '变卦', name: data.bian_gua && data.bian_gua.name },
+      ] }
+    }
+    if (id === 'tarot') {
+      return { id, type: id, name: getToolName(id), summary: (data.spread && data.spread.name) || data.spread_name || '塔罗牌阵', collapsed: false, items: data.cards || [] }
+    }
+    if (id === 'zeji') {
+      return { id, type: id, name: getToolName(id), summary: (data.zeji_type || '择吉') + ' · ' + (data.range || ''), collapsed: false, items: data.best_days || [] }
+    }
+    if (id === 'ziwei') {
+      const info = data.basic_info || {}
+      return { id, type: id, name: getToolName(id), summary: (info.five_elements_class || info.wuxingju || '') + ' · ' + (info.soul_star || ''), collapsed: false, items: [
+        { label: '命主', value: info.soul_star || '' },
+        { label: '身主', value: info.body_star || '' },
+        { label: '宫位', value: (data.twelve_palaces || []).length + ' 宫' },
+      ] }
+    }
+    const fp = data.four_pillars || {}
+    return { id, type: id, name: getToolName(id), summary: (data.day_master || '') + '日主 · ' + (data.strength || ''), collapsed: false, items: [
+      { label: '年柱', value: fp.year && (fp.year.gan_zhi || (fp.year.gan || '') + (fp.year.zhi || '')) },
+      { label: '月柱', value: fp.month && (fp.month.gan_zhi || (fp.month.gan || '') + (fp.month.zhi || '')) },
+      { label: '日柱', value: fp.day && (fp.day.gan_zhi || (fp.day.gan || '') + (fp.day.zhi || '')) },
+      { label: '时柱', value: fp.hour && (fp.hour.gan_zhi || (fp.hour.gan || '') + (fp.hour.zhi || '')) },
+    ] }
+  }).filter(function(card) { return card && !((ctx[card.id] || {}).error) })
+}
+
+function toggleResultCard(messageIndex, cardId) {
+  const msg = comprehensiveMessages.value[messageIndex]
+  if (!msg || !msg.cards) return
+  comprehensiveMessages.value[messageIndex] = Object.assign({}, msg, {
+    cards: msg.cards.map(function(card) {
+      return card.id === cardId ? Object.assign({}, card, { collapsed: !card.collapsed }) : card
+    })
+  })
 }
 
 function normalizeMessageHistory() {
@@ -593,7 +710,18 @@ async function startComprehensiveAsk() {
   const question = comprehensiveQuestion.value.trim()
   if (!question) return uni.showToast({ title: '请输入问题', icon: 'none' })
   if (!selectedProfiles.value.length) return uni.showToast({ title: '请先选择命盘', icon: 'none' })
-  if (!selectedToolModels.value.length) return uni.showToast({ title: '请至少选择一个术数模型', icon: 'none' })
+  if (!autoSelectTools.value && !selectedToolModels.value.length) return uni.showToast({ title: '请至少选择一个术数模型', icon: 'none' })
+  if (autoSelectTools.value && !comprehensiveMessages.value.length) {
+    try {
+      const rec = await uni.request({
+        url: '/api/comprehensive/recommend-tools',
+        method: 'POST',
+        data: { question, llm_model: selectedLlmModel.value.id || 'basic', profile_count: Math.max(1, selectedProfiles.value.length) }
+      })
+      const d = rec.data || {}
+      if (Array.isArray(d.tool_models) && d.tool_models.length) selectedToolModels.value = d.tool_models
+    } catch (_) {}
+  }
   if (currentPoints.value < estimatedCost.value) return uni.showToast({ title: '积分不足', icon: 'none' })
 
   const history = normalizeMessageHistory()
@@ -613,6 +741,7 @@ async function startComprehensiveAsk() {
       profiles: selectedProfiles.value.map(comprehensiveProfilePayload),
       llm_model: selectedLlmModel.value.id || 'basic',
       tool_models: selectedToolModels.value,
+      auto_select_tools: autoSelectTools.value && !history.length,
       history,
       paipan: currentPaipanContext.value,
       conversation_id: currentComprehensiveConvId.value,
@@ -650,8 +779,15 @@ async function startComprehensiveAsk() {
           stopComprehensiveProgressTimer()
         }
         if (data.conversation_id) currentComprehensiveConvId.value = data.conversation_id
-        if (data.paipan) currentPaipanContext.value = data.paipan
+        if (Array.isArray(data.tool_models) && data.tool_models.length) selectedToolModels.value = data.tool_models
+        if (data.paipan) {
+          currentPaipanContext.value = data.paipan
+          updateComprehensiveAssistant(aiIndex, { cards: buildResultCards(data.paipan, data.tool_models || selectedToolModels.value) })
+        }
         if (typeof data.points_left === 'number') currentPoints.value = data.points_left
+        if (typeof data.ai_single_credits === 'number') aiSingleCredits.value = data.ai_single_credits
+        if (typeof data.ai_combo_credits === 'number') aiComboCredits.value = data.ai_combo_credits
+        if (data.used_credit === 'daily_light') dailyLightAvailable.value = false
         if (data.done) {
           typeState.done = true
           stopComprehensiveProgressTimer()
@@ -1044,6 +1180,24 @@ onBeforeUnmount(() => {
 .home-ai-progress-bar { width: 38%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, transparent, var(--accent), transparent); animation: progress-sweep 1.35s ease-in-out infinite; }
 @keyframes progress-sweep { 0% { transform: translateX(-110%); } 100% { transform: translateX(280%); } }
 .home-ai-content { display: block; white-space: pre-wrap; font-size: 0.9rem; color: var(--text-2); line-height: 1.86; letter-spacing: 0; word-break: break-word; }
+.home-tool-cards { display: grid; gap: 10px; margin: 10px 0 12px; }
+.home-tool-card { border: 1px solid rgba(178,149,93,0.18); border-radius: 12px; background: rgba(178,149,93,0.055); overflow: hidden; }
+.home-tool-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; cursor: pointer; }
+.home-tool-card-title { display: block; color: var(--text-1); font-size: 0.84rem; font-weight: 700; }
+.home-tool-card-sub { display: block; margin-top: 3px; color: var(--text-3); font-size: 0.68rem; line-height: 1.35; }
+.home-tool-card-toggle { flex-shrink: 0; color: var(--accent); font-size: 0.68rem; }
+.home-tool-card-body { padding: 0 12px 12px; }
+.mini-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid rgba(178,149,93,0.14); border-radius: 10px; overflow: hidden; }
+.mini-palace { min-height: 64px; padding: 7px; border-right: 1px solid rgba(178,149,93,0.12); border-bottom: 1px solid rgba(178,149,93,0.12); display: flex; flex-direction: column; gap: 2px; color: var(--text-3); font-size: 0.62rem; box-sizing: border-box; }
+.mini-palace:nth-child(3n) { border-right: none; }
+.mini-palace:nth-last-child(-n+3) { border-bottom: none; }
+.mini-palace-name { color: var(--accent); font-size: 0.68rem; font-weight: 700; }
+.mini-list { display: grid; gap: 6px; }
+.mini-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 9px; border-radius: 9px; background: rgba(255,255,255,0.045); color: var(--text-2); font-size: 0.68rem; }
+.mini-gua-row, .mini-tarot-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.mini-gua, .mini-tarot { min-width: 0; padding: 9px; border-radius: 10px; background: rgba(255,255,255,0.045); border: 1px solid rgba(178,149,93,0.12); }
+.mini-gua-label, .mini-tarot-pos { display: block; color: var(--text-3); font-size: 0.62rem; margin-bottom: 4px; }
+.mini-gua-name, .mini-tarot-name { display: block; color: var(--text-1); font-size: 0.76rem; font-weight: 700; line-height: 1.35; }
 
 .profile-sheet { position: fixed; inset: 0; z-index: 400; }
 .profile-sheet-mask { position: absolute; inset: 0; background: rgba(20,16,10,0.50); backdrop-filter: blur(10px); }
@@ -1194,6 +1348,12 @@ onBeforeUnmount(() => {
   .home-ai-new-chat { height: 28px; padding: 0 10px; font-size: 0.68rem; }
   .home-ai-step-row { gap: 4px; }
   .home-ai-step-row text { padding: 4px 3px; font-size: 0.56rem; }
+  .home-tool-card-head { padding: 9px 10px; }
+  .mini-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mini-palace:nth-child(3n) { border-right: 1px solid rgba(178,149,93,0.12); }
+  .mini-palace:nth-child(2n) { border-right: none; }
+  .mini-palace:nth-last-child(-n+3) { border-bottom: 1px solid rgba(178,149,93,0.12); }
+  .mini-gua-row, .mini-tarot-row { grid-template-columns: 1fr; }
   .section { padding: 48px 16px; }
   .section-title { font-size: 1.35rem; }
   .section-desc { font-size: 0.8125rem; }
@@ -1227,6 +1387,9 @@ onBeforeUnmount(() => {
   .home-ai-chat-sub { max-width: calc(100vw - 136px); font-size: 0.6rem; }
   .home-ai-stage-note { font-size: 0.6rem; }
   .home-ai-step-row text { font-size: 0.5rem; }
+  .home-tool-card-title { font-size: 0.78rem; }
+  .home-tool-card-sub { font-size: 0.62rem; }
+  .mini-line { align-items: flex-start; flex-direction: column; gap: 3px; }
   .section { padding: 32px 16px; }
   .section-title { font-size: 1.15rem; }
   .section-desc { font-size: 0.75rem; }

@@ -157,6 +157,44 @@ def test_recharge_test_package_creates_one_cent_one_point_order(app_module, user
         assert order.status == "pending"
 
 
+def test_recharge_packages_include_points_and_ai_credit_packages(app_module):
+    client = app_module.app.test_client()
+
+    response = client.get("/api/recharge/packages")
+
+    assert response.status_code == 200
+    packages = response.get_json()["packages"]
+    assert any(p["id"] == "test-cent" and p["points"] == 1 and p["package_type"] == "points" for p in packages)
+    assert any(p["id"] == "ai-starter" and p["ai_single_credits"] == 10 for p in packages)
+    assert any(p["id"] == "ai-combo" and p["ai_combo_credits"] == 20 for p in packages)
+
+
+def test_ai_credit_package_confirmation_adds_ai_quota_not_points(app_module, user_factory):
+    member = user_factory("ai-credit-buyer")
+
+    with app_module.app.app_context():
+        order = app_module.RechargeOrder(
+            user_id=member.id,
+            package_id="ai-starter",
+            package_name="入门 AI 包",
+            points=0,
+            amount=9.9,
+            status="pending",
+        )
+        app_module.db.session.add(order)
+        app_module.db.session.commit()
+        order_id = order.id
+
+        result = app_module.confirm_recharge_order_once(order_id)
+
+        assert result["ok"] is True
+        assert result["added"] == 10
+        assert result["credit_type"] == "ai_single_credits"
+        membership = app_module.Membership.query.filter_by(user_id=member.id).one()
+        assert membership.points == 0
+        assert membership.ai_single_credits == 10
+
+
 def test_admin_recharge_requires_is_admin_flag(app_module, user_factory):
     fake_admin = user_factory("admin", is_admin=False)
     real_admin = user_factory("ops-admin", is_admin=True)

@@ -29,16 +29,34 @@
       <!-- 充值套餐 -->
       <view class="section">
         <view class="section-head">
-          <view class="section-title">充值套餐</view>
+          <view class="section-title">积分充值</view>
           <view class="section-hint">横向滑动查看更多</view>
         </view>
         <view class="pkg-scroll-wrap">
           <view class="pkg-scroll" id="pkgScroll">
-            <view class="pkg-card" v-for="pkg in packages" :key="pkg.id" @click="selectPackage(pkg)">
+            <view class="pkg-card" v-for="pkg in pointPackages" :key="pkg.id" @click="selectPackage(pkg)">
               <text class="pkg-points">{{ pkg.points }}</text>
               <text class="pkg-label">积分</text>
               <view class="pkg-price">¥{{ pkg.price }}</view>
               <view class="pkg-name">{{ pkg.name }}</view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="section">
+        <view class="section-head">
+          <view class="section-title">AI 次数套餐</view>
+          <view class="section-hint">用于首页统一解读</view>
+        </view>
+        <view class="pkg-scroll-wrap">
+          <view class="pkg-scroll ai-pkg-scroll">
+            <view class="pkg-card ai-pkg-card" v-for="pkg in aiPackages" :key="pkg.id" @click="selectPackage(pkg)">
+              <text class="pkg-points">{{ pkg.ai_single_credits || pkg.ai_combo_credits }}</text>
+              <text class="pkg-label">{{ pkg.ai_combo_credits ? '合参次数' : '单术数次数' }}</text>
+              <view class="pkg-price">¥{{ pkg.price }}</view>
+              <view class="pkg-name">{{ pkg.name }}</view>
+              <view class="pkg-desc">{{ pkg.description }}</view>
             </view>
           </view>
         </view>
@@ -104,13 +122,15 @@ export default {
     try { isLoggedIn.value = !!(uni.getStorageSync('xc_token') || localStorage.getItem('xc_token')) } catch(_) {}
     var toggleTheme = inject('toggleTheme', function() {})
 
-    var packages = [
-      { id: 'test-cent', name: '测试包',  points: 1,    price: 0.01 },
-      { id: 'starter',  name: '体验包',  points: 60,   price: 9.9 },
-      { id: 'standard', name: '标准包',  points: 240,  price: 29.9 },
-      { id: 'premium',  name: '畅享包',  points: 650,  price: 68 },
-      { id: 'vip',      name: '尊享包',  points: 2200, price: 198 },
-    ]
+    var packages = ref([
+      { id: 'test-cent', name: '测试包',  points: 1,    price: 0.01, package_type: 'points' },
+      { id: 'starter',  name: '体验包',  points: 60,   price: 9.9, package_type: 'points' },
+      { id: 'standard', name: '标准包',  points: 240,  price: 29.9, package_type: 'points' },
+      { id: 'premium',  name: '畅享包',  points: 650,  price: 68, package_type: 'points' },
+      { id: 'vip',      name: '尊享包',  points: 2200, price: 198, package_type: 'points' },
+    ])
+    var pointPackages = ref([])
+    var aiPackages = ref([])
 
     var dpFilter = 'all'
     var dpLogs = []
@@ -235,6 +255,30 @@ export default {
       })
     }
 
+    function splitPackages(list) {
+      var arr = Array.isArray(list) ? list : []
+      pointPackages.value = arr.filter(function(p) { return (p.package_type || 'points') === 'points' })
+      aiPackages.value = arr.filter(function(p) { return p.package_type === 'ai' })
+      if (!pointPackages.value.length) pointPackages.value = packages.value.filter(function(p) { return (p.package_type || 'points') === 'points' })
+    }
+
+    function loadPackages() {
+      uni.request({
+        url: '/api/recharge/packages',
+        method: 'GET',
+        success: function(res) {
+          var list = (res.data && res.data.packages) || []
+          if (Array.isArray(list) && list.length) {
+            packages.value = list
+            splitPackages(list)
+          }
+        },
+        fail: function() {
+          splitPackages(packages.value)
+        }
+      })
+    }
+
     function doSignin() {
       var btn = document.getElementById('signinBtn')
       if (btn && btn.classList.contains('signed')) return
@@ -271,6 +315,10 @@ export default {
       modal.classList.add('open')
       var nameEl = document.getElementById('rechargePkgName')
       if (nameEl) nameEl.textContent = pkg.name + '：' + pkg.points + ' 积分'
+      if (nameEl && pkg.package_type === 'ai') {
+        var count = pkg.ai_single_credits || pkg.ai_combo_credits || 0
+        nameEl.textContent = pkg.name + '：' + count + (pkg.ai_combo_credits ? ' 次合参' : ' 次单术数')
+      }
       var amtEl = document.getElementById('rechargeAmount')
       if (amtEl) amtEl.textContent = '需支付 ¥' + pkg.price
       modal.dataset.pkgId = pkg.id
@@ -366,7 +414,7 @@ export default {
               loadLogs()
               return
             }
-            uni.showToast({ title: '充值到账 +' + d.added, icon: 'success' })
+            uni.showToast({ title: (d.credit_type === 'points' ? '充值到账 +' : '次数到账 +') + d.added, icon: 'success' })
             if (typeof d.points === 'number') {
               var el = document.getElementById('pointsNumber')
               if (el) el.textContent = d.points
@@ -385,6 +433,8 @@ export default {
     }
 
     onMounted(function() {
+      splitPackages(packages.value)
+      loadPackages()
       loadPoints()
       loadLogs()
     })
@@ -394,6 +444,8 @@ export default {
       isLoggedIn,
       toggleTheme,
       packages,
+      pointPackages,
+      aiPackages,
       paymentProofPath,
       paymentProofName,
       paymentChecking,
@@ -502,6 +554,10 @@ export default {
 .pkg-label { display: block; font-size: 0.75rem; color: var(--text-3); margin-bottom: 10px; }
 .pkg-price { font-size: 1rem; font-weight: 700; color: var(--text-1); margin-bottom: 4px; }
 .pkg-name { font-size: 0.72rem; color: var(--text-3); }
+.pkg-desc { margin-top: 6px; font-size: 0.64rem; color: var(--text-3); line-height: 1.35; }
+.ai-pkg-card { border-color: rgba(178,149,93,0.26); }
+.ai-pkg-card .pkg-points { color: var(--text-1); }
+.ai-pkg-card:first-child { background: var(--card-bg); }
 
 /* 积分明细 — 时光轴 */
 .log-empty { text-align: center; padding: 40px 0; color: var(--text-3); font-size: 0.85rem; }

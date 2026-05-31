@@ -78,7 +78,7 @@
             <text class="confirm-hint">⚠️ 抽牌结果由密码级真随机生成，确认后不可更改</text>
           </view>
           <view class="tarot-confirm-btns">
-            <view class="tarot-btn tarot-btn-primary" @tap="confirmAndRead">✦ 确认结果，开始解读</view>
+            <view class="tarot-btn tarot-btn-primary" @tap="confirmAndRead">✦ 保留牌面，回首页深度解读</view>
             <view class="tarot-btn tarot-btn-outline" @tap="redrawCards">🔄 重新抽牌</view>
           </view>
         </view>
@@ -454,8 +454,8 @@ function confirmAndRead() {
   var confirmArea = document.getElementById('confirmArea')
   if (confirmArea) confirmArea.style.display = 'none'
 
-  // 尝试 AI 流式解读
-  _startAIReading()
+  showFallbackReading()
+  try { uni.showToast({ title: '深度 AI 解读请回首页选择塔罗牌', icon: 'none' }) } catch(_) {}
 
   var readingArea = document.getElementById('readingArea')
   var redrawArea = document.getElementById('redrawArea')
