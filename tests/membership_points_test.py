@@ -130,6 +130,33 @@ def test_recharge_confirmation_only_pays_pending_order_once(app_module, user_fac
         assert refreshed.status == "paid"
 
 
+def test_recharge_test_package_creates_one_cent_one_point_order(app_module, user_factory):
+    member = user_factory("cent-buyer")
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(member.id)
+        sess["_fresh"] = True
+
+    response = client.post("/api/recharge/create-order", json={
+        "package_id": "test-cent",
+        "pay_method": "alipay_qr",
+    })
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["ok"] is True
+    assert body["points_amount"] == 1
+    assert body["price"] == 0.01
+
+    with app_module.app.app_context():
+        order = app_module.RechargeOrder.query.filter_by(user_id=member.id).one()
+        assert order.package_id == "test-cent"
+        assert order.package_name == "测试包"
+        assert order.points == 1
+        assert order.amount == 0.01
+        assert order.status == "pending"
+
+
 def test_admin_recharge_requires_is_admin_flag(app_module, user_factory):
     fake_admin = user_factory("admin", is_admin=False)
     real_admin = user_factory("ops-admin", is_admin=True)

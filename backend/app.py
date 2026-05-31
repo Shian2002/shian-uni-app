@@ -9980,6 +9980,7 @@ def api_points_use():
 # ═══════════════════════════════════════════════════════════════
 
 RECHARGE_PACKAGES = [
+    {'id': 'test-cent', 'name': '测试包',  'points': 1,    'price': 0.01},
     {'id': 'starter',  'name': '体验包',  'points': 60,   'price': 9.9},
     {'id': 'standard', 'name': '标准包',  'points': 240,  'price': 29.9},
     {'id': 'premium',  'name': '畅享包',  'points': 650,  'price': 68},
