@@ -67,15 +67,19 @@
           <text class="recharge-pkg-name" id="rechargePkgName"></text>
           <text class="recharge-amount" id="rechargeAmount"></text>
         </view>
-        <view class="pay-methods">
-          <view class="pay-method" @click="payByTransfer">
-            <text class="pay-icon">💳</text>
-            <view class="pay-info">
-              <text class="pay-name">微信/支付宝转账</text>
-              <text class="pay-desc">联系客服手动充值，到账后自动加积分</text>
-            </view>
+        <view class="alipay-panel">
+          <image class="alipay-qr" src="/static/alipay-recharge.jpg" mode="widthFix" />
+          <view class="pay-hint">请用支付宝扫码付款，付款金额必须与当前套餐一致。</view>
+          <input
+            class="payment-input"
+            v-model="paymentReference"
+            type="text"
+            placeholder="填写支付宝订单号/付款备注"
+            maxlength="80"
+          />
+          <view class="btn btn-primary verify-pay-btn" :class="{ disabled: paymentChecking }" @click="verifyAlipayPayment">
+            {{ paymentChecking ? '识别中...' : '已付款，自动识别到账' }}
           </view>
-          <view class="pay-hint">注：微信支付正在接入中，当前暂支持手动转账充值</view>
         </view>
         <view class="modal-btns">
           <view class="btn btn-outline" @click="closeRechargeModal">取消</view>
@@ -110,6 +114,10 @@ export default {
     var dpLogs = []
     var dpPage = 1
     var dpPerPage = 5
+    var currentPackage = null
+    var currentOrderId = ref(null)
+    var paymentReference = ref('')
+    var paymentChecking = ref(false)
 
     function renderDpLogs() {
       var filtered = dpLogs
@@ -251,6 +259,9 @@ export default {
     }
 
     function selectPackage(pkg) {
+      currentPackage = pkg
+      currentOrderId.value = null
+      paymentReference.value = ''
       var modal = document.getElementById('rechargeModal')
       if (!modal) return
       modal.classList.add('open')
@@ -264,25 +275,89 @@ export default {
     function closeRechargeModal() {
       var modal = document.getElementById('rechargeModal')
       if (modal) modal.classList.remove('open')
+      paymentChecking.value = false
     }
 
-    function payByTransfer() {
-      closeRechargeModal()
-      uni.showModal({
-        title: '手动充值',
-        content: '请联系客服微信：xxx，备注您的用户名，付款后将为您手动到账。',
-        showCancel: false,
-        confirmText: '知道了'
-      })
-      // 创建订单记录
+    function ensureRechargeOrder(done) {
+      if (currentOrderId.value) {
+        done(currentOrderId.value)
+        return
+      }
       var modal = document.getElementById('rechargeModal')
       var pkgId = modal ? modal.dataset.pkgId : ''
-      if (pkgId) {
-        uni.request({
-          url: '/api/recharge/create-order', method: 'POST',
-          data: { package_id: pkgId, pay_method: 'transfer' }
-        })
+      if (!pkgId) {
+        uni.showToast({ title: '请选择充值套餐', icon: 'none' })
+        return
       }
+      uni.request({
+        url: '/api/recharge/create-order',
+        method: 'POST',
+        data: { package_id: pkgId, pay_method: 'alipay_qr' },
+        success: function(res) {
+          var d = res.data || {}
+          if (!d.ok || !d.order_id) {
+            uni.showToast({ title: d.error || '创建订单失败', icon: 'none' })
+            return
+          }
+          currentOrderId.value = d.order_id
+          done(d.order_id)
+        },
+        fail: function() {
+          uni.showToast({ title: '创建订单失败', icon: 'none' })
+        }
+      })
+    }
+
+    function verifyAlipayPayment() {
+      if (paymentChecking.value) return
+      if (!currentPackage) {
+        uni.showToast({ title: '请选择充值套餐', icon: 'none' })
+        return
+      }
+      var reference = (paymentReference.value || '').trim()
+      if (reference.length < 4) {
+        uni.showToast({ title: '请填写支付宝订单号或付款备注', icon: 'none' })
+        return
+      }
+      paymentChecking.value = true
+      ensureRechargeOrder(function(orderId) {
+        uni.request({
+          url: '/api/recharge/verify-payment',
+          method: 'POST',
+          data: {
+            order_id: orderId,
+            paid_amount: currentPackage.price,
+            payment_reference: reference,
+            payment_proof: '用户在积分中心提交支付宝扫码付款凭证'
+          },
+          success: function(res) {
+            var d = res.data || {}
+            if (!d.ok) {
+              uni.showToast({ title: d.error || '识别失败', icon: 'none' })
+              return
+            }
+            closeRechargeModal()
+            if (d.status === 'pending') {
+              uni.showToast({ title: d.message || '已提交，待确认到账', icon: 'none' })
+              loadLogs()
+              return
+            }
+            uni.showToast({ title: '充值到账 +' + d.added, icon: 'success' })
+            if (typeof d.points === 'number') {
+              var el = document.getElementById('pointsNumber')
+              if (el) el.textContent = d.points
+              try { window.dispatchEvent(new CustomEvent('xc-points-updated', { detail: { points: d.points } })) } catch(_) {}
+            }
+            loadLogs()
+          },
+          fail: function() {
+            uni.showToast({ title: '识别失败', icon: 'none' })
+          },
+          complete: function() {
+            paymentChecking.value = false
+          }
+        })
+      })
     }
 
     onMounted(function() {
@@ -290,7 +365,20 @@ export default {
       loadLogs()
     })
 
-    return { theme, isLoggedIn, toggleTheme, packages, goBack, doSignin, loadMoreLogs, selectPackage, closeRechargeModal, payByTransfer }
+    return {
+      theme,
+      isLoggedIn,
+      toggleTheme,
+      packages,
+      paymentReference,
+      paymentChecking,
+      goBack,
+      doSignin,
+      loadMoreLogs,
+      selectPackage,
+      closeRechargeModal,
+      verifyAlipayPayment,
+    }
   }
 }
 </script>
@@ -407,11 +495,19 @@ export default {
 .modal-overlay.open { display: flex; }
 .modal-box {
   background: var(--card-bg); border-radius: 18px;
-  padding: 28px 32px; max-width: 400px; width: 90%;
+  padding: 24px 24px; max-width: 400px; width: 90%;
   box-shadow: 0 12px 40px rgba(0,0,0,.2);
 }
 .modal-title { font-size: 1.05rem; font-weight: 700; color: var(--text-1); margin-bottom: 18px; text-align: center; }
 .modal-btns { display: flex; gap: 10px; margin-top: 6px; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 10px 16px; border-radius: 10px; font-size: 0.82rem;
+  cursor: pointer; text-align: center; box-sizing: border-box;
+}
+.btn-outline { background: transparent; border: 1px solid var(--card-border); color: var(--text-2); }
+.btn-primary { border: 1px solid var(--accent); background: var(--accent); color: #fff; font-weight: 700; }
+.btn.disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* 充值弹窗 */
 .recharge-modal { max-width: 360px; }
@@ -421,19 +517,19 @@ export default {
 }
 .recharge-pkg-name { display: block; font-size: 0.88rem; color: var(--text-2); margin-bottom: 4px; }
 .recharge-amount { display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent); }
-.pay-methods { margin-bottom: 14px; }
-.pay-method {
-  display: flex; align-items: center; gap: 12px;
-  width: 100%;
-  padding: 14px; border: 1px solid var(--card-border); border-radius: 12px;
-  cursor: pointer; transition: border-color 0.15s;
+.alipay-panel { display: flex; flex-direction: column; align-items: stretch; gap: 10px; margin-bottom: 14px; }
+.alipay-qr {
+  display: block; width: min(100%, 260px); max-height: 390px;
+  margin: 0 auto; border-radius: 12px; border: 1px solid var(--card-border);
+  background: #fff;
 }
-.pay-method:hover { border-color: var(--accent); }
-.pay-icon { font-size: 1.5rem; }
-.pay-info { display: flex; flex-direction: column; gap: 2px; }
-.pay-name { font-size: 0.85rem; font-weight: 600; color: var(--text-1); }
-.pay-desc { font-size: 0.72rem; color: var(--text-3); }
-.pay-hint { font-size: 0.7rem; color: var(--text-3); text-align: center; margin-top: 8px; padding: 0 10px; }
+.payment-input {
+  width: 100%; height: 42px; padding: 0 12px; box-sizing: border-box;
+  border: 1px solid var(--card-border); border-radius: 10px;
+  background: var(--bg); color: var(--text-1); font-size: 0.82rem;
+}
+.verify-pay-btn { width: 100%; }
+.pay-hint { font-size: 0.72rem; line-height: 1.5; color: var(--text-3); text-align: center; padding: 0 4px; }
 
 /* 响应式 */
 @media (max-width: 480px) {

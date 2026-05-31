@@ -177,6 +177,131 @@ def test_admin_recharge_requires_is_admin_flag(app_module, user_factory):
         assert audit.target_id == order_id
 
 
+def test_alipay_recharge_verification_records_proof_without_auto_confirm(app_module, user_factory):
+    member = user_factory("alipay-buyer")
+
+    with app_module.app.app_context():
+        order = app_module.RechargeOrder(
+            user_id=member.id,
+            package_id="starter",
+            package_name="体验包",
+            points=60,
+            amount=9.9,
+            status="pending",
+        )
+        app_module.db.session.add(order)
+        app_module.db.session.commit()
+        order_id = order.id
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(member.id)
+        sess["_fresh"] = True
+
+    response = client.post("/api/recharge/verify-payment", json={
+        "order_id": order_id,
+        "paid_amount": 9.9,
+        "payment_reference": "2026053113580001",
+    })
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["ok"] is True
+    assert body["status"] == "pending"
+
+    with app_module.app.app_context():
+        refreshed = app_module.db.session.get(app_module.RechargeOrder, order_id)
+        membership = app_module.Membership.query.filter_by(user_id=member.id).first()
+        logs = app_module.PointLog.query.filter_by(user_id=member.id, action="recharge").all()
+        assert refreshed.status == "pending"
+        assert refreshed.pay_method == "alipay_qr"
+        assert refreshed.payment_reference == "2026053113580001"
+        assert membership is None
+        assert logs == []
+
+
+def test_alipay_recharge_verification_can_auto_confirm_when_enabled(app_module, user_factory, monkeypatch):
+    monkeypatch.setenv("ALIPAY_QR_AUTO_CONFIRM", "1")
+    member = user_factory("auto-alipay-buyer")
+
+    with app_module.app.app_context():
+        order = app_module.RechargeOrder(
+            user_id=member.id,
+            package_id="starter",
+            package_name="体验包",
+            points=60,
+            amount=9.9,
+            status="pending",
+        )
+        app_module.db.session.add(order)
+        app_module.db.session.commit()
+        order_id = order.id
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(member.id)
+        sess["_fresh"] = True
+
+    response = client.post("/api/recharge/verify-payment", json={
+        "order_id": order_id,
+        "paid_amount": 9.9,
+        "payment_reference": "2026053113580001",
+    })
+    duplicate = client.post("/api/recharge/verify-payment", json={
+        "order_id": order_id,
+        "paid_amount": 9.9,
+        "payment_reference": "2026053113580001",
+    })
+
+    assert response.status_code == 200
+    assert response.get_json()["added"] == 60
+    assert duplicate.status_code == 400
+
+    with app_module.app.app_context():
+        refreshed = app_module.db.session.get(app_module.RechargeOrder, order_id)
+        membership = app_module.Membership.query.filter_by(user_id=member.id).one()
+        logs = app_module.PointLog.query.filter_by(user_id=member.id, action="recharge").all()
+        assert refreshed.status == "paid"
+        assert membership.points == 60
+        assert len(logs) == 1
+
+
+def test_alipay_recharge_verification_rejects_mismatched_amount(app_module, user_factory):
+    member = user_factory("mismatch-buyer")
+
+    with app_module.app.app_context():
+        order = app_module.RechargeOrder(
+            user_id=member.id,
+            package_id="standard",
+            package_name="标准包",
+            points=240,
+            amount=29.9,
+            status="pending",
+        )
+        app_module.db.session.add(order)
+        app_module.db.session.commit()
+        order_id = order.id
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(member.id)
+        sess["_fresh"] = True
+
+    response = client.post("/api/recharge/verify-payment", json={
+        "order_id": order_id,
+        "paid_amount": 9.9,
+        "payment_reference": "wrong-amount",
+    })
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "付款金额与订单金额不一致"
+
+    with app_module.app.app_context():
+        refreshed = app_module.db.session.get(app_module.RechargeOrder, order_id)
+        membership = app_module.Membership.query.filter_by(user_id=member.id).first()
+        assert refreshed.status == "pending"
+        assert membership is None
+
+
 def test_migrate_db_promotes_legacy_first_user_when_no_admin_exists(app_module, user_factory):
     user = user_factory("legacy-owner", is_admin=False)
     assert user.id == 1

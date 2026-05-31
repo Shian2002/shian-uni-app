@@ -241,6 +241,9 @@ class RechargeOrder(db.Model):
     amount = db.Column(db.Float, nullable=False)
     pay_method = db.Column(db.String(50), default='transfer')
     status = db.Column(db.String(20), default='pending')  # pending/paid/cancelled
+    payment_reference = db.Column(db.String(120), default='')
+    payment_proof = db.Column(db.Text, default='')
+    verified_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     user = db.relationship('User', backref=db.backref('recharge_orders', lazy='dynamic'))

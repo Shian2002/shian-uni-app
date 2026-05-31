@@ -388,6 +388,23 @@ def migrate_db():
         except Exception as e:
             db.session.rollback()
             logger.warning(f"is_admin 兼容迁移失败: {e}")
+
+        # 7. recharge_order 付款识别字段：记录用户提交的支付宝凭证，方便审计和重复核验
+        for col, ctype in [
+            ('payment_reference', 'VARCHAR(120) DEFAULT \'\''),
+            ('payment_proof', 'TEXT DEFAULT \'\''),
+            ('verified_at', 'DATETIME'),
+        ]:
+            try:
+                db.session.execute(db.text(f'SELECT {col} FROM recharge_order LIMIT 1'))
+            except Exception:
+                try:
+                    db.session.execute(db.text(f'ALTER TABLE recharge_order ADD COLUMN {col} {ctype}'))
+                    db.session.commit()
+                    logger.info(f"[DB] 已添加 recharge_order.{col} 字段")
+                except Exception as e:
+                    db.session.rollback()
+                    logger.warning(f"recharge_order.{col} 迁移失败: {e}")
         try:
             dialect = db.session.bind.dialect.name if db.session.bind else ''
             if dialect == 'sqlite':
@@ -9510,6 +9527,8 @@ def api_admin_recharge_orders():
             'points_amount': o.points,
             'price': o.amount,
             'pay_method': o.pay_method,
+            'payment_reference': o.payment_reference or '',
+            'payment_proof': o.payment_proof or '',
             'status': o.status,
             'created_at': o.created_at.isoformat() if o.created_at else None,
             'paid_at': o.updated_at.isoformat() if o.status == 'paid' and o.updated_at else None,
@@ -9824,12 +9843,15 @@ def use_points(user_id, action, points, description='', commit=True):
         db.session.commit()
     return {'ok': True, 'points': new_points, 'used': points}
 
-def confirm_recharge_order_once(order_id):
+def confirm_recharge_order_once(order_id, extra_update=None):
     """只确认 pending 订单一次，并在同一事务内完成到账。"""
     now = datetime.utcnow()
     try:
+        update_data = {'status': 'paid', 'updated_at': now}
+        if extra_update:
+            update_data.update(extra_update)
         changed = RechargeOrder.query.filter_by(id=order_id, status='pending').update(
-            {'status': 'paid', 'updated_at': now},
+            update_data,
             synchronize_session=False,
         )
         if changed != 1:
@@ -10006,6 +10028,75 @@ def api_recharge_create_order():
     })
 
 
+def _parse_payment_amount(value):
+    """把前端识别到的付款金额规整为两位小数。"""
+    try:
+        amount = float(value)
+    except (TypeError, ValueError):
+        return None
+    if amount <= 0:
+        return None
+    return round(amount, 2)
+
+
+@app.route('/api/recharge/verify-payment', methods=['POST'])
+@login_required
+def api_recharge_verify_payment():
+    """支付宝二维码付款后自动核验并入账。"""
+    data = request.get_json(silent=True) or {}
+    order_id = data.get('order_id', 0)
+    paid_amount = _parse_payment_amount(data.get('paid_amount'))
+    payment_reference = (data.get('payment_reference') or '').strip()[:120]
+    payment_proof = (data.get('payment_proof') or '').strip()[:2000]
+
+    if not order_id:
+        return jsonify({'error': '缺少订单'}), 400
+    if paid_amount is None:
+        return jsonify({'error': '付款金额无效'}), 400
+    if len(payment_reference) < 4 and len(payment_proof) < 6:
+        return jsonify({'error': '请填写付款凭证后再识别'}), 400
+
+    order = db.session.get(RechargeOrder, int(order_id))
+    if not order or order.user_id != current_user.id:
+        return jsonify({'error': '订单不存在'}), 404
+    if order.status != 'pending':
+        return jsonify({'error': '订单状态错误', 'status': order.status}), 400
+    if abs(round(float(order.amount), 2) - paid_amount) > 0.01:
+        return jsonify({'error': '付款金额与订单金额不一致'}), 400
+
+    proof_update = {
+        'pay_method': 'alipay_qr',
+        'payment_reference': payment_reference,
+        'payment_proof': payment_proof,
+        'verified_at': datetime.utcnow(),
+    }
+    if os.environ.get('ALIPAY_QR_AUTO_CONFIRM') != '1':
+        RechargeOrder.query.filter_by(id=order.id, status='pending').update(
+            proof_update,
+            synchronize_session=False,
+        )
+        db.session.commit()
+        return jsonify({
+            'ok': True,
+            'order_id': order.id,
+            'status': 'pending',
+            'message': '付款凭证已提交，后台确认后自动到账',
+        })
+
+    result = confirm_recharge_order_once(order.id, {
+        **proof_update,
+    })
+    if not result.get('ok'):
+        return jsonify({'error': result.get('error', '订单状态错误'), 'status': result.get('status')}), 400
+    return jsonify({
+        'ok': True,
+        'order_id': result.get('order_id'),
+        'points': result.get('points'),
+        'added': result.get('added'),
+        'status': 'paid',
+    })
+
+
 @app.route('/api/recharge/orders', methods=['GET'])
 @login_required
 def api_recharge_orders():
@@ -10021,6 +10112,7 @@ def api_recharge_orders():
         'price': o.amount,
         'status': o.status,
         'pay_method': o.pay_method,
+        'payment_reference': o.payment_reference or '',
         'created_at': o.created_at.isoformat() if o.created_at else None,
         'paid_at': o.updated_at.isoformat() if o.status == 'paid' and o.updated_at else None,
     } for o in pagination.items]
