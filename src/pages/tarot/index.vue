@@ -83,8 +83,8 @@
           </view>
         </view>
 
-        <!-- 解读区域 -->
-        <view class="tarot-reading-area" id="readingArea">
+        <!-- 解读区域已统一到首页综合 AI，这里只保留抽牌和牌面确认 -->
+        <view v-if="false" class="tarot-reading-area" id="readingArea">
           <view class="tarot-reading-section">
             <view class="reading-title">✦ 核心总断</view>
             <view class="reading-body" id="readingOverview"></view>
@@ -454,14 +454,10 @@ function confirmAndRead() {
   var confirmArea = document.getElementById('confirmArea')
   if (confirmArea) confirmArea.style.display = 'none'
 
-  showFallbackReading()
   try { uni.showToast({ title: '深度 AI 解读请回首页选择塔罗牌', icon: 'none' }) } catch(_) {}
 
-  var readingArea = document.getElementById('readingArea')
   var redrawArea = document.getElementById('redrawArea')
-  if (readingArea) readingArea.classList.add('show')
   if (redrawArea) redrawArea.style.display = 'block'
-  if (readingArea) readingArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
 
 // ═══ AI 流式解读 ═══

@@ -853,7 +853,7 @@ function _refillDaySelect(id, labels, idxRef) {
 function applyNavQuery(q) {
   if (!q) return
   if (q.includes('tab=free')) { activeTab.value = 'free' }
-  else if (q.includes('tab=ai')) { activeTab.value = 'ai' }
+  else if (q.includes('tab=ai')) { activeTab.value = 'free' }
 }
 
 onShow(() => {
@@ -945,12 +945,12 @@ onMounted(() => {
   // #ifdef H5
   const hash = location.hash
   if (hash.includes('tab=free')) activeTab.value = 'free'
-  else if (hash.includes('tab=ai')) activeTab.value = 'ai'
+  else if (hash.includes('tab=ai')) activeTab.value = 'free'
   // 检查scenario参数
   const params = new URLSearchParams(location.search)
   const scenario = params.get('scenario') || hash.match(/scenario=([^&]+)/)?.[1]
   if (scenario) {
-    activeTab.value = 'ai'
+    activeTab.value = 'free'
   }
   // #endif
 

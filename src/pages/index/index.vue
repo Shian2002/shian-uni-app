@@ -651,37 +651,205 @@ function renderBaziYunArtifact(data) {
     '</div>'
 }
 
-function renderQimenArtifact(data) {
-  const palaces = (data.palaces || data.gong_pan || []).slice(0, 9)
-  const cells = palaces.map(function(p, i) {
-    return '<div class="artifact-palace"><b>' + htmlEscape(p.name || p.gong || ('宫' + (i + 1))) + '</b><span>' +
-      htmlEscape([p.tian_gan, p.di_gan, p.men, p.xing, p.shen].filter(Boolean).join(' ')) +
-      '</span></div>'
-  }).join('')
-  return '<div class="artifact-panel"><div class="artifact-palace-grid">' + cells + '</div></div>'
+function pickValue(obj, keys, fallback) {
+  for (let i = 0; i < keys.length; i++) {
+    if (obj && obj[keys[i]] !== undefined && obj[keys[i]] !== null && obj[keys[i]] !== '') return obj[keys[i]]
+  }
+  return fallback === undefined ? '' : fallback
 }
 
-function renderLiuyaoArtifact(data) {
-  const lines = (data.details || data.lines || []).map(function(y, i) {
-    return '<div class="artifact-line"><span>' + htmlEscape(y.liushen || y.liu_shen || '') + ' ' + htmlEscape(y.liuqin || y.liu_qin || '') + '</span><strong>' +
-      htmlEscape(y.name || y.yao_type || ('第' + (i + 1) + '爻')) + ' ' + htmlEscape(y.is_shi ? '世' : '') + htmlEscape(y.is_ying ? '应' : '') +
-      '</strong></div>'
-  }).join('')
-  return '<div class="artifact-panel">' +
-    '<div class="artifact-kv-grid">' + renderKV('本卦', data.ben_gua) + renderKV('变卦', data.bian_gua) + renderKV('日辰', data.ri_chen) + renderKV('月建', data.yue_jian) + '</div>' +
-    '<div class="artifact-line-list">' + lines + '</div></div>'
+function wxClass(wx) {
+  const map = { '金': 'jin', '木': 'mu', '水': 'shui', '火': 'huo', '土': 'tu' }
+  return map[wx] || ''
+}
+
+function wsClass(ws) {
+  const map = { '旺': 'wang', '相': 'xiang', '休': 'xiu', '囚': 'qiu', '死': 'si' }
+  return map[ws] || 'xiu'
+}
+
+function relClass(rel) {
+  if (rel === '被生' || rel === '比和') return 'ji'
+  if (rel === '被克') return 'xiong'
+  return 'zhong'
+}
+
+function normalizeMeihuaData(data) {
+  const tiYong = data.tiYong || data.ti_yong || {}
+  return {
+    methodLabel: pickValue(data, ['methodLabel', 'method_label'], '时间起卦'),
+    paipanTime: pickValue(data, ['paipanTime', 'paipan_time', 'time'], ''),
+    ganzhi: data.ganzhi || '',
+    dongYao: pickValue(data, ['dongYao', 'dong_yao'], ''),
+    benGua: data.benGua || data.ben_gua || {},
+    huGua: data.huGua || data.hu_gua || {},
+    bianGua: data.bianGua || data.bian_gua || {},
+    benGuaYao: data.benGuaYao || data.ben_gua_yao || null,
+    huGuaYao: data.huGuaYao || data.hu_gua_yao || null,
+    bianGuaYao: data.bianGuaYao || data.bian_gua_yao || null,
+    tiYong: {
+      tiPosition: pickValue(tiYong, ['tiPosition', 'ti_position'], ''),
+      tiGua: pickValue(tiYong, ['tiGua', 'ti_gua'], ''),
+      tiTrigram: pickValue(tiYong, ['tiTrigram', 'ti_trigram'], ''),
+      tiWuxing: pickValue(tiYong, ['tiWuxing', 'ti_wuxing'], ''),
+      tiWangshuai: pickValue(tiYong, ['tiWangshuai', 'ti_wangshuai'], ''),
+      yongPosition: pickValue(tiYong, ['yongPosition', 'yong_position'], ''),
+      yongGua: pickValue(tiYong, ['yongGua', 'yong_gua'], ''),
+      yongTrigram: pickValue(tiYong, ['yongTrigram', 'yong_trigram'], ''),
+      yongWuxing: pickValue(tiYong, ['yongWuxing', 'yong_wuxing'], ''),
+      yongWangshuai: pickValue(tiYong, ['yongWangshuai', 'yong_wangshuai'], ''),
+      tiYongRel: pickValue(tiYong, ['tiYongRel', 'ti_yong_rel', 'relation'], ''),
+      tiYongJiXiong: pickValue(tiYong, ['tiYongJiXiong', 'ti_yong_ji_xiong', 'jixiong'], ''),
+      tiHuRel: pickValue(tiYong, ['tiHuRel', 'ti_hu_rel'], ''),
+      huWuxing: pickValue(tiYong, ['huWuxing', 'hu_wuxing'], ''),
+      tiBianRel: pickValue(tiYong, ['tiBianRel', 'ti_bian_rel'], ''),
+      bianWuxing: pickValue(tiYong, ['bianWuxing', 'bian_wuxing'], ''),
+      verdict: tiYong.verdict || '',
+    }
+  }
+}
+
+function renderMeihuaGuaCard(label, gua, cardClass, dongYao, yaoList) {
+  if (!gua) return ''
+  const upper = gua.upper || {}
+  const lower = gua.lower || {}
+  let html = '<div class="gua-card ' + htmlEscape(cardClass) + '">'
+  html += '<div class="gua-card-label">' + htmlEscape(label) + '</div>'
+  html += '<div class="gua-card-name">' + htmlEscape(gua.name || '') + '</div>'
+  if (Array.isArray(yaoList) && yaoList.length === 6) {
+    html += '<div class="gua-yao-wrap">'
+    for (let i = 5; i >= 0; i--) {
+      const isYang = Number(yaoList[i]) === 1
+      const isDong = (i + 1) === Number(dongYao)
+      html += '<div class="gua-yao ' + (isYang ? 'yang' : 'yin') + (isDong ? ' dong-yao' : '') + '">'
+      html += isYang ? '<div class="gua-yao-line"></div>' : '<div class="gua-yao-line"></div><div class="gua-yao-line"></div>'
+      html += '</div>'
+    }
+    html += '</div>'
+  } else {
+    html += '<div class="gua-trigram">' + htmlEscape((upper.trigram || '') + (lower.trigram || '')) + '</div>'
+  }
+  html += '<div class="gua-sub-info">'
+  html += '<span>上卦 ' + htmlEscape([upper.name, upper.nature, upper.wuxing].filter(Boolean).join('·')) + '</span>'
+  html += '<span>下卦 ' + htmlEscape([lower.name, lower.nature, lower.wuxing].filter(Boolean).join('·')) + '</span>'
+  html += '</div></div>'
+  return html
 }
 
 function renderMeihuaArtifact(data) {
-  const gua = [
-    ['本卦', data.ben_gua && data.ben_gua.name],
-    ['互卦', data.hu_gua && data.hu_gua.name],
-    ['变卦', data.bian_gua && data.bian_gua.name],
-  ].map(function(item) {
-    return '<div class="artifact-gua"><span>' + htmlEscape(item[0]) + '</span><strong>' + htmlEscape(item[1] || '-') + '</strong></div>'
-  }).join('')
-  return '<div class="artifact-panel"><div class="artifact-grid artifact-grid-3">' + gua + '</div><div class="artifact-kv-grid">' +
-    renderKV('动爻', data.dong_yao) + renderKV('体用', data.ti_yong && data.ti_yong.relation) + '</div></div>'
+  const d = normalizeMeihuaData(data)
+  let html = '<div class="mh-result-wrap">'
+  html += '<div class="mh-summary">'
+  html += '<span><b>起卦方式：</b>' + htmlEscape(d.methodLabel) + '</span>'
+  html += '<span><b>排盘时间：</b>' + htmlEscape(d.paipanTime) + '</span>'
+  if (d.ganzhi) html += '<span><b>干支：</b>' + htmlEscape(d.ganzhi) + '</span>'
+  html += '</div>'
+  html += '<div class="gua-display">'
+  html += renderMeihuaGuaCard('本卦', d.benGua, 'ben-gua', d.dongYao, d.benGuaYao)
+  html += renderMeihuaGuaCard('互卦', d.huGua, 'hu-gua', 0, d.huGuaYao)
+  html += renderMeihuaGuaCard('变卦', d.bianGua, 'bian-gua', 0, d.bianGuaYao)
+  html += '</div>'
+  if (d.tiYong && (d.tiYong.tiGua || d.tiYong.yongGua || d.tiYong.verdict)) {
+    html += '<div class="ti-yong-section">'
+    html += '<div class="ti-yong-title">🌸 体用分析</div>'
+    html += '<div class="ti-yong-grid">'
+    html += '<div class="ti-yong-box ti"><div class="ti-yong-label">体卦（' + htmlEscape(d.tiYong.tiPosition) + '）</div><div class="ti-yong-gua">' + htmlEscape(d.tiYong.tiGua) + '</div><div class="ti-yong-wx">' + htmlEscape(d.tiYong.tiTrigram) + ' <span class="wx-tag ' + wxClass(d.tiYong.tiWuxing) + '">' + htmlEscape(d.tiYong.tiWuxing) + '</span> <span class="ws-tag ' + wsClass(d.tiYong.tiWangshuai) + '">' + htmlEscape(d.tiYong.tiWangshuai) + '</span></div></div>'
+    html += '<div class="ti-yong-rel ' + relClass(d.tiYong.tiYongRel) + '">体' + htmlEscape(d.tiYong.tiWuxing) + ' ' + htmlEscape(d.tiYong.tiYongRel) + ' 用' + htmlEscape(d.tiYong.yongWuxing) + '</div>'
+    html += '<div class="ti-yong-box yong"><div class="ti-yong-label">用卦（' + htmlEscape(d.tiYong.yongPosition) + '）</div><div class="ti-yong-gua">' + htmlEscape(d.tiYong.yongGua) + '</div><div class="ti-yong-wx">' + htmlEscape(d.tiYong.yongTrigram) + ' <span class="wx-tag ' + wxClass(d.tiYong.yongWuxing) + '">' + htmlEscape(d.tiYong.yongWuxing) + '</span> <span class="ws-tag ' + wsClass(d.tiYong.yongWangshuai) + '">' + htmlEscape(d.tiYong.yongWangshuai) + '</span></div></div>'
+    html += '</div><table class="mh-analysis-table"><tr><th>分析项</th><th>关系</th><th>吉凶</th></tr>'
+    if (d.tiYong.tiYongJiXiong) html += '<tr><td>体用关系</td><td>体' + htmlEscape(d.tiYong.tiWuxing) + ' ' + htmlEscape(d.tiYong.tiYongRel) + ' 用' + htmlEscape(d.tiYong.yongWuxing) + '</td><td>' + htmlEscape(d.tiYong.tiYongJiXiong) + '</td></tr>'
+    if (d.tiYong.tiHuRel) html += '<tr><td>互卦与体</td><td>体' + htmlEscape(d.tiYong.tiWuxing) + ' ' + htmlEscape(d.tiYong.tiHuRel) + ' 互' + htmlEscape(d.tiYong.huWuxing) + '</td><td>-</td></tr>'
+    if (d.tiYong.tiBianRel) html += '<tr><td>变卦与体</td><td>体' + htmlEscape(d.tiYong.tiWuxing) + ' ' + htmlEscape(d.tiYong.tiBianRel) + ' 变' + htmlEscape(d.tiYong.bianWuxing) + '</td><td>-</td></tr>'
+    html += '</table>'
+    if (d.tiYong.verdict) html += '<div class="mh-verdict">' + htmlEscape(d.tiYong.verdict) + '</div>'
+    html += '</div>'
+  }
+  html += '</div>'
+  return html
+}
+
+function normalizeQimenData(data) {
+  return {
+    fourPillars: data.fourPillars || data.four_pillars || {},
+    palaces: data.palaces || data.gong_pan || [],
+    solarDate: pickValue(data, ['solarDate', 'solar_date'], ''),
+    panType: pickValue(data, ['panType', 'pan_type'], ''),
+    xunKong: data.xunKong || data.xun_kong || data.xunkong || {},
+    solarTerm: pickValue(data, ['solarTerm', 'solar_term'], ''),
+    ju: data.ju || '',
+    xunShou: pickValue(data, ['xunShou', 'xun_shou'], ''),
+    zhiFu: pickValue(data, ['zhiFu', 'zhi_fu'], ''),
+    zhiShi: pickValue(data, ['zhiShi', 'zhi_shi'], ''),
+  }
+}
+
+function renderQimenArtifact(data) {
+  const d = normalizeQimenData(data)
+  const palaces = d.palaces || []
+  const luoOrder = [4, 9, 2, 3, 5, 7, 8, 1, 6]
+  const fp = d.fourPillars || {}
+  let html = '<div class="qm-result-wrap"><div class="qm-summary">'
+  html += '<span><b>盘式：</b>' + htmlEscape(d.panType || '转盘奇门') + '</span>'
+  if (d.solarDate) html += '<span><b>时间：</b>' + htmlEscape(d.solarDate) + '</span>'
+  if (d.ju) html += '<span><b>局数：</b>' + htmlEscape(d.ju) + '</span>'
+  if (d.solarTerm) html += '<span><b>节气：</b>' + htmlEscape(d.solarTerm) + '</span>'
+  html += '<span><b>四柱：</b>' + htmlEscape([fp.year, fp.month, fp.day, fp.hour].filter(Boolean).join(' ')) + '</span>'
+  html += '</div><div class="qm-nine-grid">'
+  luoOrder.forEach(function(gongNum) {
+    const p = palaces[gongNum - 1] || palaces.find(function(x) { return Number(x.gong || x.gong_num || x.number) === gongNum }) || {}
+    if (gongNum === 5) {
+      html += '<div class="qm-palace center"><div class="qm-center-title">奇门遁甲</div><div class="qm-center-meta">' + htmlEscape([d.ju, d.xunShou && ('旬首 ' + d.xunShou), d.zhiFu && ('值符 ' + d.zhiFu), d.zhiShi && ('值使 ' + d.zhiShi)].filter(Boolean).join(' · ')) + '</div></div>'
+      return
+    }
+    const name = p.name || p.gong || p.palace || (gongNum + '宫')
+    const tianGan = pickValue(p, ['tianGan', 'tian_gan'], '')
+    const diGan = pickValue(p, ['diGan', 'di_gan'], '')
+    const men = pickValue(p, ['men', 'door'], '')
+    const xing = pickValue(p, ['xing', 'star'], '')
+    const shen = pickValue(p, ['shen', 'god'], '')
+    const tianPan = pickValue(p, ['tianPan', 'tian_pan'], '')
+    const diPan = pickValue(p, ['diPan', 'di_pan'], '')
+    html += '<div class="qm-palace">'
+    html += '<div class="qm-palace-head"><b>' + htmlEscape(name) + '</b><span>' + htmlEscape(gongNum + '宫') + '</span></div>'
+    html += '<div class="qm-star-row"><span class="qm-star red">' + htmlEscape(tianGan || tianPan) + '</span><span class="qm-star blue">' + htmlEscape(xing) + '</span><span class="qm-star green">' + htmlEscape(men) + '</span></div>'
+    html += '<div class="qm-info-row"><span>' + htmlEscape(shen) + '</span><span>' + htmlEscape(diGan || diPan) + '</span></div>'
+    html += '</div>'
+  })
+  html += '</div></div>'
+  return html
+}
+
+function renderYaoGraphic(isYang) {
+  return isYang ? '<div class="ly-yang-bar"></div>' : '<div class="ly-yin-bars"><div class="ly-yin-seg"></div><div class="ly-yin-seg"></div></div>'
+}
+
+function renderLiuyaoArtifact(data) {
+  const details = data.details || data.lines || []
+  const bianDetails = data.bian_details || data.changed_details || []
+  const benName = data['本卦'] || data.ben_gua || ''
+  const bianName = data['变卦'] || data.bian_gua || ''
+  const hasBian = !!bianName || bianDetails.length
+  let html = '<div class="ly-result-wrap"><div class="ly-ben-bian-box">'
+  html += '<div class="ly-ben-bian-top"><div class="ly-ben-bian-name-block"><div class="ly-ben-bian-label">本 卦</div><div class="ly-ben-bian-name-text">' + htmlEscape(benName) + '</div></div>'
+  if (hasBian) html += '<div class="ly-ben-bian-top-arrow">→</div><div class="ly-ben-bian-name-block"><div class="ly-ben-bian-label">变 卦</div><div class="ly-ben-bian-name-text">' + htmlEscape(bianName) + '</div></div>'
+  html += '</div><div class="ly-ben-bian-body">'
+  for (let i = details.length - 1; i >= 0; i--) {
+    const ben = details[i] || {}
+    const bian = bianDetails[i] || null
+    html += '<div class="ly-paired-row ' + (ben.is_moving ? 'moving' : '') + (bian ? ' has-bian' : ' has-ben-only') + '">'
+    html += '<div class="ly-row-ben-side"><div class="ly-yao-tags-left">'
+    if (ben.is_shi) html += '<span class="ly-tag ly-tag-shi">世</span>'
+    if (ben.is_ying) html += '<span class="ly-tag ly-tag-ying">应</span>'
+    if (ben.is_moving) html += '<span class="ly-tag ly-tag-moving">动</span>'
+    html += '</div><div class="ly-paired-ben">' + renderYaoGraphic(!!ben.is_yang) + '</div><div class="ly-paired-info">'
+    html += '<span class="ly-yao-pos">' + htmlEscape(ben.name || '') + '</span><span class="ly-tag ly-tag-liuqin">' + htmlEscape(ben.liuqin || ben.liu_qin || '') + '</span><span class="ly-tag ly-tag-liushen">' + htmlEscape(ben.liushen || ben.liu_shen || '') + '</span><span class="ly-tag ly-tag-naja">' + htmlEscape(ben.naja || ben.na_jia || '') + '</span></div></div>'
+    if (bian) {
+      html += '<div class="ly-row-divider"></div><div class="ly-row-bian-side"><div class="ly-yao-tags-left"><span class="ly-tag ly-tag-bian">变</span></div><div class="ly-paired-bian">' + renderYaoGraphic(!!bian.is_yang) + '</div><div class="ly-paired-info"><span class="ly-yao-pos">' + htmlEscape(bian.name || '') + '</span><span class="ly-tag ly-tag-liuqin">' + htmlEscape(bian.liuqin || bian.liu_qin || '') + '</span><span class="ly-tag ly-tag-naja">' + htmlEscape(bian.naja || bian.na_jia || '') + '</span></div></div>'
+    }
+    html += '</div>'
+  }
+  html += '</div><div class="ly-meta-row">' + htmlEscape([data.method, data.yue_jian && ('月建 ' + data.yue_jian), data.ri_chen && ('日辰 ' + data.ri_chen)].filter(Boolean).join(' · ')) + '</div></div></div>'
+  return html
 }
 
 function renderZiweiArtifact(data) {
@@ -1394,6 +1562,105 @@ onBeforeUnmount(() => {
 .home-artifact-render :deep(.artifact-line) { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .home-artifact-render :deep(.artifact-tarot-card em) { display: block; margin-top: 3px; color: var(--accent); font-style: normal; font-size: 0.62rem; }
 .home-artifact-render :deep(.artifact-empty) { color: var(--text-3); font-size: 0.68rem; }
+
+/* 首页 artifact 直接承载单项页盘面结构，避免重新画一套黑字简化卡片 */
+.home-artifact-render :deep(.mh-result-wrap),
+.home-artifact-render :deep(.qm-result-wrap),
+.home-artifact-render :deep(.ly-result-wrap) { width: 100%; color: var(--text-2); box-sizing: border-box; }
+.home-artifact-render :deep(.mh-summary),
+.home-artifact-render :deep(.qm-summary) { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 0.8125rem; color: var(--text-2); padding: 12px 16px; background: rgba(255,255,255,0.035); border-radius: 10px; border: 1px solid var(--card-border); margin-bottom: 16px; }
+.home-artifact-render :deep(.mh-summary b),
+.home-artifact-render :deep(.qm-summary b) { color: var(--text-1); }
+.home-artifact-render :deep(.gua-display) { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 20px 0; }
+.home-artifact-render :deep(.gua-card) { background: rgba(255,255,255,0.035); border: 1px solid var(--card-border); border-radius: 14px; padding: 18px 14px 14px; text-align: center; position: relative; transition: all .25s ease; box-sizing: border-box; }
+.home-artifact-render :deep(.gua-card-name) { font-family: var(--font-serif); font-size: 1.25rem; font-weight: 700; color: var(--text-1); letter-spacing: 3px; margin-bottom: 12px; }
+.home-artifact-render :deep(.gua-card-label) { font-size: .72rem; color: var(--text-3); letter-spacing: 2px; margin-bottom: 8px; }
+.home-artifact-render :deep(.gua-card.ben-gua .gua-card-name) { color: var(--accent); }
+.home-artifact-render :deep(.gua-card.hu-gua .gua-card-name) { color: #7C93C3; }
+.home-artifact-render :deep(.gua-card.bian-gua .gua-card-name) { color: #E8A87C; }
+.home-artifact-render :deep(.gua-yao-wrap) { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 0 auto; width: 120px; max-width: 120px; }
+.home-artifact-render :deep(.gua-yao) { display: flex; justify-content: center; align-items: center; gap: 6px; height: 8px; width: 100%; position: relative; }
+.home-artifact-render :deep(.gua-yao-line) { height: 6px; border-radius: 2px; background: var(--text-1); }
+.home-artifact-render :deep(.gua-yao.yang .gua-yao-line) { width: 80%; }
+.home-artifact-render :deep(.gua-yao.yin .gua-yao-line) { width: calc((80% - 6px) / 2); }
+.home-artifact-render :deep(.gua-yao.dong-yao .gua-yao-line) { background: var(--accent); box-shadow: 0 0 8px rgba(178,149,93,.35); }
+.home-artifact-render :deep(.gua-yao.dong-yao::after) { content: '○'; position: absolute; right: -14px; font-size: .625rem; color: var(--accent); font-weight: 700; }
+.home-artifact-render :deep(.gua-trigram) { font-size: 2.2rem; line-height: 1; margin-bottom: 4px; opacity: .82; }
+.home-artifact-render :deep(.gua-sub-info) { margin-top: 12px; font-size: .72rem; color: var(--text-3); line-height: 1.8; }
+.home-artifact-render :deep(.gua-sub-info span) { display: inline-block; padding: 2px 8px; border-radius: 4px; margin: 2px; background: rgba(255,255,255,.05); }
+.home-artifact-render :deep(.ti-yong-section) { background: rgba(255,255,255,.035); border: 1px solid var(--card-border); border-radius: 14px; padding: 18px; margin: 18px 0; }
+.home-artifact-render :deep(.ti-yong-title) { font-family: var(--font-serif); font-size: 1rem; font-weight: 700; color: var(--text-1); letter-spacing: 2px; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--card-border); }
+.home-artifact-render :deep(.ti-yong-grid) { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; margin-bottom: 16px; }
+.home-artifact-render :deep(.ti-yong-box) { text-align: center; padding: 16px 12px; border-radius: 12px; border: 1px solid var(--card-border); }
+.home-artifact-render :deep(.ti-yong-box.ti) { background: rgba(110,195,135,.07); border-color: rgba(110,195,135,.20); }
+.home-artifact-render :deep(.ti-yong-box.yong) { background: rgba(124,147,195,.07); border-color: rgba(124,147,195,.20); }
+.home-artifact-render :deep(.ti-yong-label) { font-size: .72rem; color: var(--text-3); margin-bottom: 4px; letter-spacing: 1px; }
+.home-artifact-render :deep(.ti-yong-gua) { font-family: var(--font-serif); font-size: 1.45rem; font-weight: 700; color: var(--text-1); }
+.home-artifact-render :deep(.ti-yong-wx) { font-size: .8rem; color: var(--text-2); margin-top: 4px; }
+.home-artifact-render :deep(.ti-yong-rel) { text-align: center; padding: 8px 16px; font-size: .84rem; font-weight: 700; border-radius: 8px; letter-spacing: 1px; white-space: nowrap; }
+.home-artifact-render :deep(.ti-yong-rel.ji) { background: rgba(110,195,135,.12); color: var(--success); }
+.home-artifact-render :deep(.ti-yong-rel.xiong) { background: rgba(215,125,110,.12); color: var(--danger); }
+.home-artifact-render :deep(.ti-yong-rel.zhong) { background: rgba(255,255,255,.05); color: var(--text-2); }
+.home-artifact-render :deep(.mh-analysis-table) { width: 100%; border-collapse: collapse; font-size: .78rem; }
+.home-artifact-render :deep(.mh-analysis-table th) { text-align: left; padding: 10px 12px; color: var(--text-3); font-weight: 500; border-bottom: 1px solid var(--card-border); white-space: nowrap; }
+.home-artifact-render :deep(.mh-analysis-table td) { padding: 10px 12px; color: var(--text-2); border-bottom: 1px solid var(--card-border); }
+.home-artifact-render :deep(.mh-verdict) { margin-top: 16px; padding: 16px 20px; border-radius: 12px; border-left: 3px solid var(--accent); background: rgba(178,149,93,.055); font-size: .9rem; color: var(--text-2); line-height: 1.8; }
+.home-artifact-render :deep(.wx-tag),
+.home-artifact-render :deep(.ws-tag) { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: .72rem; font-weight: 600; }
+.home-artifact-render :deep(.wx-tag.jin) { background: rgba(255,215,0,.12); color: #D4A017; }
+.home-artifact-render :deep(.wx-tag.mu) { background: rgba(110,195,135,.12); color: #6EC387; }
+.home-artifact-render :deep(.wx-tag.shui) { background: rgba(70,130,180,.12); color: #4682B4; }
+.home-artifact-render :deep(.wx-tag.huo) { background: rgba(215,125,110,.12); color: #D77D6E; }
+.home-artifact-render :deep(.wx-tag.tu) { background: rgba(160,140,100,.12); color: #A08C64; }
+.home-artifact-render :deep(.ws-tag.wang) { background: rgba(110,195,135,.12); color: #6EC387; }
+.home-artifact-render :deep(.ws-tag.xiang) { background: rgba(70,130,180,.12); color: #4682B4; }
+.home-artifact-render :deep(.ws-tag.xiu) { background: rgba(255,255,255,.06); color: var(--text-3); }
+.home-artifact-render :deep(.ws-tag.qiu) { background: rgba(215,125,110,.10); color: #D77D6E; }
+.home-artifact-render :deep(.ws-tag.si) { background: rgba(160,140,100,.10); color: #A08C64; }
+
+.home-artifact-render :deep(.qm-nine-grid) { display: grid; grid-template-columns: repeat(3, minmax(94px, 1fr)); gap: 2px; border: 2px solid rgba(184,176,160,.78); border-radius: 12px; overflow: hidden; background: #d5cfc2; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+.home-artifact-render :deep(.qm-palace) { min-height: 112px; padding: 8px; background: rgba(255,253,248,.92); color: #222; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; }
+.home-artifact-render :deep(.qm-palace.center) { justify-content: center; align-items: center; text-align: center; background: #f0ede5; }
+.home-artifact-render :deep(.qm-center-title) { color: #8a6319; font-weight: 800; letter-spacing: 2px; font-size: .92rem; }
+.home-artifact-render :deep(.qm-center-meta) { color: #6f6250; font-size: .66rem; line-height: 1.5; }
+.home-artifact-render :deep(.qm-palace-head) { display: flex; align-items: center; justify-content: space-between; color: #6f6250; font-size: .68rem; }
+.home-artifact-render :deep(.qm-palace-head b) { color: #8a6319; font-size: .8rem; }
+.home-artifact-render :deep(.qm-star-row) { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; align-items: center; font-size: .9rem; font-weight: 800; text-align: center; }
+.home-artifact-render :deep(.qm-star.red) { color: #E74C3C; }
+.home-artifact-render :deep(.qm-star.blue) { color: #2980B9; }
+.home-artifact-render :deep(.qm-star.green) { color: #27AE60; }
+.home-artifact-render :deep(.qm-info-row) { display: flex; justify-content: space-between; color: #444; font-size: .7rem; margin-top: auto; }
+
+.home-artifact-render :deep(.ly-ben-bian-box) { border: 1px solid var(--card-border); border-radius: 14px; background: rgba(255,255,255,.035); padding: 16px; }
+.home-artifact-render :deep(.ly-ben-bian-top) { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; margin-bottom: 14px; }
+.home-artifact-render :deep(.ly-ben-bian-name-block) { text-align: center; border: 1px solid rgba(178,149,93,.16); border-radius: 12px; padding: 10px; background: rgba(255,255,255,.035); }
+.home-artifact-render :deep(.ly-ben-bian-label) { font-size: .66rem; color: var(--text-3); letter-spacing: 2px; }
+.home-artifact-render :deep(.ly-ben-bian-name-text) { margin-top: 4px; font-family: var(--font-serif); font-size: 1.1rem; font-weight: 800; color: var(--accent); letter-spacing: 2px; }
+.home-artifact-render :deep(.ly-ben-bian-top-arrow) { color: var(--accent); font-size: 1.2rem; font-weight: 800; }
+.home-artifact-render :deep(.ly-ben-bian-body) { display: grid; gap: 7px; }
+.home-artifact-render :deep(.ly-paired-row) { display: grid; grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr); gap: 8px; align-items: center; padding: 8px; border-radius: 10px; background: rgba(255,255,255,.035); border: 1px solid rgba(178,149,93,.10); }
+.home-artifact-render :deep(.ly-paired-row.has-ben-only) { grid-template-columns: minmax(0, 1fr); }
+.home-artifact-render :deep(.ly-paired-row.moving) { background: rgba(215,125,110,.08); border-color: rgba(215,125,110,.22); }
+.home-artifact-render :deep(.ly-row-ben-side),
+.home-artifact-render :deep(.ly-row-bian-side) { display: grid; grid-template-columns: 42px 74px minmax(0, 1fr); gap: 8px; align-items: center; min-width: 0; }
+.home-artifact-render :deep(.ly-row-divider) { width: 1px; align-self: stretch; background: rgba(178,149,93,.18); }
+.home-artifact-render :deep(.ly-yao-tags-left) { display: flex; gap: 4px; justify-content: flex-start; flex-wrap: wrap; }
+.home-artifact-render :deep(.ly-tag) { display: inline-flex; align-items: center; justify-content: center; min-height: 20px; padding: 1px 6px; border-radius: 6px; font-size: .65rem; line-height: 1; background: rgba(178,149,93,.10); color: var(--text-2); white-space: nowrap; }
+.home-artifact-render :deep(.ly-tag-shi) { color: #fff; background: #8a6319; }
+.home-artifact-render :deep(.ly-tag-ying) { color: #fff; background: #7C93C3; }
+.home-artifact-render :deep(.ly-tag-moving) { color: #fff; background: #D77D6E; }
+.home-artifact-render :deep(.ly-tag-bian) { color: #fff; background: #27AE60; }
+.home-artifact-render :deep(.ly-tag-liuqin) { color: #8a6319; }
+.home-artifact-render :deep(.ly-tag-liushen) { color: #2980B9; }
+.home-artifact-render :deep(.ly-tag-naja) { color: #6d5a38; }
+.home-artifact-render :deep(.ly-paired-ben),
+.home-artifact-render :deep(.ly-paired-bian) { width: 74px; display: flex; align-items: center; justify-content: center; }
+.home-artifact-render :deep(.ly-yang-bar) { width: 64px; height: 7px; border-radius: 3px; background: var(--text-1); }
+.home-artifact-render :deep(.ly-yin-bars) { width: 64px; display: flex; gap: 12px; justify-content: center; }
+.home-artifact-render :deep(.ly-yin-seg) { width: 26px; height: 7px; border-radius: 3px; background: var(--text-1); }
+.home-artifact-render :deep(.ly-paired-info) { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; min-width: 0; }
+.home-artifact-render :deep(.ly-yao-pos) { color: var(--text-1); font-weight: 700; font-size: .72rem; }
+.home-artifact-render :deep(.ly-meta-row) { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--card-border); color: var(--text-3); font-size: .72rem; }
 .mini-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid rgba(178,149,93,0.14); border-radius: 10px; overflow: hidden; }
 .mini-palace { min-height: 64px; padding: 7px; border-right: 1px solid rgba(178,149,93,0.12); border-bottom: 1px solid rgba(178,149,93,0.12); display: flex; flex-direction: column; gap: 2px; color: var(--text-3); font-size: 0.62rem; box-sizing: border-box; }
 .mini-palace:nth-child(3n) { border-right: none; }
@@ -1563,6 +1830,20 @@ onBeforeUnmount(() => {
   .home-artifact-render :deep(.artifact-grid-3),
   .home-artifact-render :deep(.artifact-kv-grid) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .home-artifact-render :deep(.artifact-ziwei-grid) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-artifact-render :deep(.gua-display) { grid-template-columns: 1fr; gap: 12px; }
+  .home-artifact-render :deep(.ti-yong-grid) { grid-template-columns: 1fr; gap: 8px; }
+  .home-artifact-render :deep(.ti-yong-rel) { white-space: normal; }
+  .home-artifact-render :deep(.qm-nine-grid) { grid-template-columns: repeat(3, minmax(82px, 1fr)); }
+  .home-artifact-render :deep(.qm-palace) { min-height: 96px; padding: 6px; }
+  .home-artifact-render :deep(.qm-star-row) { font-size: .76rem; }
+  .home-artifact-render :deep(.ly-ben-bian-box) { padding: 12px; }
+  .home-artifact-render :deep(.ly-row-ben-side),
+  .home-artifact-render :deep(.ly-row-bian-side) { grid-template-columns: 34px 62px minmax(0, 1fr); gap: 6px; }
+  .home-artifact-render :deep(.ly-paired-ben),
+  .home-artifact-render :deep(.ly-paired-bian) { width: 62px; }
+  .home-artifact-render :deep(.ly-yang-bar),
+  .home-artifact-render :deep(.ly-yin-bars) { width: 54px; }
+  .home-artifact-render :deep(.ly-yin-seg) { width: 22px; }
   .mini-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mini-palace:nth-child(3n) { border-right: 1px solid rgba(178,149,93,0.12); }
   .mini-palace:nth-child(2n) { border-right: none; }
@@ -1609,6 +1890,19 @@ onBeforeUnmount(() => {
   .home-artifact-render :deep(.artifact-grid-3),
   .home-artifact-render :deep(.artifact-kv-grid),
   .home-artifact-render :deep(.artifact-ziwei-grid) { grid-template-columns: 1fr; }
+  .home-artifact-render :deep(.qm-nine-grid) { grid-template-columns: repeat(3, minmax(76px, 1fr)); }
+  .home-artifact-render :deep(.qm-palace) { min-height: 88px; padding: 5px; }
+  .home-artifact-render :deep(.qm-palace-head) { font-size: .56rem; }
+  .home-artifact-render :deep(.qm-palace-head b) { font-size: .66rem; }
+  .home-artifact-render :deep(.qm-star-row) { font-size: .68rem; gap: 2px; }
+  .home-artifact-render :deep(.qm-info-row) { font-size: .58rem; }
+  .home-artifact-render :deep(.ly-ben-bian-top) { grid-template-columns: 1fr; }
+  .home-artifact-render :deep(.ly-ben-bian-top-arrow) { transform: rotate(90deg); text-align: center; }
+  .home-artifact-render :deep(.ly-paired-row),
+  .home-artifact-render :deep(.ly-paired-row.has-bian) { grid-template-columns: 1fr; }
+  .home-artifact-render :deep(.ly-row-divider) { width: 100%; height: 1px; }
+  .home-artifact-render :deep(.ly-row-ben-side),
+  .home-artifact-render :deep(.ly-row-bian-side) { grid-template-columns: 32px 58px minmax(0, 1fr); }
   .mini-line { align-items: flex-start; flex-direction: column; gap: 3px; }
   .section { padding: 32px 16px; }
   .section-title { font-size: 1.15rem; }

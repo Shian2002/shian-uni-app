@@ -290,7 +290,7 @@
                   <view class="action-btn" :class="{ disabled: !batchMode || selectedIds.length === 0 }" @tap="batchMode ? (moveGroupModal = true) : null">📁 移动分组</view>
                   <view class="action-btn" :class="{ active: showStarSection }" @tap="showStarSection = !showStarSection">⭐ 星标</view>
                   <view id="baziBatchToggle" class="action-btn" :class="{ active: batchMode }" @tap="toggleBatchDelete">{{ batchMode ? '退出批量' : '批量' }}</view>
-                  <view class="action-btn action-btn-ai" @tap="sendRecordsBatchToAi">🔮 发AI</view>
+                  <view v-if="false" class="action-btn action-btn-ai" @tap="sendRecordsBatchToAi">🔮 发AI</view>
                 </view>
               </view>
 
@@ -335,7 +335,7 @@
                 </label>
                 <text class="batch-count">已选 {{ selectedIds.length }} 项</text>
                 <view class="batch-move-btn" @tap="moveGroupModal = true">📁 移动分组</view>
-                <view class="batch-ai-btn" @tap="sendRecordsBatchToAi">🔮 发送AI</view>
+                <view v-if="false" class="batch-ai-btn" @tap="sendRecordsBatchToAi">🔮 发送AI</view>
                 <view class="batch-confirm-btn" @tap="confirmBatchDelete">删除</view>
                 <view class="batch-cancel-btn" @tap="cancelBatchDelete">取消</view>
               </view>
@@ -402,7 +402,7 @@
       <view class="record-ctx-menu" v-if="recordContextMenu.show" :style="{ left: recordContextMenu.x + 'px', top: recordContextMenu.y + 'px' }" @tap.stop>
         <view class="ctx-menu-item" @tap="editRecord(recordContextMenu.record)">✏️ 编辑</view>
         <view class="ctx-menu-item" @tap="togglePin(recordContextMenu.record); hideRecordMenu()">{{ recordContextMenu.record && recordContextMenu.record.pinned ? '📌 取消置顶' : '📌 置顶' }}</view>
-        <view class="ctx-menu-item" @tap="sendToAiFromMenu(recordContextMenu.record)">🔮 发AI解读</view>
+        <view v-if="false" class="ctx-menu-item" @tap="sendToAiFromMenu(recordContextMenu.record)">🔮 发AI解读</view>
         <view class="ctx-menu-divider"></view>
         <view class="ctx-menu-item ctx-danger" @tap="deleteRecordFromMenu(recordContextMenu.record)">🗑️ 删除</view>
       </view>
@@ -1312,34 +1312,11 @@ function deleteRecord(id) {
 }
 
 function sendRecordToAi(r) {
-  if (!selectedRecords.value) return
-  var exists = selectedRecords.value.some(function(s) { return s.id === r.id })
-  if (!exists) {
-    selectedRecords.value.push(r)
-    archiveRecordIds.value.push(r.id)
-  }
-  delete window.__lastBaziPanData
-  activeTab.value = 'ai'
-  uni.showToast({ title: '已加载到AI档案', icon: 'none' })
+  uni.showToast({ title: '深度解读请回首页选择命盘', icon: 'none' })
 }
 
 function sendRecordsBatchToAi() {
-  var ids = selectedIds.value.slice()
-  if (ids.length === 0) { uni.showToast({ title: '请先选择记录', icon: 'none' }); return }
-  for (var i = 0; i < ids.length; i++) {
-    var r = records.value.find(function(x) { return x.id === ids[i] })
-    if (r) {
-      var exists = selectedRecords.value.some(function(s) { return s.id === r.id })
-      if (!exists) {
-        selectedRecords.value.push(r)
-        archiveRecordIds.value.push(r.id)
-      }
-    }
-  }
-  delete window.__lastBaziPanData
-  batchMode.value = false; selectedIds.value = []
-  activeTab.value = 'ai'
-  uni.showToast({ title: '已加载 ' + ids.length + ' 条到AI档案', icon: 'none' })
+  uni.showToast({ title: '深度解读请回首页选择命盘', icon: 'none' })
 }
 
 var recordContextMenu = ref({ show: false, x: 0, y: 0, record: null, targetRect: null, targetId: null })
@@ -2288,7 +2265,7 @@ function createNativeInput(wrapId, type, placeholder, maxlength) {
 function applyNavQuery(q) {
   if (!q) return
   if (q.includes('tab=free') || q.includes('#free')) { activeTab.value = 'free'; nextTick(() => { switchBaziTab('free') }) }
-  else if (q.includes('tab=ai') || q.includes('#ai')) { activeTab.value = 'ai'; nextTick(() => { switchBaziTab('ai') }) }
+  else if (q.includes('tab=ai') || q.includes('#ai')) { activeTab.value = 'free'; nextTick(() => { switchBaziTab('free') }) }
   else if (q.includes('tab=records') || q.includes('#records')) { activeTab.value = 'records'; nextTick(() => { switchBaziTab('records') }) }
 }
 
@@ -2651,7 +2628,7 @@ onMounted(() => {
 
   const hash = location.hash
   if (hash.includes('tab=free') || hash.includes('#free')) activeTab.value = 'free'
-  else if (hash.includes('tab=ai') || hash.includes('#ai')) activeTab.value = 'ai'
+  else if (hash.includes('tab=ai') || hash.includes('#ai')) activeTab.value = 'free'
   else if (hash.includes('tab=records') || hash.includes('#records')) activeTab.value = 'records'
   // 调用 switchBaziTab 同步DOM（绕过Vue 3.4.21 render effect bug）
   nextTick(() => { switchBaziTab(activeTab.value) })

@@ -62,6 +62,7 @@ WorkingDirectory=/opt/xuan-cet/backend
 Environment=FLASK_ENV=production
 Environment=DATABASE_URL=$DATABASE_URL
 Environment=UPLOAD_FOLDER=/var/www/xuan-cet/static/uploads
+EnvironmentFile=-/opt/xuan-cet/backend/.env
 ExecStart=/opt/xuan-cet/backend/venv/bin/gunicorn --workers 2 --threads 4 --timeout 180 --bind 127.0.0.1:5199 app:app
 Restart=always
 RestartSec=5
@@ -71,7 +72,7 @@ StandardError=journal
 [Install]
 WantedBy=multi-user.target
 EOF"
-$SSH_CMD "$SERVER" "sudo rm -f /etc/systemd/system/xuan-cet-flask.service.d/override.conf; sudo rmdir /etc/systemd/system/xuan-cet-flask.service.d 2>/dev/null || true; sudo systemctl daemon-reload && sudo systemctl enable xuan-cet-flask >/dev/null && sudo systemctl restart xuan-cet-flask"
+$SSH_CMD "$SERVER" "sudo systemctl daemon-reload && sudo systemctl enable xuan-cet-flask >/dev/null && sudo systemctl restart xuan-cet-flask"
 sleep 2
 echo "  等待服务启动..."
 $SSH_CMD "$SERVER" "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5199/ 2>/dev/null" | grep -q 200 && echo "  后端 200 OK" || echo "  ⚠️ 后端可能未正常启动，检查: sudo journalctl -u xuan-cet-flask -n 80"

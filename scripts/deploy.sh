@@ -85,6 +85,7 @@ WorkingDirectory=$FLASK_DIR
 Environment=FLASK_ENV=production
 Environment=DATABASE_URL=$DATABASE_URL
 Environment=UPLOAD_FOLDER=$H5_DIR/static/uploads
+EnvironmentFile=-$FLASK_DIR/.env
 ExecStart=$FLASK_DIR/venv/bin/gunicorn --workers 2 --threads 4 --timeout 180 --bind 127.0.0.1:$FLASK_PORT app:app
 Restart=always
 RestartSec=5
@@ -96,8 +97,6 @@ WantedBy=multi-user.target
 EOF
 
 # 启动 Flask
-sudo rm -f /etc/systemd/system/xuan-cet-flask.service.d/override.conf
-sudo rmdir /etc/systemd/system/xuan-cet-flask.service.d 2>/dev/null || true
 sudo systemctl daemon-reload
 sudo systemctl enable xuan-cet-flask
 sudo systemctl restart xuan-cet-flask
