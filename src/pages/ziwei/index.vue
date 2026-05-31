@@ -63,6 +63,14 @@
                   <view class="form-select-picker">{{ ['阳历(公历)', '农历(阴历)'][zwForm.dateTypeIdx] }}</view>
                 </picker>
               </view>
+              <view class="form-group">
+                <text class="form-label">盘名</text>
+                <input type="text" class="form-input form-input-text" v-model="zwForm.chartName" placeholder="我的命盘">
+              </view>
+              <view class="form-group">
+                <text class="form-label">出生地经度</text>
+                <input type="digit" class="form-input form-input-text" v-model="zwForm.longitude" placeholder="如 116.4074">
+              </view>
             </view>
             <view class="submit-btn" @click="ziweiFreePan">⭐ 免费排盘</view>
             <text class="form-hint" style="text-align:center;display:block;margin-top:12px;">基于iztro-py精确排盘，十二宫、主星辅星、四化飞星全展示。</text>
@@ -252,7 +260,9 @@ function switchTab(tabName) {
 
 const zwForm = reactive({
   year: 2000, month: 8, day: 16, hour: 12, minute: 0,
-  genderIdx: 0, dateTypeIdx: 0
+  genderIdx: 0, dateTypeIdx: 0,
+  chartName: '我的命盘',
+  longitude: '116.4074'
 })
 
 // AI解读表单
@@ -415,6 +425,7 @@ async function ziweiFreePan() {
     const d = parseInt(zwForm.day)
     const h = parseInt(zwForm.hour)
     const min = parseInt(zwForm.minute) || 0
+    const longitude = parseFloat(zwForm.longitude)
     
     if (isNaN(y) || isNaN(m) || isNaN(d) || isNaN(h)) {
       zwPanResult.value = '<div style="color:var(--danger);padding:16px;">请填写完整的出生时间</div>'
@@ -427,7 +438,9 @@ async function ziweiFreePan() {
       data: {
         year: y, month: m, day: d, hour: h, minute: min,
         gender: ['男', '女'][zwForm.genderIdx],
-        date_type: ['solar', 'lunar'][zwForm.dateTypeIdx]
+        date_type: ['solar', 'lunar'][zwForm.dateTypeIdx],
+        longitude: isNaN(longitude) ? undefined : longitude,
+        question: zwForm.chartName || ''
       }
     })
     
@@ -803,71 +816,119 @@ function _zwRenderCards(text) {
 }
 
 // 渲染函数
+function zwEsc(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 function zwBasicItem(label, value) {
-  return '<div class="zw-basic-item"><span class="zw-basic-label">' + label + '</span><span class="zw-basic-value">' + (value || '') + '</span></div>'
+  return '<div class="zw-basic-item"><span class="zw-basic-label">' + zwEsc(label) + '</span><span class="zw-basic-value">' + zwEsc(value || '') + '</span></div>'
+}
+
+function zwMutagenClass(mutagen) {
+  if (!mutagen) return ''
+  if (mutagen.includes('禄')) return 'zw-mutagen-lu'
+  if (mutagen.includes('权')) return 'zw-mutagen-quan'
+  if (mutagen.includes('科')) return 'zw-mutagen-ke'
+  if (mutagen.includes('忌')) return 'zw-mutagen-ji'
+  return ''
+}
+
+function zwStarHtml(star, cls) {
+  if (!star || !star.name) return ''
+  const brightness = star.brightness ? '<em>' + zwEsc(star.brightness) + '</em>' : ''
+  const mutagen = star.mutagen ? '<b class="zw-mutagen ' + zwMutagenClass(star.mutagen) + '">' + zwEsc(star.mutagen) + '</b>' : ''
+  return '<span class="' + cls + '">' + zwEsc(star.name) + brightness + mutagen + '</span>'
 }
 
 function zwPalaceCell(p) {
   if (!p) return '<div class="zw-palace-cell"></div>'
   let cls = 'zw-palace-cell'
   let badge = ''
-  if (p.is_body_palace) { cls += ' is-body'; badge += '<span class="zw-palace-badge zw-badge-body">身</span>' }
-  if (p.name === '命宫') { cls += ' is-soul'; badge += '<span class="zw-palace-badge zw-badge-soul">命</span>' }
-  let starsHtml = ''
-  ;(p.major_stars || []).forEach(function(s) {
-    let mut = ''
-    if (s.mutagen) {
-      let mCls = ''
-      if (s.mutagen.includes('禄')) mCls = 'zw-mutagen-lu'
-      else if (s.mutagen.includes('权')) mCls = 'zw-mutagen-quan'
-      else if (s.mutagen.includes('科')) mCls = 'zw-mutagen-ke'
-      else if (s.mutagen.includes('忌')) mCls = 'zw-mutagen-ji'
-      mut = '<span class="zw-mutagen ' + mCls + '">' + s.mutagen + '</span>'
-    }
-    const brightness = s.brightness ? '(' + s.brightness + ')' : ''
-    starsHtml += '<span class="zw-star-major">' + s.name + brightness + mut + '</span>'
-  })
-  ;(p.minor_stars || []).forEach(function(s) {
-    starsHtml += '<span class="zw-star-minor">' + s.name + '</span>'
-  })
-  ;(p.adjective_stars || []).slice(0, 4).forEach(function(s) {
-    starsHtml += '<span class="zw-star-adj">' + s.name + '</span>'
-  })
+  if (p.is_body_palace) { cls += ' is-body'; badge += '<span class="zw-palace-badge zw-badge-body">身宫</span>' }
+  if (p.name === '命宫') { cls += ' is-soul'; badge += '<span class="zw-palace-badge zw-badge-soul">命宫</span>' }
+  const majorHtml = (p.major_stars || []).map(function(s) { return zwStarHtml(s, 'zw-star-major') }).join('')
+  const minorHtml = (p.minor_stars || []).map(function(s) { return zwStarHtml(s, 'zw-star-minor') }).join('')
+  const adjHtml = (p.adjective_stars || []).slice(0, 8).map(function(s) { return zwStarHtml(s, 'zw-star-adj') }).join('')
+  const support = [p.changsheng12, p.boshi12, p.jiangqian12, p.suiqian12].filter(Boolean).map(zwEsc).join(' · ')
+  const ages = (p.ages || []).slice(0, 8).join(',')
   let decHtml = ''
   if (p.decadal && p.decadal.range) {
-    decHtml = '<div class="zw-palace-decadal">大限: ' + p.decadal.range[0] + '-' + p.decadal.range[1] + '岁 ' + (p.decadal.heavenly_stem || '') + (p.decadal.earthly_branch || '') + '</div>'
+    decHtml = '<div class="zw-palace-decadal"><span>大限</span>' + zwEsc(p.decadal.range[0]) + '-' + zwEsc(p.decadal.range[1]) + '岁 ' + zwEsc((p.decadal.heavenly_stem || '') + (p.decadal.earthly_branch || '')) + '</div>'
   }
   return '<div class="' + cls + '">' +
     badge +
-    '<div class="zw-palace-header"><span class="zw-palace-name">' + p.name + '</span><span class="zw-palace-ganzhi">' + (p.ganzhi || '') + '</span></div>' +
-    '<div class="zw-palace-stars">' + starsHtml + '</div>' +
+    '<div class="zw-palace-header"><span class="zw-palace-name">' + zwEsc(p.name) + '</span><span class="zw-palace-ganzhi">' + zwEsc(p.ganzhi || ((p.heavenly_stem || '') + (p.earthly_branch || ''))) + '</span></div>' +
+    '<div class="zw-palace-stars zw-palace-stars-major">' + majorHtml + '</div>' +
+    '<div class="zw-palace-stars zw-palace-stars-minor">' + minorHtml + '</div>' +
+    '<div class="zw-palace-stars zw-palace-stars-adj">' + adjHtml + '</div>' +
+    (support ? '<div class="zw-palace-support">' + support + '</div>' : '') +
     decHtml +
+    (ages ? '<div class="zw-palace-ages">流年:' + zwEsc(ages) + '</div>' : '') +
     '</div>'
+}
+
+function zwCenterInfo(bi, cp, meta) {
+  const method = meta.chart_method || '三合盘'
+  const modes = (meta.available_modes || ['三合', '四化']).map(function(m, idx) {
+    return '<span class="zw-mode-chip ' + (idx === 0 ? 'active' : '') + '">' + zwEsc(m) + '</span>'
+  }).join('')
+  const coming = (meta.coming_modes || ['飞星', '飞化']).map(function(m) {
+    return '<span class="zw-mode-chip muted">' + zwEsc(m) + '</span>'
+  }).join('')
+  return '<div class="zw-center-info">' +
+    '<div class="zw-center-kicker">' + zwEsc(method) + '</div>' +
+    '<div class="zw-center-title">紫微斗数命盘</div>' +
+    '<div class="zw-center-wuxing">' + zwEsc((meta.gender_yinyang || '') + ' · ' + (bi.five_elements_class || '')) + '</div>' +
+    '<div class="zw-center-line"><span>北京时间</span><strong>' + zwEsc(meta.beijing_time || bi.solar_date || '') + '</strong></div>' +
+    '<div class="zw-center-line"><span>真太阳时</span><strong>' + zwEsc(meta.true_solar_time || meta.beijing_time || '') + '</strong></div>' +
+    '<div class="zw-center-line"><span>农历</span><strong>' + zwEsc(bi.lunar_date || '') + '</strong></div>' +
+    '<div class="zw-center-line"><span>节气四柱</span><strong>' + zwEsc(bi.chinese_date || '') + '</strong></div>' +
+    '<div class="zw-center-two"><span>命主 ' + zwEsc(cp.soul_star || '') + '</span><span>身主 ' + zwEsc(cp.body_star || '') + '</span></div>' +
+    '<div class="zw-center-modes">' + modes + coming + '</div>' +
+    '</div>'
+}
+
+function zwTimeline(title, palaces) {
+  const items = (palaces || []).filter(function(p) { return p && p.decadal && p.decadal.range }).map(function(p) {
+    const r = p.decadal.range || []
+    return '<span class="zw-flow-item"><b>' + zwEsc(r[0]) + '-' + zwEsc(r[1]) + '</b><em>' + zwEsc((p.decadal.heavenly_stem || '') + (p.decadal.earthly_branch || '')) + '</em><i>' + zwEsc(p.name || '') + '</i></span>'
+  }).join('')
+  return '<div class="zw-flow-row"><div class="zw-flow-title">' + zwEsc(title) + '</div><div class="zw-flow-scroll">' + items + '</div></div>'
 }
 
 function renderZiweiPan(d) {
   let html = '<div class="zw-result-wrap">'
   const bi = d.basic_info || {}
   const cp = d.core_palace || {}
-  html += '<div class="zw-basic-card"><div class="zw-basic-grid">'
+  const meta = d.display_meta || {}
+  const req = d.request || {}
+  html += '<div class="zw-pro-header"><div><div class="zw-pro-title">' + zwEsc(req.question || meta.chart_name || '玄策专业盘') + '</div><div class="zw-pro-subtitle">' + zwEsc(meta.source_note || '基于本地算法排盘，结果供民俗文化参考。') + '</div></div><div class="zw-pro-pill">' + zwEsc(meta.time_rule || '按北京时间定时辰') + '</div></div>'
+  html += '<div class="zw-basic-card zw-pro-basic"><div class="zw-basic-grid">'
   html += zwBasicItem('阳历', bi.solar_date)
   html += zwBasicItem('农历', bi.lunar_date)
-  html += zwBasicItem('八字', bi.chinese_date)
+  html += zwBasicItem('节气四柱', bi.chinese_date)
   html += zwBasicItem('时辰', (bi.shichen || '') + ' ' + (bi.shichen_range || ''))
+  html += zwBasicItem('北京时间', meta.beijing_time)
+  html += zwBasicItem('真太阳时', meta.true_solar_time)
   html += zwBasicItem('生肖', bi.zodiac)
-  html += zwBasicItem('星座', bi.sign)
   html += zwBasicItem('五行局', bi.five_elements_class)
   html += zwBasicItem('命主', cp.soul_star)
   html += zwBasicItem('身主', cp.body_star)
   html += '</div></div>'
   const palaces = d.twelve_palaces || []
-  html += '<div class="zw-palace-grid">'
+  html += '<div class="zw-orientation zw-orientation-top">正南方</div>'
+  html += '<div class="zw-palace-grid zw-pro-grid">'
   html += zwPalaceCell(palaces[4])
   html += zwPalaceCell(palaces[3])
   html += zwPalaceCell(palaces[5])
   html += zwPalaceCell(palaces[6])
   html += zwPalaceCell(palaces[2])
-  html += '<div class="zw-center-info"><div class="zw-center-title">紫微斗数命盘</div><div class="zw-center-wuxing">' + (bi.five_elements_class || '') + '</div><div class="zw-center-soul">命主: ' + (cp.soul_star || '') + '</div><div class="zw-center-soul">身主: ' + (cp.body_star || '') + '</div><div class="zw-center-date">' + (bi.solar_date || '') + ' ' + (bi.shichen || '') + '</div></div>'
+  html += zwCenterInfo(bi, cp, meta)
   html += zwPalaceCell(palaces[7])
   html += zwPalaceCell(palaces[1])
   html += zwPalaceCell(palaces[8])
@@ -876,14 +937,11 @@ function renderZiweiPan(d) {
   html += zwPalaceCell(palaces[10])
   html += zwPalaceCell(palaces[9])
   html += '</div>'
-  if (d.decadal_overview && d.decadal_overview.length > 0) {
-    html += '<div class="zw-decadal-card"><div class="zw-decadal-title">📅 大限概览</div><table class="zw-decadal-table"><tr><th>宫位</th><th>年龄范围</th><th>干支</th></tr>'
-    d.decadal_overview.forEach(function(dec) {
-      const range = dec.age_range || []
-      html += '<tr><td>' + (dec.palace_name || '') + '</td><td>' + (range[0] || '') + '-' + (range[1] || '') + '岁</td><td>' + (dec.ganzhi || '') + '</td></tr>'
-    })
-    html += '</table></div>'
-  }
+  html += '<div class="zw-orientation zw-orientation-bottom">正北方</div>'
+  html += zwTimeline('大限', palaces)
+  html += '<div class="zw-flow-row"><div class="zw-flow-title">流年</div><div class="zw-flow-scroll">' + palaces.map(function(p) {
+    return '<span class="zw-flow-item compact"><b>' + zwEsc((p.ages || []).slice(0, 3).join(',')) + '</b><i>' + zwEsc(p.name || '') + '</i></span>'
+  }).join('') + '</div></div>'
   html += '<div class="privacy-note" style="margin-top:16px;">⚠️ 以上内容仅为民俗文化与传统命理科普参考，不构成任何决策建议</div>'
   html += '</div>'
   return html
@@ -1038,7 +1096,7 @@ onMounted(function() {
 .tool-hero-content { position: relative; z-index: 1; max-width: var(--max-w); margin: 0 auto; }
 .tool-hero-title { font-family: var(--font-serif); font-size: 2rem; font-weight: 400; letter-spacing: 4px; color: var(--text-1); margin-bottom: 12px; }
 .tool-hero-desc { font-size: 0.9375rem; color: var(--text-3); letter-spacing: 2px; }
-.tool-container { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; backdrop-filter: blur(20px); box-shadow: var(--card-shadow); max-width: 720px; margin: 0 auto; }
+.tool-container { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; backdrop-filter: blur(20px); box-shadow: var(--card-shadow); max-width: 1180px; margin: 0 auto; }
 .tool-tabs { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid var(--card-border); }
 .tool-tab { padding: 12px 20px; border-radius: 10px 10px 0 0; font-size: 0.875rem; cursor: pointer; border: 1px solid transparent; border-bottom: none; color: var(--text-3); background: transparent; transition: all 0.2s; }
 .tool-tab.active { color: var(--accent); background: var(--accent-glow); border-color: var(--accent); font-weight: 600; }
@@ -1076,37 +1134,62 @@ onMounted(function() {
 .qf-datetime-select { width: 100%; padding: 10px 14px; border-radius: 10px; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-1); font-size: 0.875rem; text-align: center; }
 
 .zw-result-wrap { margin-top: 24px; }
+.zw-pro-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 14px; padding: 14px 16px; border: 1px solid rgba(132,84,190,0.22); border-radius: 12px; background: linear-gradient(135deg, rgba(132,84,190,0.10), rgba(37,109,156,0.08)); }
+.zw-pro-title { font-family: var(--font-serif); font-size: 1.05rem; font-weight: 700; color: var(--text-1); letter-spacing: 1px; }
+.zw-pro-subtitle { margin-top: 4px; font-size: 0.74rem; line-height: 1.55; color: var(--text-3); }
+.zw-pro-pill { flex: 0 0 auto; padding: 5px 9px; border-radius: 999px; background: rgba(108,92,231,0.16); color: #a48cff; border: 1px solid rgba(108,92,231,0.22); font-size: 0.7rem; white-space: nowrap; }
+.zw-pro-basic { padding: 14px 16px; margin-bottom: 14px; }
 .zw-basic-card { background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
 .zw-basic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 .zw-basic-item { display: flex; flex-direction: column; gap: 2px; }
 .zw-basic-label { font-size: 0.75rem; color: var(--text-4); letter-spacing: 1px; }
 .zw-basic-value { font-size: 0.9375rem; font-weight: 600; color: var(--accent); }
-.zw-palace-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 20px; }
-.zw-palace-cell { background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; min-height: 110px; position: relative; transition: all 0.2s; cursor: default; }
+.zw-orientation { text-align: center; color: var(--text-4); font-size: 0.72rem; letter-spacing: 4px; margin: 6px 0; }
+.zw-palace-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; margin-bottom: 12px; }
+.zw-palace-cell { background: rgba(255,255,255,0.035); border: 1px solid var(--border); border-radius: 6px; padding: 7px; min-height: 158px; position: relative; transition: all 0.2s; cursor: default; overflow: hidden; }
 .zw-palace-cell:hover { border-color: var(--accent); box-shadow: 0 0 20px rgba(212,168,71,0.08); }
 .zw-palace-cell.is-soul { border-color: var(--accent); box-shadow: 0 0 16px rgba(212,168,71,0.12); }
 .zw-palace-cell.is-body { border-color: var(--danger); }
-.zw-palace-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-.zw-palace-name { font-size: 0.875rem; font-weight: 700; color: var(--accent); }
-.zw-palace-ganzhi { font-size: 0.6875rem; color: var(--text-4); }
-.zw-palace-badge { font-size: 0.5625rem; padding: 1px 5px; border-radius: 3px; position: absolute; top: 5px; right: 5px; }
+.zw-palace-header { display: flex; justify-content: space-between; align-items: center; gap: 4px; margin-bottom: 4px; padding-right: 28px; }
+.zw-palace-name { font-size: 0.86rem; font-weight: 800; color: #d85f67; white-space: nowrap; }
+.zw-palace-ganzhi { font-size: 0.72rem; color: var(--text-3); white-space: nowrap; }
+.zw-palace-badge { font-size: 0.56rem; padding: 1px 4px; border-radius: 3px; position: absolute; top: 5px; right: 5px; }
 .zw-badge-soul { background: rgba(212,168,71,0.15); color: var(--accent); }
 .zw-badge-body { background: rgba(231,76,60,0.12); color: var(--danger); }
-.zw-palace-stars { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 3px; }
-.zw-star-major { display: inline-block; padding: 2px 7px; background: rgba(212,168,71,0.1); color: var(--accent); border-radius: 4px; font-size: 0.8125rem; font-weight: 600; }
-.zw-star-minor { display: inline-block; padding: 1px 6px; background: rgba(41,128,185,0.08); color: #5dade2; border-radius: 4px; font-size: 0.75rem; }
-.zw-star-adj { display: inline-block; padding: 1px 4px; color: #7dcea0; font-size: 0.6875rem; }
-.zw-mutagen { font-size: 0.625rem; padding: 1px 4px; border-radius: 3px; margin-left: 2px; font-weight: 600; }
+.zw-palace-stars { margin-top: 3px; display: flex; flex-wrap: wrap; gap: 2px 4px; align-items: flex-start; }
+.zw-star-major { display: inline-flex; align-items: center; gap: 1px; color: #6f62e8; font-size: 0.82rem; font-weight: 800; line-height: 1.2; }
+.zw-star-minor { display: inline-flex; align-items: center; gap: 1px; color: #2b89c9; font-size: 0.72rem; font-weight: 700; line-height: 1.25; }
+.zw-star-adj { display: inline-flex; align-items: center; color: var(--text-2); font-size: 0.66rem; line-height: 1.25; }
+.zw-star-major em, .zw-star-minor em, .zw-star-adj em { font-style: normal; color: var(--text-4); font-size: 0.6rem; margin-left: 1px; }
+.zw-mutagen { display: inline-flex; min-width: 14px; height: 14px; align-items: center; justify-content: center; font-size: 0.58rem; padding: 0 3px; border-radius: 3px; margin-left: 1px; font-weight: 800; }
 .zw-mutagen-lu { background: rgba(39,174,96,0.15); color: #27ae60; }
 .zw-mutagen-quan { background: rgba(231,76,60,0.12); color: #e74c3c; }
 .zw-mutagen-ke { background: rgba(52,152,219,0.12); color: #3498db; }
 .zw-mutagen-ji { background: rgba(142,68,173,0.12); color: #8e44ad; }
-.zw-palace-decadal { margin-top: 6px; font-size: 0.6875rem; color: var(--text-4); border-top: 1px solid var(--border); padding-top: 4px; }
-.zw-center-info { grid-column: 2 / 4; grid-row: 2 / 4; background: var(--bg-2); border: 2px solid var(--accent); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-.zw-center-title { font-size: 1.125rem; color: var(--accent); font-weight: 700; letter-spacing: 3px; margin-bottom: 8px; }
-.zw-center-wuxing { font-size: 1rem; color: #c39bd3; font-weight: 600; margin-bottom: 6px; }
-.zw-center-soul { font-size: 0.8125rem; color: var(--text-3); margin: 2px 0; }
-.zw-center-date { font-size: 0.75rem; color: var(--text-4); margin-top: 6px; }
+.zw-palace-support { margin-top: 4px; color: var(--text-4); font-size: 0.61rem; line-height: 1.35; }
+.zw-palace-decadal { margin-top: 5px; font-size: 0.65rem; color: var(--text-3); border-top: 1px solid var(--border); padding-top: 4px; line-height: 1.3; }
+.zw-palace-decadal span { color: var(--accent); margin-right: 4px; font-weight: 700; }
+.zw-palace-ages { margin-top: 2px; color: var(--text-4); font-size: 0.58rem; line-height: 1.25; }
+.zw-center-info { grid-column: 2 / 4; grid-row: 2 / 4; background: linear-gradient(180deg, rgba(255,255,255,0.055), rgba(108,92,231,0.055)); border: 1.5px solid rgba(108,92,231,0.32); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; align-items: stretch; justify-content: center; text-align: center; min-height: 318px; }
+.zw-center-kicker { font-size: 0.72rem; color: #8d7cff; font-weight: 700; }
+.zw-center-title { font-family: var(--font-serif); font-size: 1.25rem; color: var(--text-1); font-weight: 800; letter-spacing: 2px; margin: 4px 0; }
+.zw-center-wuxing { font-size: 0.92rem; color: #7f6df2; font-weight: 800; margin-bottom: 8px; }
+.zw-center-line { display: grid; grid-template-columns: 64px minmax(0,1fr); gap: 6px; align-items: baseline; text-align: left; margin: 2px 0; font-size: 0.72rem; color: var(--text-4); }
+.zw-center-line strong { color: var(--text-2); font-size: 0.76rem; font-weight: 700; word-break: break-word; }
+.zw-center-two { display: flex; justify-content: center; gap: 8px; margin: 8px 0 6px; color: var(--text-2); font-size: 0.75rem; font-weight: 700; }
+.zw-center-modes { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; margin-top: 4px; }
+.zw-mode-chip { padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,0.06); color: var(--text-3); font-size: 0.65rem; border: 1px solid var(--border); }
+.zw-mode-chip.active { background: rgba(108,92,231,0.18); border-color: rgba(108,92,231,0.32); color: #a48cff; font-weight: 800; }
+.zw-mode-chip.muted { opacity: 0.55; }
+.zw-flow-row { display: grid; grid-template-columns: 54px minmax(0,1fr); gap: 8px; align-items: stretch; margin-top: 8px; }
+.zw-flow-title { display: flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(108,92,231,0.16); color: #a48cff; font-weight: 800; font-size: 0.78rem; }
+.zw-flow-scroll { display: flex; overflow-x: auto; gap: 4px; padding-bottom: 2px; }
+.zw-flow-item { flex: 0 0 76px; min-height: 46px; border: 1px solid var(--border); border-radius: 8px; background: rgba(255,255,255,0.035); padding: 5px 6px; text-align: center; box-sizing: border-box; }
+.zw-flow-item b, .zw-flow-item em, .zw-flow-item i { display: block; font-style: normal; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.zw-flow-item b { color: var(--text-1); font-size: 0.72rem; }
+.zw-flow-item em { color: #7f6df2; font-size: 0.72rem; font-weight: 800; }
+.zw-flow-item i { color: var(--text-4); font-size: 0.62rem; }
+.zw-flow-item.compact { flex-basis: 72px; }
 .zw-decadal-card { background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
 .zw-decadal-title { font-size: 0.9375rem; font-weight: 600; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
 .zw-decadal-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
@@ -1169,6 +1252,48 @@ onMounted(function() {
 .zw-result :deep(.zw-period-ganzhi) { font-size: 0.875rem; color: #c39bd3; }
 .zw-result :deep(.zw-period-range) { font-size: 0.75rem; color: var(--text-4); margin-top: 2px; }
 .zw-result :deep(.zw-period-mutagen) { font-size: 0.75rem; color: var(--text-3); margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
+.zw-result :deep(.zw-pro-header) { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 14px; padding: 14px 16px; border: 1px solid rgba(132,84,190,0.22); border-radius: 12px; background: linear-gradient(135deg, rgba(132,84,190,0.10), rgba(37,109,156,0.08)); }
+.zw-result :deep(.zw-pro-title) { font-family: var(--font-serif); font-size: 1.05rem; font-weight: 700; color: var(--text-1); letter-spacing: 1px; }
+.zw-result :deep(.zw-pro-subtitle) { margin-top: 4px; font-size: 0.74rem; line-height: 1.55; color: var(--text-3); }
+.zw-result :deep(.zw-pro-pill) { flex: 0 0 auto; padding: 5px 9px; border-radius: 999px; background: rgba(108,92,231,0.16); color: #a48cff; border: 1px solid rgba(108,92,231,0.22); font-size: 0.7rem; white-space: nowrap; }
+.zw-result :deep(.zw-pro-basic) { padding: 14px 16px; margin-bottom: 14px; }
+.zw-result :deep(.zw-orientation) { text-align: center; color: var(--text-4); font-size: 0.72rem; letter-spacing: 4px; margin: 6px 0; }
+.zw-result :deep(.zw-pro-grid) { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; margin-bottom: 12px; }
+.zw-result :deep(.zw-pro-grid .zw-palace-cell) { background: rgba(255,255,255,0.035); border-radius: 6px; padding: 7px; min-height: 158px; overflow: hidden; }
+.zw-result :deep(.zw-pro-grid .zw-palace-header) { gap: 4px; margin-bottom: 4px; padding-right: 28px; }
+.zw-result :deep(.zw-pro-grid .zw-palace-name) { font-size: 0.86rem; font-weight: 800; color: #d85f67; white-space: nowrap; }
+.zw-result :deep(.zw-pro-grid .zw-palace-ganzhi) { font-size: 0.72rem; color: var(--text-3); white-space: nowrap; }
+.zw-result :deep(.zw-pro-grid .zw-palace-badge) { font-size: 0.56rem; padding: 1px 4px; border-radius: 3px; }
+.zw-result :deep(.zw-pro-grid .zw-palace-stars) { margin-top: 3px; display: flex; flex-wrap: wrap; gap: 2px 4px; align-items: flex-start; }
+.zw-result :deep(.zw-pro-grid .zw-star-major) { display: inline-flex; align-items: center; gap: 1px; padding: 0; background: transparent; color: #6f62e8; border-radius: 0; font-size: 0.82rem; font-weight: 800; line-height: 1.2; }
+.zw-result :deep(.zw-pro-grid .zw-star-minor) { display: inline-flex; align-items: center; gap: 1px; padding: 0; background: transparent; color: #2b89c9; border-radius: 0; font-size: 0.72rem; font-weight: 700; line-height: 1.25; }
+.zw-result :deep(.zw-pro-grid .zw-star-adj) { display: inline-flex; align-items: center; padding: 0; color: var(--text-2); font-size: 0.66rem; line-height: 1.25; }
+.zw-result :deep(.zw-pro-grid .zw-star-major em), .zw-result :deep(.zw-pro-grid .zw-star-minor em), .zw-result :deep(.zw-pro-grid .zw-star-adj em) { font-style: normal; color: var(--text-4); font-size: 0.6rem; margin-left: 1px; }
+.zw-result :deep(.zw-pro-grid .zw-mutagen) { display: inline-flex; min-width: 14px; height: 14px; align-items: center; justify-content: center; font-size: 0.58rem; padding: 0 3px; border-radius: 3px; margin-left: 1px; font-weight: 800; }
+.zw-result :deep(.zw-palace-support) { margin-top: 4px; color: var(--text-4); font-size: 0.61rem; line-height: 1.35; }
+.zw-result :deep(.zw-pro-grid .zw-palace-decadal) { margin-top: 5px; font-size: 0.65rem; color: var(--text-3); border-top: 1px solid var(--border); padding-top: 4px; line-height: 1.3; }
+.zw-result :deep(.zw-pro-grid .zw-palace-decadal span) { color: var(--accent); margin-right: 4px; font-weight: 700; }
+.zw-result :deep(.zw-palace-ages) { margin-top: 2px; color: var(--text-4); font-size: 0.58rem; line-height: 1.25; }
+.zw-result :deep(.zw-pro-grid .zw-center-info) { background: linear-gradient(180deg, rgba(255,255,255,0.055), rgba(108,92,231,0.055)); border: 1.5px solid rgba(108,92,231,0.32); border-radius: 6px; padding: 14px; align-items: stretch; min-height: 318px; }
+.zw-result :deep(.zw-center-kicker) { font-size: 0.72rem; color: #8d7cff; font-weight: 700; }
+.zw-result :deep(.zw-pro-grid .zw-center-title) { font-family: var(--font-serif); font-size: 1.25rem; color: var(--text-1); font-weight: 800; letter-spacing: 2px; margin: 4px 0; }
+.zw-result :deep(.zw-pro-grid .zw-center-wuxing) { font-size: 0.92rem; color: #7f6df2; font-weight: 800; margin-bottom: 8px; }
+.zw-result :deep(.zw-center-line) { display: grid; grid-template-columns: 64px minmax(0,1fr); gap: 6px; align-items: baseline; text-align: left; margin: 2px 0; font-size: 0.72rem; color: var(--text-4); }
+.zw-result :deep(.zw-center-line strong) { color: var(--text-2); font-size: 0.76rem; font-weight: 700; word-break: break-word; }
+.zw-result :deep(.zw-center-two) { display: flex; justify-content: center; gap: 8px; margin: 8px 0 6px; color: var(--text-2); font-size: 0.75rem; font-weight: 700; }
+.zw-result :deep(.zw-center-modes) { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; margin-top: 4px; }
+.zw-result :deep(.zw-mode-chip) { padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,0.06); color: var(--text-3); font-size: 0.65rem; border: 1px solid var(--border); }
+.zw-result :deep(.zw-mode-chip.active) { background: rgba(108,92,231,0.18); border-color: rgba(108,92,231,0.32); color: #a48cff; font-weight: 800; }
+.zw-result :deep(.zw-mode-chip.muted) { opacity: 0.55; }
+.zw-result :deep(.zw-flow-row) { display: grid; grid-template-columns: 54px minmax(0,1fr); gap: 8px; align-items: stretch; margin-top: 8px; }
+.zw-result :deep(.zw-flow-title) { display: flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(108,92,231,0.16); color: #a48cff; font-weight: 800; font-size: 0.78rem; }
+.zw-result :deep(.zw-flow-scroll) { display: flex; overflow-x: auto; gap: 4px; padding-bottom: 2px; }
+.zw-result :deep(.zw-flow-item) { flex: 0 0 76px; min-height: 46px; border: 1px solid var(--border); border-radius: 8px; background: rgba(255,255,255,0.035); padding: 5px 6px; text-align: center; box-sizing: border-box; }
+.zw-result :deep(.zw-flow-item b), .zw-result :deep(.zw-flow-item em), .zw-result :deep(.zw-flow-item i) { display: block; font-style: normal; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.zw-result :deep(.zw-flow-item b) { color: var(--text-1); font-size: 0.72rem; }
+.zw-result :deep(.zw-flow-item em) { color: #7f6df2; font-size: 0.72rem; font-weight: 800; }
+.zw-result :deep(.zw-flow-item i) { color: var(--text-4); font-size: 0.62rem; }
+.zw-result :deep(.zw-flow-item.compact) { flex-basis: 72px; }
 
 .qai-stream-box { margin-top: 20px; padding: 16px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; }
 .qai-card-item { background: var(--section-alt); border: 1px solid var(--card-border); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
@@ -1255,5 +1380,34 @@ onMounted(function() {
   .zw-result :deep(.zw-palace-badge) { font-size: 0.4375rem; padding: 1px 2px; }
   .zw-mutagen { font-size: 0.5rem; padding: 1px 2px; }
   .zw-result :deep(.zw-mutagen) { font-size: 0.5rem; padding: 1px 2px; }
+  .zw-result :deep(.zw-pro-header) { flex-direction: column; gap: 8px; padding: 12px; }
+  .zw-result :deep(.zw-pro-pill) { align-self: flex-start; white-space: normal; }
+  .zw-result :deep(.zw-pro-grid) { gap: 2px; }
+  .zw-result :deep(.zw-pro-grid .zw-palace-cell) { min-height: 108px; padding: 4px; border-radius: 4px; }
+  .zw-result :deep(.zw-pro-grid .zw-palace-header) { padding-right: 18px; margin-bottom: 2px; gap: 2px; }
+  .zw-result :deep(.zw-pro-grid .zw-palace-name) { font-size: 0.63rem; }
+  .zw-result :deep(.zw-pro-grid .zw-palace-ganzhi) { font-size: 0.48rem; }
+  .zw-result :deep(.zw-pro-grid .zw-palace-badge) { font-size: 0.42rem; padding: 0 2px; top: 3px; right: 3px; }
+  .zw-result :deep(.zw-pro-grid .zw-star-major) { font-size: 0.56rem; }
+  .zw-result :deep(.zw-pro-grid .zw-star-minor) { font-size: 0.5rem; }
+  .zw-result :deep(.zw-pro-grid .zw-star-adj) { font-size: 0.46rem; }
+  .zw-result :deep(.zw-pro-grid .zw-star-major em), .zw-result :deep(.zw-pro-grid .zw-star-minor em), .zw-result :deep(.zw-pro-grid .zw-star-adj em) { font-size: 0.42rem; }
+  .zw-result :deep(.zw-pro-grid .zw-mutagen) { min-width: 10px; height: 10px; font-size: 0.42rem; padding: 0 1px; }
+  .zw-result :deep(.zw-palace-support) { font-size: 0.43rem; line-height: 1.2; margin-top: 2px; }
+  .zw-result :deep(.zw-pro-grid .zw-palace-decadal) { font-size: 0.44rem; margin-top: 2px; padding-top: 2px; }
+  .zw-result :deep(.zw-palace-ages) { font-size: 0.4rem; }
+  .zw-result :deep(.zw-pro-grid .zw-center-info) { min-height: 218px; padding: 6px; border-radius: 4px; }
+  .zw-result :deep(.zw-center-kicker) { font-size: 0.48rem; }
+  .zw-result :deep(.zw-pro-grid .zw-center-title) { font-size: 0.72rem; letter-spacing: 1px; margin: 2px 0; }
+  .zw-result :deep(.zw-pro-grid .zw-center-wuxing) { font-size: 0.58rem; margin-bottom: 4px; }
+  .zw-result :deep(.zw-center-line) { grid-template-columns: 40px minmax(0,1fr); gap: 3px; font-size: 0.45rem; margin: 1px 0; }
+  .zw-result :deep(.zw-center-line strong) { font-size: 0.47rem; }
+  .zw-result :deep(.zw-center-two) { gap: 4px; margin: 4px 0 3px; font-size: 0.48rem; }
+  .zw-result :deep(.zw-mode-chip) { font-size: 0.45rem; padding: 2px 4px; }
+  .zw-result :deep(.zw-flow-row) { grid-template-columns: 40px minmax(0,1fr); gap: 5px; }
+  .zw-result :deep(.zw-flow-item) { flex-basis: 62px; min-height: 40px; padding: 4px; }
+  .zw-result :deep(.zw-flow-title) { font-size: 0.64rem; }
+  .zw-result :deep(.zw-flow-item b), .zw-result :deep(.zw-flow-item em) { font-size: 0.6rem; }
+  .zw-result :deep(.zw-flow-item i) { font-size: 0.52rem; }
 }
 </style>

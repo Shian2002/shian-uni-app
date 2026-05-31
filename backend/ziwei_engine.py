@@ -1,3 +1,6 @@
+import calendar
+from datetime import datetime, timedelta
+
 from iztro_py import by_solar, by_lunar
 
 SHICHEN_NAMES = ['子时','丑时','寅时','卯时','辰时','巳时','午时','未时','申时','酉时','戌时','亥时']
@@ -21,6 +24,20 @@ def _hour_to_time_index(hour, minute):
     if hour == 0: return 0
     return (hour + 1) // 2
 
+def _format_dt(dt):
+    return f"{dt.year:04d}-{dt.month:02d}-{dt.day:02d} {dt.hour:02d}:{dt.minute:02d}"
+
+def _calc_true_solar_display(year, month, day, hour, minute, longitude):
+    y = int(year)
+    m = int(month)
+    d = min(int(day), calendar.monthrange(y, m)[1])
+    base = datetime(y, m, d, int(hour), int(minute or 0))
+    if longitude is None or longitude == "":
+        return base, None, 120.0, False
+    lng = float(longitude)
+    corrected = base + timedelta(minutes=(lng - 120.0) * 4.0)
+    return corrected, lng, lng, True
+
 def _normalize_stars(stars, star_type):
     result = []
     for s in (stars or []):
@@ -35,12 +52,13 @@ def _normalize_stars(stars, star_type):
 
 class ZiweiEngine:
     def calculate(self, year, month, day, hour, minute=0, gender='男', date_type='solar', timezone='Asia/Shanghai', longitude=None):
-        ti = _hour_to_time_index(hour, minute)
+        true_dt, display_lng, used_lng, has_true_solar = _calc_true_solar_display(year, month, day, hour, minute, longitude)
+        ti = _hour_to_time_index(true_dt.hour, true_dt.minute)
         g = '男' if gender in ('male','M','m','1','男') else '女'
         if date_type == 'lunar':
             astro = by_lunar(str(year) + '-' + str(month) + '-' + str(day), ti, g, fix_leap=True)
         else:
-            astro = by_solar(str(year) + '-' + str(month) + '-' + str(day), ti, g, fix_leap=True)
+            astro = by_solar(str(true_dt.year) + '-' + str(true_dt.month) + '-' + str(true_dt.day), ti, g, fix_leap=True)
         d = astro.model_dump()
         raw = astro.to_iztro_dict()
         raw_palaces_list = raw.get('palaces', [])
@@ -63,6 +81,7 @@ class ZiweiEngine:
                 'is_original_palace': p.get('is_original_palace', False),
                 'heavenly_stem': HEAVENLY_NAMES.get(hs, hs or ''),
                 'earthly_branch': EARTHLY_NAMES.get(es, es or ''),
+                'ganzhi': _to_ganzhi(hs, es),
                 'major_stars': major_stars,
                 'minor_stars': minor_stars,
                 'adjective_stars': adj_stars,
@@ -95,7 +114,30 @@ class ZiweiEngine:
             },
             'twelve_palaces': twelve,
             'decadal_overview': [],
+            'display_meta': {
+                'chart_name': '玄策专业盘',
+                'gender_yinyang': g,
+                'calendar_type': '农历' if date_type == 'lunar' else '阳历',
+                'beijing_time': _format_dt(_calc_true_solar_display(year, month, day, hour, minute, None)[0]),
+                'true_solar_time': _format_dt(true_dt),
+                'longitude': display_lng if display_lng is not None else used_lng,
+                'true_solar_enabled': has_true_solar,
+                'time_rule': '按真太阳时定时辰' if has_true_solar else '按北京时间定时辰',
+                'chart_method': '三合盘',
+                'available_modes': ['三合', '四化'],
+                'coming_modes': ['飞星', '飞化'],
+                'source_note': '基于 iztro-py 本地排盘；春节/立春边界与其他紫微软件可能存在流派口径差异。',
+            },
         }
+        result['decadal_overview'] = [
+            {
+                'palace_name': p.get('name', ''),
+                'age_range': (p.get('decadal') or {}).get('range', []),
+                'ganzhi': ((p.get('decadal') or {}).get('heavenly_stem') or '') + ((p.get('decadal') or {}).get('earthly_branch') or ''),
+            }
+            for p in twelve
+            if p.get('decadal')
+        ]
         return result
 
     def horoscope(self, year, month, day, hour, minute=0, gender='男', date_type='solar', target_date=None, target_hour=-1, target_minute=0, **kwargs):

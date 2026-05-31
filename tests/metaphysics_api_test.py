@@ -81,6 +81,11 @@ def test_bazi_and_ziwei_share_fixed_sample_four_pillars(client):
     assert ziwei_data["basic_info"]["shichen"] == "巳时"
     assert ziwei_data["core_palace"]["soul_star"] == "文曲"
     assert len(ziwei_data["twelve_palaces"]) == 12
+    assert ziwei_data["display_meta"]["chart_method"] == "三合盘"
+    assert ziwei_data["display_meta"]["true_solar_enabled"] is True
+    assert ziwei_data["display_meta"]["true_solar_time"].startswith("1990-01-27 10:")
+    assert ziwei_data["twelve_palaces"][0]["ganzhi"]
+    assert len(ziwei_data["decadal_overview"]) == 12
 
 
 def test_qimen_meihua_and_liuyao_fixed_samples(client):
