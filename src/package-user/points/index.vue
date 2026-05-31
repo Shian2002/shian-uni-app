@@ -78,11 +78,11 @@
             <text class="proof-picker-title">{{ paymentProofName || '上传支付宝付款成功截图' }}</text>
             <text class="proof-picker-desc">系统识别金额和收款方，小额符合规则可自动到账</text>
           </view>
+        </view>
+        <view class="modal-btns">
           <view class="btn btn-primary verify-pay-btn" :class="{ disabled: paymentChecking }" @click="verifyAlipayPayment">
             {{ paymentChecking ? '识别中...' : '提交截图并识别到账' }}
           </view>
-        </view>
-        <view class="modal-btns">
           <view class="btn btn-outline" @click="closeRechargeModal">取消</view>
         </view>
       </view>
@@ -567,16 +567,34 @@ export default {
 .service-title { font-size: 0.76rem; font-weight: 700; color: var(--text-1); }
 .service-text { font-size: 0.7rem; line-height: 1.45; color: var(--text-3); }
 
+.recharge-modal {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
 body:not(.home-fixed-page) .recharge-modal {
-  max-height: min(90dvh, 720px) !important;
+  max-height: calc(100dvh - 24px) !important;
   padding: 18px 20px 14px !important;
+}
+body:not(.home-fixed-page) .recharge-modal .modal-title,
+body:not(.home-fixed-page) .recharge-modal .recharge-summary,
+body:not(.home-fixed-page) .recharge-modal .modal-btns {
+  flex-shrink: 0 !important;
+}
+body:not(.home-fixed-page) .recharge-modal .alipay-panel {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  padding-right: 2px !important;
+  -webkit-overflow-scrolling: touch !important;
 }
 body:not(.home-fixed-page) .recharge-modal .modal-btns {
   position: static !important;
   display: flex !important;
+  flex-direction: column !important;
   grid-template-columns: none !important;
   padding-top: 0 !important;
-  margin-top: 8px !important;
+  margin-top: 10px !important;
   background: transparent !important;
 }
 body:not(.home-fixed-page) .recharge-modal .modal-btns > * {
