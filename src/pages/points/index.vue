@@ -68,7 +68,7 @@
           <text class="recharge-amount" id="rechargeAmount"></text>
         </view>
         <view class="alipay-panel">
-          <image class="alipay-qr" src="/static/alipay-recharge.jpg" mode="widthFix" />
+          <img class="alipay-qr" src="/static/alipay-recharge.jpg" alt="支付宝收款码" />
           <view class="pay-hint">请用支付宝扫码付款，付款金额必须与当前套餐一致。</view>
           <view class="service-window">
             <text class="service-title">大额充值人工确认时间</text>
@@ -545,7 +545,8 @@ export default {
 .recharge-amount { display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent); }
 .alipay-panel { display: flex; flex-direction: column; align-items: stretch; gap: 10px; margin-bottom: 14px; }
 .alipay-qr {
-  display: block; width: min(100%, 260px); max-height: 390px;
+  display: block; width: min(100%, 260px); height: auto;
+  aspect-ratio: 853 / 1280; object-fit: contain;
   margin: 0 auto; border-radius: 12px; border: 1px solid var(--card-border);
   background: #fff;
 }
@@ -605,7 +606,7 @@ body:not(.home-fixed-page) .recharge-modal .modal-btns > * {
   .recharge-modal .modal-title { margin-bottom: 10px; }
   .recharge-summary { padding: 9px 14px; margin-bottom: 10px; }
   .alipay-panel { gap: 8px; margin-bottom: 10px; }
-  .alipay-qr { width: min(100%, 200px); max-height: 300px; }
+  .alipay-qr { width: min(100%, 190px); height: auto; }
   .pay-hint { font-size: 0.68rem; }
   .service-window { padding: 7px 10px; }
   .service-title { font-size: 0.72rem; }
@@ -617,6 +618,16 @@ body:not(.home-fixed-page) .recharge-modal .modal-btns > * {
 
 /* 响应式 */
 @media (max-width: 480px) {
+  body:not(.home-fixed-page) .recharge-modal {
+    max-height: min(88dvh, 760px) !important;
+    padding: 16px 20px 14px !important;
+  }
+  .recharge-modal .modal-title { margin-bottom: 12px; }
+  .recharge-summary { padding: 10px 14px; margin-bottom: 12px; }
+  .recharge-modal .alipay-panel { gap: 9px; margin-bottom: 0; }
+  .recharge-modal .alipay-qr { width: min(100%, 220px); height: auto; }
+  body:not(.home-fixed-page) .recharge-modal .modal-btns { margin-top: 12px !important; }
+
   .section-head { padding-left: 0; }
   .section-hint { display: inline-flex; }
   .pkg-scroll-wrap::after {
