@@ -1742,7 +1742,7 @@ onBeforeUnmount(() => {
 .home-ai-send.disabled { opacity: 0.55; pointer-events: none; }
 .home-ai-chat { border: 1px solid rgba(178,149,93,0.16); border-radius: 18px; background: rgba(255,255,255,0.045); backdrop-filter: blur(18px); padding: 16px; max-height: 420px; overflow-y: auto; overscroll-behavior: contain; box-shadow: inset 0 1px 0 rgba(255,255,255,0.06); }
 [data-theme="light"] .home-ai-chat { background: rgba(255,253,248,0.66); }
-.home-ai-console.has-chat .home-ai-chat { flex: 1 1 auto; min-height: 0; max-height: none; height: auto; box-sizing: border-box; }
+.home-ai-console.has-chat .home-ai-chat { flex: 1 1 0; min-height: 0; max-height: none; height: 100%; box-sizing: border-box; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
 .home-ai-console.has-chat .home-ai-input { min-height: 62px; max-height: 130px; }
 .home-ai-chat-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; margin: -4px 0 12px; border: 1px solid rgba(178,149,93,0.16); border-radius: 14px; background: rgba(34,31,25,0.62); backdrop-filter: blur(18px) saturate(145%); box-shadow: 0 10px 28px rgba(0,0,0,0.12); }
 [data-theme="light"] .home-ai-chat-head { background: rgba(255,251,242,0.86); box-shadow: 0 10px 28px rgba(80,55,18,0.08); }
@@ -2097,6 +2097,8 @@ onBeforeUnmount(() => {
 .sheet-btn-primary { color: #fff; background: var(--accent); border-color: var(--accent); }
 .tool-sheet-panel { width: min(520px, calc(100vw - 28px)); }
 .tool-options { display: block; flex: 1 1 auto; min-height: 0; height: min(52vh, 460px); max-height: min(52vh, 460px); overflow-y: auto; overflow-x: hidden; padding-right: 2px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; box-sizing: border-box; }
+.tool-options :deep(.uni-scroll-view) { height: 100% !important; overflow-y: auto !important; overflow-x: hidden !important; -webkit-overflow-scrolling: touch; touch-action: pan-y; overscroll-behavior: contain; }
+.tool-options :deep(.uni-scroll-view-content) { min-height: max-content; height: auto !important; }
 .tool-options-inner { display: grid; gap: 8px; padding-bottom: 2px; min-height: 100%; box-sizing: border-box; }
 .tool-option { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 58px; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(178,149,93,0.13); background: rgba(255,255,255,0.035); cursor: pointer; box-sizing: border-box; transition: border-color .18s ease, background .18s ease; }
 .tool-option.active { border-color: rgba(178,149,93,0.62); background: var(--accent-glow); }
@@ -2198,7 +2200,7 @@ onBeforeUnmount(() => {
   .home-scan-action-sub { display: none; }
   .home-ai-console { margin-top: 0; padding-bottom: 0; }
   .home-ai-console.has-chat { width: calc(100vw - 32px); padding: 0; margin-top: 0; }
-  .home-ai-console.has-chat .home-ai-chat { height: auto; min-height: 0; max-height: calc(100dvh - 244px); }
+  .home-ai-console.has-chat .home-ai-chat { flex: 1 1 0; height: 100%; min-height: 0; max-height: none; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
   .home-ai-main { bottom: 10px; width: calc(100vw - 18px); border-radius: 16px; }
   .home-ai-main { padding: 12px; gap: 8px; }
   .home-ai-input { min-height: 76px; font-size: 0.9rem; }
@@ -2250,6 +2252,7 @@ onBeforeUnmount(() => {
   .home-artifact-render :deep(.tarot-cards-display[data-count="6"]) { grid-template-columns: repeat(3, 1fr); max-width: 420px; }
   .home-artifact-render :deep(.tarot-cards-display[data-count="7"]) { grid-template-columns: repeat(4, 1fr); max-width: 560px; }
   .home-artifact-render :deep(.tarot-cards-display[data-count="10"]) { grid-template-columns: repeat(5, 1fr); max-width: 680px; }
+  .home-artifact-render { max-height: none; overflow: visible; overscroll-behavior: auto; }
   .mini-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mini-palace:nth-child(3n) { border-right: 1px solid rgba(178,149,93,0.12); }
   .mini-palace:nth-child(2n) { border-right: none; }
@@ -2270,7 +2273,7 @@ onBeforeUnmount(() => {
   .home-scan-panel { display: none; }
   .hero-home.chat-active .hero-brand-slogan { display: none; }
   .home-ai-console.has-chat { width: calc(100vw - 32px); padding-top: 0; }
-  .home-ai-console.has-chat .home-ai-chat { height: auto; min-height: 0; max-height: calc(100dvh - 228px); padding: 10px; }
+  .home-ai-console.has-chat .home-ai-chat { flex: 1 1 0; height: 100%; min-height: 0; max-height: none; padding: 10px; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
   .home-ai-main { padding: 10px; gap: 6px; border-radius: 16px; }
   .home-ai-input { min-height: 68px; font-size: 0.86rem; padding: 8px 4px 2px; }
   .home-ai-toolbar { gap: 3px; flex-wrap: nowrap !important; overflow-x: hidden; box-sizing: border-box; }
