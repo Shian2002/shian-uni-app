@@ -53,10 +53,13 @@ def recommend_tool_models(question):
     return_kw = ["回来", "复合", "还会不会", "联系我", "想我", "感情状态", "心理", "暧昧", "分手"]
     concrete_kw = ["成败", "应期", "能不能", "是否", "靠谱吗", "合作", "官司", "失物", "找回", "结果", "面试"]
     decision_kw = ["跳槽", "换工作", "投资", "项目", "决策", "方向", "选择", "现在", "当下", "要不要"]
+    career_base_kw = ["适合什么工作", "适合做什么", "职业", "事业方向", "工作方向", "适合行业"]
     long_kw = ["命局", "事业", "财运", "格局", "长期", "人生", "未来几年", "大运", "流年"]
 
     if any(k in text for k in zeji_kw):
         return ["zeji"], "问题重点在择日择时，优先使用择吉。"
+    if any(k in text for k in career_base_kw):
+        return ["bazi"], "职业方向先看八字基本命盘。"
     if any(k in text for k in marriage_kw):
         return ["bazi", "ziwei"], "婚恋时间和长期关系适合八字结合紫微。"
     if any(k in text for k in return_kw):

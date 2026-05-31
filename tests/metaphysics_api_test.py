@@ -55,6 +55,16 @@ def _post_json(client, path, payload):
     return response.get_json()
 
 
+def _sse_payloads(response):
+    text = response.get_data(as_text=True)
+    payloads = []
+    for part in text.split("\n\n"):
+        line = next((item for item in part.splitlines() if item.startswith("data: ")), "")
+        if line:
+            payloads.append(json.loads(line[6:]))
+    return payloads
+
+
 def test_bazi_and_ziwei_share_fixed_sample_four_pillars(client):
     bazi = _post_json(
         client,
@@ -319,3 +329,104 @@ def test_profiles_list_backfills_existing_bazi_records(app_module, user_factory)
     assert synced["source"] == "bazi_record"
     assert synced["sourceRecordId"] == record_id
     assert synced["meta"]["birthLng"] == 116.4074
+
+
+def test_comprehensive_new_conversation_returns_full_bazi_artifact(app_module, user_factory, monkeypatch):
+    user = user_factory("artifact-new-user")
+    monkeypatch.setattr(app_module, "get_reading_stream", lambda messages: iter([("职业方向可以结合命局判断。", None)]))
+    with app_module.app.app_context():
+        app_module.add_points(user.id, "admin_add", 100, "测试积分")
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+      sess["_user_id"] = str(user.id)
+      sess["_fresh"] = True
+
+    response = client.post("/api/comprehensive/ask/stream", json={
+        "question": "我适合什么工作",
+        "reading_mode": "standard",
+        "profile": {
+            "name": "职业样例",
+            "gender": "男",
+            "calType": "公历",
+            "birthTime": "199001271030",
+            "birthAddr": "北京",
+            "meta": {"birthLng": 116.4074, "useSolarTime": True},
+        },
+        "auto_select_tools": True,
+    })
+
+    assert response.status_code == 200
+    payloads = _sse_payloads(response)
+    paipan_done = next(p for p in payloads if p.get("stage") == "paipan_done")
+    assert "bazi.basic" in paipan_done["artifacts"]
+    assert paipan_done["artifact_actions"]["added"] == ["bazi.basic"]
+    assert paipan_done["artifact_actions"]["reused"] == []
+    basic = paipan_done["artifacts"]["bazi.basic"]
+    assert basic["display"] == "bazi_basic"
+    assert basic["data"]["four_pillars"]["year"]["gan_zhi"] == "己巳"
+    done = payloads[-1]
+    assert "bazi.basic" in done["artifacts"]
+
+
+def test_comprehensive_followup_reuses_existing_artifact_and_adds_yun_when_needed(app_module, user_factory, monkeypatch):
+    user = user_factory("artifact-follow-user")
+    monkeypatch.setattr(app_module, "get_reading_stream", lambda messages: iter([("继续分析。", None)]))
+    with app_module.app.app_context():
+        app_module.add_points(user.id, "admin_add", 100, "测试积分")
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+      sess["_user_id"] = str(user.id)
+      sess["_fresh"] = True
+
+    base_artifacts = {
+        "bazi.basic": {
+            "key": "bazi.basic",
+            "tool": "bazi",
+            "display": "bazi_basic",
+            "title": "八字基本排盘",
+            "data": {"four_pillars": {"year": {"gan_zhi": "己巳"}}},
+        }
+    }
+    base_paipan = {"bazi": {"four_pillars": {"year": {"gan_zhi": "己巳"}}, "dayun": [{"gan": "甲", "zhi": "子"}]}}
+    common = {
+        "conversation_id": 123,
+        "profile": {
+            "name": "追问样例",
+            "gender": "男",
+            "calType": "公历",
+            "birthTime": "199001271030",
+            "birthAddr": "北京",
+            "meta": {"birthLng": 116.4074, "useSolarTime": True},
+        },
+        "history": [{"role": "user", "content": "我适合什么工作"}, {"role": "assistant", "content": "先看八字基本盘。"}],
+        "paipan": {"paipan": base_paipan, "artifacts": base_artifacts},
+        "tool_models": ["bazi"],
+        "reading_mode": "standard",
+    }
+
+    ordinary = client.post("/api/comprehensive/ask/stream", json={**common, "question": "那我适合做销售吗"})
+    ordinary_done = next(p for p in _sse_payloads(ordinary) if p.get("stage") == "paipan_done")
+    assert ordinary_done["artifact_actions"]["reused"] == ["bazi.basic"]
+    assert ordinary_done["artifact_actions"]["added"] == []
+    assert set(ordinary_done["artifacts"]) == {"bazi.basic"}
+
+    timing = client.post("/api/comprehensive/ask/stream", json={**common, "question": "什么时候能发财"})
+    timing_done = next(p for p in _sse_payloads(timing) if p.get("stage") == "paipan_done")
+    assert "bazi.basic" in timing_done["artifact_actions"]["reused"]
+    assert "bazi.yun" in timing_done["artifact_actions"]["added"]
+    assert timing_done["artifacts"]["bazi.yun"]["display"] == "bazi_yun"
+
+
+def test_homepage_uses_artifact_renderer_and_reading_mode_control():
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    index_path = os.path.join(repo_root, "src", "pages", "index", "index.vue")
+    with open(index_path, encoding="utf-8") as fh:
+        source = fh.read()
+
+    assert "readingMode" in source
+    assert "解读模式" in source
+    assert "renderArtifactHtml" in source
+    assert "buildResultCards(" not in source
+    assert "shouldAutoFollowChat" in source

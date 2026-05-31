@@ -6,8 +6,9 @@
   'use strict'
   if (window.__sidebarTypes) return
   var T = {
-    TYPE_ORDER: ['qimen', 'paipan', 'bazi', 'liuyao', 'meihua', 'ziwei', 'taluo', 'tarot'],
+    TYPE_ORDER: ['comprehensive', 'qimen', 'paipan', 'bazi', 'liuyao', 'meihua', 'ziwei', 'taluo', 'tarot'],
     TYPE_META: {
+      comprehensive: { icon: '☷', label: '综合解读' },
       qimen: { icon: '🔮', label: '奇门遁甲' },
       paipan: { icon: '📜', label: '八字排盘' },
       bazi: { icon: '🤖', label: '八字AI解读' },

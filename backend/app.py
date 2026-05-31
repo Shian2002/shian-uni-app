@@ -3984,7 +3984,8 @@ def build_bazi_context_from_profile(profile):
     )
     if not result.get('success'):
         return {'error': result.get('error') or '八字排盘失败'}
-    return {
+    context = dict(result)
+    context.update({
         'name': profile.get('name') or '未命名',
         'gender': profile.get('gender') or '男',
         'birth_time': profile.get('birth_time') or '',
@@ -3995,8 +3996,9 @@ def build_bazi_context_from_profile(profile):
         'wuxing_stats': result.get('wuxing_stats') or result.get('five_elements') or {},
         'strength': result.get('strength') or result.get('day_master_strength') or '',
         'yongshen': result.get('yongshen') or result.get('useful_god') or '',
-        'dayun': result.get('dayun') or result.get('luck_pillars') or [],
-    }
+        'dayun': result.get('dayun') or result.get('luck_pillars') or result.get('da_yun') or [],
+    })
+    return context
 
 
 def build_ziwei_context_from_profile(profile):
@@ -4256,7 +4258,120 @@ def build_comprehensive_paipan_context(profiles, tool_models, question=''):
     return {'profiles': results}
 
 
-def save_comprehensive_conversation(data, question, profile, tool_models, paipan_context, model_id, cost, history, answer):
+def _unwrap_comprehensive_paipan(paipan_payload):
+    if isinstance(paipan_payload, dict) and ('paipan' in paipan_payload or 'artifacts' in paipan_payload):
+        return paipan_payload.get('paipan') or {}, paipan_payload.get('artifacts') or {}
+    return paipan_payload or {}, {}
+
+
+def _artifact_key_for_tool(tool):
+    return {
+        'bazi': 'bazi.basic',
+        'ziwei': 'ziwei.pan',
+        'qimen': 'qimen.pan',
+        'liuyao': 'liuyao.pan',
+        'meihua': 'meihua.pan',
+        'tarot': 'tarot.cards',
+        'zeji': 'zeji.days',
+    }.get(tool, tool + '.pan')
+
+
+def _artifact_display_for_key(key):
+    return {
+        'bazi.basic': 'bazi_basic',
+        'bazi.yun': 'bazi_yun',
+        'ziwei.pan': 'ziwei_pan',
+        'qimen.pan': 'qimen_pan',
+        'liuyao.pan': 'liuyao_pan',
+        'meihua.pan': 'meihua_pan',
+        'tarot.cards': 'tarot_cards',
+        'zeji.days': 'zeji_days',
+    }.get(key, 'generic')
+
+
+def _artifact_title_for_key(key):
+    return {
+        'bazi.basic': '八字基本排盘',
+        'bazi.yun': '大运流年流月',
+        'ziwei.pan': '紫微斗数三合盘',
+        'qimen.pan': '奇门遁甲盘',
+        'liuyao.pan': '六爻排盘',
+        'meihua.pan': '梅花易数卦盘',
+        'tarot.cards': '塔罗牌面',
+        'zeji.days': '择吉候选',
+    }.get(key, key)
+
+
+def _question_needs_yun(question):
+    text = str(question or '')
+    return any(k in text for k in ['发财', '正缘', '结婚', '婚期', '哪年', '什么时候', '流年', '流月', '大运', '应期', '机会'])
+
+
+def _question_force_refresh(question, force_refresh=False):
+    text = str(question or '')
+    return bool(force_refresh) or any(k in text for k in ['重新排', '重新看', '换命盘', '换时间', '换术数', '再排'])
+
+
+def _bazi_yun_data(bazi_context):
+    if not isinstance(bazi_context, dict):
+        return {}
+    return {
+        'qi_yun_age': bazi_context.get('qi_yun_age'),
+        'qi_yun_detail': bazi_context.get('qi_yun_detail') or {},
+        'dayun': bazi_context.get('dayun') or bazi_context.get('da_yun') or [],
+        'da_yun': bazi_context.get('da_yun') or bazi_context.get('dayun') or [],
+        'liu_nian': bazi_context.get('liu_nian') or [],
+        'liu_yue': bazi_context.get('liu_yue') or [],
+        'xiao_yun': bazi_context.get('xiao_yun') or [],
+        'four_pillars': bazi_context.get('four_pillars') or {},
+    }
+
+
+def _artifact_from_context(key, tool, data, reading_mode='standard', collapsed=None):
+    if collapsed is None:
+        collapsed = reading_mode == 'concise'
+    payload = _bazi_yun_data(data) if key == 'bazi.yun' else (data or {})
+    return {
+        'key': key,
+        'tool': tool,
+        'display': _artifact_display_for_key(key),
+        'title': _artifact_title_for_key(key),
+        'collapsed': bool(collapsed),
+        'data': payload,
+    }
+
+
+def _select_artifacts_for_context(paipan_context, tool_models, question, existing_artifacts=None, is_followup=False, force_refresh=False, reading_mode='standard'):
+    existing = dict(existing_artifacts or {})
+    artifacts = dict(existing)
+    actions = {'reused': [], 'added': [], 'refreshed': [], 'skipped': []}
+    needs_yun = _question_needs_yun(question)
+    refresh = _question_force_refresh(question, force_refresh)
+    for tool in tool_models or []:
+        key = _artifact_key_for_tool(tool)
+        tool_data = (paipan_context or {}).get(tool)
+        if key in existing and is_followup and not refresh:
+            actions['reused'].append(key)
+        elif tool_data:
+            artifacts[key] = _artifact_from_context(key, tool, tool_data, reading_mode=reading_mode)
+            actions['refreshed' if key in existing else 'added'].append(key)
+        else:
+            actions['skipped'].append(key)
+
+    bazi_data = (paipan_context or {}).get('bazi') or {}
+    if needs_yun and ('bazi' in (tool_models or []) or 'bazi.basic' in artifacts):
+        key = 'bazi.yun'
+        if key in existing and is_followup and not refresh:
+            actions['reused'].append(key)
+        elif bazi_data:
+            artifacts[key] = _artifact_from_context(key, 'bazi', bazi_data, reading_mode=reading_mode, collapsed=False)
+            actions['refreshed' if key in existing else 'added'].append(key)
+        else:
+            actions['skipped'].append(key)
+    return artifacts, actions
+
+
+def save_comprehensive_conversation(data, question, profile, tool_models, paipan_context, artifacts, model_id, cost, history, answer):
     messages = list(history or [])
     messages.append({'role': 'user', 'content': question})
     messages.append({'role': 'assistant', 'content': answer})
@@ -4270,7 +4385,7 @@ def save_comprehensive_conversation(data, question, profile, tool_models, paipan
     conv.title = (data.get('title') or question or '综合 AI 问答')[:100]
     conv.profile_data = json.dumps(profile or {}, ensure_ascii=False)
     conv.models_json = json.dumps(tool_models or [], ensure_ascii=False)
-    conv.paipan_json = json.dumps(paipan_context or {}, ensure_ascii=False)
+    conv.paipan_json = json.dumps({'paipan': paipan_context or {}, 'artifacts': artifacts or {}}, ensure_ascii=False)
     conv.model_id = model_id
     conv.points_cost = cost
     conv.messages_json = json.dumps(messages, ensure_ascii=False)
@@ -4364,7 +4479,8 @@ def api_comprehensive_conversation_detail(cid):
         'title': conv.title,
         'profile_data': _json_loads_safe(conv.profile_data, {}),
         'models': _json_loads_safe(conv.models_json, []),
-        'paipan': _json_loads_safe(conv.paipan_json, {}),
+        'paipan': _unwrap_comprehensive_paipan(_json_loads_safe(conv.paipan_json, {}))[0],
+        'artifacts': _unwrap_comprehensive_paipan(_json_loads_safe(conv.paipan_json, {}))[1],
         'model_id': conv.model_id,
         'points_cost': conv.points_cost,
         'messages': _json_loads_safe(conv.messages_json, []),
@@ -4390,6 +4506,10 @@ def api_comprehensive_ask_stream():
     data = request.get_json(silent=True) or {}
     question = (data.get('question') or '').strip()
     history = data.get('history') or []
+    reading_mode = data.get('reading_mode') or 'standard'
+    if reading_mode not in ('concise', 'standard', 'deep'):
+        reading_mode = 'standard'
+    force_refresh = bool(data.get('force_refresh', False))
     auto_select_tools = bool(data.get('auto_select_tools', False))
     if auto_select_tools or not data.get('tool_models'):
         tool_models = normalize_tool_models(recommend_tool_models(question)[0])
@@ -4415,8 +4535,11 @@ def api_comprehensive_ask_stream():
             profiles = resolve_comprehensive_profiles(data)
             profile_count = len(profiles)
             profile = profiles[0] if profile_count == 1 else profiles
-            paipan_context = data.get('paipan') or {}
-            if not is_followup or not paipan_context:
+            paipan_context, existing_artifacts = _unwrap_comprehensive_paipan(data.get('paipan') or {})
+            need_yun = _question_needs_yun(question)
+            refresh = _question_force_refresh(question, force_refresh)
+            needs_paipan = (not is_followup) or refresh or not paipan_context or (need_yun and 'bazi' not in paipan_context)
+            if needs_paipan:
                 if profile_count == 1:
                     p = profiles[0]
                     p_name = p.get('name', '未命名') if isinstance(p, dict) else getattr(p, 'name', '未命名')
@@ -4456,12 +4579,28 @@ def api_comprehensive_ask_stream():
                     for pi, p in enumerate(profiles):
                         profile_results.append({'profile': p, 'paipan': task_results.get(pi, {})})
                     paipan_context = {'profiles': profile_results}
-                yield _event({'stage': 'paipan_done', 'message': '所有排盘完成，正在准备解读', 'paipan': paipan_context, 'tool_models': tool_models})
+            artifacts, artifact_actions = _select_artifacts_for_context(
+                paipan_context,
+                tool_models,
+                question,
+                existing_artifacts=existing_artifacts,
+                is_followup=is_followup,
+                force_refresh=refresh,
+                reading_mode=reading_mode,
+            )
+            yield _event({
+                'stage': 'paipan_done',
+                'message': '盘面依据已准备，正在准备解读',
+                'paipan': paipan_context,
+                'artifacts': artifacts,
+                'artifact_actions': artifact_actions,
+                'tool_models': tool_models,
+            })
             spend = spend_comprehensive_quota(current_user.id, tool_models, cost, is_followup=is_followup)
             if not spend.get('ok'):
                 yield _event({'error': '积分不足', 'current': spend.get('current'), 'required': cost})
                 return
-            messages = build_comprehensive_messages(question, profile, tool_models, paipan_context, history)
+            messages = build_comprehensive_messages(question, profile, tool_models, {'paipan': paipan_context, 'artifacts': artifacts}, history)
             full_text = ''
             yield _event({'stage': 'generating', 'message': '正在生成综合解读'})
             for chunk, error in get_reading_stream(messages):
@@ -4471,7 +4610,7 @@ def api_comprehensive_ask_stream():
                 if chunk:
                     full_text += chunk
                     yield _event({'content': chunk})
-            conv = save_comprehensive_conversation(data, question, profile, tool_models, paipan_context, model_id, cost, history, full_text)
+            conv = save_comprehensive_conversation(data, question, profile, tool_models, paipan_context, artifacts, model_id, cost, history, full_text)
             points_left = get_or_create_membership(current_user.id).points
             membership = get_or_create_membership(current_user.id)
             yield _event({
@@ -4483,6 +4622,8 @@ def api_comprehensive_ask_stream():
                 'used_credit': spend.get('used_credit'),
                 'tool_models': tool_models,
                 'paipan': paipan_context,
+                'artifacts': artifacts,
+                'artifact_actions': artifact_actions,
             })
         except Exception as exc:
             logger.exception("综合 AI 生成失败")

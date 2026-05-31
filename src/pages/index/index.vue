@@ -37,7 +37,7 @@
           </view>
 
           <view class="home-ai-console" :class="{ 'has-chat': comprehensiveMessages.length }">
-            <view class="home-ai-chat" v-if="comprehensiveMessages.length">
+            <view class="home-ai-chat" v-if="comprehensiveMessages.length" @scroll="onHomeChatScroll">
               <view class="home-ai-chat-head">
                 <view class="home-ai-chat-head-main">
                   <text class="home-ai-chat-title">综合解读</text>
@@ -68,58 +68,22 @@
                 <view class="home-ai-progress-track" v-if="msg.stage">
                   <view class="home-ai-progress-bar"></view>
                 </view>
-                <view class="home-tool-cards" v-if="msg.cards && msg.cards.length">
+                <view class="home-tool-cards" v-if="msg.artifacts && msg.artifacts.length">
                   <view
                     class="home-tool-card"
-                    v-for="card in msg.cards"
-                    :key="card.id"
-                    :class="{ collapsed: card.collapsed }"
+                    v-for="artifact in msg.artifacts"
+                    :key="artifact.key"
+                    :class="{ collapsed: artifact.collapsed }"
                   >
-                    <view class="home-tool-card-head" @tap="toggleResultCard(idx, card.id)">
+                    <view class="home-tool-card-head" @tap="toggleArtifact(idx, artifact.key)">
                       <view>
-                        <text class="home-tool-card-title">{{ card.name }}</text>
-                        <text class="home-tool-card-sub">{{ card.summary }}</text>
+                        <text class="home-tool-card-title">{{ artifact.title }}</text>
+                        <text class="home-tool-card-sub">{{ artifactSummary(artifact) }}</text>
                       </view>
-                      <text class="home-tool-card-toggle">{{ card.collapsed ? '展开' : '收起' }}</text>
+                      <text class="home-tool-card-toggle">{{ artifact.collapsed ? '展开' : '收起' }}</text>
                     </view>
-                    <view class="home-tool-card-body" v-if="!card.collapsed">
-                      <view class="mini-grid" v-if="card.type === 'qimen'">
-                        <view class="mini-palace" v-for="p in card.items" :key="p.name">
-                          <text class="mini-palace-name">{{ p.name }}</text>
-                          <text>{{ p.tian_gan }} {{ p.men }}</text>
-                          <text>{{ p.xing }} {{ p.shen }}</text>
-                        </view>
-                      </view>
-                      <view class="mini-list" v-else-if="card.type === 'liuyao'">
-                        <view class="mini-line" v-for="y in card.items" :key="y.position">
-                          <text>{{ y.liushen || '' }} {{ y.liuqin || '' }}</text>
-                          <text>{{ y.name || y.yao_type }} {{ y.is_shi ? '世' : '' }}{{ y.is_ying ? '应' : '' }}</text>
-                        </view>
-                      </view>
-                      <view class="mini-gua-row" v-else-if="card.type === 'meihua'">
-                        <view v-for="g in card.items" :key="g.label" class="mini-gua">
-                          <text class="mini-gua-label">{{ g.label }}</text>
-                          <text class="mini-gua-name">{{ g.name }}</text>
-                        </view>
-                      </view>
-                      <view class="mini-tarot-row" v-else-if="card.type === 'tarot'">
-                        <view class="mini-tarot" v-for="c in card.items" :key="c.position_name + c.name">
-                          <text class="mini-tarot-pos">{{ c.position_name }}</text>
-                          <text class="mini-tarot-name">{{ c.name }} {{ c.orientation }}</text>
-                        </view>
-                      </view>
-                      <view class="mini-list" v-else-if="card.type === 'zeji'">
-                        <view class="mini-line" v-for="d in card.items" :key="d.date">
-                          <text>{{ d.date }} · {{ d.score }}分</text>
-                          <text>{{ d.jian_chu }} {{ d.zhi_shen }}</text>
-                        </view>
-                      </view>
-                      <view class="mini-list" v-else>
-                        <view class="mini-line" v-for="item in card.items" :key="item.label">
-                          <text>{{ item.label }}</text>
-                          <text>{{ item.value }}</text>
-                        </view>
-                      </view>
+                    <view class="home-tool-card-body" v-if="!artifact.collapsed">
+                      <view class="home-artifact-render" v-html="renderArtifactHtml(artifact)"></view>
                     </view>
                   </view>
                 </view>
@@ -148,6 +112,12 @@
                   </view>
                 </view>
                 <view class="home-ai-toolbar-right">
+                  <picker :range="readingModeNames" :value="readingModeIdx" @change="onReadingModeChange">
+                    <view class="reading-mode-picker">
+                      <text class="reading-mode-label">解读模式</text>
+                      <text class="reading-mode-name">{{ selectedReadingMode.name }}</text>
+                    </view>
+                  </picker>
                   <picker :range="llmModelNames" :value="llmModelIdx" @change="onLlmModelChange">
                     <view class="llm-picker">
                       <text class="llm-name">{{ selectedLlmModel.name || '基础模型' }}</text>
@@ -300,6 +270,12 @@ const profileTabs = ['全部', '客户', '用户']
 const profileSelectionStorageKey = 'xc_home_selected_profile_keys_v2'
 const toolSelectionStorageKey = 'xc_home_selected_tool_models_v2'
 const autoToolStorageKey = 'xc_home_auto_tool_select_v1'
+const readingModeStorageKey = 'xc_home_reading_mode_v1'
+const readingModes = [
+  { id: 'concise', name: '简洁', cost_delta: -1 },
+  { id: 'standard', name: '标准', cost_delta: 0 },
+  { id: 'deep', name: '深度', cost_delta: 3 },
+]
 const llmModels = ref([{ id: 'basic', name: '基础模型', strength: '基础', cost_base: 2, cost_multiplier: 1, followup_cost: 1 }])
 const toolModels = ref([
   { id: 'bazi', name: '八字', cost: 2 },
@@ -318,12 +294,18 @@ const dailyLightAvailable = ref(false)
 const comprehensiveMessages = ref([])
 const currentComprehensiveConvId = ref(null)
 const currentPaipanContext = ref({})
+const currentArtifacts = ref({})
+const readingMode = ref(readStorageJson(readingModeStorageKey, 'standard'))
+const shouldAutoFollowChat = ref(true)
 let pendingComprehensiveId = ''
 let comprehensiveProgressTimer = null
 let comprehensiveTypeTimer = null
 
 const selectedLlmModel = computed(() => llmModels.value[llmModelIdx.value] || llmModels.value[0] || {})
 const llmModelNames = computed(() => llmModels.value.map(m => m.name + ' · ' + (m.strength || '基础')))
+const selectedReadingMode = computed(() => readingModes.find(m => m.id === readingMode.value) || readingModes[1])
+const readingModeNames = computed(() => readingModes.map(m => m.name))
+const readingModeIdx = computed(() => Math.max(0, readingModes.findIndex(m => m.id === selectedReadingMode.value.id)))
 const comprehensivePlaceholder = computed(() => comprehensiveMessages.value.length ? '请继续输入你想问的问题' : '输入你的问题，选择术数模型后开始综合解读')
 const homeAiContextSummary = computed(() => {
   const profileText = selectedProfileName.value || '未选择命盘'
@@ -333,7 +315,7 @@ const homeAiContextSummary = computed(() => {
   return profileText + ' · ' + toolText + ' · ' + modelText + ' · ' + costText
 })
 const estimatedCost = computed(() => {
-  if (comprehensiveMessages.value.length > 0) return selectedLlmModel.value.followup_cost || 0
+  if (comprehensiveMessages.value.length > 0) return Math.max(0, (selectedLlmModel.value.followup_cost || 0) + modeCostDelta())
   const selected = selectedToolModels.value || []
   if (selected.length > 1 && aiComboCredits.value > 0) return 0
   if (selected.length === 1 && aiSingleCredits.value > 0) return 0
@@ -342,7 +324,7 @@ const estimatedCost = computed(() => {
     const tool = toolModels.value.find(t => t.id === id)
     return sum + (tool ? Number(tool.cost || 0) : 0)
   }, 0)
-  const cost = Math.round((selectedLlmModel.value.cost_base || 0) + toolsCost * profileCount * (selectedLlmModel.value.cost_multiplier || 1))
+  const cost = Math.round((selectedLlmModel.value.cost_base || 0) + toolsCost * profileCount * (selectedLlmModel.value.cost_multiplier || 1) + modeCostDelta())
   if (dailyLightAvailable.value && cost <= 2) return 0
   return cost
 })
@@ -483,6 +465,17 @@ function onLlmModelChange(e) {
   llmModelIdx.value = Number(e.detail.value || 0)
 }
 
+function onReadingModeChange(e) {
+  const idx = Number(e.detail.value || 0)
+  readingMode.value = (readingModes[idx] && readingModes[idx].id) || 'standard'
+  writeStorageJson(readingModeStorageKey, readingMode.value)
+}
+
+function modeCostDelta() {
+  const mode = selectedReadingMode.value || readingModes[1]
+  return Number(mode.cost_delta || 0)
+}
+
 function toggleToolModel(id) {
   autoSelectTools.value = false
   writeStorageJson(autoToolStorageKey, false)
@@ -552,53 +545,187 @@ function getToolName(id) {
   return tool ? tool.name : id
 }
 
-function buildResultCards(paipan, tools) {
-  const ctx = paipan && paipan.profiles ? ((paipan.profiles[0] && paipan.profiles[0].paipan) || {}) : (paipan || {})
-  return (tools || Object.keys(ctx || {})).map(function(id) {
-    const data = ctx[id] || {}
-    if (id === 'qimen') {
-      return { id, type: id, name: getToolName(id), summary: (data.ju || '') + ' · ' + (data.solar_date || ''), collapsed: false, items: (data.palaces || []).slice(0, 9) }
-    }
-    if (id === 'liuyao') {
-      return { id, type: id, name: getToolName(id), summary: (data.ben_gua || '') + ' → ' + (data.bian_gua || ''), collapsed: false, items: data.details || [] }
-    }
-    if (id === 'meihua') {
-      return { id, type: id, name: getToolName(id), summary: '动爻 ' + (data.dong_yao || '') + ' · ' + ((data.ti_yong && data.ti_yong.relation) || ''), collapsed: false, items: [
-        { label: '本卦', name: data.ben_gua && data.ben_gua.name },
-        { label: '互卦', name: data.hu_gua && data.hu_gua.name },
-        { label: '变卦', name: data.bian_gua && data.bian_gua.name },
-      ] }
-    }
-    if (id === 'tarot') {
-      return { id, type: id, name: getToolName(id), summary: (data.spread && data.spread.name) || data.spread_name || '塔罗牌阵', collapsed: false, items: data.cards || [] }
-    }
-    if (id === 'zeji') {
-      return { id, type: id, name: getToolName(id), summary: (data.zeji_type || '择吉') + ' · ' + (data.range || ''), collapsed: false, items: data.best_days || [] }
-    }
-    if (id === 'ziwei') {
-      const info = data.basic_info || {}
-      return { id, type: id, name: getToolName(id), summary: (info.five_elements_class || info.wuxingju || '') + ' · ' + (info.soul_star || ''), collapsed: false, items: [
-        { label: '命主', value: info.soul_star || '' },
-        { label: '身主', value: info.body_star || '' },
-        { label: '宫位', value: (data.twelve_palaces || []).length + ' 宫' },
-      ] }
-    }
-    const fp = data.four_pillars || {}
-    return { id, type: id, name: getToolName(id), summary: (data.day_master || '') + '日主 · ' + (data.strength || ''), collapsed: false, items: [
-      { label: '年柱', value: fp.year && (fp.year.gan_zhi || (fp.year.gan || '') + (fp.year.zhi || '')) },
-      { label: '月柱', value: fp.month && (fp.month.gan_zhi || (fp.month.gan || '') + (fp.month.zhi || '')) },
-      { label: '日柱', value: fp.day && (fp.day.gan_zhi || (fp.day.gan || '') + (fp.day.zhi || '')) },
-      { label: '时柱', value: fp.hour && (fp.hour.gan_zhi || (fp.hour.gan || '') + (fp.hour.zhi || '')) },
-    ] }
-  }).filter(function(card) { return card && !((ctx[card.id] || {}).error) })
+function htmlEscape(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
-function toggleResultCard(messageIndex, cardId) {
+function pillarText(pillar) {
+  if (!pillar) return ''
+  return pillar.gan_zhi || ((pillar.gan || '') + (pillar.zhi || '')) || String(pillar)
+}
+
+function artifactListFromMap(map) {
+  const order = ['bazi.basic', 'bazi.yun', 'qimen.pan', 'liuyao.pan', 'meihua.pan', 'ziwei.pan', 'tarot.cards', 'zeji.days']
+  const source = map || {}
+  return Object.keys(source)
+    .sort(function(a, b) {
+      const ai = order.indexOf(a)
+      const bi = order.indexOf(b)
+      return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi)
+    })
+    .map(function(key) {
+      const artifact = source[key] || {}
+      return Object.assign({}, artifact, {
+        key: artifact.key || key,
+        title: artifact.title || artifactTitle(key, artifact.tool),
+        collapsed: !!artifact.collapsed,
+      })
+    })
+}
+
+function artifactTitle(key, tool) {
+  const map = {
+    'bazi.basic': '八字基本排盘',
+    'bazi.yun': '大运流年流月',
+    'qimen.pan': '奇门遁甲完整盘',
+    'liuyao.pan': '六爻卦象',
+    'meihua.pan': '梅花易数卦象',
+    'ziwei.pan': '紫微斗数三合盘',
+    'tarot.cards': '塔罗牌面',
+    'zeji.days': '择吉结果',
+  }
+  return map[key] || getToolName(tool || key)
+}
+
+function artifactSummary(artifact) {
+  const data = artifact && artifact.data ? artifact.data : {}
+  if (artifact.key === 'bazi.basic') {
+    const fp = data.four_pillars || {}
+    return [pillarText(fp.year), pillarText(fp.month), pillarText(fp.day), pillarText(fp.hour)].filter(Boolean).join(' ')
+  }
+  if (artifact.key === 'bazi.yun') return '按问题追加推运依据，不重复基础盘'
+  if (artifact.key === 'qimen.pan') return [data.ju, data.solar_date].filter(Boolean).join(' · ') || '完整九宫盘'
+  if (artifact.key === 'liuyao.pan') return [data.ben_gua, data.bian_gua].filter(Boolean).join(' → ') || '六亲六神世应'
+  if (artifact.key === 'meihua.pan') return '本卦 · 互卦 · 变卦 · 体用'
+  if (artifact.key === 'ziwei.pan') return ((data.twelve_palaces || data.palaces || []).length || 12) + ' 宫'
+  if (artifact.key === 'tarot.cards') return (data.spread && data.spread.name) || data.spread_name || '抽牌翻牌结果'
+  if (artifact.key === 'zeji.days') return (data.best_days || []).length + ' 个候选日'
+  return artifact.title || ''
+}
+
+function renderKV(label, value) {
+  return '<div class="artifact-kv"><span>' + htmlEscape(label) + '</span><strong>' + htmlEscape(value || '-') + '</strong></div>'
+}
+
+function renderBaziBasicArtifact(data) {
+  const fp = data.four_pillars || {}
+  const rows = [
+    ['年柱', fp.year],
+    ['月柱', fp.month],
+    ['日柱', fp.day],
+    ['时柱', fp.hour],
+  ].map(function(row) {
+    return '<div class="bazi-pillar"><span>' + htmlEscape(row[0]) + '</span><strong>' + htmlEscape(pillarText(row[1]) || '-') + '</strong></div>'
+  }).join('')
+  return '<div class="artifact-bazi artifact-panel">' +
+    '<div class="artifact-grid artifact-grid-4">' + rows + '</div>' +
+    '<div class="artifact-kv-grid">' +
+    renderKV('日主', data.day_master) +
+    renderKV('强弱', data.strength) +
+    renderKV('用神', data.yongshen) +
+    renderKV('出生地', data.birth_addr) +
+    '</div>' +
+    '</div>'
+}
+
+function renderBaziYunArtifact(data) {
+  const dayun = data.dayun || data.da_yun || data.luck_pillars || []
+  const liunian = data.liu_nian || data.liunians || []
+  const renderRow = function(title, list) {
+    const items = (Array.isArray(list) ? list : []).slice(0, 12).map(function(item) {
+      const label = item.age_range || item.range || item.start_age || item.age || item.year || ''
+      const value = item.gan_zhi || item.gz || item.name || item.stem_branch || ''
+      return '<div class="artifact-chip"><span>' + htmlEscape(label) + '</span><strong>' + htmlEscape(value) + '</strong></div>'
+    }).join('')
+    return '<div class="artifact-scroll-row"><div class="artifact-row-title">' + htmlEscape(title) + '</div><div class="artifact-chip-row">' + (items || '<span class="artifact-empty">暂无数据</span>') + '</div></div>'
+  }
+  return '<div class="artifact-panel">' +
+    renderRow('大运', dayun) +
+    renderRow('流年', liunian) +
+    renderRow('流月', data.liu_yue || data.liu_month || []) +
+    '</div>'
+}
+
+function renderQimenArtifact(data) {
+  const palaces = (data.palaces || data.gong_pan || []).slice(0, 9)
+  const cells = palaces.map(function(p, i) {
+    return '<div class="artifact-palace"><b>' + htmlEscape(p.name || p.gong || ('宫' + (i + 1))) + '</b><span>' +
+      htmlEscape([p.tian_gan, p.di_gan, p.men, p.xing, p.shen].filter(Boolean).join(' ')) +
+      '</span></div>'
+  }).join('')
+  return '<div class="artifact-panel"><div class="artifact-palace-grid">' + cells + '</div></div>'
+}
+
+function renderLiuyaoArtifact(data) {
+  const lines = (data.details || data.lines || []).map(function(y, i) {
+    return '<div class="artifact-line"><span>' + htmlEscape(y.liushen || y.liu_shen || '') + ' ' + htmlEscape(y.liuqin || y.liu_qin || '') + '</span><strong>' +
+      htmlEscape(y.name || y.yao_type || ('第' + (i + 1) + '爻')) + ' ' + htmlEscape(y.is_shi ? '世' : '') + htmlEscape(y.is_ying ? '应' : '') +
+      '</strong></div>'
+  }).join('')
+  return '<div class="artifact-panel">' +
+    '<div class="artifact-kv-grid">' + renderKV('本卦', data.ben_gua) + renderKV('变卦', data.bian_gua) + renderKV('日辰', data.ri_chen) + renderKV('月建', data.yue_jian) + '</div>' +
+    '<div class="artifact-line-list">' + lines + '</div></div>'
+}
+
+function renderMeihuaArtifact(data) {
+  const gua = [
+    ['本卦', data.ben_gua && data.ben_gua.name],
+    ['互卦', data.hu_gua && data.hu_gua.name],
+    ['变卦', data.bian_gua && data.bian_gua.name],
+  ].map(function(item) {
+    return '<div class="artifact-gua"><span>' + htmlEscape(item[0]) + '</span><strong>' + htmlEscape(item[1] || '-') + '</strong></div>'
+  }).join('')
+  return '<div class="artifact-panel"><div class="artifact-grid artifact-grid-3">' + gua + '</div><div class="artifact-kv-grid">' +
+    renderKV('动爻', data.dong_yao) + renderKV('体用', data.ti_yong && data.ti_yong.relation) + '</div></div>'
+}
+
+function renderZiweiArtifact(data) {
+  const palaces = (data.twelve_palaces || data.palaces || []).slice(0, 12)
+  const cells = palaces.map(function(p) {
+    const stars = (p.major_stars || p.stars || []).slice(0, 5).map(function(s) { return typeof s === 'string' ? s : (s.name || '') }).filter(Boolean).join(' ')
+    return '<div class="artifact-ziwei-palace"><b>' + htmlEscape(p.name || p.palace_name || '') + '</b><span>' + htmlEscape(p.gan_zhi || p.branch || '') + '</span><strong>' + htmlEscape(stars) + '</strong></div>'
+  }).join('')
+  return '<div class="artifact-panel"><div class="artifact-ziwei-grid">' + cells + '</div></div>'
+}
+
+function renderTarotArtifact(data) {
+  const cards = (data.cards || []).map(function(c) {
+    return '<div class="artifact-tarot-card"><span>' + htmlEscape(c.position_name || c.position || '') + '</span><strong>' + htmlEscape(c.name || '') + '</strong><em>' + htmlEscape(c.orientation || '') + '</em></div>'
+  }).join('')
+  return '<div class="artifact-panel"><div class="artifact-grid artifact-grid-3">' + cards + '</div></div>'
+}
+
+function renderZejiArtifact(data) {
+  const days = (data.best_days || data.days || []).slice(0, 8).map(function(d) {
+    return '<div class="artifact-line"><span>' + htmlEscape(d.date || '') + '</span><strong>' + htmlEscape((d.score || '') + ' ' + (d.jian_chu || d.zhi_shen || '')) + '</strong></div>'
+  }).join('')
+  return '<div class="artifact-panel"><div class="artifact-line-list">' + days + '</div></div>'
+}
+
+function renderArtifactHtml(artifact) {
+  const data = artifact && artifact.data ? artifact.data : {}
+  if (artifact.key === 'bazi.basic') return renderBaziBasicArtifact(data)
+  if (artifact.key === 'bazi.yun') return renderBaziYunArtifact(data)
+  if (artifact.key === 'qimen.pan') return renderQimenArtifact(data)
+  if (artifact.key === 'liuyao.pan') return renderLiuyaoArtifact(data)
+  if (artifact.key === 'meihua.pan') return renderMeihuaArtifact(data)
+  if (artifact.key === 'ziwei.pan') return renderZiweiArtifact(data)
+  if (artifact.key === 'tarot.cards') return renderTarotArtifact(data)
+  if (artifact.key === 'zeji.days') return renderZejiArtifact(data)
+  return '<div class="artifact-panel"><pre>' + htmlEscape(JSON.stringify(data, null, 2)) + '</pre></div>'
+}
+
+function toggleArtifact(messageIndex, artifactKey) {
   const msg = comprehensiveMessages.value[messageIndex]
-  if (!msg || !msg.cards) return
+  if (!msg || !msg.artifacts) return
   comprehensiveMessages.value[messageIndex] = Object.assign({}, msg, {
-    cards: msg.cards.map(function(card) {
-      return card.id === cardId ? Object.assign({}, card, { collapsed: !card.collapsed }) : card
+    artifacts: msg.artifacts.map(function(artifact) {
+      return artifact.key === artifactKey ? Object.assign({}, artifact, { collapsed: !artifact.collapsed }) : artifact
     })
   })
 }
@@ -730,7 +857,8 @@ async function startComprehensiveAsk() {
   const aiIndex = comprehensiveMessages.value.length
   comprehensiveMessages.value.push({ role: 'assistant', content: '', stage: '正在连接综合解读服务' })
   startComprehensiveProgressTimer(aiIndex)
-  scrollComprehensiveChatToBottom()
+  shouldAutoFollowChat.value = true
+  scrollComprehensiveChatToBottom('smooth', true)
   const typeState = { queue: '', displayed: '', done: false }
 
   try {
@@ -743,7 +871,10 @@ async function startComprehensiveAsk() {
       tool_models: selectedToolModels.value,
       auto_select_tools: autoSelectTools.value && !history.length,
       history,
-      paipan: currentPaipanContext.value,
+      paipan: { paipan: currentPaipanContext.value, artifacts: currentArtifacts.value },
+      reading_mode: readingMode.value,
+      artifact_policy: 'auto',
+      existing_artifact_keys: Object.keys(currentArtifacts.value || {}),
       conversation_id: currentComprehensiveConvId.value,
     }
     const resp = await fetch('/api/comprehensive/ask/stream', {
@@ -782,7 +913,10 @@ async function startComprehensiveAsk() {
         if (Array.isArray(data.tool_models) && data.tool_models.length) selectedToolModels.value = data.tool_models
         if (data.paipan) {
           currentPaipanContext.value = data.paipan
-          updateComprehensiveAssistant(aiIndex, { cards: buildResultCards(data.paipan, data.tool_models || selectedToolModels.value) })
+        }
+        if (data.artifacts) {
+          currentArtifacts.value = data.artifacts || {}
+          updateComprehensiveAssistant(aiIndex, { artifacts: artifactListFromMap(currentArtifacts.value) })
         }
         if (typeof data.points_left === 'number') currentPoints.value = data.points_left
         if (typeof data.ai_single_credits === 'number') aiSingleCredits.value = data.ai_single_credits
@@ -823,10 +957,18 @@ async function restoreComprehensiveConversation(id) {
     if (!data.id) return
     currentComprehensiveConvId.value = data.id
     currentPaipanContext.value = data.paipan || {}
+    currentArtifacts.value = data.artifacts || {}
     selectedToolModels.value = data.models && data.models.length ? data.models : ['bazi']
+    const restoredArtifacts = artifactListFromMap(currentArtifacts.value)
+    let attached = false
     comprehensiveMessages.value = (data.messages || []).map(function(m) {
       if (m && m.role === 'assistant' && m.content) {
-        return Object.assign({}, m, { content: stripComprehensiveMarkdown(m.content) })
+        const next = Object.assign({}, m, { content: stripComprehensiveMarkdown(m.content) })
+        if (!attached && restoredArtifacts.length) {
+          next.artifacts = restoredArtifacts
+          attached = true
+        }
+        return next
       }
       return m
     })
@@ -843,11 +985,30 @@ async function restoreComprehensiveConversation(id) {
       birthAddr: p.birth_addr,
       profileType: p.profile_type,
     }]
-    scrollComprehensiveChatToBottom()
+    shouldAutoFollowChat.value = true
+    scrollComprehensiveChatToBottom('smooth', true)
   } catch (_) {}
 }
 
-function scrollComprehensiveChatToBottom(behavior) {
+function isComprehensiveChatNearBottom() {
+  // #ifdef H5
+  try {
+    const el = document.querySelector('.home-ai-chat')
+    if (!el) return true
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 96
+  } catch(_) {
+    return true
+  }
+  // #endif
+  return true
+}
+
+function onHomeChatScroll() {
+  shouldAutoFollowChat.value = isComprehensiveChatNearBottom()
+}
+
+function scrollComprehensiveChatToBottom(behavior, force) {
+  if (!force && !shouldAutoFollowChat.value) return
   // #ifdef H5
   setTimeout(function() {
     try {
@@ -872,9 +1033,11 @@ function startNewComprehensiveConversation() {
   comprehensiveMessages.value = []
   currentComprehensiveConvId.value = null
   currentPaipanContext.value = {}
+  currentArtifacts.value = {}
+  shouldAutoFollowChat.value = true
   pendingComprehensiveId = ''
   try { sessionStorage.removeItem('xc_comprehensive_resume_id') } catch(_) {}
-  scrollComprehensiveChatToBottom()
+  scrollComprehensiveChatToBottom('auto', true)
 }
 
 function onHomeKeydown(e) {
@@ -1138,14 +1301,17 @@ onBeforeUnmount(() => {
 .home-ai-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; flex-wrap: nowrap !important; overflow-x: hidden; box-sizing: border-box; width: 100%; }
 .home-ai-toolbar-left { display: flex; align-items: center; gap: 6px; flex-shrink: 1; min-width: 0; }
 .home-ai-toolbar-right { display: flex; align-items: center; gap: 6px; margin-left: auto; flex-shrink: 1; min-width: 0; overflow-x: hidden; box-sizing: border-box; }
-.profile-picker, .tool-picker, .llm-picker, .home-ai-send { min-height: 36px; border-radius: 999px; border: 1px solid rgba(178,149,93,0.18); background: rgba(255,255,255,0.065); color: var(--text-1); display: flex; align-items: center; justify-content: center; cursor: pointer; box-sizing: border-box; flex-shrink: 0; transition: border-color .18s ease, background .18s ease, transform .18s ease; }
-[data-theme="light"] .profile-picker, [data-theme="light"] .tool-picker, [data-theme="light"] .llm-picker { background: rgba(255,251,242,0.76); }
-.profile-picker:hover, .tool-picker:hover, .llm-picker:hover { border-color: rgba(178,149,93,0.45); background: var(--accent-glow); }
+.profile-picker, .tool-picker, .reading-mode-picker, .llm-picker, .home-ai-send { min-height: 36px; border-radius: 999px; border: 1px solid rgba(178,149,93,0.18); background: rgba(255,255,255,0.065); color: var(--text-1); display: flex; align-items: center; justify-content: center; cursor: pointer; box-sizing: border-box; flex-shrink: 0; transition: border-color .18s ease, background .18s ease, transform .18s ease; }
+[data-theme="light"] .profile-picker, [data-theme="light"] .tool-picker, [data-theme="light"] .reading-mode-picker, [data-theme="light"] .llm-picker { background: rgba(255,251,242,0.76); }
+.profile-picker:hover, .tool-picker:hover, .reading-mode-picker:hover, .llm-picker:hover { border-color: rgba(178,149,93,0.45); background: var(--accent-glow); }
 .profile-picker, .tool-picker { justify-content: flex-start; gap: 6px; padding: 0 10px; max-width: 168px; min-width: 86px; flex-shrink: 1; }
 .profile-plus, .tool-picker-icon { width: 20px; height: 20px; border-radius: 50%; background: var(--accent-glow); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; flex-shrink: 0; }
 .profile-name, .tool-picker text:last-child { display: block; font-size: 0.75rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .profile-meta { display: block; margin-top: 2px; font-size: 0.66rem; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .llm-picker { min-width: 96px; max-width: 128px; padding: 4px 10px; flex-direction: column; align-items: flex-start; gap: 1px; color: var(--text-2); white-space: nowrap; flex-shrink: 1; overflow: hidden; }
+.reading-mode-picker { min-width: 82px; max-width: 96px; padding: 4px 10px; flex-direction: column; align-items: flex-start; gap: 1px; color: var(--text-2); white-space: nowrap; flex-shrink: 0; overflow: hidden; }
+.reading-mode-label { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 0.56rem; color: var(--text-3); line-height: 1.15; }
+.reading-mode-name { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 0.72rem; color: var(--text-1); line-height: 1.2; }
 .llm-name { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 0.72rem; color: var(--text-1); line-height: 1.2; }
 .llm-points { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 0.58rem; color: var(--text-3); line-height: 1.2; }
 .home-ai-send { width: 36px; height: 36px; min-height: 36px; background: var(--accent); border-color: var(--accent); color: #fff; font-size: 1.1rem; font-weight: 700; line-height: 1; flex-shrink: 0; box-shadow: 0 8px 22px rgba(120,80,12,0.22); }
@@ -1187,6 +1353,47 @@ onBeforeUnmount(() => {
 .home-tool-card-sub { display: block; margin-top: 3px; color: var(--text-3); font-size: 0.68rem; line-height: 1.35; }
 .home-tool-card-toggle { flex-shrink: 0; color: var(--accent); font-size: 0.68rem; }
 .home-tool-card-body { padding: 0 12px 12px; }
+.home-artifact-render { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.home-artifact-render :deep(.artifact-panel) { display: grid; gap: 10px; color: var(--text-2); font-size: 0.74rem; }
+.home-artifact-render :deep(.artifact-grid) { display: grid; gap: 8px; }
+.home-artifact-render :deep(.artifact-grid-4) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.home-artifact-render :deep(.artifact-grid-3) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.home-artifact-render :deep(.bazi-pillar),
+.home-artifact-render :deep(.artifact-gua),
+.home-artifact-render :deep(.artifact-tarot-card),
+.home-artifact-render :deep(.artifact-kv),
+.home-artifact-render :deep(.artifact-chip),
+.home-artifact-render :deep(.artifact-line),
+.home-artifact-render :deep(.artifact-palace),
+.home-artifact-render :deep(.artifact-ziwei-palace) { min-width: 0; padding: 8px 9px; border: 1px solid rgba(178,149,93,0.13); border-radius: 10px; background: rgba(255,255,255,0.045); box-sizing: border-box; }
+.home-artifact-render :deep(.bazi-pillar span),
+.home-artifact-render :deep(.artifact-gua span),
+.home-artifact-render :deep(.artifact-tarot-card span),
+.home-artifact-render :deep(.artifact-kv span),
+.home-artifact-render :deep(.artifact-chip span),
+.home-artifact-render :deep(.artifact-line span),
+.home-artifact-render :deep(.artifact-palace span),
+.home-artifact-render :deep(.artifact-ziwei-palace span) { display: block; color: var(--text-3); font-size: 0.62rem; line-height: 1.25; overflow-wrap: anywhere; }
+.home-artifact-render :deep(.bazi-pillar strong),
+.home-artifact-render :deep(.artifact-gua strong),
+.home-artifact-render :deep(.artifact-tarot-card strong),
+.home-artifact-render :deep(.artifact-kv strong),
+.home-artifact-render :deep(.artifact-chip strong),
+.home-artifact-render :deep(.artifact-line strong),
+.home-artifact-render :deep(.artifact-palace b),
+.home-artifact-render :deep(.artifact-ziwei-palace b) { display: block; color: var(--text-1); font-size: 0.82rem; line-height: 1.35; margin-top: 3px; overflow-wrap: anywhere; }
+.home-artifact-render :deep(.artifact-kv-grid) { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.home-artifact-render :deep(.artifact-palace-grid) { display: grid; grid-template-columns: repeat(3, minmax(92px, 1fr)); border: 1px solid rgba(178,149,93,0.14); border-radius: 12px; overflow: hidden; }
+.home-artifact-render :deep(.artifact-palace) { border-radius: 0; min-height: 68px; border-width: 0 1px 1px 0; }
+.home-artifact-render :deep(.artifact-ziwei-grid) { display: grid; grid-template-columns: repeat(4, minmax(98px, 1fr)); gap: 6px; }
+.home-artifact-render :deep(.artifact-ziwei-palace) { min-height: 82px; display: flex; flex-direction: column; gap: 3px; }
+.home-artifact-render :deep(.artifact-chip-row) { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+.home-artifact-render :deep(.artifact-chip) { min-width: 78px; flex: 0 0 auto; }
+.home-artifact-render :deep(.artifact-row-title) { color: var(--accent); font-weight: 700; font-size: 0.72rem; margin-bottom: 6px; }
+.home-artifact-render :deep(.artifact-line-list) { display: grid; gap: 6px; }
+.home-artifact-render :deep(.artifact-line) { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.home-artifact-render :deep(.artifact-tarot-card em) { display: block; margin-top: 3px; color: var(--accent); font-style: normal; font-size: 0.62rem; }
+.home-artifact-render :deep(.artifact-empty) { color: var(--text-3); font-size: 0.68rem; }
 .mini-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid rgba(178,149,93,0.14); border-radius: 10px; overflow: hidden; }
 .mini-palace { min-height: 64px; padding: 7px; border-right: 1px solid rgba(178,149,93,0.12); border-bottom: 1px solid rgba(178,149,93,0.12); display: flex; flex-direction: column; gap: 2px; color: var(--text-3); font-size: 0.62rem; box-sizing: border-box; }
 .mini-palace:nth-child(3n) { border-right: none; }
@@ -1297,7 +1504,7 @@ onBeforeUnmount(() => {
   .home-ai-input { min-height: 58px; max-height: 92px; font-size: 0.9rem; }
   .home-ai-main { padding: 10px; gap: 6px; bottom: 10px; }
   .home-ai-toolbar { min-height: 34px; }
-  .profile-picker, .tool-picker, .llm-picker, .home-ai-send { min-height: 32px; }
+  .profile-picker, .tool-picker, .reading-mode-picker, .llm-picker, .home-ai-send { min-height: 32px; }
   .home-ai-send { width: 32px; height: 32px; }
   .hero-home.chat-active { padding: 8px 32px 156px; }
   .hero-home.chat-active .hero-brand { margin-bottom: 8px; }
@@ -1327,7 +1534,7 @@ onBeforeUnmount(() => {
   .home-scan-action-sub { display: none; }
   .home-ai-console { margin-top: 0; padding-bottom: 0; }
   .home-ai-console.has-chat { width: calc(100vw - 32px); padding: 0; margin-top: 0; }
-  .home-ai-console.has-chat .home-ai-chat { height: auto; min-height: 0; }
+  .home-ai-console.has-chat .home-ai-chat { height: auto; min-height: 0; max-height: calc(100dvh - 244px); }
   .home-ai-main { bottom: 10px; width: calc(100vw - 18px); border-radius: 16px; }
   .home-ai-main { padding: 12px; gap: 8px; }
   .home-ai-input { min-height: 76px; font-size: 0.9rem; }
@@ -1338,6 +1545,9 @@ onBeforeUnmount(() => {
   .profile-picker, .tool-picker { max-width: 84px; padding: 0 6px; min-height: 30px; }
   .profile-plus, .tool-picker-icon { width: 18px; height: 18px; font-size: 0.72rem; }
   .profile-name, .tool-picker text:last-child { font-size: 0.66rem; }
+  .reading-mode-picker { min-width: 58px; max-width: 64px; padding: 3px 6px; min-height: 30px; }
+  .reading-mode-label { display: none; }
+  .reading-mode-name { font-size: 0.64rem; }
   .llm-picker { min-width: 88px; max-width: 98px; padding: 3px 7px; min-height: 30px; align-items: flex-start; }
   .llm-name { font-size: 0.64rem; }
   .llm-points { font-size: 0.52rem; }
@@ -1349,6 +1559,10 @@ onBeforeUnmount(() => {
   .home-ai-step-row { gap: 4px; }
   .home-ai-step-row text { padding: 4px 3px; font-size: 0.56rem; }
   .home-tool-card-head { padding: 9px 10px; }
+  .home-artifact-render :deep(.artifact-grid-4),
+  .home-artifact-render :deep(.artifact-grid-3),
+  .home-artifact-render :deep(.artifact-kv-grid) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-artifact-render :deep(.artifact-ziwei-grid) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mini-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mini-palace:nth-child(3n) { border-right: 1px solid rgba(178,149,93,0.12); }
   .mini-palace:nth-child(2n) { border-right: none; }
@@ -1369,7 +1583,7 @@ onBeforeUnmount(() => {
   .home-scan-panel { display: none; }
   .hero-home.chat-active .hero-brand-slogan { display: none; }
   .home-ai-console.has-chat { width: calc(100vw - 32px); padding-top: 0; }
-  .home-ai-console.has-chat .home-ai-chat { height: auto; min-height: 0; padding: 10px; }
+  .home-ai-console.has-chat .home-ai-chat { height: auto; min-height: 0; max-height: calc(100dvh - 228px); padding: 10px; }
   .home-ai-main { padding: 10px; gap: 6px; border-radius: 16px; }
   .home-ai-input { min-height: 68px; font-size: 0.86rem; padding: 8px 4px 2px; }
   .home-ai-toolbar { gap: 3px; flex-wrap: nowrap !important; overflow-x: hidden; box-sizing: border-box; }
@@ -1378,6 +1592,8 @@ onBeforeUnmount(() => {
   .profile-picker, .tool-picker { max-width: 72px; padding: 0 4px; min-height: 28px; }
   .profile-plus, .tool-picker-icon { width: 16px; height: 16px; font-size: 0.66rem; }
   .profile-name, .tool-picker text:last-child { font-size: 0.6rem; }
+  .reading-mode-picker { min-width: 48px; max-width: 52px; padding: 2px 5px; min-height: 28px; }
+  .reading-mode-name { font-size: 0.58rem; }
   .llm-picker { min-width: 76px; max-width: 82px; padding: 2px 6px; min-height: 28px; }
   .llm-name { font-size: 0.58rem; }
   .llm-points { font-size: 0.48rem; }
@@ -1389,6 +1605,10 @@ onBeforeUnmount(() => {
   .home-ai-step-row text { font-size: 0.5rem; }
   .home-tool-card-title { font-size: 0.78rem; }
   .home-tool-card-sub { font-size: 0.62rem; }
+  .home-artifact-render :deep(.artifact-grid-4),
+  .home-artifact-render :deep(.artifact-grid-3),
+  .home-artifact-render :deep(.artifact-kv-grid),
+  .home-artifact-render :deep(.artifact-ziwei-grid) { grid-template-columns: 1fr; }
   .mini-line { align-items: flex-start; flex-direction: column; gap: 3px; }
   .section { padding: 32px 16px; }
   .section-title { font-size: 1.15rem; }

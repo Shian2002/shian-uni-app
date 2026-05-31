@@ -129,6 +129,8 @@
         var text = escHtml(r.question || '(无问题)')
         var clickAction = r._tarotConvId
           ? 'onclick="window._showTarotConv(' + r._tarotConvId + ')"'
+          : r._comprehensiveConvId
+          ? 'onclick="window._showComprehensiveConv(' + r._comprehensiveConvId + ')"'
           : r._baziConvId
           ? 'onclick="window._showBaziConvDetail(' + r._baziConvId + ')"'
           : r.id && String(r.id).indexOf('bazih_') === 0
@@ -204,7 +206,7 @@
       try {
         var data = JSON.parse(xhr.responseText)
         var items = data.records || []
-        var pending = 3
+        var pending = 4
         function onAllDone() {
           pending--
           if (pending > 0) return
@@ -224,6 +226,17 @@
         }
         tarotXhr.onerror = function() { onAllDone() }
         tarotXhr.send()
+        var compXhr = new XMLHttpRequest()
+        compXhr.open('GET', '/api/comprehensive/conversations')
+        compXhr.setRequestHeader('Accept', 'application/json')
+        compXhr.onload = function() {
+          var comps = []
+          try { comps = JSON.parse(compXhr.responseText); if (!Array.isArray(comps)) comps = [] } catch(e) {}
+          comps.forEach(function(c) { items.push({ id: 'comprehensive_' + c.id, app_type: 'comprehensive', question: c.title || '综合解读', created_at: c.updated_at || c.created_at, _comprehensiveConvId: c.id }) })
+          onAllDone()
+        }
+        compXhr.onerror = function() { onAllDone() }
+        compXhr.send()
         var baziXhr = new XMLHttpRequest()
         baziXhr.open('GET', '/api/bazi/conversations')
         baziXhr.setRequestHeader('Accept', 'application/json')
@@ -262,6 +275,21 @@
     window.__sidebarCache = null
     ensureGlobalSidebar()
     loadSidebarData()
+  }
+
+  // ═══ 恢复首页综合解读对话 ═══
+  window._showComprehensiveConv = function(cid) {
+    window._xc_toggleSidebar()
+    if (window._xc_restoreComprehensive) {
+      window._xc_restoreComprehensive(cid)
+      return
+    }
+    try { sessionStorage.setItem('xc_comprehensive_resume_id', String(cid)) } catch(_) {}
+    if (window.__topNavGo) {
+      window.__topNavGo('#/?comprehensive_id=' + cid)
+    } else {
+      location.hash = '#/?comprehensive_id=' + cid
+    }
   }
 
   // ═══ 查看塔罗对话 ═══
