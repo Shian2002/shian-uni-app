@@ -11,7 +11,7 @@ except ImportError:
 
 import os, json, threading, subprocess, time, secrets, shutil, hashlib, logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, make_response, session, redirect, Response, stream_with_context
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -8473,6 +8473,149 @@ def _compute_huangli_local(year, month, day):
 
     result['disclaimer'] = '以上内容仅为民俗文化参考，不构成任何决策建议'
     return result
+
+
+# ═══════════════════════════════════════════════════════════════
+# 择吉 API
+# ═══════════════════════════════════════════════════════════════
+
+_ZEJI_GOOD_JIANCHU = {
+    '婚嫁': {'成', '开', '定'},
+    '开业': {'开', '成', '满'},
+    '搬家': {'成', '开', '定'},
+    '出行': {'开', '成', '除'},
+    '签约': {'成', '定', '开'},
+    '动土': {'成', '开', '定'},
+}
+_ZEJI_BAD_JIANCHU = {'破', '闭', '危'}
+_ZEJI_GOOD_ZHISHEN = {'青龙', '明堂', '金匮', '天德', '玉堂', '司命'}
+
+
+def _parse_zeji_date(value, field_name):
+    try:
+        return datetime.strptime(value, '%Y-%m-%d')
+    except (TypeError, ValueError):
+        raise ValueError(f'{field_name}格式错误，需YYYY-MM-DD')
+
+
+def _score_zeji_day(zeji_type, huangli):
+    score = 60
+    reasons = []
+    warnings = []
+
+    jian_chu = huangli.get('jianChu', '')
+    zhi_shen = huangli.get('zhiShen', '')
+    yi = huangli.get('yi', '') or ''
+    ji = huangli.get('ji', '') or ''
+
+    if jian_chu in _ZEJI_GOOD_JIANCHU.get(zeji_type, {'成', '开', '定'}):
+        score += 18
+        reasons.append(f'{jian_chu}日利于推进事项')
+    elif jian_chu in _ZEJI_BAD_JIANCHU:
+        score -= 18
+        warnings.append(f'{jian_chu}日宜谨慎')
+    else:
+        reasons.append(f'{jian_chu}日中平')
+
+    if zhi_shen in _ZEJI_GOOD_ZHISHEN:
+        score += 10
+        reasons.append(f'值神{zhi_shen}为吉神')
+    elif zhi_shen:
+        warnings.append(f'值神{zhi_shen}，需结合实际安排')
+
+    if zeji_type and zeji_type in yi:
+        score += 12
+        reasons.append(f'黄历宜项包含{zeji_type}')
+    if zeji_type and zeji_type in ji:
+        score -= 20
+        warnings.append(f'黄历忌项包含{zeji_type}')
+
+    return max(0, min(100, score)), reasons, warnings
+
+
+@app.route('/api/zeji', methods=['POST'])
+@csrf.exempt
+def api_zeji():
+    """择吉工具 — 基于本地黄历字段给出日期候选，不依赖登录。"""
+    data = request.get_json(silent=True) or {}
+    zeji_type = (data.get('zejiType') or data.get('type') or '').strip() or '择吉'
+    start_date = (data.get('startDate') or '').strip()
+    end_date = (data.get('endDate') or start_date).strip()
+    addr = (data.get('addr') or '').strip()
+
+    if not start_date:
+        return jsonify({'success': False, 'error': '请选择开始日期'}), 400
+
+    try:
+        start_dt = _parse_zeji_date(start_date, '开始日期')
+        end_dt = _parse_zeji_date(end_date, '结束日期')
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+    if end_dt < start_dt:
+        return jsonify({'success': False, 'error': '结束日期不能早于开始日期'}), 400
+
+    if (end_dt - start_dt).days > 60:
+        return jsonify({'success': False, 'error': '择吉日期范围最多支持60天'}), 400
+
+    candidates = []
+    cursor = start_dt
+    while cursor <= end_dt:
+        h = _compute_huangli_local(cursor.year, cursor.month, cursor.day)
+        score, reasons, warnings = _score_zeji_day(zeji_type, h)
+        candidates.append({
+            'date': cursor.strftime('%Y-%m-%d'),
+            'score': score,
+            'lunar': h.get('lunarDate', ''),
+            'ganZhiDay': h.get('ganZhiDay', ''),
+            'jianChu': h.get('jianChu', ''),
+            'zhiShen': h.get('zhiShen', ''),
+            'chong': h.get('chong', ''),
+            'sha': h.get('sha', ''),
+            'reasons': reasons,
+            'warnings': warnings,
+        })
+        cursor += timedelta(days=1)
+
+    candidates.sort(key=lambda item: (-item['score'], item['date']))
+    best = candidates[:3]
+    lines = [
+        '═══ 择吉分析 ═══',
+        f'事项：{zeji_type}',
+        f'日期范围：{start_date} ~ {end_date}',
+    ]
+    if addr:
+        lines.append(f'地点：{addr}')
+    lines.append('')
+    lines.append('推荐日期：')
+    for idx, item in enumerate(best, 1):
+        reason_text = '；'.join(item['reasons'] or ['综合黄历信息较平稳'])
+        warning_text = '；'.join(item['warnings'])
+        line = (
+            f'{idx}. {item["date"]}（评分{item["score"]}）'
+            f' {item["ganZhiDay"]}日 · {item["jianChu"]}日 · 值神{item["zhiShen"]}'
+            f' · {item["chong"]}{item["sha"]}。{reason_text}'
+        )
+        if warning_text:
+            line += f'；提醒：{warning_text}'
+        lines.append(line)
+    lines.extend([
+        '',
+        '建议：优先选择评分靠前且时间安排从容的日期，具体吉时需结合当事人八字、方位和实际行程进一步细排。',
+        '⚠️ 以上内容仅为民俗文化参考，不构成任何决策建议。',
+    ])
+
+    return jsonify({
+        'success': True,
+        'zejiType': zeji_type,
+        'startDate': start_date,
+        'endDate': end_date,
+        'addr': addr,
+        'bestDays': best,
+        'days': candidates,
+        'result': '\n'.join(lines),
+        'message': '\n'.join(lines),
+    })
 
 
 # ═══════════════════════════════════════════════════════════════

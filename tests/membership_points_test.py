@@ -340,3 +340,28 @@ def test_admin_change_password_requires_admin_current_password_and_audits(app_mo
         assert audit.target_type == "user"
         assert audit.target_id == admin.id
         assert "new-secret-12345" not in audit.detail
+
+
+def test_zeji_api_returns_direct_analysis_for_public_page(app_module):
+    client = app_module.app.test_client()
+
+    response = client.post(
+        "/api/zeji",
+        json={
+            "zejiType": "搬家",
+            "startDate": "2024-02-10",
+            "endDate": "2024-02-12",
+            "addr": "北京",
+            "name": "择吉分析",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["success"] is True
+    assert data["zejiType"] == "搬家"
+    assert data["startDate"] == "2024-02-10"
+    assert data["endDate"] == "2024-02-12"
+    assert "2024-02-10" in data["result"]
+    assert "搬家" in data["result"]
+    assert "民俗文化参考" in data["result"]
