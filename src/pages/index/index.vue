@@ -620,16 +620,24 @@ function renderBaziBasicArtifact(data) {
     ['日柱', fp.day],
     ['时柱', fp.hour],
   ].map(function(row) {
-    return '<div class="bazi-pillar"><span>' + htmlEscape(row[0]) + '</span><strong>' + htmlEscape(pillarText(row[1]) || '-') + '</strong></div>'
+    const pillar = row[1] || {}
+    const gan = pillar.gan || String(pillarText(pillar) || '').slice(0, 1)
+    const zhi = pillar.zhi || String(pillarText(pillar) || '').slice(1, 2)
+    return '<div class="bz-artifact-pillar"><span class="bz-artifact-label">' + htmlEscape(row[0]) + '</span><div class="bz-artifact-gz"><b class="wx-color-' + wxClass(ganWuxing(gan)) + '">' + htmlEscape(gan || '-') + '</b><b class="wx-color-' + wxClass(zhiWuxing(zhi)) + '">' + htmlEscape(zhi || '-') + '</b></div><span class="bz-artifact-sub">' + htmlEscape(pillar.nayin || '') + '</span></div>'
   }).join('')
-  return '<div class="artifact-bazi artifact-panel">' +
-    '<div class="artifact-grid artifact-grid-4">' + rows + '</div>' +
-    '<div class="artifact-kv-grid">' +
-    renderKV('日主', data.day_master) +
-    renderKV('强弱', data.strength) +
-    renderKV('用神', data.yongshen) +
-    renderKV('出生地', data.birth_addr) +
-    '</div>' +
+  const wuxing = data.wu_xing || data.wuxing_stats || {}
+  const wuxingHtml = ['金', '木', '水', '火', '土'].map(function(k) {
+    return '<span class="bz-wuxing-chip wx-color-' + wxClass(k) + '">' + k + ' ' + htmlEscape(wuxing[k] === undefined ? '-' : wuxing[k]) + '</span>'
+  }).join('')
+  return '<div class="bz-artifact-panel">' +
+    '<div class="bz-artifact-head"><div><b>八字基本排盘</b><span>' + htmlEscape([data.name, data.gender, data.birth_solar || data.birth_time].filter(Boolean).join(' · ')) + '</span></div><em>' + htmlEscape(data.birth_lunar || '') + '</em></div>' +
+    '<div class="bz-artifact-pillars">' + rows + '</div>' +
+    '<div class="bz-artifact-meta">' +
+    '<span>日主 <b>' + htmlEscape(data.day_master || (fp.day && fp.day.gan) || '-') + '</b></span>' +
+    '<span>强弱 <b>' + htmlEscape(data.strength || (data.wang_shuai_detail && data.wang_shuai_detail.strength) || '-') + '</b></span>' +
+    '<span>格局 <b>' + htmlEscape((data.geju && data.geju.geju) || '-') + '</b></span>' +
+    '<span>出生地 <b>' + htmlEscape(data.birth_addr || (data.location && data.location.addr) || '-') + '</b></span>' +
+    '</div><div class="bz-wuxing-row">' + wuxingHtml + '</div>' +
     '</div>'
 }
 
@@ -649,6 +657,14 @@ function renderBaziYunArtifact(data) {
     renderRow('流年', liunian) +
     renderRow('流月', data.liu_yue || data.liu_month || []) +
     '</div>'
+}
+
+function ganWuxing(gan) {
+  return ({ '甲': '木', '乙': '木', '丙': '火', '丁': '火', '戊': '土', '己': '土', '庚': '金', '辛': '金', '壬': '水', '癸': '水' })[gan] || ''
+}
+
+function zhiWuxing(zhi) {
+  return ({ '子': '水', '丑': '土', '寅': '木', '卯': '木', '辰': '土', '巳': '火', '午': '火', '未': '土', '申': '金', '酉': '金', '戌': '土', '亥': '水' })[zhi] || ''
 }
 
 function pickValue(obj, keys, fallback) {
@@ -854,11 +870,12 @@ function renderLiuyaoArtifact(data) {
 
 function renderZiweiArtifact(data) {
   const palaces = (data.twelve_palaces || data.palaces || []).slice(0, 12)
-  const cells = palaces.map(function(p) {
-    const stars = (p.major_stars || p.stars || []).slice(0, 5).map(function(s) { return typeof s === 'string' ? s : (s.name || '') }).filter(Boolean).join(' ')
-    return '<div class="artifact-ziwei-palace"><b>' + htmlEscape(p.name || p.palace_name || '') + '</b><span>' + htmlEscape(p.gan_zhi || p.branch || '') + '</span><strong>' + htmlEscape(stars) + '</strong></div>'
+  const cells = palaces.map(function(p, idx) {
+    const stars = (p.major_stars || p.stars || []).slice(0, 6).map(function(s) { return typeof s === 'string' ? s : (s.name || '') }).filter(Boolean)
+    const palaceName = p.name || p.palace_name || ''
+    return '<div class="zw-artifact-palace palace-' + idx + '"><div class="zw-artifact-top"><b>' + htmlEscape(palaceName) + '</b><span>' + htmlEscape(p.gan_zhi || p.branch || '') + '</span></div><div class="zw-artifact-stars">' + stars.map(function(s, i) { return '<span class="' + (i < 2 ? 'main' : '') + '">' + htmlEscape(s) + '</span>' }).join('') + '</div><div class="zw-artifact-foot"><span>' + htmlEscape(p.da_xian || p.decadal || '') + '</span><strong>' + htmlEscape(p.body_palace ? '身宫' : '') + '</strong></div></div>'
   }).join('')
-  return '<div class="artifact-panel"><div class="artifact-ziwei-grid">' + cells + '</div></div>'
+  return '<div class="zw-artifact-wrap"><div class="zw-artifact-grid">' + cells + '<div class="zw-artifact-center"><b>紫微斗数命盘</b><span>' + htmlEscape([data.gender, data.wuxingju || data.five_element_class, data.lunar_date].filter(Boolean).join(' · ')) + '</span><em>' + htmlEscape([data.ming_zhu && ('命主 ' + data.ming_zhu), data.shen_zhu && ('身主 ' + data.shen_zhu)].filter(Boolean).join('  ')) + '</em></div></div></div>'
 }
 
 function renderTarotArtifact(data) {
@@ -1563,6 +1580,28 @@ onBeforeUnmount(() => {
 .home-artifact-render :deep(.artifact-tarot-card em) { display: block; margin-top: 3px; color: var(--accent); font-style: normal; font-size: 0.62rem; }
 .home-artifact-render :deep(.artifact-empty) { color: var(--text-3); font-size: 0.68rem; }
 
+.home-artifact-render :deep(.bz-artifact-panel) { width: 100%; padding: 16px; border: 1px solid rgba(178,149,93,.16); border-radius: 14px; background: rgba(255,253,248,.05); box-sizing: border-box; }
+.home-artifact-render :deep(.bz-artifact-head) { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid rgba(178,149,93,.14); }
+.home-artifact-render :deep(.bz-artifact-head b) { display: block; color: var(--text-1); font-family: var(--font-serif); font-size: 1rem; letter-spacing: 2px; }
+.home-artifact-render :deep(.bz-artifact-head span),
+.home-artifact-render :deep(.bz-artifact-head em) { display: block; margin-top: 4px; color: var(--text-3); font-size: .72rem; font-style: normal; }
+.home-artifact-render :deep(.bz-artifact-pillars) { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.home-artifact-render :deep(.bz-artifact-pillar) { min-width: 0; padding: 12px 10px; border: 1px solid rgba(178,149,93,.14); border-radius: 12px; text-align: center; background: rgba(255,255,255,.045); }
+.home-artifact-render :deep(.bz-artifact-label) { display: block; color: var(--text-3); font-size: .68rem; margin-bottom: 8px; }
+.home-artifact-render :deep(.bz-artifact-gz) { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.home-artifact-render :deep(.bz-artifact-gz b) { width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: 1rem; font-weight: 800; box-shadow: 0 6px 16px rgba(0,0,0,.12); }
+.home-artifact-render :deep(.bz-artifact-sub) { display: block; min-height: 16px; margin-top: 7px; color: var(--text-3); font-size: .66rem; }
+.home-artifact-render :deep(.bz-artifact-meta) { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.home-artifact-render :deep(.bz-artifact-meta span) { padding: 8px 10px; border-radius: 10px; background: rgba(178,149,93,.06); color: var(--text-3); font-size: .68rem; }
+.home-artifact-render :deep(.bz-artifact-meta b) { color: var(--text-1); font-size: .78rem; margin-left: 4px; }
+.home-artifact-render :deep(.bz-wuxing-row) { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.home-artifact-render :deep(.bz-wuxing-chip) { padding: 4px 9px; border-radius: 999px; color: #fff; font-size: .68rem; font-weight: 700; }
+.home-artifact-render :deep(.wx-color-jin) { background: #B8860B; }
+.home-artifact-render :deep(.wx-color-mu) { background: #2E8B57; }
+.home-artifact-render :deep(.wx-color-shui) { background: #2878B5; }
+.home-artifact-render :deep(.wx-color-huo) { background: #C44D3A; }
+.home-artifact-render :deep(.wx-color-tu) { background: #8A6A2A; }
+
 /* 首页 artifact 直接承载单项页盘面结构，避免重新画一套黑字简化卡片 */
 .home-artifact-render :deep(.mh-result-wrap),
 .home-artifact-render :deep(.qm-result-wrap),
@@ -1661,6 +1700,22 @@ onBeforeUnmount(() => {
 .home-artifact-render :deep(.ly-paired-info) { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; min-width: 0; }
 .home-artifact-render :deep(.ly-yao-pos) { color: var(--text-1); font-weight: 700; font-size: .72rem; }
 .home-artifact-render :deep(.ly-meta-row) { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--card-border); color: var(--text-3); font-size: .72rem; }
+
+.home-artifact-render :deep(.zw-artifact-wrap) { width: 100%; overflow-x: auto; }
+.home-artifact-render :deep(.zw-artifact-grid) { min-width: 620px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(4, minmax(112px, auto)); gap: 2px; background: rgba(178,149,93,.20); border: 1px solid rgba(178,149,93,.22); border-radius: 12px; overflow: hidden; position: relative; }
+.home-artifact-render :deep(.zw-artifact-palace) { min-height: 112px; padding: 8px; background: rgba(255,253,248,.92); color: #222; display: flex; flex-direction: column; gap: 6px; box-sizing: border-box; }
+.home-artifact-render :deep(.zw-artifact-palace:nth-child(odd)) { background: rgba(255,247,242,.95); }
+.home-artifact-render :deep(.zw-artifact-top) { display: flex; align-items: center; justify-content: space-between; color: #8a6319; font-size: .68rem; }
+.home-artifact-render :deep(.zw-artifact-top b) { color: #B84D4D; font-size: .76rem; }
+.home-artifact-render :deep(.zw-artifact-stars) { display: flex; flex-wrap: wrap; gap: 3px 6px; align-content: flex-start; min-height: 48px; }
+.home-artifact-render :deep(.zw-artifact-stars span) { color: #3a3328; font-size: .72rem; font-weight: 700; }
+.home-artifact-render :deep(.zw-artifact-stars span.main) { color: #337AB7; font-size: .86rem; }
+.home-artifact-render :deep(.zw-artifact-foot) { margin-top: auto; display: flex; align-items: flex-end; justify-content: space-between; gap: 6px; color: #6f6250; font-size: .62rem; }
+.home-artifact-render :deep(.zw-artifact-foot strong) { color: #B84D4D; font-size: .68rem; }
+.home-artifact-render :deep(.zw-artifact-center) { grid-column: 2 / 4; grid-row: 2 / 4; background: rgba(255,255,255,.96); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; color: #4a3922; padding: 16px; box-sizing: border-box; }
+.home-artifact-render :deep(.zw-artifact-center b) { font-family: var(--font-serif); color: #8a6319; font-size: 1.05rem; letter-spacing: 2px; }
+.home-artifact-render :deep(.zw-artifact-center span),
+.home-artifact-render :deep(.zw-artifact-center em) { color: #6f6250; font-size: .72rem; font-style: normal; }
 .mini-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid rgba(178,149,93,0.14); border-radius: 10px; overflow: hidden; }
 .mini-palace { min-height: 64px; padding: 7px; border-right: 1px solid rgba(178,149,93,0.12); border-bottom: 1px solid rgba(178,149,93,0.12); display: flex; flex-direction: column; gap: 2px; color: var(--text-3); font-size: 0.62rem; box-sizing: border-box; }
 .mini-palace:nth-child(3n) { border-right: none; }
@@ -1830,6 +1885,10 @@ onBeforeUnmount(() => {
   .home-artifact-render :deep(.artifact-grid-3),
   .home-artifact-render :deep(.artifact-kv-grid) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .home-artifact-render :deep(.artifact-ziwei-grid) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-artifact-render :deep(.bz-artifact-pillars),
+  .home-artifact-render :deep(.bz-artifact-meta) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-artifact-render :deep(.bz-artifact-head) { flex-direction: column; }
+  .home-artifact-render :deep(.zw-artifact-grid) { min-width: 560px; }
   .home-artifact-render :deep(.gua-display) { grid-template-columns: 1fr; gap: 12px; }
   .home-artifact-render :deep(.ti-yong-grid) { grid-template-columns: 1fr; gap: 8px; }
   .home-artifact-render :deep(.ti-yong-rel) { white-space: normal; }
@@ -1890,6 +1949,12 @@ onBeforeUnmount(() => {
   .home-artifact-render :deep(.artifact-grid-3),
   .home-artifact-render :deep(.artifact-kv-grid),
   .home-artifact-render :deep(.artifact-ziwei-grid) { grid-template-columns: 1fr; }
+  .home-artifact-render :deep(.bz-artifact-panel) { padding: 12px; }
+  .home-artifact-render :deep(.bz-artifact-pillars),
+  .home-artifact-render :deep(.bz-artifact-meta) { grid-template-columns: 1fr 1fr; gap: 7px; }
+  .home-artifact-render :deep(.bz-artifact-gz b) { width: 30px; height: 30px; font-size: .9rem; }
+  .home-artifact-render :deep(.zw-artifact-grid) { min-width: 520px; grid-template-rows: repeat(4, minmax(100px, auto)); }
+  .home-artifact-render :deep(.zw-artifact-palace) { min-height: 100px; padding: 6px; }
   .home-artifact-render :deep(.qm-nine-grid) { grid-template-columns: repeat(3, minmax(76px, 1fr)); }
   .home-artifact-render :deep(.qm-palace) { min-height: 88px; padding: 5px; }
   .home-artifact-render :deep(.qm-palace-head) { font-size: .56rem; }
