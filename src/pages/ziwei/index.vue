@@ -1135,7 +1135,6 @@ function zwTimeline(title, palaces, periods) {
   const decadal = periods && periods.decadal
   const age = periods && periods.age
   const birthYear = zwBirthYearFromPan(zwPanData.value || {})
-  const selectedAge = zwFlowState.selectedDecadeAge || zwDecadeStartForYear(palaces, zwPanData.value || {}, zwFlowState.selectedYear)
   function ageChip(nominalAge) {
     const year = birthYear + nominalAge - 1
     const p = zwPalaceByAge(palaces, nominalAge)
@@ -1150,8 +1149,7 @@ function zwTimeline(title, palaces, periods) {
     const selectedDecadeActive = zwFlowState.selectedDecadeAge ? r[0] === zwFlowState.selectedDecadeAge : (decadal && decadal.index === p.index)
     const active = zwFlowState.primaryMode !== 'age' && selectedDecadeActive ? ' active' : ''
     const ageText = active && age ? ('小限 ' + age.nominal_age + '岁') : (p.name || '')
-    const ageItems = selectedAge && selectedDecadeActive ? '<span class="zw-flow-subtitle">小限</span>' + Array.from({ length: 10 }, function(_, i) { return ageChip(selectedAge + i) }).join('') : ''
-    return ageItems + '<span class="zw-flow-item zw-flow-clickable zw-flow-decade' + active + '" data-flow-decade="' + zwEsc(r[0]) + '"><b>' + zwEsc(r[0]) + '-' + zwEsc(r[1]) + '</b><em>' + zwEsc((p.decadal.heavenly_stem || '') + (p.decadal.earthly_branch || '')) + '</em><i>' + zwEsc(ageText) + '</i></span>'
+    return '<span class="zw-flow-item zw-flow-clickable zw-flow-decade' + active + '" data-flow-decade="' + zwEsc(r[0]) + '"><b>' + zwEsc(r[0]) + '-' + zwEsc(r[1]) + '</b><em>' + zwEsc((p.decadal.heavenly_stem || '') + (p.decadal.earthly_branch || '')) + '</em><i>' + zwEsc(ageText) + '</i></span>'
   }).join('')
   const rowTitle = zwFlowState.primaryMode === 'age' ? '小限' : title
   return '<div class="zw-flow-row"><div class="zw-flow-title">' + zwEsc(rowTitle) + '</div><div class="zw-flow-scroll">' + preAgeItems + items + '</div></div>'
