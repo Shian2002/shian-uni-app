@@ -333,6 +333,55 @@ def test_small_recharge_screenshot_auto_confirms_when_amount_and_receiver_match(
         assert membership.points == 60
 
 
+def test_small_recharge_ignores_alipay_reward_numbers_when_matching_amount(app_module, user_factory):
+    member = user_factory("small-noisy-alipay-buyer")
+
+    with app_module.app.app_context():
+        order = app_module.RechargeOrder(
+            user_id=member.id,
+            package_id="test-cent",
+            package_name="测试包",
+            points=1,
+            amount=0.01,
+            status="pending",
+        )
+        app_module.db.session.add(order)
+        app_module.db.session.commit()
+        order_id = order.id
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(member.id)
+        sess["_fresh"] = True
+
+    noisy_proof_text = "\n".join([
+        "23:12:20 58.3KB/s 5G 66",
+        "支付成功",
+        "¥0.01",
+        "时安解忧屋 ¥0.01",
+        "支付宝积分+2 账单贴纸+1",
+        "最高领20元红包",
+        "完成",
+    ])
+    response = client.post("/api/recharge/verify-payment", json={
+        "order_id": order_id,
+        "payment_proof_text": noisy_proof_text,
+        "payment_proof_hash": "proof-small-noisy-unique",
+    })
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["status"] == "paid"
+    assert body["auto_confirmed"] is True
+    assert body["added"] == 1
+
+    with app_module.app.app_context():
+        refreshed = app_module.db.session.get(app_module.RechargeOrder, order_id)
+        membership = app_module.Membership.query.filter_by(user_id=member.id).one()
+        assert refreshed.status == "paid"
+        assert membership.points == 1
+
+
 def test_large_recharge_screenshot_waits_for_manual_confirmation(app_module, user_factory):
     member = user_factory("large-manual-buyer")
 
@@ -439,6 +488,43 @@ def test_alipay_recharge_verification_rejects_mismatched_amount(app_module, user
         "order_id": order_id,
         "paid_amount": 9.9,
         "payment_reference": "wrong-amount",
+    })
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "付款金额与订单金额不一致"
+
+    with app_module.app.app_context():
+        refreshed = app_module.db.session.get(app_module.RechargeOrder, order_id)
+        membership = app_module.Membership.query.filter_by(user_id=member.id).first()
+        assert refreshed.status == "pending"
+        assert membership is None
+
+
+def test_recharge_screenshot_rejects_explicit_mismatched_amount(app_module, user_factory):
+    member = user_factory("proof-mismatch-buyer")
+
+    with app_module.app.app_context():
+        order = app_module.RechargeOrder(
+            user_id=member.id,
+            package_id="test-cent",
+            package_name="测试包",
+            points=1,
+            amount=0.01,
+            status="pending",
+        )
+        app_module.db.session.add(order)
+        app_module.db.session.commit()
+        order_id = order.id
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(member.id)
+        sess["_fresh"] = True
+
+    response = client.post("/api/recharge/verify-payment", json={
+        "order_id": order_id,
+        "payment_proof_text": "支付宝支付成功 收款方 时安解忧屋 支付金额 ¥0.02",
+        "payment_proof_hash": "proof-explicit-mismatch",
     })
 
     assert response.status_code == 400

@@ -321,7 +321,7 @@ export default {
           var filePath = (res.tempFilePaths && res.tempFilePaths[0]) || ''
           if (!filePath) return
           paymentProofPath.value = filePath
-          paymentProofName.value = filePath.split('/').pop() || '已选择付款截图'
+          paymentProofName.value = '付款截图已选择'
         }
       })
     }

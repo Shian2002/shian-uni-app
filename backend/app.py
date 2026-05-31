@@ -10040,16 +10040,34 @@ def _parse_payment_amount(value):
     return round(amount, 2)
 
 
+def _payment_amount_matches(expected, actual):
+    """按分比较金额，避免 0.01 浮点容差把差一分钱的付款放过。"""
+    if expected is None or actual is None:
+        return False
+    return int(round(float(expected) * 100)) == int(round(float(actual) * 100))
+
+
 RECHARGE_SMALL_AUTO_LIMIT = float(os.environ.get('RECHARGE_SMALL_AUTO_LIMIT', '29.9'))
 RECHARGE_MANUAL_MESSAGE = '付款截图已提交，大额充值每日 10:00 - 24:00 在线确认，非在线时间可能延迟到账'
 
 
 def _extract_amounts_from_payment_text(text):
-    """从付款截图 OCR 文本中提取可能的金额。"""
+    """从付款截图 OCR 文本中提取强可信金额，避免把时间、红包、积分识别成付款金额。"""
     amounts = []
-    for raw in re.findall(r'(?:¥|￥|金额|实付|付款|支付)?\s*([0-9]+(?:\.[0-9]{1,2})?)', text or ''):
-        amount = _parse_payment_amount(raw)
-        if amount is not None and 0 < amount <= 10000:
+    seen = set()
+    patterns = [
+        r'[¥￥]\s*([0-9]+(?:\.[0-9]{1,2})?)',
+        r'(?:支付金额|付款金额|实付金额|实际付款|实付|应付|需支付|付款)\s*[：:为是]?\s*[¥￥]?\s*([0-9]+(?:\.[0-9]{1,2})?)',
+    ]
+    for pattern in patterns:
+        for raw in re.findall(pattern, text or ''):
+            amount = _parse_payment_amount(raw)
+            if amount is None or amount > 10000:
+                continue
+            key = f'{amount:.2f}'
+            if key in seen:
+                continue
+            seen.add(key)
             amounts.append(amount)
     return amounts
 
@@ -10156,14 +10174,14 @@ def api_recharge_verify_payment():
     text_amounts = _extract_amounts_from_payment_text(proof_text)
     paid_amount = expected_amount
     if text_amounts:
-        matched_amount = next((a for a in text_amounts if abs(a - expected) <= 0.01), None)
+        matched_amount = next((a for a in text_amounts if _payment_amount_matches(expected, a)), None)
         if matched_amount is None:
             return jsonify({'error': '付款金额与订单金额不一致'}), 400
         paid_amount = matched_amount
     elif paid_amount is None:
         paid_amount = expected
 
-    if abs(expected - paid_amount) > 0.01:
+    if not _payment_amount_matches(expected, paid_amount):
         return jsonify({'error': '付款金额与订单金额不一致'}), 400
 
     proof_detail = {
