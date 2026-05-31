@@ -1119,10 +1119,12 @@ function zwCenterInfo(bi, cp, meta, periods) {
 
 function zwTimeline(title, palaces, periods) {
   const decadal = periods && periods.decadal
+  const age = periods && periods.age
   const items = (palaces || []).filter(function(p) { return p && p.decadal && p.decadal.range }).map(function(p) {
     const r = p.decadal.range || []
     const active = (zwFlowState.selectedDecadeAge ? r[0] === zwFlowState.selectedDecadeAge : (decadal && decadal.index === p.index)) ? ' active' : ''
-    return '<span class="zw-flow-item zw-flow-clickable zw-flow-decade' + active + '" data-flow-decade="' + zwEsc(r[0]) + '"><b>' + zwEsc(r[0]) + '-' + zwEsc(r[1]) + '</b><em>' + zwEsc((p.decadal.heavenly_stem || '') + (p.decadal.earthly_branch || '')) + '</em><i>' + zwEsc(p.name || '') + '</i></span>'
+    const ageText = active && age ? ('小限 ' + age.nominal_age + '岁') : (p.name || '')
+    return '<span class="zw-flow-item zw-flow-clickable zw-flow-decade' + active + '" data-flow-decade="' + zwEsc(r[0]) + '"><b>' + zwEsc(r[0]) + '-' + zwEsc(r[1]) + '</b><em>' + zwEsc((p.decadal.heavenly_stem || '') + (p.decadal.earthly_branch || '')) + '</em><i>' + zwEsc(ageText) + '</i></span>'
   }).join('')
   return '<div class="zw-flow-row"><div class="zw-flow-title">' + zwEsc(title) + '</div><div class="zw-flow-scroll">' + items + '</div></div>'
 }
@@ -1141,20 +1143,6 @@ function zwYearTimeline(palaces, d) {
     return '<span class="zw-flow-item zw-flow-clickable compact' + active + '" data-flow-year="' + year + '"><b>' + year + '</b><em>' + zwEsc(zwGanzhiYear(year)) + '年</em><i>' + zwEsc(age + '岁 ' + (p ? p.name : '')) + '</i></span>'
   }).join('')
   return '<div class="zw-flow-row"><div class="zw-flow-title">流年</div><div class="zw-flow-scroll">' + items + '</div></div>'
-}
-
-function zwAgeTimeline(palaces, d) {
-  const birthYear = zwBirthYearFromPan(d)
-  const selectedAge = zwFlowState.selectedDecadeAge || zwDecadeStartForYear(palaces, d, zwFlowState.selectedYear)
-  const startAge = selectedAge || Math.max(1, zwSelectedNominalAge(d) - 4)
-  const ages = Array.from({ length: 10 }, function(_, i) { return startAge + i })
-  const items = ages.map(function(age) {
-    const year = birthYear + age - 1
-    const p = zwPalaceByAge(palaces, age)
-    const active = year === zwFlowState.selectedYear ? ' active' : ''
-    return '<span class="zw-flow-item zw-flow-clickable zw-flow-age compact' + active + '" data-flow-year="' + year + '"><b>' + zwEsc(age) + '岁</b><em>' + zwEsc(year) + '</em><i>' + zwEsc(p ? p.name : '') + '</i></span>'
-  }).join('')
-  return '<div class="zw-flow-row"><div class="zw-flow-title">小限</div><div class="zw-flow-scroll">' + items + '</div></div>'
 }
 
 function zwMonthTimeline() {
@@ -1206,7 +1194,6 @@ function renderZiweiPan(d) {
   html += '<div class="zw-orientation zw-orientation-bottom">正北方</div>'
   html += zwTimeline('大限', palaces, periods)
   html += zwYearTimeline(palaces, d)
-  html += zwAgeTimeline(palaces, d)
   html += zwMonthTimeline()
   html += '<div class="privacy-note" style="margin-top:16px;">⚠️ 以上内容仅为民俗文化与传统命理科普参考，不构成任何决策建议</div>'
   html += '</div>'
