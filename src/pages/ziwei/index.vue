@@ -421,6 +421,7 @@ const zwPanData = ref(null)
 const zwFlowState = reactive({
   selectedYear: new Date().getFullYear(),
   selectedMonth: new Date().getMonth() + 1,
+  selectedDecadeAge: null,
   horoscope: null,
   error: ''
 })
@@ -462,6 +463,7 @@ async function ziweiFreePan() {
     zwPanData.value = panData
     zwFlowState.selectedYear = new Date().getFullYear()
     zwFlowState.selectedMonth = new Date().getMonth() + 1
+    zwFlowState.selectedDecadeAge = null
     zwFlowState.horoscope = null
     zwFlowState.error = ''
     zwPanResult.value = renderZiweiPan(panData)
@@ -512,9 +514,14 @@ function selectZiweiFlow(type, value) {
   if (isNaN(n)) return
   if (type === 'decadal') {
     const birthYear = zwPanData.value ? zwBirthYearFromPan(zwPanData.value) : parseInt(zwForm.year)
+    zwFlowState.selectedDecadeAge = n
     zwFlowState.selectedYear = birthYear + n - 1
   }
-  if (type === 'year') zwFlowState.selectedYear = n
+  if (type === 'year') {
+    zwFlowState.selectedYear = n
+    const palaces = zwPanData.value ? (zwPanData.value.twelve_palaces || []) : []
+    zwFlowState.selectedDecadeAge = zwDecadeStartForYear(palaces, zwPanData.value, n)
+  }
   if (type === 'month') zwFlowState.selectedMonth = n
   zwFlowState.error = ''
   rerenderZiweiPan()
@@ -991,8 +998,35 @@ function zwPalaceByAge(palaces, age) {
   return (palaces || []).find(function(p) { return (p.ages || []).includes(age) }) || null
 }
 
-function zwFlowPeriods() {
-  return (zwFlowState.horoscope || {})
+function zwDecadeStartForYear(palaces, d, year) {
+  const birthYear = zwBirthYearFromPan(d || zwPanData.value || {})
+  const age = year - birthYear + 1
+  const palace = (palaces || []).find(function(p) {
+    const r = p && p.decadal && p.decadal.range
+    return r && age >= r[0] && age <= r[1]
+  })
+  const range = palace && palace.decadal && palace.decadal.range
+  return range ? range[0] : null
+}
+
+function zwFlowPeriods(palaces) {
+  const periods = Object.assign({}, zwFlowState.horoscope || {})
+  const selectedAge = zwFlowState.selectedDecadeAge
+  if (!selectedAge) return periods
+  const palace = (palaces || []).find(function(p) {
+    const r = p && p.decadal && p.decadal.range
+    return r && r[0] === selectedAge
+  })
+  if (!palace || !palace.decadal) return periods
+  periods.decadal = Object.assign({}, periods.decadal || {}, {
+    name: '大限',
+    index: palace.index,
+    range: palace.decadal.range,
+    heavenly_stem: palace.decadal.heavenly_stem || '',
+    earthly_branch: palace.decadal.earthly_branch || '',
+    ganzhi: (palace.decadal.heavenly_stem || '') + (palace.decadal.earthly_branch || '')
+  })
+  return periods
 }
 
 function zwFlowPeriodBadge(period, label, cls) {
@@ -1067,7 +1101,7 @@ function zwTimeline(title, palaces, periods) {
   const decadal = periods && periods.decadal
   const items = (palaces || []).filter(function(p) { return p && p.decadal && p.decadal.range }).map(function(p) {
     const r = p.decadal.range || []
-    const active = decadal && decadal.index === p.index ? ' active' : ''
+    const active = (zwFlowState.selectedDecadeAge ? r[0] === zwFlowState.selectedDecadeAge : (decadal && decadal.index === p.index)) ? ' active' : ''
     return '<span class="zw-flow-item zw-flow-clickable zw-flow-decade' + active + '" data-flow-decade="' + zwEsc(r[0]) + '"><b>' + zwEsc(r[0]) + '-' + zwEsc(r[1]) + '</b><em>' + zwEsc((p.decadal.heavenly_stem || '') + (p.decadal.earthly_branch || '')) + '</em><i>' + zwEsc(p.name || '') + '</i></span>'
   }).join('')
   return '<div class="zw-flow-row"><div class="zw-flow-title">' + zwEsc(title) + '</div><div class="zw-flow-scroll">' + items + '</div></div>'
@@ -1075,7 +1109,10 @@ function zwTimeline(title, palaces, periods) {
 
 function zwYearTimeline(palaces, d) {
   const birthYear = zwBirthYearFromPan(d)
-  const startYear = new Date().getFullYear()
+  const currentYear = new Date().getFullYear()
+  const selectedAge = zwFlowState.selectedDecadeAge || zwDecadeStartForYear(palaces, d, zwFlowState.selectedYear)
+  const selectedStartYear = selectedAge ? birthYear + selectedAge - 1 : null
+  const startYear = selectedStartYear || currentYear
   const years = Array.from({ length: 10 }, function(_, i) { return startYear + i })
   const items = years.map(function(year) {
     const age = year - birthYear + 1
@@ -1101,7 +1138,8 @@ function renderZiweiPan(d) {
   const cp = d.core_palace || {}
   const meta = d.display_meta || {}
   const req = d.request || {}
-  const periods = zwFlowPeriods()
+  const palaces = d.twelve_palaces || []
+  const periods = zwFlowPeriods(palaces)
   html += '<div class="zw-pro-header"><div><div class="zw-pro-title">' + zwEsc(req.question || meta.chart_name || '玄策专业盘') + '</div><div class="zw-pro-subtitle">' + zwEsc(meta.source_note || '基于本地算法排盘，结果供民俗文化参考。') + '</div></div><div class="zw-pro-pill">' + zwEsc(meta.time_rule || '按北京时间定时辰') + '</div></div>'
   html += '<div class="zw-basic-card zw-pro-basic"><div class="zw-basic-grid">'
   html += zwBasicItem('阳历', bi.solar_date)
@@ -1115,7 +1153,6 @@ function renderZiweiPan(d) {
   html += zwBasicItem('命主', cp.soul_star)
   html += zwBasicItem('身主', cp.body_star)
   html += '</div></div>'
-  const palaces = d.twelve_palaces || []
   html += '<div class="zw-orientation zw-orientation-top">正南方</div>'
   html += '<div class="zw-palace-grid zw-pro-grid">'
   html += zwPalaceCell(palaces[4], periods)
