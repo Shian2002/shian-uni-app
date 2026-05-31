@@ -9414,6 +9414,36 @@ def api_admin_audit_logs():
     return jsonify({'logs': items, 'total': pagination.total, 'page': page, 'has_next': pagination.has_next})
 
 
+@app.route('/api/admin/change-password', methods=['POST'])
+@login_required
+def api_admin_change_password():
+    """管理员：修改自己的登录密码"""
+    if not current_user.is_admin:
+        return jsonify({'error': '需要管理员权限'}), 403
+
+    data = request.get_json(silent=True) or {}
+    old_password = data.get('old_password') or ''
+    new_password = data.get('new_password') or ''
+    confirm_password = data.get('confirm_password') or ''
+
+    if not old_password:
+        return jsonify({'error': '请输入当前密码'}), 400
+    if len(new_password) < 12:
+        return jsonify({'error': '新密码至少12个字符'}), 400
+    if new_password != confirm_password:
+        return jsonify({'error': '两次输入的新密码不一致'}), 400
+    if not check_password_hash(current_user.password_hash, old_password):
+        return jsonify({'error': '当前密码错误'}), 403
+    if check_password_hash(current_user.password_hash, new_password):
+        return jsonify({'error': '新密码不能与当前密码相同'}), 400
+
+    current_user.password_hash = generate_password_hash(new_password, method='pbkdf2:sha256')
+    current_user.has_password = True
+    record_admin_audit('admin_password_change', 'user', current_user.id, {'username': current_user.username})
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
 # ═══════════════════════════════════════════════════════════════
 # 分享 API
 # ═══════════════════════════════════════════════════════════════

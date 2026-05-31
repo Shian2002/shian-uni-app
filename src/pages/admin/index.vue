@@ -8,7 +8,7 @@
         <view>
           <view class="section-tag">后台管理</view>
           <view class="admin-title">运营控制台</view>
-          <view class="admin-desc">用户 · 社区 · 举报 · 充值 · 审计</view>
+          <view class="admin-desc">用户 · 社区 · 举报 · 充值 · 审计 · 安全</view>
         </view>
         <view class="admin-head-actions">
           <button class="admin-icon-btn" @click="refreshAll" title="刷新">↻</button>
@@ -49,6 +49,7 @@
           <button :class="{ active: activeTab === 'users' }" @click="switchTab('users')">用户积分</button>
           <button :class="{ active: activeTab === 'recharge' }" @click="switchTab('recharge')">充值订单</button>
           <button :class="{ active: activeTab === 'audit' }" @click="switchTab('audit')">操作审计</button>
+          <button :class="{ active: activeTab === 'security' }" @click="switchTab('security')">账号安全</button>
         </section>
 
         <section class="admin-panel" v-if="activeTab === 'reports'">
@@ -208,6 +209,21 @@
             <view class="empty-line" v-if="!auditLogs.length">暂无审计记录</view>
           </view>
         </section>
+
+        <section class="admin-panel security-panel" v-if="activeTab === 'security'">
+          <view class="panel-head">
+            <view>
+              <view class="panel-title">账号安全</view>
+              <view class="panel-sub">修改当前管理员账号密码</view>
+            </view>
+          </view>
+          <view class="password-form">
+            <input class="admin-input password-input" type="password" v-model="oldPassword" placeholder="当前密码" />
+            <input class="admin-input password-input" type="password" v-model="newPassword" placeholder="新密码，至少12位" />
+            <input class="admin-input password-input" type="password" v-model="confirmPassword" placeholder="再次输入新密码" />
+            <button class="admin-primary" @click="changeAdminPassword">更新密码</button>
+          </view>
+        </section>
       </template>
     </view>
   </view>
@@ -235,6 +251,9 @@ const userQuery = ref('')
 const rechargeOrders = ref([])
 const rechargeStatus = ref('pending')
 const auditLogs = ref([])
+const oldPassword = ref('')
+const newPassword = ref('')
+const confirmPassword = ref('')
 
 const manualUserId = ref('')
 const manualPoints = ref('')
@@ -280,7 +299,8 @@ function auditActionLabel(action) {
     post_feature: '加精变更',
     post_hide: '隐藏变更',
     points_add: '手动加分',
-    recharge_confirm: '确认充值'
+    recharge_confirm: '确认充值',
+    admin_password_change: '修改密码'
   }[action] || action
 }
 
@@ -292,6 +312,7 @@ function auditDetail(detail) {
   if (detail.points) parts.push('余额 ' + detail.points)
   if (detail.added) parts.push('+' + detail.added + ' 分')
   if (detail.remark) parts.push(detail.remark)
+  if (detail.username) parts.push(detail.username)
   if (typeof detail.hidden === 'boolean') parts.push(detail.hidden ? '隐藏' : '恢复')
   if (typeof detail.pinned === 'boolean') parts.push(detail.pinned ? '置顶' : '取消置顶')
   if (typeof detail.featured === 'boolean') parts.push(detail.featured ? '加精' : '取消加精')
@@ -392,6 +413,38 @@ async function loadRechargeOrders() {
 async function loadAuditLogs() {
   const data = await request('/api/admin/audit-logs')
   auditLogs.value = data.logs || []
+}
+
+async function changeAdminPassword() {
+  if (!oldPassword.value || !newPassword.value || !confirmPassword.value) {
+    toast('请填写完整')
+    return
+  }
+  if (newPassword.value.length < 12) {
+    toast('新密码至少12位')
+    return
+  }
+  if (newPassword.value !== confirmPassword.value) {
+    toast('两次新密码不一致')
+    return
+  }
+  const data = await request('/api/admin/change-password', {
+    method: 'POST',
+    data: {
+      old_password: oldPassword.value,
+      new_password: newPassword.value,
+      confirm_password: confirmPassword.value
+    }
+  })
+  if (data.ok) {
+    toast('密码已更新', 'success')
+    oldPassword.value = ''
+    newPassword.value = ''
+    confirmPassword.value = ''
+    await loadAuditLogs()
+  } else {
+    toast(data.error || '操作失败')
+  }
 }
 
 async function confirmOrder(id) {
@@ -638,6 +691,19 @@ onMounted(async function() {
   padding: 10px;
   border: 1px dashed var(--card-border);
   border-radius: 8px;
+}
+
+.security-panel {
+  max-width: 560px;
+}
+
+.password-form {
+  display: grid;
+  gap: 10px;
+}
+
+.password-input {
+  width: 100%;
 }
 
 .table-list {

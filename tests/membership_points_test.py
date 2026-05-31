@@ -4,7 +4,7 @@ import sys
 from types import SimpleNamespace
 
 import pytest
-from werkzeug.security import generate_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
 
 @pytest.fixture()
@@ -277,3 +277,66 @@ def test_admin_actions_write_and_expose_audit_logs(app_module, user_factory):
     assert data[0]["admin_id"] == admin.id
     assert data[0]["target_id"] == post_id
     assert data[0]["detail"]["hidden"] is True
+
+
+def test_admin_change_password_requires_admin_current_password_and_audits(app_module, user_factory):
+    admin = user_factory("ops-admin", is_admin=True)
+    member = user_factory("member")
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(member.id)
+        sess["_fresh"] = True
+
+    denied = client.post(
+        "/api/admin/change-password",
+        json={
+            "old_password": "secret123",
+            "new_password": "new-secret-12345",
+            "confirm_password": "new-secret-12345",
+        },
+    )
+    assert denied.status_code == 403
+
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(admin.id)
+        sess["_fresh"] = True
+
+    wrong_old = client.post(
+        "/api/admin/change-password",
+        json={
+            "old_password": "wrong",
+            "new_password": "new-secret-12345",
+            "confirm_password": "new-secret-12345",
+        },
+    )
+    assert wrong_old.status_code == 403
+
+    too_short = client.post(
+        "/api/admin/change-password",
+        json={
+            "old_password": "secret123",
+            "new_password": "short",
+            "confirm_password": "short",
+        },
+    )
+    assert too_short.status_code == 400
+
+    changed = client.post(
+        "/api/admin/change-password",
+        json={
+            "old_password": "secret123",
+            "new_password": "new-secret-12345",
+            "confirm_password": "new-secret-12345",
+        },
+    )
+    assert changed.status_code == 200
+
+    with app_module.app.app_context():
+        refreshed = app_module.db.session.get(app_module.User, admin.id)
+        assert check_password_hash(refreshed.password_hash, "new-secret-12345")
+        audit = app_module.AdminAuditLog.query.filter_by(action="admin_password_change").one()
+        assert audit.admin_id == admin.id
+        assert audit.target_type == "user"
+        assert audit.target_id == admin.id
+        assert "new-secret-12345" not in audit.detail
