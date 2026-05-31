@@ -99,7 +99,6 @@ def test_use_points_does_not_write_log_when_balance_is_insufficient(app_module, 
 
 
 def test_recharge_confirmation_only_pays_pending_order_once(app_module, user_factory):
-    admin = user_factory("admin", is_admin=True)
     member = user_factory("buyer")
 
     with app_module.app.app_context():
@@ -129,3 +128,55 @@ def test_recharge_confirmation_only_pays_pending_order_once(app_module, user_fac
         assert membership.points == 60
         assert len(logs) == 1
         assert refreshed.status == "paid"
+
+
+def test_admin_recharge_requires_is_admin_flag(app_module, user_factory):
+    fake_admin = user_factory("admin", is_admin=False)
+    real_admin = user_factory("ops-admin", is_admin=True)
+    member = user_factory("buyer")
+
+    with app_module.app.app_context():
+        order = app_module.RechargeOrder(
+            user_id=member.id,
+            package_id="starter",
+            package_name="体验包",
+            points=60,
+            amount=9.9,
+            status="pending",
+        )
+        app_module.db.session.add(order)
+        app_module.db.session.commit()
+        order_id = order.id
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(fake_admin.id)
+        sess["_fresh"] = True
+
+    denied = client.post("/api/admin/confirm-recharge", json={"order_id": order_id})
+    assert denied.status_code == 403
+
+    with app_module.app.app_context():
+        order = app_module.db.session.get(app_module.RechargeOrder, order_id)
+        membership = app_module.Membership.query.filter_by(user_id=member.id).first()
+        assert order.status == "pending"
+        assert membership is None
+
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(real_admin.id)
+        sess["_fresh"] = True
+
+    allowed = client.post("/api/admin/confirm-recharge", json={"order_id": order_id})
+    assert allowed.status_code == 200
+    assert allowed.get_json()["added"] == 60
+
+
+def test_migrate_db_promotes_legacy_first_user_when_no_admin_exists(app_module, user_factory):
+    user = user_factory("legacy-owner", is_admin=False)
+    assert user.id == 1
+
+    app_module.migrate_db()
+
+    with app_module.app.app_context():
+        refreshed = app_module.db.session.get(app_module.User, user.id)
+        assert refreshed.is_admin is True

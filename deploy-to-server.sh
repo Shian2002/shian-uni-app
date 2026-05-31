@@ -10,22 +10,6 @@ SSH_CMD="ssh -i $SSH_KEY"
 RSYNC_CMD="rsync -avz --progress -e \"ssh -i $SSH_KEY\""
 LOCAL_DIR="$(dirname "$0")"
 
-wait_for_port_free() {
-    local port="$1"
-    local tries=10
-
-    while [ "$tries" -gt 0 ]; do
-        if ! $SSH_CMD "$SERVER" "sudo fuser ${port}/tcp >/dev/null 2>&1"; then
-            return 0
-        fi
-        sleep 1
-        tries=$((tries - 1))
-    done
-
-    echo "[ERROR] ${port} 端口仍被占用，停止部署以避免新旧后端并存"
-    return 1
-}
-
 echo "============================================"
 echo " 时安解忧屋 - 部署到服务器"
 echo "============================================"
@@ -79,8 +63,6 @@ StandardError=journal
 [Install]
 WantedBy=multi-user.target
 EOF"
-$SSH_CMD "$SERVER" "sudo fuser -k 5199/tcp 2>/dev/null || true"
-wait_for_port_free 5199
 $SSH_CMD "$SERVER" "sudo systemctl daemon-reload && sudo systemctl enable xuan-cet-flask >/dev/null && sudo systemctl restart xuan-cet-flask"
 sleep 2
 echo "  等待服务启动..."

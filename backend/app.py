@@ -362,7 +362,44 @@ def migrate_db():
             except Exception as e:
                 logger.warning(f"has_password 迁移失败: {e}")
 
-        # 6. user_profile.profile_type / user_profile.last_used_at
+        # 6. user.is_admin：统一后台权限字段，并兼容早期 user_id=1 管理员约定
+        try:
+            db.session.execute(db.text('SELECT is_admin FROM `user` LIMIT 1'))
+        except Exception:
+            try:
+                db.session.execute(db.text('ALTER TABLE `user` ADD COLUMN is_admin BOOLEAN DEFAULT 0'))
+                db.session.commit()
+                logger.info("[DB] 已添加 is_admin 字段")
+            except Exception as e:
+                db.session.rollback()
+                logger.warning(f"is_admin 迁移失败: {e}")
+        try:
+            admin_count = db.session.execute(db.text(
+                'SELECT COUNT(*) FROM `user` WHERE COALESCE(is_admin, 0) = 1'
+            )).scalar() or 0
+            if admin_count == 0:
+                result = db.session.execute(db.text(
+                    'UPDATE `user` SET is_admin = 1 WHERE id = 1'
+                ))
+                db.session.commit()
+                if result.rowcount:
+                    logger.info("[DB] 已将旧版 id=1 管理员迁移为 is_admin")
+        except Exception as e:
+            db.session.rollback()
+            logger.warning(f"is_admin 兼容迁移失败: {e}")
+        try:
+            dialect = db.session.bind.dialect.name if db.session.bind else ''
+            if dialect == 'sqlite':
+                db.session.execute(db.text('CREATE INDEX IF NOT EXISTS ix_user_is_admin ON `user` (is_admin)'))
+            else:
+                db.session.execute(db.text('CREATE INDEX ix_user_is_admin ON `user` (is_admin)'))
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            if 'already exists' not in str(e).lower() and 'duplicate' not in str(e).lower():
+                logger.warning(f"is_admin 索引迁移失败: {e}")
+
+        # 7. user_profile.profile_type / user_profile.last_used_at
         for col, ctype in [('profile_type', "VARCHAR(10) DEFAULT 'self'"), ('last_used_at', 'DATETIME')]:
             try:
                 db.session.execute(db.text(f'SELECT {col} FROM user_profile LIMIT 1'))
@@ -9625,8 +9662,7 @@ def api_admin_confirm_recharge():
     order_id = data.get('order_id', 0)
     action = (data.get('action') or '').strip()
 
-    # 简易管理员验证：当前用户为 user_id=1 或 username=admin
-    if current_user.id != 1 and current_user.username != 'admin':
+    if not current_user.is_admin:
         return jsonify({'error': '无权限'}), 403
 
     if action == 'add':
