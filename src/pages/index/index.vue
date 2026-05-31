@@ -36,49 +36,6 @@
             <view class="hero-brand-sub">看得懂用得上的民俗命理参考平台</view>
           </view>
 
-          <view class="home-scan-panel" v-if="!comprehensiveMessages.length">
-            <view class="home-scan-status">
-              <view class="home-scan-status-item">
-                <text class="home-scan-label">命盘</text>
-                <text class="home-scan-value">{{ selectedProfileName || '待选择' }}</text>
-              </view>
-              <view class="home-scan-status-item">
-                <text class="home-scan-label">术数</text>
-                <text class="home-scan-value">{{ selectedToolSummary }}</text>
-              </view>
-              <view class="home-scan-status-item">
-                <text class="home-scan-label">模型</text>
-                <text class="home-scan-value">{{ selectedLlmModel.name || '基础模型' }}</text>
-              </view>
-              <view class="home-scan-status-item">
-                <text class="home-scan-label">积分</text>
-                <text class="home-scan-value">{{ currentPoints }}</text>
-              </view>
-            </view>
-            <view class="home-scan-actions">
-              <view class="home-scan-action" @tap="openProfilePicker">
-                <text class="home-scan-action-mark">命</text>
-                <text class="home-scan-action-main">选择命盘</text>
-                <text class="home-scan-action-sub">载入个人或客户档案</text>
-              </view>
-              <view class="home-scan-action" @tap="openToolPicker">
-                <text class="home-scan-action-mark">术</text>
-                <text class="home-scan-action-main">配置术数</text>
-                <text class="home-scan-action-sub">支持多模型合参</text>
-              </view>
-              <view class="home-scan-action" @tap="goToPage('/pages/bazi-index/index')">
-                <text class="home-scan-action-mark">八</text>
-                <text class="home-scan-action-main">八字排盘</text>
-                <text class="home-scan-action-sub">单项排盘入口</text>
-              </view>
-              <view class="home-scan-action" @tap="goToPage('/pages/points/index')">
-                <text class="home-scan-action-mark">分</text>
-                <text class="home-scan-action-main">积分中心</text>
-                <text class="home-scan-action-sub">充值与明细</text>
-              </view>
-            </view>
-          </view>
-
           <view class="home-ai-console" :class="{ 'has-chat': comprehensiveMessages.length }">
             <view class="home-ai-chat" v-if="comprehensiveMessages.length">
               <view class="home-ai-chat-head">
