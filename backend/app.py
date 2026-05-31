@@ -140,10 +140,13 @@ from models import BaziRecord
 from comprehensive_ai import (
     COMPREHENSIVE_LLM_MODELS,
     COMPREHENSIVE_TOOL_MODELS,
+    TOOL_DISPLAY_ORDER,
     calculate_cost,
     normalize_tool_models,
     recommend_tool_models,
     build_comprehensive_messages,
+    build_tool_analysis_messages,
+    build_summary_messages,
 )
 
 # ═══════ 农历转公历 ═══════
@@ -4017,23 +4020,15 @@ def build_ziwei_context_from_profile(profile):
         date_type=date_type,
         longitude=meta.get('birthLng') if meta.get('birthLng') else None,
     )
-    palaces = []
-    for palace in result.get('twelve_palaces') or []:
-        palaces.append({
-            'name': palace.get('name'),
-            'heavenly_stem': palace.get('heavenly_stem'),
-            'earthly_branch': palace.get('earthly_branch'),
-            'major_stars': [s.get('name') for s in palace.get('major_stars') or [] if s.get('name')],
-            'minor_stars': [s.get('name') for s in palace.get('minor_stars') or [] if s.get('name')][:8],
-            'is_body_palace': palace.get('is_body_palace'),
-            'is_original_palace': palace.get('is_original_palace'),
-            'decadal': palace.get('decadal'),
-        })
-    return {
-        'basic_info': result.get('basic_info') or {},
-        'core_palace': result.get('core_palace') or {},
-        'twelve_palaces': palaces,
-    }
+    context = dict(result or {})
+    context.update({
+        'name': profile.get('name') or '未命名',
+        'gender': profile.get('gender') or '男',
+        'birth_time': profile.get('birth_time') or '',
+        'cal_type': profile.get('cal_type') or '公历',
+        'birth_addr': profile.get('birth_addr') or '',
+    })
+    return context
 
 
 def _compress_qimen_value(value):
@@ -4047,95 +4042,18 @@ def build_qimen_context_from_question(question=''):
     result = _qimen_paipan(now.year, now.month, now.day, now.hour, now.minute, 1)
     if result.get('error'):
         return {'error': result.get('error')}
-    palaces = []
-    for palace in result.get('palaces') or []:
-        markers = []
-        if palace.get('isKong'):
-            markers.append('空亡')
-        if palace.get('isMa'):
-            markers.append('驿马')
-        if palace.get('isJiXing'):
-            markers.append('天盘击刑')
-        if palace.get('isDiJiXing'):
-            markers.append('地盘击刑')
-        if palace.get('isRuMu'):
-            markers.append('天盘入墓')
-        if palace.get('isDiRuMu'):
-            markers.append('地盘入墓')
-        if palace.get('isMenPo'):
-            markers.append('门迫')
-        palaces.append({
-            'gong': palace.get('gong'),
-            'name': palace.get('name'),
-            'bagua': palace.get('bagua'),
-            'tian_gan': _compress_qimen_value(palace.get('tianGan')),
-            'di_gan': _compress_qimen_value(palace.get('diGan')),
-            'yin_gan': _compress_qimen_value(palace.get('yinGan')),
-            'men': _compress_qimen_value(palace.get('menFull') or palace.get('men')),
-            'xing': _compress_qimen_value(palace.get('xingFull') or palace.get('xing')),
-            'shen': _compress_qimen_value(palace.get('shenFull') or palace.get('shen')),
-            'tian_changsheng': palace.get('tianCs'),
-            'di_changsheng': palace.get('diCs'),
-            'markers': markers,
-        })
-    return {
-        'question': question or '',
-        'solar_date': result.get('solarDate'),
-        'four_pillars': result.get('fourPillars'),
-        'ju': result.get('ju'),
-        'solar_term': result.get('solarTerm'),
-        'xun_shou': result.get('xunShou'),
-        'xun_kong': result.get('xunKong'),
-        'zhi_fu': result.get('zhiFu'),
-        'zhi_shi': result.get('zhiShi'),
-        'zhi_fu_star': result.get('zhiFuStar'),
-        'zhi_shi_men': result.get('zhiShiMen'),
-        'tian_yi': result.get('tianYi'),
-        'pan_type': result.get('panType'),
-        'palaces': palaces,
-    }
+    context = dict(result or {})
+    context['question'] = question or ''
+    return context
 
 
 def build_liuyao_context_from_question(question=''):
     result = _liuyao_paipan(mode='auto', question=question or '')
     if result.get('error'):
         return {'error': result.get('error')}
-
-    def _compress_yao(items):
-        compressed = []
-        for item in items or []:
-            compressed.append({
-                'position': item.get('position'),
-                'name': item.get('name'),
-                'yao_type': item.get('yao_type'),
-                'is_yang': item.get('is_yang'),
-                'is_moving': item.get('is_moving'),
-                'liuqin': item.get('liuqin'),
-                'liushen': item.get('liushen'),
-                'naja': item.get('naja'),
-                'dizhi_element': item.get('dizhi_element'),
-                'is_shi': item.get('is_shi'),
-                'is_ying': item.get('is_ying'),
-            })
-        return compressed
-
-    return {
-        'question': result.get('question') or question or '',
-        'method': result.get('method'),
-        'timestamp': result.get('timestamp'),
-        'ben_gua': result.get('本卦'),
-        'bian_gua': result.get('变卦'),
-        'shi_yao': result.get('世爻'),
-        'ying_yao': result.get('应爻'),
-        'liu_qin': result.get('六亲'),
-        'liu_shen': result.get('六神'),
-        'palace_name': result.get('palace_name'),
-        'palace_element': result.get('palace_element'),
-        'day_ganzhi': result.get('day_ganzhi'),
-        'month_ganzhi': result.get('month_ganzhi'),
-        'details': _compress_yao(result.get('details')),
-        'bian_details': _compress_yao(result.get('bian_details')),
-    }
+    context = dict(result or {})
+    context['question'] = result.get('question') or question or ''
+    return context
 
 
 def build_meihua_context_from_question(question=''):
@@ -4165,11 +4083,16 @@ def build_tarot_context_from_question(question=''):
     elif any(k in q for k in ['关系', '感情', '复合', '回来']):
         spread_name = 'relationship'
     result = _tarot_draw(spread_name=spread_name, enable_reversed=True)
+    payload = result.get('data') if isinstance(result, dict) else {}
+    if not isinstance(payload, dict):
+        payload = result if isinstance(result, dict) else {}
     return {
         'question': q,
         'spread_name': spread_name,
-        'spread': result.get('spread') or {},
-        'cards': result.get('cards') or [],
+        'spread': payload.get('spread') or {},
+        'cards': payload.get('cards') or [],
+        'draw_time': payload.get('draw_time'),
+        'deck_info': payload.get('deck_info') or {},
     }
 
 
@@ -4274,6 +4197,18 @@ def _artifact_key_for_tool(tool):
         'tarot': 'tarot.cards',
         'zeji': 'zeji.days',
     }.get(tool, tool + '.pan')
+
+
+def _ordered_artifact_keys_for_tools(tool_models, include_yun=False):
+    keys = []
+    ordered = sorted(tool_models or [], key=lambda x: TOOL_DISPLAY_ORDER.index(x) if x in TOOL_DISPLAY_ORDER else 99)
+    for tool in ordered:
+        key = _artifact_key_for_tool(tool)
+        if key not in keys:
+            keys.append(key)
+        if include_yun and tool == 'bazi' and 'bazi.yun' not in keys:
+            keys.append('bazi.yun')
+    return keys
 
 
 def _artifact_display_for_key(key):
@@ -4600,16 +4535,74 @@ def api_comprehensive_ask_stream():
             if not spend.get('ok'):
                 yield _event({'error': '积分不足', 'current': spend.get('current'), 'required': cost})
                 return
-            messages = build_comprehensive_messages(question, profile, tool_models, {'paipan': paipan_context, 'artifacts': artifacts}, history)
             full_text = ''
-            yield _event({'stage': 'generating', 'message': '正在生成综合解读'})
-            for chunk, error in get_reading_stream(messages):
+            tool_analyses = {}
+            ordered_tools = sorted(tool_models or [], key=lambda x: TOOL_DISPLAY_ORDER.index(x) if x in TOOL_DISPLAY_ORDER else 99)
+            for tool in ordered_tools:
+                tool_data = (paipan_context or {}).get(tool) or {}
+                key = _artifact_key_for_tool(tool)
+                tool_name = _TOOL_DISPLAY.get(tool, tool)
+                yield _event({
+                    'stage': 'tool_analysis_start',
+                    'message': '正在解读%s' % tool_name,
+                    'tool': tool,
+                    'tool_key': key,
+                })
+                tool_messages = build_tool_analysis_messages(question, profile, tool, tool_data, history)
+                tool_text = ''
+                full_text += '\n\n【%s解析】\n' % tool_name
+                for chunk, error in get_reading_stream(tool_messages):
+                    if error:
+                        yield _event({'error': error})
+                        return
+                    if chunk:
+                        tool_text += chunk
+                        full_text += chunk
+                        yield _event({'tool': tool, 'tool_key': key, 'content': chunk})
+                tool_analyses[tool] = tool_text
+                if key in artifacts:
+                    artifacts[key]['analysis'] = tool_text
+                yield _event({
+                    'stage': 'tool_analysis_done',
+                    'message': '%s解读完成' % tool_name,
+                    'tool': tool,
+                    'tool_key': key,
+                })
+
+                if tool == 'bazi' and 'bazi.yun' in artifacts:
+                    yield _event({
+                        'stage': 'tool_analysis_start',
+                        'message': '正在结合大运流年流月',
+                        'tool': tool,
+                        'tool_key': 'bazi.yun',
+                    })
+                    yun_messages = build_tool_analysis_messages(question, profile, 'bazi', (artifacts.get('bazi.yun') or {}).get('data') or tool_data, history)
+                    yun_text = ''
+                    full_text += '\n\n【大运流年流月解析】\n'
+                    for chunk, error in get_reading_stream(yun_messages):
+                        if error:
+                            yield _event({'error': error})
+                            return
+                        if chunk:
+                            yun_text += chunk
+                            full_text += chunk
+                            yield _event({'tool': tool, 'tool_key': 'bazi.yun', 'content': chunk})
+                    tool_analyses['bazi.yun'] = yun_text
+                    if 'bazi.yun' in artifacts:
+                        artifacts['bazi.yun']['analysis'] = yun_text
+
+            yield _event({'stage': 'generating', 'message': '正在生成综合合参总结', 'summary_start': True})
+            summary_messages = build_summary_messages(question, profile, ordered_tools, tool_analyses, history)
+            summary_text = ''
+            full_text += '\n\n【综合合参总结】\n'
+            for chunk, error in get_reading_stream(summary_messages):
                 if error:
                     yield _event({'error': error})
                     return
                 if chunk:
+                    summary_text += chunk
                     full_text += chunk
-                    yield _event({'content': chunk})
+                    yield _event({'summary': True, 'content': chunk})
             conv = save_comprehensive_conversation(data, question, profile, tool_models, paipan_context, artifacts, model_id, cost, history, full_text)
             points_left = get_or_create_membership(current_user.id).points
             membership = get_or_create_membership(current_user.id)

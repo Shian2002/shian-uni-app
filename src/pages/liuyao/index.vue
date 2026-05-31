@@ -1023,13 +1023,13 @@ function _updateLyConversation() {
 .ly-coin-btn { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--card-border); background: var(--card-bg); color: var(--text-2); font-size: 0.75rem; cursor: pointer; }
 .ly-coin-btn.heads { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); }
 .ly-toss-sum { font-size: 0.75rem; color: var(--accent); margin-left: auto; font-weight: 600; }
-.ly-result { margin-top: 16px; display: none; }
+.ly-result { margin-top: 16px; display: none; width: 100%; }
 .ly-result:empty { display: none; }
-.ly-result:not(:empty) { display: block; }
+.ly-result:not(:empty) { display: flex; justify-content: center; }
 .ly-result-card { background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid var(--card-border); }
 
 /* ═══ 六爻纳甲排盘结果样式 ═══ */
-.ly-result-wrap { margin-top: 24px; }
+.ly-result-wrap { margin: 24px auto 0; width: min(100%, 860px); }
 .ly-trigram-badge { padding: 4px 12px; background: var(--accent-glow); border: 1px solid var(--border); border-radius: 8px; font-size: 0.8125rem; color: var(--accent); }
 .ly-ben-bian-box { background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 20px; }
 .ly-ben-bian-top { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding-bottom: 12px; margin-bottom: 10px; border-bottom: 1px solid var(--border); }

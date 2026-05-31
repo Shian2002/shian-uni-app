@@ -84,6 +84,10 @@
                     </view>
                     <view class="home-tool-card-body" v-if="!artifact.collapsed">
                       <view class="home-artifact-render" v-html="renderArtifactHtml(artifact)"></view>
+                      <view class="home-artifact-analysis" v-if="artifact.analysis">
+                        <view class="home-artifact-analysis-title">{{ artifact.title }}解析</view>
+                        <text>{{ artifact.analysis }}</text>
+                      </view>
                     </view>
                   </view>
                 </view>
@@ -560,7 +564,7 @@ function pillarText(pillar) {
 }
 
 function artifactListFromMap(map) {
-  const order = ['bazi.basic', 'bazi.yun', 'qimen.pan', 'liuyao.pan', 'meihua.pan', 'ziwei.pan', 'tarot.cards', 'zeji.days']
+  const order = ['qimen.pan', 'bazi.basic', 'bazi.yun', 'liuyao.pan', 'meihua.pan', 'ziwei.pan', 'tarot.cards', 'zeji.days']
   const source = map || {}
   return Object.keys(source)
     .sort(function(a, b) {
@@ -576,6 +580,20 @@ function artifactListFromMap(map) {
         collapsed: !!artifact.collapsed,
       })
     })
+}
+
+function appendArtifactAnalysis(aiIndex, artifactKey, content) {
+  const current = comprehensiveMessages.value[aiIndex]
+  if (!current || !artifactKey || !content) return
+  const artifacts = (current.artifacts || []).map(function(artifact) {
+    if (artifact.key !== artifactKey) return artifact
+    return Object.assign({}, artifact, {
+      collapsed: false,
+      analysis: stripComprehensiveMarkdown((artifact.analysis || '') + content)
+    })
+  })
+  updateComprehensiveAssistant(aiIndex, { artifacts })
+  scrollComprehensiveChatToBottom('auto')
 }
 
 function artifactTitle(key, tool) {
@@ -644,15 +662,33 @@ function renderBaziBasicArtifact(data) {
 function renderBaziYunArtifact(data) {
   const dayun = data.dayun || data.da_yun || data.luck_pillars || []
   const liunian = data.liu_nian || data.liunians || []
+  const colorGz = function(gz) {
+    const text = String(gz || '')
+    return text.split('').map(function(ch) {
+      const wx = ganWuxing(ch) || zhiWuxing(ch)
+      return '<b class="wx-text-' + wxClass(wx) + '">' + htmlEscape(ch) + '</b>'
+    }).join('')
+  }
+  const itemGz = function(item) {
+    if (!item) return ''
+    return item.gan_zhi || item.gz || item.name || item.stem_branch || [item.gan, item.zhi].filter(Boolean).join('')
+  }
+  const itemLabel = function(item) {
+    if (!item) return ''
+    if (item.start_age && item.end_age) return item.start_age + '-' + item.end_age + '岁'
+    return item.age_range || item.range || item.start_age || item.age || item.year || ''
+  }
   const renderRow = function(title, list) {
     const items = (Array.isArray(list) ? list : []).slice(0, 12).map(function(item) {
-      const label = item.age_range || item.range || item.start_age || item.age || item.year || ''
-      const value = item.gan_zhi || item.gz || item.name || item.stem_branch || ''
-      return '<div class="artifact-chip"><span>' + htmlEscape(label) + '</span><strong>' + htmlEscape(value) + '</strong></div>'
+      const label = itemLabel(item)
+      const value = itemGz(item)
+      const sub = item.gan_shishen_abbrev || item.shi_shen || item.ss_full || item.tgSs || ''
+      const year = item.start_year || item.year || ''
+      return '<div class="bz-yun-item"><span class="bz-yun-year">' + htmlEscape(year) + '</span><span class="bz-yun-age">' + htmlEscape(label) + '</span><strong class="bz-yun-gz">' + colorGz(value) + '</strong><em>' + htmlEscape(sub) + '</em></div>'
     }).join('')
-    return '<div class="artifact-scroll-row"><div class="artifact-row-title">' + htmlEscape(title) + '</div><div class="artifact-chip-row">' + (items || '<span class="artifact-empty">暂无数据</span>') + '</div></div>'
+    return '<div class="bz-yun-section"><div class="bz-yun-title">' + htmlEscape(title) + '</div><div class="bz-yun-scroll">' + (items || '<span class="artifact-empty">暂无数据</span>') + '</div></div>'
   }
-  return '<div class="artifact-panel">' +
+  return '<div class="bz-yun-panel">' +
     renderRow('大运', dayun) +
     renderRow('流年', liunian) +
     renderRow('流月', data.liu_yue || data.liu_month || []) +
@@ -845,9 +881,10 @@ function renderLiuyaoArtifact(data) {
   const benName = data['本卦'] || data.ben_gua || ''
   const bianName = data['变卦'] || data.bian_gua || ''
   const hasBian = !!bianName || bianDetails.length
+  const movingCount = details.filter(function(x) { return x && x.is_moving }).length
   let html = '<div class="ly-result-wrap"><div class="ly-ben-bian-box">'
-  html += '<div class="ly-ben-bian-top"><div class="ly-ben-bian-name-block"><div class="ly-ben-bian-label">本 卦</div><div class="ly-ben-bian-name-text">' + htmlEscape(benName) + '</div></div>'
-  if (hasBian) html += '<div class="ly-ben-bian-top-arrow">→</div><div class="ly-ben-bian-name-block"><div class="ly-ben-bian-label">变 卦</div><div class="ly-ben-bian-name-text">' + htmlEscape(bianName) + '</div></div>'
+  html += '<div class="ly-ben-bian-top"><div class="ly-ben-bian-name-block"><div class="ly-ben-bian-label">本 卦</div><div class="ly-ben-bian-name-text">' + htmlEscape(benName) + '</div><div class="ly-ben-bian-trigrams"><span class="ly-trigram-badge">' + htmlEscape([data.upper_nature, data.upper_trigram].filter(Boolean).join(' ')) + '</span><span class="ly-trigram-badge">' + htmlEscape([data.lower_nature, data.lower_trigram].filter(Boolean).join(' ')) + '</span></div></div>'
+  if (hasBian) html += '<div class="ly-ben-bian-top-arrow">→</div><div class="ly-ben-bian-name-block"><div class="ly-ben-bian-label">变 卦</div><div class="ly-ben-bian-name-text">' + htmlEscape(bianName) + '</div><div class="ly-ben-bian-trigrams"><span class="ly-trigram-badge">' + htmlEscape([data.bian_upper_nature, data.bian_upper_trigram].filter(Boolean).join(' ')) + '</span><span class="ly-trigram-badge">' + htmlEscape([data.bian_lower_nature, data.bian_lower_trigram].filter(Boolean).join(' ')) + '</span></div></div>'
   html += '</div><div class="ly-ben-bian-body">'
   for (let i = details.length - 1; i >= 0; i--) {
     const ben = details[i] || {}
@@ -860,29 +897,89 @@ function renderLiuyaoArtifact(data) {
     html += '</div><div class="ly-paired-ben">' + renderYaoGraphic(!!ben.is_yang) + '</div><div class="ly-paired-info">'
     html += '<span class="ly-yao-pos">' + htmlEscape(ben.name || '') + '</span><span class="ly-tag ly-tag-liuqin">' + htmlEscape(ben.liuqin || ben.liu_qin || '') + '</span><span class="ly-tag ly-tag-liushen">' + htmlEscape(ben.liushen || ben.liu_shen || '') + '</span><span class="ly-tag ly-tag-naja">' + htmlEscape(ben.naja || ben.na_jia || '') + '</span></div></div>'
     if (bian) {
-      html += '<div class="ly-row-divider"></div><div class="ly-row-bian-side"><div class="ly-yao-tags-left"><span class="ly-tag ly-tag-bian">变</span></div><div class="ly-paired-bian">' + renderYaoGraphic(!!bian.is_yang) + '</div><div class="ly-paired-info"><span class="ly-yao-pos">' + htmlEscape(bian.name || '') + '</span><span class="ly-tag ly-tag-liuqin">' + htmlEscape(bian.liuqin || bian.liu_qin || '') + '</span><span class="ly-tag ly-tag-naja">' + htmlEscape(bian.naja || bian.na_jia || '') + '</span></div></div>'
+      html += '<div class="ly-row-divider"></div><div class="ly-row-bian-side"><div class="ly-yao-tags-left">' + (bian.yao_type === '变' ? '<span class="ly-tag ly-tag-bian">变</span>' : '') + '</div><div class="ly-paired-bian">' + renderYaoGraphic(!!bian.is_yang) + '</div><div class="ly-paired-bian-info"><span class="ly-tag ly-tag-liuqin">' + htmlEscape(bian.liuqin || bian.liu_qin || '') + '</span><span class="ly-tag ly-tag-liushen">' + htmlEscape(bian.liushen || bian.liu_shen || '') + '</span><span class="ly-tag ly-tag-naja">' + htmlEscape(bian.naja || bian.na_jia || '') + '</span></div></div>'
     }
     html += '</div>'
   }
-  html += '</div><div class="ly-meta-row">' + htmlEscape([data.method, data.yue_jian && ('月建 ' + data.yue_jian), data.ri_chen && ('日辰 ' + data.ri_chen)].filter(Boolean).join(' · ')) + '</div></div></div>'
+  html += '</div><div class="ly-ben-bian-footer">'
+  html += '<span class="ly-ben-bian-meta">宫：' + htmlEscape(data.palace_name || '') + '宫（' + htmlEscape(data.palace_element || '') + '）</span>'
+  html += '<span class="ly-ben-bian-meta">日辰：' + htmlEscape(data.day_ganzhi || data.ri_chen || '') + '</span>'
+  html += '<span class="ly-ben-bian-meta">月建：' + htmlEscape(data.month_ganzhi || data.yue_jian || '') + '</span>'
+  html += '<span class="ly-ben-bian-meta">' + (movingCount ? ('动爻：' + movingCount + '个') : '静卦（无动爻）') + '</span>'
+  html += '</div></div>'
+  html += '<div class="ly-detail-table-wrap"><table class="ly-detail-table"><tr><th>爻位</th><th>阴阳</th><th>六亲</th><th>六神</th><th>纳甲</th><th>地支五行</th><th>世应</th><th>动</th></tr>'
+  for (let i = details.length - 1; i >= 0; i--) {
+    const x = details[i] || {}
+    html += '<tr class="' + (x.is_moving ? 'moving-row' : '') + '"><td>' + htmlEscape(x.name || '') + '</td><td>' + (x.is_yang ? '⚊ 阳' : '⚋ 阴') + '</td><td>' + htmlEscape(x.liuqin || x.liu_qin || '') + '</td><td>' + htmlEscape(x.liushen || x.liu_shen || '') + '</td><td>' + htmlEscape(x.naja || x.na_jia || '') + '</td><td>' + htmlEscape(x.dizhi_element || '') + '</td><td>' + htmlEscape(x.is_shi ? '世' : x.is_ying ? '应' : '') + '</td><td>' + (x.is_moving ? '⚡ 动' : '') + '</td></tr>'
+  }
+  html += '</table></div>'
+  html += '<div class="ly-paipan-meta"><span>🕐 ' + htmlEscape(data.timestamp || '') + '</span><span>📖 ' + htmlEscape(data.method || '自动摇卦') + '</span>' + (data.question ? '<span>❓ ' + htmlEscape(data.question) + '</span>' : '') + '</div></div>'
   return html
 }
 
 function renderZiweiArtifact(data) {
   const palaces = (data.twelve_palaces || data.palaces || []).slice(0, 12)
-  const cells = palaces.map(function(p, idx) {
-    const stars = (p.major_stars || p.stars || []).slice(0, 6).map(function(s) { return typeof s === 'string' ? s : (s.name || '') }).filter(Boolean)
+  const order = [4, 3, 5, 6, 2, 'center', 7, 1, 8, 0, 11, 10, 9]
+  const starName = function(s) { return typeof s === 'string' ? s : ((s && s.name) || '') }
+  const palaceCell = function(p, idx) {
+    if (!p) return '<div class="zw-artifact-palace empty"></div>'
+    const major = (p.major_stars || p.stars || []).slice(0, 5).map(starName).filter(Boolean)
+    const minor = (p.minor_stars || []).slice(0, 8).map(starName).filter(Boolean)
+    const adj = (p.adjective_stars || []).slice(0, 6).map(starName).filter(Boolean)
     const palaceName = p.name || p.palace_name || ''
-    return '<div class="zw-artifact-palace palace-' + idx + '"><div class="zw-artifact-top"><b>' + htmlEscape(palaceName) + '</b><span>' + htmlEscape(p.gan_zhi || p.branch || '') + '</span></div><div class="zw-artifact-stars">' + stars.map(function(s, i) { return '<span class="' + (i < 2 ? 'main' : '') + '">' + htmlEscape(s) + '</span>' }).join('') + '</div><div class="zw-artifact-foot"><span>' + htmlEscape(p.da_xian || p.decadal || '') + '</span><strong>' + htmlEscape(p.body_palace ? '身宫' : '') + '</strong></div></div>'
+    const dec = p.decadal || {}
+    const decText = dec.range ? ('大限 ' + dec.range[0] + '-' + dec.range[1] + '岁 ' + ((dec.heavenly_stem || '') + (dec.earthly_branch || ''))) : (p.da_xian || '')
+    const support = [p.changsheng12, p.boshi12, p.jiangqian12, p.suiqian12].filter(Boolean).join(' · ')
+    const ages = (p.ages || []).slice(0, 8).join(',')
+    return '<div class="zw-artifact-palace palace-' + idx + '"><div class="zw-artifact-top"><b>' + htmlEscape(palaceName) + '</b><span>' + htmlEscape(p.ganzhi || p.gan_zhi || ((p.heavenly_stem || '') + (p.earthly_branch || ''))) + '</span></div>' +
+      '<div class="zw-artifact-stars major">' + major.map(function(s) { return '<span>' + htmlEscape(s) + '</span>' }).join('') + '</div>' +
+      '<div class="zw-artifact-stars minor">' + minor.map(function(s) { return '<span>' + htmlEscape(s) + '</span>' }).join('') + '</div>' +
+      '<div class="zw-artifact-stars adj">' + adj.map(function(s) { return '<span>' + htmlEscape(s) + '</span>' }).join('') + '</div>' +
+      (support ? '<div class="zw-artifact-support">' + htmlEscape(support) + '</div>' : '') +
+      '<div class="zw-artifact-foot"><span>' + htmlEscape(decText) + '</span><strong>' + htmlEscape((p.is_body_palace || p.body_palace) ? '身宫' : '') + '</strong></div>' +
+      (ages ? '<div class="zw-artifact-ages">流年:' + htmlEscape(ages) + '</div>' : '') +
+      '</div>'
+  }
+  const cells = order.map(function(idx) {
+    if (idx === 'center') {
+      const bi = data.basic_info || {}
+      const cp = data.core_palace || {}
+      const meta = data.display_meta || {}
+      return '<div class="zw-artifact-center"><span class="zw-center-kicker">三合盘</span><b>紫微斗数命盘</b><span>' + htmlEscape([(meta.gender_yinyang || data.gender), bi.five_elements_class || data.wuxingju || data.five_element_class].filter(Boolean).join(' · ')) + '</span><em>北京时间 ' + htmlEscape(meta.beijing_time || bi.solar_date || data.birth_time || '') + '</em><em>真太阳时 ' + htmlEscape(meta.true_solar_time || '') + '</em><em>农历 ' + htmlEscape(bi.lunar_date || data.lunar_date || '') + '</em><em>节气四柱 ' + htmlEscape(bi.chinese_date || '') + '</em><em>' + htmlEscape([cp.soul_star && ('命主 ' + cp.soul_star), cp.body_star && ('身主 ' + cp.body_star)].filter(Boolean).join('  ')) + '</em></div>'
+    }
+    return palaceCell(palaces[idx], idx)
   }).join('')
-  return '<div class="zw-artifact-wrap"><div class="zw-artifact-grid">' + cells + '<div class="zw-artifact-center"><b>紫微斗数命盘</b><span>' + htmlEscape([data.gender, data.wuxingju || data.five_element_class, data.lunar_date].filter(Boolean).join(' · ')) + '</span><em>' + htmlEscape([data.ming_zhu && ('命主 ' + data.ming_zhu), data.shen_zhu && ('身主 ' + data.shen_zhu)].filter(Boolean).join('  ')) + '</em></div></div></div>'
+  const timeline = palaces.filter(function(p) { return p && p.decadal && p.decadal.range }).map(function(p) {
+    const r = p.decadal.range || []
+    return '<span class="zw-flow-item"><b>' + htmlEscape(r[0] + '-' + r[1]) + '</b><em>' + htmlEscape((p.decadal.heavenly_stem || '') + (p.decadal.earthly_branch || '')) + '</em><i>' + htmlEscape(p.name || '') + '</i></span>'
+  }).join('')
+  return '<div class="zw-artifact-wrap"><div class="zw-orientation">正南方</div><div class="zw-artifact-grid">' + cells + '</div><div class="zw-orientation">正北方</div><div class="zw-flow-row"><div class="zw-flow-title">大限</div><div class="zw-flow-scroll">' + timeline + '</div></div></div>'
 }
 
 function renderTarotArtifact(data) {
-  const cards = (data.cards || []).map(function(c) {
-    return '<div class="artifact-tarot-card"><span>' + htmlEscape(c.position_name || c.position || '') + '</span><strong>' + htmlEscape(c.name || '') + '</strong><em>' + htmlEscape(c.orientation || '') + '</em></div>'
+  const icons = { 0: '🃏', 1: '🎩', 2: '🌙', 3: '👑', 4: '🏛️', 5: '⛪', 6: '💕', 7: '⚔️', 8: '🦁', 9: '🏔️', 10: '🎡', 11: '⚖️', 12: '🔄', 13: '🦋', 14: '🏺', 15: '⛓️', 16: '⚡', 17: '⭐', 18: '🌕', 19: '☀️', 20: '📯', 21: '🌍' }
+  const suitIcons = { '权杖': '🔥', '圣杯': '💧', '宝剑': '🗡️', '星币': '🪙' }
+  const cards = (data.cards || []).map(function(c, i) {
+    const icon = c.type === 'major' ? (icons[c.id] || '🃏') : (suitIcons[c.suit] || '🃏')
+    const orientationClass = c.is_reversed ? 'reversed' : 'upright'
+    const keyword = c.is_reversed && c.keyword_reversed ? c.keyword_reversed : (c.keyword || '')
+    return '<div class="tarot-card-slot" style="animation: tarotCardAppear 0.5s ' + (i * 0.12) + 's both">' +
+      '<div class="tarot-card-flipper flipped">' +
+        '<div class="tarot-card-back"><div class="tarot-card-back-pattern"></div><span class="tarot-card-back-symbol">✦</span></div>' +
+        '<div class="tarot-card-front">' +
+          '<div class="tarot-card-num">' + htmlEscape(c.type === 'major' ? ((c.id || 0) + 1) : (c.number || '')) + '</div>' +
+          '<div class="tarot-card-icon">' + icon + '</div>' +
+          '<div class="tarot-card-name">' + htmlEscape(c.name || '') + '</div>' +
+          '<div class="tarot-card-name-en">' + htmlEscape(c.name_en || '') + '</div>' +
+          '<div class="tarot-card-orientation ' + orientationClass + '">' + htmlEscape(c.orientation || '') + '</div>' +
+          '<div class="tarot-card-keyword">' + htmlEscape(keyword) + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="tarot-card-position"><div class="tarot-card-position-name">' + htmlEscape(c.position_name || c.position || '') + '</div><div class="tarot-card-position-meaning">' + htmlEscape(c.position_meaning || '') + '</div>' + (c.is_reversed ? '<div class="tarot-card-reversed-hint">逆位</div>' : '') + '</div>' +
+    '</div>'
   }).join('')
-  return '<div class="artifact-panel"><div class="artifact-grid artifact-grid-3">' + cards + '</div></div>'
+  const count = (data.cards || []).length
+  return '<div class="tarot-artifact-wrap"><div class="tarot-drawing-text">✦ 塔罗抽牌结果 ✦</div><div class="tarot-cards-display" data-count="' + htmlEscape(count) + '">' + cards + '</div></div>'
 }
 
 function renderZejiArtifact(data) {
@@ -1090,8 +1187,12 @@ async function startComprehensiveAsk() {
           updateComprehensiveAssistant(aiIndex, { stage: data.message, _lastServerStageAt: Date.now() })
         }
         if (data.content) {
-          typeState.queue += data.content
-          startComprehensiveTypewriter(aiIndex, typeState)
+          if (data.tool_key) {
+            appendArtifactAnalysis(aiIndex, data.tool_key, data.content)
+          } else {
+            typeState.queue += data.content
+            startComprehensiveTypewriter(aiIndex, typeState)
+          }
           stopComprehensiveProgressTimer()
         }
         if (data.conversation_id) currentComprehensiveConvId.value = data.conversation_id
@@ -1539,6 +1640,8 @@ onBeforeUnmount(() => {
 .home-tool-card-toggle { flex-shrink: 0; color: var(--accent); font-size: 0.68rem; }
 .home-tool-card-body { padding: 0 12px 12px; }
 .home-artifact-render { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.home-artifact-analysis { margin-top: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(178,149,93,.16); background: rgba(178,149,93,.055); color: var(--text-2); line-height: 1.8; white-space: pre-wrap; font-size: .84rem; }
+.home-artifact-analysis-title { color: var(--accent); font-weight: 800; font-size: .78rem; margin-bottom: 6px; letter-spacing: 1px; }
 .home-artifact-render :deep(.artifact-panel) { display: grid; gap: 10px; color: var(--text-2); font-size: 0.74rem; }
 .home-artifact-render :deep(.artifact-grid) { display: grid; gap: 8px; }
 .home-artifact-render :deep(.artifact-grid-4) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -1601,6 +1704,23 @@ onBeforeUnmount(() => {
 .home-artifact-render :deep(.wx-color-shui) { background: #2878B5; }
 .home-artifact-render :deep(.wx-color-huo) { background: #C44D3A; }
 .home-artifact-render :deep(.wx-color-tu) { background: #8A6A2A; }
+.home-artifact-render :deep(.wx-text-jin) { color: #B8860B; }
+.home-artifact-render :deep(.wx-text-mu) { color: #2E8B57; }
+.home-artifact-render :deep(.wx-text-shui) { color: #2878B5; }
+.home-artifact-render :deep(.wx-text-huo) { color: #C44D3A; }
+.home-artifact-render :deep(.wx-text-tu) { color: #8A6A2A; }
+.home-artifact-render :deep(.bz-yun-panel) { display: grid; gap: 10px; }
+.home-artifact-render :deep(.bz-yun-section) { border: 1px solid var(--card-border); border-radius: 12px; overflow: hidden; background: rgba(255,255,255,.035); }
+.home-artifact-render :deep(.bz-yun-title) { padding: 8px 12px; color: var(--accent); font-size: .74rem; font-weight: 800; background: var(--accent-glow); border-bottom: 1px solid var(--card-border); }
+.home-artifact-render :deep(.bz-yun-scroll) { display: flex; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.home-artifact-render :deep(.bz-yun-scroll::-webkit-scrollbar) { display: none; }
+.home-artifact-render :deep(.bz-yun-item) { flex: 0 0 auto; min-width: 58px; min-height: 72px; padding: 8px 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-right: 1px solid rgba(178,149,93,.10); box-sizing: border-box; }
+.home-artifact-render :deep(.bz-yun-item:nth-child(3)) { background: rgba(178,149,93,.10); }
+.home-artifact-render :deep(.bz-yun-year) { color: var(--text-3); font-size: .62rem; }
+.home-artifact-render :deep(.bz-yun-age) { color: var(--text-3); font-size: .54rem; }
+.home-artifact-render :deep(.bz-yun-gz) { display: flex; gap: 2px; font-family: var(--font-serif); font-size: .88rem; line-height: 1.1; }
+.home-artifact-render :deep(.bz-yun-gz b) { font-weight: 800; }
+.home-artifact-render :deep(.bz-yun-item em) { color: var(--text-3); font-size: .52rem; font-style: normal; }
 
 /* 首页 artifact 直接承载单项页盘面结构，避免重新画一套黑字简化卡片 */
 .home-artifact-render :deep(.mh-result-wrap),
@@ -1657,7 +1777,7 @@ onBeforeUnmount(() => {
 .home-artifact-render :deep(.ws-tag.qiu) { background: rgba(215,125,110,.10); color: #D77D6E; }
 .home-artifact-render :deep(.ws-tag.si) { background: rgba(160,140,100,.10); color: #A08C64; }
 
-.home-artifact-render :deep(.qm-nine-grid) { display: grid; grid-template-columns: repeat(3, minmax(94px, 1fr)); gap: 2px; border: 2px solid rgba(184,176,160,.78); border-radius: 12px; overflow: hidden; background: #d5cfc2; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+.home-artifact-render :deep(.qm-nine-grid) { display: grid; grid-template-columns: repeat(3, minmax(94px, 1fr)); gap: 2px; width: min(100%, 460px); margin: 0 auto; border: 2px solid rgba(184,176,160,.78); border-radius: 12px; overflow: hidden; background: #d5cfc2; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
 .home-artifact-render :deep(.qm-palace) { min-height: 112px; padding: 8px; background: rgba(255,253,248,.92); color: #222; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; }
 .home-artifact-render :deep(.qm-palace.center) { justify-content: center; align-items: center; text-align: center; background: #f0ede5; }
 .home-artifact-render :deep(.qm-center-title) { color: #8a6319; font-weight: 800; letter-spacing: 2px; font-size: .92rem; }
@@ -1700,22 +1820,71 @@ onBeforeUnmount(() => {
 .home-artifact-render :deep(.ly-paired-info) { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; min-width: 0; }
 .home-artifact-render :deep(.ly-yao-pos) { color: var(--text-1); font-weight: 700; font-size: .72rem; }
 .home-artifact-render :deep(.ly-meta-row) { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--card-border); color: var(--text-3); font-size: .72rem; }
+.home-artifact-render :deep(.ly-ben-bian-footer) { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; padding-top: 10px; margin-top: 10px; border-top: 1px solid var(--card-border); color: var(--text-3); font-size: .72rem; }
+.home-artifact-render :deep(.ly-detail-table-wrap) { overflow-x: auto; margin-top: 12px; }
+.home-artifact-render :deep(.ly-detail-table) { width: 100%; border-collapse: collapse; font-size: .72rem; }
+.home-artifact-render :deep(.ly-detail-table th) { padding: 8px 6px; color: var(--text-3); font-weight: 600; border-bottom: 1px solid var(--card-border); white-space: nowrap; }
+.home-artifact-render :deep(.ly-detail-table td) { padding: 8px 6px; color: var(--text-2); border-bottom: 1px solid rgba(178,149,93,.10); text-align: center; white-space: nowrap; }
+.home-artifact-render :deep(.ly-detail-table .moving-row td) { color: var(--danger); }
+.home-artifact-render :deep(.ly-paipan-meta) { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; margin-top: 12px; padding: 12px; border-radius: 10px; background: rgba(255,255,255,.035); color: var(--text-3); font-size: .72rem; }
 
 .home-artifact-render :deep(.zw-artifact-wrap) { width: 100%; overflow-x: auto; }
-.home-artifact-render :deep(.zw-artifact-grid) { min-width: 620px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(4, minmax(112px, auto)); gap: 2px; background: rgba(178,149,93,.20); border: 1px solid rgba(178,149,93,.22); border-radius: 12px; overflow: hidden; position: relative; }
+.home-artifact-render :deep(.zw-artifact-grid) { min-width: 620px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(4, minmax(128px, auto)); gap: 2px; background: rgba(178,149,93,.20); border: 1px solid rgba(178,149,93,.22); border-radius: 12px; overflow: hidden; position: relative; }
 .home-artifact-render :deep(.zw-artifact-palace) { min-height: 112px; padding: 8px; background: rgba(255,253,248,.92); color: #222; display: flex; flex-direction: column; gap: 6px; box-sizing: border-box; }
 .home-artifact-render :deep(.zw-artifact-palace:nth-child(odd)) { background: rgba(255,247,242,.95); }
 .home-artifact-render :deep(.zw-artifact-top) { display: flex; align-items: center; justify-content: space-between; color: #8a6319; font-size: .68rem; }
 .home-artifact-render :deep(.zw-artifact-top b) { color: #B84D4D; font-size: .76rem; }
-.home-artifact-render :deep(.zw-artifact-stars) { display: flex; flex-wrap: wrap; gap: 3px 6px; align-content: flex-start; min-height: 48px; }
-.home-artifact-render :deep(.zw-artifact-stars span) { color: #3a3328; font-size: .72rem; font-weight: 700; }
-.home-artifact-render :deep(.zw-artifact-stars span.main) { color: #337AB7; font-size: .86rem; }
+.home-artifact-render :deep(.zw-artifact-stars) { display: flex; flex-wrap: wrap; gap: 3px 6px; align-content: flex-start; }
+.home-artifact-render :deep(.zw-artifact-stars.major span) { color: #b66b2d; font-size: .82rem; font-weight: 800; }
+.home-artifact-render :deep(.zw-artifact-stars.minor span) { color: #2b89c9; font-size: .72rem; font-weight: 700; }
+.home-artifact-render :deep(.zw-artifact-stars.adj span) { color: #6f6250; font-size: .64rem; font-weight: 500; }
+.home-artifact-render :deep(.zw-artifact-support),
+.home-artifact-render :deep(.zw-artifact-ages) { color: #7c7163; font-size: .58rem; line-height: 1.35; }
 .home-artifact-render :deep(.zw-artifact-foot) { margin-top: auto; display: flex; align-items: flex-end; justify-content: space-between; gap: 6px; color: #6f6250; font-size: .62rem; }
 .home-artifact-render :deep(.zw-artifact-foot strong) { color: #B84D4D; font-size: .68rem; }
 .home-artifact-render :deep(.zw-artifact-center) { grid-column: 2 / 4; grid-row: 2 / 4; background: rgba(255,255,255,.96); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; color: #4a3922; padding: 16px; box-sizing: border-box; }
 .home-artifact-render :deep(.zw-artifact-center b) { font-family: var(--font-serif); color: #8a6319; font-size: 1.05rem; letter-spacing: 2px; }
 .home-artifact-render :deep(.zw-artifact-center span),
 .home-artifact-render :deep(.zw-artifact-center em) { color: #6f6250; font-size: .72rem; font-style: normal; }
+.home-artifact-render :deep(.zw-orientation) { min-width: 620px; text-align: center; color: var(--text-3); font-size: .72rem; margin: 4px 0; }
+.home-artifact-render :deep(.zw-flow-row) { min-width: 620px; display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 8px; margin-top: 8px; }
+.home-artifact-render :deep(.zw-flow-title) { display: flex; align-items: center; justify-content: center; border-radius: 8px; background: var(--accent-glow); color: var(--accent); font-size: .7rem; font-weight: 800; }
+.home-artifact-render :deep(.zw-flow-scroll) { display: flex; overflow-x: auto; scrollbar-width: none; }
+.home-artifact-render :deep(.zw-flow-scroll::-webkit-scrollbar) { display: none; }
+.home-artifact-render :deep(.zw-flow-item) { flex: 0 0 62px; min-height: 54px; padding: 6px 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-right: 1px solid rgba(178,149,93,.10); background: rgba(255,255,255,.035); }
+.home-artifact-render :deep(.zw-flow-item b) { color: var(--text-1); font-size: .66rem; }
+.home-artifact-render :deep(.zw-flow-item em),
+.home-artifact-render :deep(.zw-flow-item i) { color: var(--text-3); font-size: .54rem; font-style: normal; }
+
+.home-artifact-render :deep(.tarot-artifact-wrap) { width: 100%; padding: 14px 0 4px; }
+.home-artifact-render :deep(.tarot-drawing-text) { text-align: center; color: var(--accent); font-family: var(--font-serif); font-size: 1rem; font-weight: 800; letter-spacing: 2px; margin-bottom: 16px; }
+.home-artifact-render :deep(.tarot-cards-display) { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 0 auto 12px; justify-items: center; }
+.home-artifact-render :deep(.tarot-cards-display[data-count="1"]) { grid-template-columns: 1fr; max-width: 200px; }
+.home-artifact-render :deep(.tarot-cards-display[data-count="3"]) { grid-template-columns: repeat(3, 1fr); max-width: 560px; }
+.home-artifact-render :deep(.tarot-cards-display[data-count="5"]) { grid-template-columns: repeat(3, 1fr); max-width: 560px; }
+.home-artifact-render :deep(.tarot-cards-display[data-count="6"]) { grid-template-columns: repeat(3, 1fr); max-width: 560px; }
+.home-artifact-render :deep(.tarot-cards-display[data-count="7"]) { grid-template-columns: repeat(4, 1fr); max-width: 720px; }
+.home-artifact-render :deep(.tarot-cards-display[data-count="10"]) { grid-template-columns: repeat(5, 1fr); max-width: 880px; }
+.home-artifact-render :deep(.tarot-card-slot) { width: 100%; max-width: 148px; perspective: 600px; }
+.home-artifact-render :deep(.tarot-card-flipper) { position: relative; width: 100%; height: 238px; transform-style: preserve-3d; transform: rotateY(180deg); }
+.home-artifact-render :deep(.tarot-card-front),
+.home-artifact-render :deep(.tarot-card-back) { position: absolute; inset: 0; border-radius: 12px; backface-visibility: hidden; overflow: hidden; box-sizing: border-box; }
+.home-artifact-render :deep(.tarot-card-back) { background: linear-gradient(135deg, rgba(31,29,24,.95), rgba(65,48,22,.92)); border: 2px solid var(--accent); display: flex; align-items: center; justify-content: center; }
+.home-artifact-render :deep(.tarot-card-back-pattern) { position: absolute; inset: 8px; border: 1px solid rgba(201,162,60,.25); border-radius: 8px; }
+.home-artifact-render :deep(.tarot-card-back-symbol) { font-size: 3rem; color: var(--accent); opacity: .65; }
+.home-artifact-render :deep(.tarot-card-front) { transform: rotateY(180deg); background: rgba(255,253,248,.96); border: 2px solid var(--accent); display: flex; flex-direction: column; align-items: center; padding: 14px 9px; color: #2e2a24; }
+.home-artifact-render :deep(.tarot-card-num) { font-size: .68rem; color: #8d806d; margin-bottom: 4px; }
+.home-artifact-render :deep(.tarot-card-icon) { font-size: 2.05rem; margin-bottom: 6px; line-height: 1; }
+.home-artifact-render :deep(.tarot-card-name) { font-weight: 800; font-size: .9rem; color: #2e2a24; text-align: center; margin-bottom: 2px; letter-spacing: 1px; }
+.home-artifact-render :deep(.tarot-card-name-en) { font-size: .58rem; color: #8d806d; text-align: center; margin-bottom: 6px; }
+.home-artifact-render :deep(.tarot-card-orientation) { font-size: .72rem; padding: 2px 8px; border-radius: 8px; margin-bottom: 6px; font-weight: 700; }
+.home-artifact-render :deep(.tarot-card-orientation.upright) { color: #5b8c5a; background: rgba(91,140,90,.12); border: 1px solid rgba(91,140,90,.3); }
+.home-artifact-render :deep(.tarot-card-orientation.reversed) { color: #c0392b; background: rgba(192,57,43,.12); border: 1px solid rgba(192,57,43,.3); }
+.home-artifact-render :deep(.tarot-card-keyword) { font-size: .66rem; color: #6f6250; text-align: center; line-height: 1.45; }
+.home-artifact-render :deep(.tarot-card-position) { text-align: center; margin-top: 10px; }
+.home-artifact-render :deep(.tarot-card-position-name) { font-weight: 800; font-size: .8rem; color: var(--accent); letter-spacing: 1px; }
+.home-artifact-render :deep(.tarot-card-position-meaning) { font-size: .66rem; color: var(--text-4); margin-top: 2px; }
+.home-artifact-render :deep(.tarot-card-reversed-hint) { font-size: .62rem; color: #c0392b; margin-top: 2px; }
 .mini-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid rgba(178,149,93,0.14); border-radius: 10px; overflow: hidden; }
 .mini-palace { min-height: 64px; padding: 7px; border-right: 1px solid rgba(178,149,93,0.12); border-bottom: 1px solid rgba(178,149,93,0.12); display: flex; flex-direction: column; gap: 2px; color: var(--text-3); font-size: 0.62rem; box-sizing: border-box; }
 .mini-palace:nth-child(3n) { border-right: none; }
@@ -1903,6 +2072,11 @@ onBeforeUnmount(() => {
   .home-artifact-render :deep(.ly-yang-bar),
   .home-artifact-render :deep(.ly-yin-bars) { width: 54px; }
   .home-artifact-render :deep(.ly-yin-seg) { width: 22px; }
+  .home-artifact-render :deep(.tarot-card-slot) { max-width: 122px; }
+  .home-artifact-render :deep(.tarot-card-flipper) { height: 198px; }
+  .home-artifact-render :deep(.tarot-cards-display[data-count="6"]) { grid-template-columns: repeat(3, 1fr); max-width: 420px; }
+  .home-artifact-render :deep(.tarot-cards-display[data-count="7"]) { grid-template-columns: repeat(4, 1fr); max-width: 560px; }
+  .home-artifact-render :deep(.tarot-cards-display[data-count="10"]) { grid-template-columns: repeat(5, 1fr); max-width: 680px; }
   .mini-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mini-palace:nth-child(3n) { border-right: 1px solid rgba(178,149,93,0.12); }
   .mini-palace:nth-child(2n) { border-right: none; }
@@ -1968,6 +2142,16 @@ onBeforeUnmount(() => {
   .home-artifact-render :deep(.ly-row-divider) { width: 100%; height: 1px; }
   .home-artifact-render :deep(.ly-row-ben-side),
   .home-artifact-render :deep(.ly-row-bian-side) { grid-template-columns: 32px 58px minmax(0, 1fr); }
+  .home-artifact-render :deep(.tarot-cards-display),
+  .home-artifact-render :deep(.tarot-cards-display[data-count="3"]),
+  .home-artifact-render :deep(.tarot-cards-display[data-count="5"]),
+  .home-artifact-render :deep(.tarot-cards-display[data-count="6"]) { grid-template-columns: repeat(2, 1fr); max-width: 260px; gap: 12px; }
+  .home-artifact-render :deep(.tarot-cards-display[data-count="7"]),
+  .home-artifact-render :deep(.tarot-cards-display[data-count="10"]) { grid-template-columns: repeat(3, 1fr); max-width: 390px; gap: 10px; }
+  .home-artifact-render :deep(.tarot-card-slot) { max-width: 112px; }
+  .home-artifact-render :deep(.tarot-card-flipper) { height: 184px; }
+  .home-artifact-render :deep(.tarot-card-name) { font-size: .78rem; }
+  .home-artifact-render :deep(.tarot-card-icon) { font-size: 1.7rem; }
   .mini-line { align-items: flex-start; flex-direction: column; gap: 3px; }
   .section { padding: 32px 16px; }
   .section-title { font-size: 1.15rem; }

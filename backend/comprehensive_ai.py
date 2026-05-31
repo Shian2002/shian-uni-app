@@ -17,14 +17,16 @@ COMPREHENSIVE_LLM_MODELS = [
 
 
 COMPREHENSIVE_TOOL_MODELS = [
-    {"id": "bazi", "name": "八字", "cost": 2, "needs_profile": True},
-    {"id": "ziwei", "name": "紫微斗数", "cost": 3, "needs_profile": True},
     {"id": "qimen", "name": "奇门遁甲", "cost": 3, "needs_profile": False},
+    {"id": "bazi", "name": "八字", "cost": 2, "needs_profile": True},
     {"id": "liuyao", "name": "六爻", "cost": 2, "needs_profile": False},
     {"id": "meihua", "name": "梅花易数", "cost": 2, "needs_profile": False},
+    {"id": "ziwei", "name": "紫微斗数", "cost": 3, "needs_profile": True},
     {"id": "tarot", "name": "塔罗牌", "cost": 2, "needs_profile": False},
     {"id": "zeji", "name": "择吉工具", "cost": 2, "needs_profile": False},
 ]
+
+TOOL_DISPLAY_ORDER = ["qimen", "bazi", "liuyao", "meihua", "ziwei", "tarot", "zeji"]
 
 
 def get_llm_model(model_id):
@@ -40,7 +42,7 @@ def normalize_tool_models(tool_models):
     for item in tool_models or []:
         if item in allowed and item not in result:
             result.append(item)
-    return result
+    return sorted(result, key=lambda x: TOOL_DISPLAY_ORDER.index(x) if x in TOOL_DISPLAY_ORDER else 99)
 
 
 def recommend_tool_models(question):
@@ -111,6 +113,65 @@ def build_comprehensive_messages(question, profile, tool_models, paipan_context,
         "content": "用户问题：%s\n\n后端排盘上下文：\n%s" % (
             question,
             json.dumps(context, ensure_ascii=False, indent=2),
+        ),
+    })
+    return messages
+
+
+def build_tool_analysis_messages(question, profile, tool, tool_data, history=None):
+    tool_names = {
+        "qimen": "奇门遁甲",
+        "bazi": "八字排盘",
+        "liuyao": "六爻排盘",
+        "meihua": "梅花易数",
+        "ziwei": "紫微斗数",
+        "tarot": "塔罗牌",
+        "zeji": "择吉工具",
+    }
+    system = """你是时安解忧屋的单项术数解读助手。
+你只能围绕当前给出的一个术数盘面解读，不能跳到其他术数。
+输出要求：
+1. 先用一句话给出该术数对用户问题的判断；
+2. 再列出盘面依据，必须引用当前盘面的具体信息；
+3. 最后给出该术数下的建议或提醒；
+4. 不要重复排盘数据，不要编造盘里没有的信息。
+"""
+    messages = [{"role": "system", "content": system}]
+    for item in history or []:
+        if item.get("role") in ("user", "assistant"):
+            messages.append({"role": item["role"], "content": str(item.get("content", ""))[:2000]})
+    messages.append({
+        "role": "user",
+        "content": "用户问题：%s\n\n当前术数：%s\n\n命盘档案：\n%s\n\n当前术数盘面数据：\n%s" % (
+            question,
+            tool_names.get(tool, tool),
+            json.dumps(profile or {}, ensure_ascii=False, indent=2),
+            json.dumps(tool_data or {}, ensure_ascii=False, indent=2),
+        ),
+    })
+    return messages
+
+
+def build_summary_messages(question, profile, tool_models, tool_analyses, history=None):
+    system = """你是时安解忧屋的综合合参助手。
+你已经拿到了各术数的单项分析，现在只做最后合参总结。
+输出要求：
+1. 直接给出综合结论；
+2. 汇总各术数一致的地方；
+3. 标出冲突或需要谨慎看的地方；
+4. 给出用户接下来可以执行的建议；
+5. 明确内容仅为民俗文化参考，不构成现实决策承诺。
+"""
+    messages = [{"role": "system", "content": system}]
+    for item in history or []:
+        if item.get("role") in ("user", "assistant"):
+            messages.append({"role": item["role"], "content": str(item.get("content", ""))[:2000]})
+    messages.append({
+        "role": "user",
+        "content": "用户问题：%s\n\n命盘档案：\n%s\n\n已完成的单项术数分析：\n%s" % (
+            question,
+            json.dumps(profile or {}, ensure_ascii=False, indent=2),
+            json.dumps(tool_analyses or {}, ensure_ascii=False, indent=2),
         ),
     })
     return messages
