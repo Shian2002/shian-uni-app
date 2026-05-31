@@ -87,6 +87,28 @@ def test_bazi_and_ziwei_share_fixed_sample_four_pillars(client):
     assert ziwei_data["twelve_palaces"][0]["ganzhi"]
     assert len(ziwei_data["decadal_overview"]) == 12
 
+    ziwei_flow = _post_json(
+        client,
+        "/api/ziwei/horoscope",
+        {
+            "year": 1990,
+            "month": 1,
+            "day": 27,
+            "hour": 10,
+            "minute": 30,
+            "gender": "男",
+            "date_type": "solar",
+            "longitude": 116.4074,
+            "target_date": "2028-04-25",
+        },
+    )
+    flow_data = ziwei_flow["data"]
+    assert ziwei_flow["code"] == 0
+    assert flow_data["display_meta"]["true_solar_enabled"] is True
+    assert flow_data["horoscope"]["monthly"]["name"] == "流月"
+    assert flow_data["horoscope"]["monthly"]["ganzhi"]
+    assert isinstance(flow_data["horoscope"]["monthly"]["index"], int)
+
 
 def test_qimen_meihua_and_liuyao_fixed_samples(client):
     qimen = _post_json(

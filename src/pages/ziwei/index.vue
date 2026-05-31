@@ -230,7 +230,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import TopNav from '@/components/TopNav.vue'
 
@@ -417,6 +417,14 @@ function onTargetMinuteChange(e) { zwTargetMinuteIdx.value = e.detail.value }
 
 const zwPanResult = ref('')
 const zwHoroscopeResult = ref('')
+const zwPanData = ref(null)
+const zwFlowState = reactive({
+  selectedYear: new Date().getFullYear(),
+  selectedMonth: new Date().getMonth() + 1,
+  horoscope: null,
+  loading: false,
+  error: ''
+})
 
 async function ziweiFreePan() {
   try {
@@ -451,10 +459,110 @@ async function ziweiFreePan() {
     }
     
     const panData = data.data || data
+    zwPanData.value = panData
+    zwFlowState.selectedYear = new Date().getFullYear()
+    zwFlowState.selectedMonth = new Date().getMonth() + 1
+    zwFlowState.horoscope = null
+    zwFlowState.error = ''
     zwPanResult.value = renderZiweiPan(panData)
+    refreshZiweiFlow()
   } catch (e) {
     const errMsg = (e && e.errMsg) || (e && e.message) || (e && String(e)) || '未知错误'
     zwPanResult.value = '<div style="color:var(--danger);padding:16px;">排盘失败: ' + errMsg + '</div>'
+  }
+}
+
+function rerenderZiweiPan() {
+  if (!zwPanData.value) return
+  zwPanResult.value = renderZiweiPan(zwPanData.value)
+}
+
+function findZiweiFlowTarget(target) {
+  let node = target
+  while (node) {
+    if (node.dataset && (node.dataset.flowYear || node.dataset.flowMonth)) return node
+    node = node.parentElement
+  }
+  return null
+}
+
+function handleZiweiPanClick(e) {
+  const target = findZiweiFlowTarget(e && e.target)
+  if (!target) return
+  const year = parseInt(target.dataset.flowYear)
+  const month = parseInt(target.dataset.flowMonth)
+  selectZiweiFlow(isNaN(year) ? 'month' : 'year', isNaN(year) ? month : year)
+}
+
+function handleZiweiDocumentClick(e) {
+  const target = findZiweiFlowTarget(e && e.target)
+  if (!target) return
+  if (!target.closest || !target.closest('.zw-result')) return
+  const year = parseInt(target.dataset.flowYear)
+  const month = parseInt(target.dataset.flowMonth)
+  selectZiweiFlow(isNaN(year) ? 'month' : 'year', isNaN(year) ? month : year)
+}
+
+function selectZiweiFlow(type, value) {
+  const n = parseInt(value)
+  if (isNaN(n)) return
+  if (type === 'year') zwFlowState.selectedYear = n
+  if (type === 'month') zwFlowState.selectedMonth = n
+  refreshZiweiFlow()
+}
+
+async function getZiweiFlowTargetDate(year, lunarMonth) {
+  try {
+    const res = await uni.request({
+      url: '/api/bazi/lunar-to-solar',
+      method: 'POST',
+      data: { year, month: lunarMonth, day: 1, isLeap: false }
+    })
+    const data = res.data || {}
+    if (data.success && data.year && data.month && data.day) {
+      return data.year + '-' + pad2(data.month) + '-' + pad2(data.day)
+    }
+  } catch (e) {}
+  return year + '-' + pad2(lunarMonth) + '-01'
+}
+
+async function refreshZiweiFlow() {
+  if (!zwPanData.value || zwFlowState.loading) return
+  zwFlowState.loading = true
+  zwFlowState.error = ''
+  rerenderZiweiPan()
+  try {
+    const longitude = parseFloat(zwForm.longitude)
+    const targetDate = await getZiweiFlowTargetDate(zwFlowState.selectedYear, zwFlowState.selectedMonth)
+    const res = await uni.request({
+      url: '/api/ziwei/horoscope',
+      method: 'POST',
+      data: {
+        year: parseInt(zwForm.year),
+        month: parseInt(zwForm.month),
+        day: parseInt(zwForm.day),
+        hour: parseInt(zwForm.hour),
+        minute: parseInt(zwForm.minute) || 0,
+        gender: ['男', '女'][zwForm.genderIdx],
+        date_type: ['solar', 'lunar'][zwForm.dateTypeIdx],
+        longitude: isNaN(longitude) ? undefined : longitude,
+        target_date: targetDate,
+        question: zwForm.chartName || ''
+      }
+    })
+    const data = res.data || {}
+    if (data.error || (data.code && data.code !== 0)) {
+      zwFlowState.error = data.error || data.msg || '流月切换失败'
+      return
+    }
+    const flowData = data.data || data
+    zwFlowState.horoscope = flowData.horoscope || null
+    if (flowData.target_date) zwPanData.value.target_date = flowData.target_date
+  } catch (e) {
+    zwFlowState.error = (e && (e.errMsg || e.message)) || '流月切换失败'
+  } finally {
+    zwFlowState.loading = false
+    rerenderZiweiPan()
   }
 }
 
@@ -845,12 +953,55 @@ function zwStarHtml(star, cls) {
   return '<span class="' + cls + '">' + zwEsc(star.name) + brightness + mutagen + '</span>'
 }
 
-function zwPalaceCell(p) {
+const zwGan = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸']
+const zwZhi = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥']
+const zwLunarMonthNames = ['正月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '冬月', '腊月']
+const zwMonthBranches = ['寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥', '子', '丑']
+
+function zwGanzhiYear(year) {
+  const offset = year - 1984
+  return zwGan[((offset % 10) + 10) % 10] + zwZhi[((offset % 12) + 12) % 12]
+}
+
+function zwGanzhiMonth(year, month) {
+  const yearStem = zwGanzhiYear(year).charAt(0)
+  const startMap = { '甲': 2, '己': 2, '乙': 4, '庚': 4, '丙': 6, '辛': 6, '丁': 8, '壬': 8, '戊': 0, '癸': 0 }
+  const stemIdx = ((startMap[yearStem] || 0) + month - 1) % 10
+  return zwGan[stemIdx] + zwMonthBranches[month - 1]
+}
+
+function zwBirthYearFromPan(d) {
+  const solar = (d.basic_info || {}).solar_date || ''
+  const m = String(solar).match(/^(\d{4})/)
+  return m ? parseInt(m[1]) : parseInt(zwForm.year)
+}
+
+function zwPalaceByAge(palaces, age) {
+  return (palaces || []).find(function(p) { return (p.ages || []).includes(age) }) || null
+}
+
+function zwFlowPeriods() {
+  return (zwFlowState.horoscope || {})
+}
+
+function zwFlowPeriodBadge(period, label, cls) {
+  if (!period) return ''
+  return '<span class="zw-flow-badge ' + cls + '">' + zwEsc(label) + (period.ganzhi ? ' ' + zwEsc(period.ganzhi) : '') + '</span>'
+}
+
+function zwPalaceCell(p, periods) {
   if (!p) return '<div class="zw-palace-cell"></div>'
   let cls = 'zw-palace-cell'
   let badge = ''
   if (p.is_body_palace) { cls += ' is-body'; badge += '<span class="zw-palace-badge zw-badge-body">身宫</span>' }
   if (p.name === '命宫') { cls += ' is-soul'; badge += '<span class="zw-palace-badge zw-badge-soul">命宫</span>' }
+  const yearly = periods && periods.yearly
+  const monthly = periods && periods.monthly
+  const decadal = periods && periods.decadal
+  const flowBadges = []
+  if (decadal && decadal.index === p.index) { cls += ' is-flow-decadal'; flowBadges.push(zwFlowPeriodBadge(decadal, '大限', 'decadal')) }
+  if (yearly && yearly.index === p.index) { cls += ' is-flow-year'; flowBadges.push(zwFlowPeriodBadge(yearly, '流年', 'year')) }
+  if (monthly && monthly.index === p.index) { cls += ' is-flow-month'; flowBadges.push(zwFlowPeriodBadge(monthly, '流月', 'month')) }
   const majorHtml = (p.major_stars || []).map(function(s) { return zwStarHtml(s, 'zw-star-major') }).join('')
   const minorHtml = (p.minor_stars || []).map(function(s) { return zwStarHtml(s, 'zw-star-minor') }).join('')
   const adjHtml = (p.adjective_stars || []).slice(0, 8).map(function(s) { return zwStarHtml(s, 'zw-star-adj') }).join('')
@@ -867,12 +1018,13 @@ function zwPalaceCell(p) {
     '<div class="zw-palace-stars zw-palace-stars-minor">' + minorHtml + '</div>' +
     '<div class="zw-palace-stars zw-palace-stars-adj">' + adjHtml + '</div>' +
     (support ? '<div class="zw-palace-support">' + support + '</div>' : '') +
+    (flowBadges.length ? '<div class="zw-palace-flow">' + flowBadges.join('') + '</div>' : '') +
     decHtml +
     (ages ? '<div class="zw-palace-ages">流年:' + zwEsc(ages) + '</div>' : '') +
     '</div>'
 }
 
-function zwCenterInfo(bi, cp, meta) {
+function zwCenterInfo(bi, cp, meta, periods) {
   const method = meta.chart_method || '三合盘'
   const modes = (meta.available_modes || ['三合', '四化']).map(function(m, idx) {
     return '<span class="zw-mode-chip ' + (idx === 0 ? 'active' : '') + '">' + zwEsc(m) + '</span>'
@@ -880,6 +1032,11 @@ function zwCenterInfo(bi, cp, meta) {
   const coming = (meta.coming_modes || ['飞星', '飞化']).map(function(m) {
     return '<span class="zw-mode-chip muted">' + zwEsc(m) + '</span>'
   }).join('')
+  const yearly = periods && periods.yearly
+  const monthly = periods && periods.monthly
+  const selectedMonthName = zwLunarMonthNames[zwFlowState.selectedMonth - 1] || (zwFlowState.selectedMonth + '月')
+  const flowLine = '<div class="zw-center-flow"><span>流年 ' + zwEsc(zwFlowState.selectedYear) + ' ' + zwEsc((yearly && yearly.ganzhi) || zwGanzhiYear(zwFlowState.selectedYear)) + '</span><span>流月 ' + zwEsc(selectedMonthName) + ' ' + zwEsc((monthly && monthly.ganzhi) || zwGanzhiMonth(zwFlowState.selectedYear, zwFlowState.selectedMonth)) + '</span></div>'
+  const flowStatus = zwFlowState.loading ? '<div class="zw-center-loading">切换流月中...</div>' : (zwFlowState.error ? '<div class="zw-center-error">' + zwEsc(zwFlowState.error) + '</div>' : '')
   return '<div class="zw-center-info">' +
     '<div class="zw-center-kicker">' + zwEsc(method) + '</div>' +
     '<div class="zw-center-title">紫微斗数命盘</div>' +
@@ -889,6 +1046,8 @@ function zwCenterInfo(bi, cp, meta) {
     '<div class="zw-center-line"><span>农历</span><strong>' + zwEsc(bi.lunar_date || '') + '</strong></div>' +
     '<div class="zw-center-line"><span>节气四柱</span><strong>' + zwEsc(bi.chinese_date || '') + '</strong></div>' +
     '<div class="zw-center-two"><span>命主 ' + zwEsc(cp.soul_star || '') + '</span><span>身主 ' + zwEsc(cp.body_star || '') + '</span></div>' +
+    flowLine +
+    flowStatus +
     '<div class="zw-center-modes">' + modes + coming + '</div>' +
     '</div>'
 }
@@ -901,12 +1060,35 @@ function zwTimeline(title, palaces) {
   return '<div class="zw-flow-row"><div class="zw-flow-title">' + zwEsc(title) + '</div><div class="zw-flow-scroll">' + items + '</div></div>'
 }
 
+function zwYearTimeline(palaces, d) {
+  const birthYear = zwBirthYearFromPan(d)
+  const startYear = new Date().getFullYear()
+  const years = Array.from({ length: 10 }, function(_, i) { return startYear + i })
+  const items = years.map(function(year) {
+    const age = year - birthYear + 1
+    const p = zwPalaceByAge(palaces, age)
+    const active = year === zwFlowState.selectedYear ? ' active' : ''
+    return '<span class="zw-flow-item zw-flow-clickable compact' + active + '" data-flow-year="' + year + '"><b>' + year + '</b><em>' + zwEsc(zwGanzhiYear(year)) + '年</em><i>' + zwEsc(age + '岁 ' + (p ? p.name : '')) + '</i></span>'
+  }).join('')
+  return '<div class="zw-flow-row"><div class="zw-flow-title">流年</div><div class="zw-flow-scroll">' + items + '</div></div>'
+}
+
+function zwMonthTimeline() {
+  const items = zwLunarMonthNames.map(function(name, idx) {
+    const month = idx + 1
+    const active = month === zwFlowState.selectedMonth ? ' active' : ''
+    return '<span class="zw-flow-item zw-flow-clickable zw-flow-month' + active + '" data-flow-month="' + month + '"><b>' + zwEsc(name) + '</b><em>' + zwEsc(zwGanzhiMonth(zwFlowState.selectedYear, month)) + '</em></span>'
+  }).join('')
+  return '<div class="zw-flow-row"><div class="zw-flow-title">流月</div><div class="zw-flow-scroll">' + items + '</div></div>'
+}
+
 function renderZiweiPan(d) {
   let html = '<div class="zw-result-wrap">'
   const bi = d.basic_info || {}
   const cp = d.core_palace || {}
   const meta = d.display_meta || {}
   const req = d.request || {}
+  const periods = zwFlowPeriods()
   html += '<div class="zw-pro-header"><div><div class="zw-pro-title">' + zwEsc(req.question || meta.chart_name || '玄策专业盘') + '</div><div class="zw-pro-subtitle">' + zwEsc(meta.source_note || '基于本地算法排盘，结果供民俗文化参考。') + '</div></div><div class="zw-pro-pill">' + zwEsc(meta.time_rule || '按北京时间定时辰') + '</div></div>'
   html += '<div class="zw-basic-card zw-pro-basic"><div class="zw-basic-grid">'
   html += zwBasicItem('阳历', bi.solar_date)
@@ -923,25 +1105,24 @@ function renderZiweiPan(d) {
   const palaces = d.twelve_palaces || []
   html += '<div class="zw-orientation zw-orientation-top">正南方</div>'
   html += '<div class="zw-palace-grid zw-pro-grid">'
-  html += zwPalaceCell(palaces[4])
-  html += zwPalaceCell(palaces[3])
-  html += zwPalaceCell(palaces[5])
-  html += zwPalaceCell(palaces[6])
-  html += zwPalaceCell(palaces[2])
-  html += zwCenterInfo(bi, cp, meta)
-  html += zwPalaceCell(palaces[7])
-  html += zwPalaceCell(palaces[1])
-  html += zwPalaceCell(palaces[8])
-  html += zwPalaceCell(palaces[0])
-  html += zwPalaceCell(palaces[11])
-  html += zwPalaceCell(palaces[10])
-  html += zwPalaceCell(palaces[9])
+  html += zwPalaceCell(palaces[4], periods)
+  html += zwPalaceCell(palaces[3], periods)
+  html += zwPalaceCell(palaces[5], periods)
+  html += zwPalaceCell(palaces[6], periods)
+  html += zwPalaceCell(palaces[2], periods)
+  html += zwCenterInfo(bi, cp, meta, periods)
+  html += zwPalaceCell(palaces[7], periods)
+  html += zwPalaceCell(palaces[1], periods)
+  html += zwPalaceCell(palaces[8], periods)
+  html += zwPalaceCell(palaces[0], periods)
+  html += zwPalaceCell(palaces[11], periods)
+  html += zwPalaceCell(palaces[10], periods)
+  html += zwPalaceCell(palaces[9], periods)
   html += '</div>'
   html += '<div class="zw-orientation zw-orientation-bottom">正北方</div>'
   html += zwTimeline('大限', palaces)
-  html += '<div class="zw-flow-row"><div class="zw-flow-title">流年</div><div class="zw-flow-scroll">' + palaces.map(function(p) {
-    return '<span class="zw-flow-item compact"><b>' + zwEsc((p.ages || []).slice(0, 3).join(',')) + '</b><i>' + zwEsc(p.name || '') + '</i></span>'
-  }).join('') + '</div></div>'
+  html += zwYearTimeline(palaces, d)
+  html += zwMonthTimeline()
   html += '<div class="privacy-note" style="margin-top:16px;">⚠️ 以上内容仅为民俗文化与传统命理科普参考，不构成任何决策建议</div>'
   html += '</div>'
   return html
@@ -1074,10 +1255,19 @@ onMounted(function() {
   uni.$on('xc-restore', _checkZwRestore)
   _checkZwRestore()
   window._xc_restoreZiwei = _checkZwRestore
+  window.__xuanZiweiFlowClick = selectZiweiFlow
+  document.addEventListener('click', handleZiweiDocumentClick)
   setInterval(function() {
     var rd = window.__xc_restoreData
     if (rd && rd.type === 'ziwei') _checkZwRestore()
   }, 500)
+})
+
+onUnmounted(function() {
+  document.removeEventListener('click', handleZiweiDocumentClick)
+  if (window.__xuanZiweiFlowClick === selectZiweiFlow) {
+    delete window.__xuanZiweiFlowClick
+  }
 })
 </script>
 
@@ -1150,6 +1340,8 @@ onMounted(function() {
 .zw-palace-cell:hover { border-color: var(--accent); box-shadow: 0 0 20px rgba(212,168,71,0.08); }
 .zw-palace-cell.is-soul { border-color: var(--accent); box-shadow: 0 0 16px rgba(212,168,71,0.12); }
 .zw-palace-cell.is-body { border-color: var(--danger); }
+.zw-palace-cell.is-flow-year { border-color: rgba(212,168,71,0.62); background: rgba(212,168,71,0.06); }
+.zw-palace-cell.is-flow-month { box-shadow: inset 0 0 0 1px rgba(45,156,219,0.55), 0 0 16px rgba(45,156,219,0.08); }
 .zw-palace-header { display: flex; justify-content: space-between; align-items: center; gap: 4px; margin-bottom: 4px; padding-right: 28px; }
 .zw-palace-name { font-size: 0.86rem; font-weight: 800; color: #d85f67; white-space: nowrap; }
 .zw-palace-ganzhi { font-size: 0.72rem; color: var(--text-3); white-space: nowrap; }
@@ -1167,6 +1359,11 @@ onMounted(function() {
 .zw-mutagen-ke { background: rgba(52,152,219,0.12); color: #3498db; }
 .zw-mutagen-ji { background: rgba(142,68,173,0.12); color: #8e44ad; }
 .zw-palace-support { margin-top: 4px; color: var(--text-4); font-size: 0.61rem; line-height: 1.35; }
+.zw-palace-flow { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.zw-flow-badge { display: inline-flex; align-items: center; border-radius: 4px; padding: 1px 4px; font-size: 0.56rem; font-weight: 800; line-height: 1.25; }
+.zw-flow-badge.decadal { background: rgba(132,84,190,0.14); color: #a48cff; }
+.zw-flow-badge.year { background: rgba(212,168,71,0.14); color: var(--accent); }
+.zw-flow-badge.month { background: rgba(45,156,219,0.14); color: #2d9cdb; }
 .zw-palace-decadal { margin-top: 5px; font-size: 0.65rem; color: var(--text-3); border-top: 1px solid var(--border); padding-top: 4px; line-height: 1.3; }
 .zw-palace-decadal span { color: var(--accent); margin-right: 4px; font-weight: 700; }
 .zw-palace-ages { margin-top: 2px; color: var(--text-4); font-size: 0.58rem; line-height: 1.25; }
@@ -1177,6 +1374,11 @@ onMounted(function() {
 .zw-center-line { display: grid; grid-template-columns: 64px minmax(0,1fr); gap: 6px; align-items: baseline; text-align: left; margin: 2px 0; font-size: 0.72rem; color: var(--text-4); }
 .zw-center-line strong { color: var(--text-2); font-size: 0.76rem; font-weight: 700; word-break: break-word; }
 .zw-center-two { display: flex; justify-content: center; gap: 8px; margin: 8px 0 6px; color: var(--text-2); font-size: 0.75rem; font-weight: 700; }
+.zw-center-flow { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 5px 0 6px; }
+.zw-center-flow span { padding: 4px 5px; border-radius: 6px; background: rgba(255,255,255,0.055); border: 1px solid var(--border); color: var(--text-2); font-size: 0.66rem; font-weight: 800; }
+.zw-center-loading, .zw-center-error { margin: 2px auto 4px; font-size: 0.62rem; }
+.zw-center-loading { color: #2d9cdb; }
+.zw-center-error { color: var(--danger); }
 .zw-center-modes { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; margin-top: 4px; }
 .zw-mode-chip { padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,0.06); color: var(--text-3); font-size: 0.65rem; border: 1px solid var(--border); }
 .zw-mode-chip.active { background: rgba(108,92,231,0.18); border-color: rgba(108,92,231,0.32); color: #a48cff; font-weight: 800; }
@@ -1185,6 +1387,10 @@ onMounted(function() {
 .zw-flow-title { display: flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(108,92,231,0.16); color: #a48cff; font-weight: 800; font-size: 0.78rem; }
 .zw-flow-scroll { display: flex; overflow-x: auto; gap: 4px; padding-bottom: 2px; }
 .zw-flow-item { flex: 0 0 76px; min-height: 46px; border: 1px solid var(--border); border-radius: 8px; background: rgba(255,255,255,0.035); padding: 5px 6px; text-align: center; box-sizing: border-box; }
+.zw-flow-clickable { cursor: pointer; transition: border-color 0.15s, background 0.15s, transform 0.15s; }
+.zw-flow-clickable:hover { border-color: rgba(212,168,71,0.55); transform: translateY(-1px); }
+.zw-flow-item.active { border-color: var(--accent); background: rgba(212,168,71,0.13); box-shadow: 0 0 0 1px rgba(212,168,71,0.08); }
+.zw-flow-month.active { border-color: #2d9cdb; background: rgba(45,156,219,0.13); }
 .zw-flow-item b, .zw-flow-item em, .zw-flow-item i { display: block; font-style: normal; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .zw-flow-item b { color: var(--text-1); font-size: 0.72rem; }
 .zw-flow-item em { color: #7f6df2; font-size: 0.72rem; font-weight: 800; }
@@ -1217,6 +1423,8 @@ onMounted(function() {
 .zw-result :deep(.zw-palace-cell:hover) { border-color: var(--accent); box-shadow: 0 0 20px rgba(212,168,71,0.08); }
 .zw-result :deep(.zw-palace-cell.is-soul) { border-color: var(--accent); box-shadow: 0 0 16px rgba(212,168,71,0.12); }
 .zw-result :deep(.zw-palace-cell.is-body) { border-color: var(--danger); }
+.zw-result :deep(.zw-palace-cell.is-flow-year) { border-color: rgba(212,168,71,0.62); background: rgba(212,168,71,0.06); }
+.zw-result :deep(.zw-palace-cell.is-flow-month) { box-shadow: inset 0 0 0 1px rgba(45,156,219,0.55), 0 0 16px rgba(45,156,219,0.08); }
 .zw-result :deep(.zw-palace-header) { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .zw-result :deep(.zw-palace-name) { font-size: 0.875rem; font-weight: 700; color: var(--accent); }
 .zw-result :deep(.zw-palace-ganzhi) { font-size: 0.6875rem; color: var(--text-4); }
@@ -1271,6 +1479,11 @@ onMounted(function() {
 .zw-result :deep(.zw-pro-grid .zw-star-major em), .zw-result :deep(.zw-pro-grid .zw-star-minor em), .zw-result :deep(.zw-pro-grid .zw-star-adj em) { font-style: normal; color: var(--text-4); font-size: 0.6rem; margin-left: 1px; }
 .zw-result :deep(.zw-pro-grid .zw-mutagen) { display: inline-flex; min-width: 14px; height: 14px; align-items: center; justify-content: center; font-size: 0.58rem; padding: 0 3px; border-radius: 3px; margin-left: 1px; font-weight: 800; }
 .zw-result :deep(.zw-palace-support) { margin-top: 4px; color: var(--text-4); font-size: 0.61rem; line-height: 1.35; }
+.zw-result :deep(.zw-palace-flow) { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.zw-result :deep(.zw-flow-badge) { display: inline-flex; align-items: center; border-radius: 4px; padding: 1px 4px; font-size: 0.56rem; font-weight: 800; line-height: 1.25; }
+.zw-result :deep(.zw-flow-badge.decadal) { background: rgba(132,84,190,0.14); color: #a48cff; }
+.zw-result :deep(.zw-flow-badge.year) { background: rgba(212,168,71,0.14); color: var(--accent); }
+.zw-result :deep(.zw-flow-badge.month) { background: rgba(45,156,219,0.14); color: #2d9cdb; }
 .zw-result :deep(.zw-pro-grid .zw-palace-decadal) { margin-top: 5px; font-size: 0.65rem; color: var(--text-3); border-top: 1px solid var(--border); padding-top: 4px; line-height: 1.3; }
 .zw-result :deep(.zw-pro-grid .zw-palace-decadal span) { color: var(--accent); margin-right: 4px; font-weight: 700; }
 .zw-result :deep(.zw-palace-ages) { margin-top: 2px; color: var(--text-4); font-size: 0.58rem; line-height: 1.25; }
@@ -1281,6 +1494,11 @@ onMounted(function() {
 .zw-result :deep(.zw-center-line) { display: grid; grid-template-columns: 64px minmax(0,1fr); gap: 6px; align-items: baseline; text-align: left; margin: 2px 0; font-size: 0.72rem; color: var(--text-4); }
 .zw-result :deep(.zw-center-line strong) { color: var(--text-2); font-size: 0.76rem; font-weight: 700; word-break: break-word; }
 .zw-result :deep(.zw-center-two) { display: flex; justify-content: center; gap: 8px; margin: 8px 0 6px; color: var(--text-2); font-size: 0.75rem; font-weight: 700; }
+.zw-result :deep(.zw-center-flow) { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 5px 0 6px; }
+.zw-result :deep(.zw-center-flow span) { padding: 4px 5px; border-radius: 6px; background: rgba(255,255,255,0.055); border: 1px solid var(--border); color: var(--text-2); font-size: 0.66rem; font-weight: 800; }
+.zw-result :deep(.zw-center-loading), .zw-result :deep(.zw-center-error) { margin: 2px auto 4px; font-size: 0.62rem; }
+.zw-result :deep(.zw-center-loading) { color: #2d9cdb; }
+.zw-result :deep(.zw-center-error) { color: var(--danger); }
 .zw-result :deep(.zw-center-modes) { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; margin-top: 4px; }
 .zw-result :deep(.zw-mode-chip) { padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,0.06); color: var(--text-3); font-size: 0.65rem; border: 1px solid var(--border); }
 .zw-result :deep(.zw-mode-chip.active) { background: rgba(108,92,231,0.18); border-color: rgba(108,92,231,0.32); color: #a48cff; font-weight: 800; }
@@ -1289,6 +1507,10 @@ onMounted(function() {
 .zw-result :deep(.zw-flow-title) { display: flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(108,92,231,0.16); color: #a48cff; font-weight: 800; font-size: 0.78rem; }
 .zw-result :deep(.zw-flow-scroll) { display: flex; overflow-x: auto; gap: 4px; padding-bottom: 2px; }
 .zw-result :deep(.zw-flow-item) { flex: 0 0 76px; min-height: 46px; border: 1px solid var(--border); border-radius: 8px; background: rgba(255,255,255,0.035); padding: 5px 6px; text-align: center; box-sizing: border-box; }
+.zw-result :deep(.zw-flow-clickable) { cursor: pointer; transition: border-color 0.15s, background 0.15s, transform 0.15s; }
+.zw-result :deep(.zw-flow-clickable:hover) { border-color: rgba(212,168,71,0.55); transform: translateY(-1px); }
+.zw-result :deep(.zw-flow-item.active) { border-color: var(--accent); background: rgba(212,168,71,0.13); box-shadow: 0 0 0 1px rgba(212,168,71,0.08); }
+.zw-result :deep(.zw-flow-month.active) { border-color: #2d9cdb; background: rgba(45,156,219,0.13); }
 .zw-result :deep(.zw-flow-item b), .zw-result :deep(.zw-flow-item em), .zw-result :deep(.zw-flow-item i) { display: block; font-style: normal; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .zw-result :deep(.zw-flow-item b) { color: var(--text-1); font-size: 0.72rem; }
 .zw-result :deep(.zw-flow-item em) { color: #7f6df2; font-size: 0.72rem; font-weight: 800; }
@@ -1403,6 +1625,11 @@ onMounted(function() {
   .zw-result :deep(.zw-center-line) { grid-template-columns: 40px minmax(0,1fr); gap: 3px; font-size: 0.45rem; margin: 1px 0; }
   .zw-result :deep(.zw-center-line strong) { font-size: 0.47rem; }
   .zw-result :deep(.zw-center-two) { gap: 4px; margin: 4px 0 3px; font-size: 0.48rem; }
+  .zw-result :deep(.zw-center-flow) { gap: 3px; margin: 3px 0; }
+  .zw-result :deep(.zw-center-flow span) { font-size: 0.43rem; padding: 2px 3px; }
+  .zw-result :deep(.zw-center-loading), .zw-result :deep(.zw-center-error) { font-size: 0.42rem; margin: 1px auto 2px; }
+  .zw-result :deep(.zw-flow-badge) { font-size: 0.38rem; padding: 0 2px; }
+  .zw-result :deep(.zw-palace-flow) { gap: 2px; margin-top: 2px; }
   .zw-result :deep(.zw-mode-chip) { font-size: 0.45rem; padding: 2px 4px; }
   .zw-result :deep(.zw-flow-row) { grid-template-columns: 40px minmax(0,1fr); gap: 5px; }
   .zw-result :deep(.zw-flow-item) { flex-basis: 62px; min-height: 40px; padding: 4px; }

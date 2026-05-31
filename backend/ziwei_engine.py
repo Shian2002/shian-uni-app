@@ -140,18 +140,19 @@ class ZiweiEngine:
         ]
         return result
 
-    def horoscope(self, year, month, day, hour, minute=0, gender='男', date_type='solar', target_date=None, target_hour=-1, target_minute=0, **kwargs):
-        ti = _hour_to_time_index(hour, minute)
+    def horoscope(self, year, month, day, hour, minute=0, gender='男', date_type='solar', target_date=None, target_hour=-1, target_minute=0, longitude=None, **kwargs):
+        true_dt, _, _, _ = _calc_true_solar_display(year, month, day, hour, minute, longitude)
+        ti = _hour_to_time_index(true_dt.hour, true_dt.minute)
         g = '男' if gender in ('male','M','m','1','男') else '女'
         if date_type == 'lunar':
             astro = by_lunar(str(year) + '-' + str(month) + '-' + str(day), ti, g, fix_leap=True)
         else:
-            astro = by_solar(str(year) + '-' + str(month) + '-' + str(day), ti, g, fix_leap=True)
+            astro = by_solar(str(true_dt.year) + '-' + str(true_dt.month) + '-' + str(true_dt.day), ti, g, fix_leap=True)
         d = astro.model_dump()
         raw = astro.to_iztro_dict()
         h = astro.horoscope(target_date)
         hd = h.model_dump() if hasattr(h, 'model_dump') else {}
-        result = self.calculate(year, month, day, hour, minute, gender, date_type)
+        result = self.calculate(year, month, day, hour, minute, gender, date_type, longitude=longitude)
         result['target_date'] = target_date
         result['horoscope'] = self._normalize_horoscope(hd)
         return result

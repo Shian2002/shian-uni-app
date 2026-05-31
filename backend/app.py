@@ -4710,6 +4710,7 @@ def api_ziwei_horoscope():
             target_hour=int(data.get('target_hour', -1) or -1),
             target_minute=int(data.get('target_minute', 0) or 0),
             date_type=data.get('date_type', 'solar'),
+            longitude=data.get('longitude'),
         )
         result['request'] = {
             'type': 'ziwei_horoscope',
