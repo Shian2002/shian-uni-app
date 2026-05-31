@@ -170,13 +170,17 @@
           </view>
           <view class="table-list">
             <view class="table-row order-row table-head">
-              <text>订单</text><text>用户</text><text>套餐</text><text>金额</text><text>状态</text><text>操作</text>
+              <text>订单</text><text>用户</text><text>套餐</text><text>金额</text><text>时间</text><text>状态</text><text>操作</text>
             </view>
             <view class="table-row order-row" v-for="o in rechargeOrders" :key="o.id">
               <text>#{{ o.id }}</text>
               <text>{{ o.username }} (#{{ o.user_id }})</text>
               <text>{{ o.package_name }} · {{ o.points_amount }} 分</text>
               <text>¥{{ o.price }}</text>
+              <view class="time-cell">
+                <text>下单 {{ formatTime(o.created_at) }}</text>
+                <text>提交 {{ formatTime(o.verified_at) }}</text>
+              </view>
               <text>{{ orderStatusLabel(o.status) }}</text>
               <view class="row-actions">
                 <button class="mini-btn danger" v-if="o.status === 'pending'" @click="confirmOrder(o.id)">确认到账</button>
@@ -740,8 +744,8 @@ onMounted(async function() {
 }
 
 .table-row.order-row {
-  grid-template-columns: 0.5fr 1.4fr 1.4fr 0.8fr 0.8fr 1fr;
-  min-width: 860px;
+  grid-template-columns: 0.5fr 1.3fr 1.3fr 0.7fr 1.45fr 0.75fr 1fr;
+  min-width: 1040px;
 }
 
 .table-row.audit-row {
@@ -752,6 +756,13 @@ onMounted(async function() {
 .title-cell {
   color: var(--text-1);
   font-weight: 650;
+}
+
+.time-cell {
+  display: grid;
+  gap: 3px;
+  color: var(--text-2);
+  line-height: 1.35;
 }
 
 .empty-line {

@@ -9531,6 +9531,7 @@ def api_admin_recharge_orders():
             'payment_proof': o.payment_proof or '',
             'status': o.status,
             'created_at': o.created_at.isoformat() if o.created_at else None,
+            'verified_at': o.verified_at.isoformat() if o.verified_at else None,
             'paid_at': o.updated_at.isoformat() if o.status == 'paid' and o.updated_at else None,
         })
 
