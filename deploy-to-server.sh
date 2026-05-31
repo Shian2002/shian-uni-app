@@ -20,8 +20,14 @@ echo "============================================"
 echo "[1/4] 同步后端代码..."
 eval "$RSYNC_CMD" \
     "$LOCAL_DIR/backend/app.py" \
+    "$LOCAL_DIR/backend/bazi_engine.py" \
+    "$LOCAL_DIR/backend/comprehensive_ai.py" \
+    "$LOCAL_DIR/backend/deepseek_service.py" \
+    "$LOCAL_DIR/backend/extensions.py" \
     "$LOCAL_DIR/backend/models.py" \
     "$LOCAL_DIR/backend/requirements.txt" \
+    "$LOCAL_DIR/backend/tarot_engine.py" \
+    "$LOCAL_DIR/backend/ziwei_engine.py" \
     "$SERVER:/opt/xuan-cet/backend/"
 
 # 1b. 确保上传目录存在，使头像可被 Nginx 访问
