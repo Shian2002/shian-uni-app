@@ -9,6 +9,8 @@ SSH_KEY="$HOME/.ssh/deploy_key"
 SSH_CMD="ssh -i $SSH_KEY"
 RSYNC_CMD="rsync -avz --progress -e \"ssh -i $SSH_KEY\""
 LOCAL_DIR="$(dirname "$0")"
+LIVE_DB="/home/lighthouse/tianji/flask-source/backend/tianji.db"
+DATABASE_URL="sqlite:////home/lighthouse/tianji/flask-source/backend/tianji.db"
 
 echo "============================================"
 echo " 时安解忧屋 - 部署到服务器"
@@ -40,7 +42,7 @@ eval "$RSYNC_CMD" \
 
 # 4. 重启后端
 echo "[4/4] 重启后端..."
-$SSH_CMD "$SERVER" "cd /opt/xuan-cet/backend && if [ -f tianji.db ]; then cp tianji.db tianji.db.bak-deploy-\$(date +%Y%m%d-%H%M%S); else echo '[ERROR] 未找到 /opt/xuan-cet/backend/tianji.db，停止部署以避免创建空库'; exit 1; fi"
+$SSH_CMD "$SERVER" "if [ -f '$LIVE_DB' ]; then cp '$LIVE_DB' '$LIVE_DB.bak-deploy-'\$(date +%Y%m%d-%H%M%S); else echo '[ERROR] 未找到线上生产库 $LIVE_DB，停止部署以避免创建空库'; exit 1; fi"
 $SSH_CMD "$SERVER" "cd /opt/xuan-cet/backend && ./venv/bin/pip install -q -r requirements.txt"
 $SSH_CMD "$SERVER" "sudo tee /etc/systemd/system/xuan-cet-flask.service > /dev/null <<'EOF'
 [Unit]
@@ -52,7 +54,7 @@ Type=simple
 User=$SERVER_USER
 WorkingDirectory=/opt/xuan-cet/backend
 Environment=FLASK_ENV=production
-Environment=DATABASE_URL=sqlite:////opt/xuan-cet/backend/tianji.db
+Environment=DATABASE_URL=$DATABASE_URL
 Environment=UPLOAD_FOLDER=/var/www/xuan-cet/static/uploads
 ExecStart=/opt/xuan-cet/backend/venv/bin/gunicorn --workers 2 --threads 4 --timeout 180 --bind 127.0.0.1:5199 app:app
 Restart=always
@@ -63,7 +65,7 @@ StandardError=journal
 [Install]
 WantedBy=multi-user.target
 EOF"
-$SSH_CMD "$SERVER" "sudo systemctl daemon-reload && sudo systemctl enable xuan-cet-flask >/dev/null && sudo systemctl restart xuan-cet-flask"
+$SSH_CMD "$SERVER" "sudo rm -f /etc/systemd/system/xuan-cet-flask.service.d/override.conf; sudo rmdir /etc/systemd/system/xuan-cet-flask.service.d 2>/dev/null || true; sudo systemctl daemon-reload && sudo systemctl enable xuan-cet-flask >/dev/null && sudo systemctl restart xuan-cet-flask"
 sleep 2
 echo "  等待服务启动..."
 $SSH_CMD "$SERVER" "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5199/ 2>/dev/null" | grep -q 200 && echo "  后端 200 OK" || echo "  ⚠️ 后端可能未正常启动，检查: sudo journalctl -u xuan-cet-flask -n 80"

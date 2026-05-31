@@ -9,7 +9,8 @@ H5_DIR="/var/www/xuan-cet"    # H5 静态文件根目录
 FLASK_DIR="/opt/xuan-cet/backend"  # Flask 后端目录
 FLASK_PORT=5199               # Flask 端口
 FLASK_USER="lighthouse"       # 运行 Flask 的系统用户
-DATABASE_URL="sqlite:////opt/xuan-cet/backend/tianji.db"  # 线上生产库，部署脚本禁止覆盖
+LIVE_DB="/home/lighthouse/tianji/flask-source/backend/tianji.db"
+DATABASE_URL="sqlite:////home/lighthouse/tianji/flask-source/backend/tianji.db"  # 线上生产库，部署脚本禁止覆盖
 NGINX_CONF="/etc/nginx/sites-available/xuan-cet"
 NGINX_ENABLED="/etc/nginx/sites-enabled/xuan-cet"
 SERVER_IP="119.29.128.18"
@@ -56,13 +57,13 @@ sudo mkdir -p "$H5_DIR/static/uploads"
 sudo chown -R $FLASK_USER:$FLASK_USER "$H5_DIR/static/uploads"
 
 # 后端启动会执行 create_all/轻量迁移；重启前先备份生产库，便于回滚。
-if [ -f "$FLASK_DIR/tianji.db" ]; then
-  DB_BACKUP="$FLASK_DIR/tianji.db.bak-deploy-$(date +%Y%m%d-%H%M%S)"
-  sudo cp "$FLASK_DIR/tianji.db" "$DB_BACKUP"
+if [ -f "$LIVE_DB" ]; then
+  DB_BACKUP="$LIVE_DB.bak-deploy-$(date +%Y%m%d-%H%M%S)"
+  sudo cp "$LIVE_DB" "$DB_BACKUP"
   sudo chown $FLASK_USER:$FLASK_USER "$DB_BACKUP"
   echo "  已备份生产数据库: $DB_BACKUP"
 else
-  echo "  [ERROR] 未找到 $FLASK_DIR/tianji.db；为避免静默创建空库，部署已停止。"
+  echo "  [ERROR] 未找到 $LIVE_DB；为避免静默创建空库，部署已停止。"
   exit 1
 fi
 
@@ -95,6 +96,8 @@ WantedBy=multi-user.target
 EOF
 
 # 启动 Flask
+sudo rm -f /etc/systemd/system/xuan-cet-flask.service.d/override.conf
+sudo rmdir /etc/systemd/system/xuan-cet-flask.service.d 2>/dev/null || true
 sudo systemctl daemon-reload
 sudo systemctl enable xuan-cet-flask
 sudo systemctl restart xuan-cet-flask
