@@ -262,6 +262,18 @@ function toggleSubmenu(key) { submenuOpen[key] = !submenuOpen[key] }
 // ── 登录状态 ──
 const isLoggedIn = ref(!!uni.getStorageSync('xc_token'))
 window.addEventListener('xc-session-expired', function() { isLoggedIn.value = false })
+window.addEventListener('xc-auth-changed', function(e) {
+  const loggedIn = !!(e && e.detail && e.detail.loggedIn)
+  isLoggedIn.value = loggedIn
+  if (loggedIn) {
+    loadComprehensiveOptions()
+    loadProfiles()
+  } else {
+    currentPoints.value = 0
+    profiles.value = []
+    selectedProfiles.value = []
+  }
+})
 
 // ── 首页综合 AI ──
 const comprehensiveQuestion = ref('')

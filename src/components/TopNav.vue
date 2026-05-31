@@ -30,7 +30,7 @@
         <view class="theme-toggle-nav" id="themeToggleBtn" data-action="auth" @click="onToggleTheme">
           <text id="themeToggleIcon">{{ theme === 'dark' ? '🌙' : '☀️' }}</text>
         </view>
-        <view class="nav-auth-btns" v-if="!isLoggedIn">
+        <view class="nav-auth-btns" v-if="!localLoggedIn">
           <view class="btn btn-outline btn-sm" onclick="window._openLoginModal()">登录</view>
         </view>
         <view class="nav-avatar-wrap" v-else>
@@ -121,6 +121,25 @@ const props = defineProps({
 
 const emit = defineEmits(['toggle-theme', 'show-login'])
 const DEFAULT_AVATAR_URL = '/static/images/logo.webp?v=2'
+const localLoggedIn = ref(props.isLoggedIn || !!uni.getStorageSync('xc_token'))
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('xc-auth-changed', function(e) {
+    const loggedIn = !!(e && e.detail && e.detail.loggedIn)
+    localLoggedIn.value = loggedIn
+    if (loggedIn) {
+      _avatarInstanceLoaded = false
+      pointsLoaded = false
+      loadAvatar()
+      loadPointsSummary()
+    } else {
+      avatarUrl.value = ''
+      avatarLetter.value = ''
+      _avatarInstanceLoaded = false
+      pointsLoaded = false
+    }
+  })
+}
 
 function applySidebarAvatar(src, shouldCache) {
   var sideImg = document.getElementById('sidebarUserAvatar')
@@ -290,7 +309,7 @@ onMounted(function() {
         uni.setStorageSync('xc_token', 'session'); uni.setStorageSync('xc_user', d.username || u); uni.setStorageSync('xc_has_password', '1')
         window._openLoginModal_Close()
         uni.showToast({ title: '注册成功', icon: 'success' })
-        setTimeout(function() { try { window.location.reload() } catch(_) {} }, 800)
+        setTimeout(function() { applyLoginSuccess() }, 120)
       }).catch(function() { if (e) e.textContent = '网络错误' })
     }
     window._xc_doLogin = function() {
@@ -325,7 +344,7 @@ onMounted(function() {
         uni.setStorageSync('xc_has_password', d.has_password !== false ? '1' : '0')
         window._openLoginModal_Close()
         uni.showToast({ title: '登录成功', icon: 'success' })
-        try { window.location.reload() } catch(_) {}
+        applyLoginSuccess()
       }).catch(function() { if (e) e.textContent = '网络错误' })
     }
     // 通用验证码发送（手机/邮箱共用）
@@ -1012,7 +1031,7 @@ function onAvatarError() {
   }
 }
 function loadAvatar() {
-  if (!props.isLoggedIn) return
+  if (!localLoggedIn.value) return
   var cachedUser = uni.getStorageSync('xc_user')
   var parsed = null
   try { parsed = typeof cachedUser === 'string' ? JSON.parse(cachedUser) : cachedUser } catch(_) { parsed = null }
@@ -1042,7 +1061,7 @@ function loadAvatar() {
 }
 var pointsLoaded = false
 function loadPointsSummary() {
-  if (!props.isLoggedIn || pointsLoaded) return
+  if (!localLoggedIn.value || pointsLoaded) return
   pointsLoaded = true
   uni.request({ url: '/api/membership', method: 'GET' }).then(function(res) {
     var d = res.data
@@ -1053,6 +1072,28 @@ function loadPointsSummary() {
     }
   }).catch(function() {})
 }
+
+function applyLoginSuccess() {
+  localLoggedIn.value = true
+  _avatarInstanceLoaded = false
+  pointsLoaded = false
+  loadAvatar()
+  loadPointsSummary()
+  try { _loadSidebarUserPanel() } catch(_) {}
+  try { window.dispatchEvent(new CustomEvent('xc-auth-changed', { detail: { loggedIn: true } })) } catch(_) {}
+  try { uni.$emit('xc-auth-changed', { loggedIn: true }) } catch(_) {}
+}
+
+function applyLogoutState() {
+  localLoggedIn.value = false
+  avatarUrl.value = ''
+  avatarLetter.value = ''
+  _avatarInstanceLoaded = false
+  pointsLoaded = false
+  try { window.dispatchEvent(new CustomEvent('xc-auth-changed', { detail: { loggedIn: false } })) } catch(_) {}
+  try { uni.$emit('xc-auth-changed', { loggedIn: false }) } catch(_) {}
+}
+
 // 监听积分更新事件（签到/消费后实时刷新）
 if (!window.__xcPointsListener) {
   window.__xcPointsListener = true
@@ -1067,10 +1108,10 @@ if (!window.__xcPointsListener) {
 function doLogout() {
   uni.request({ url: '/api/logout', method: 'POST' }).then(function() {
     uni.removeStorageSync('xc_token'); uni.removeStorageSync('xc_user')
-    window.location.reload()
+    applyLogoutState()
   }).catch(function() {
     uni.removeStorageSync('xc_token'); uni.removeStorageSync('xc_user')
-    window.location.reload()
+    applyLogoutState()
   })
 }
 function closeLoginModal() { try { document.querySelectorAll('#topnavLoginModal').forEach(function(el) { el.classList.remove('open') }) } catch(_) {} }
@@ -1086,7 +1127,7 @@ async function doLogin() {
       var d = res.data
       if (d.error) { if (e) e.textContent = d.error; return }
       uni.setStorageSync('xc_token', 'session'); uni.setStorageSync('xc_user', d.username || u); uni.setStorageSync('xc_has_password', d.has_password !== false ? '1' : '0')
-      closeLoginModal(); window.location.reload()
+      closeLoginModal(); applyLoginSuccess()
     } catch (_) { if (e) e.textContent = '网络错误' }
   } else if (tab === 'phone') {
     var phoneEl = document.getElementById('tnLoginPhone'); var codeEl = document.getElementById('tnLoginPhoneCode')
@@ -1097,7 +1138,7 @@ async function doLogin() {
       var d = res.data
       if (d.error) { if (e) e.textContent = d.error; return }
       uni.setStorageSync('xc_token', 'session'); uni.setStorageSync('xc_user', d.username || phone); uni.setStorageSync('xc_has_password', d.has_password !== false ? '1' : '0')
-      closeLoginModal(); window.location.reload()
+      closeLoginModal(); applyLoginSuccess()
     } catch (_) { if (e) e.textContent = '网络错误' }
   } else if (tab === 'email') {
     var emailEl = document.getElementById('tnLoginEmail'); var codeEl2 = document.getElementById('tnLoginEmailCode')
@@ -1108,7 +1149,7 @@ async function doLogin() {
       var d = res.data
       if (d.error) { if (e) e.textContent = d.error; return }
       uni.setStorageSync('xc_token', 'session'); uni.setStorageSync('xc_user', d.username || email); uni.setStorageSync('xc_has_password', d.has_password !== false ? '1' : '0')
-      closeLoginModal(); window.location.reload()
+      closeLoginModal(); applyLoginSuccess()
     } catch (_) { if (e) e.textContent = '网络错误' }
   }
 }
@@ -1725,10 +1766,10 @@ onMounted(() => {
     window._xc_doLogout = function() {
       uni.request({ url: '/api/logout', method: 'POST' }).then(function() {
         uni.removeStorageSync('xc_token'); uni.removeStorageSync('xc_user')
-        window.location.reload()
+        applyLogoutState()
       }).catch(function() {
         uni.removeStorageSync('xc_token'); uni.removeStorageSync('xc_user')
-        window.location.reload()
+        applyLogoutState()
       })
     }
   }
