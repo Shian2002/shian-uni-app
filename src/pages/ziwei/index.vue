@@ -998,6 +998,11 @@ function zwPalaceByAge(palaces, age) {
   return (palaces || []).find(function(p) { return (p.ages || []).includes(age) }) || null
 }
 
+function zwSelectedNominalAge(d) {
+  const birthYear = zwBirthYearFromPan(d || zwPanData.value || {})
+  return zwFlowState.selectedYear - birthYear + 1
+}
+
 function zwDecadeStartForYear(palaces, d, year) {
   const birthYear = zwBirthYearFromPan(d || zwPanData.value || {})
   const age = year - birthYear + 1
@@ -1011,6 +1016,16 @@ function zwDecadeStartForYear(palaces, d, year) {
 
 function zwFlowPeriods(palaces) {
   const periods = Object.assign({}, zwFlowState.horoscope || {})
+  const nominalAge = zwSelectedNominalAge(zwPanData.value || {})
+  const agePalace = zwPalaceByAge(palaces, nominalAge)
+  if (agePalace) {
+    periods.age = {
+      name: '小限',
+      index: agePalace.index,
+      nominal_age: nominalAge,
+      palace_name: agePalace.name
+    }
+  }
   const selectedAge = zwFlowState.selectedDecadeAge
   if (!selectedAge) return periods
   const palace = (palaces || []).find(function(p) {
@@ -1031,7 +1046,8 @@ function zwFlowPeriods(palaces) {
 
 function zwFlowPeriodBadge(period, label, cls) {
   if (!period) return ''
-  return '<span class="zw-flow-badge ' + cls + '">' + zwEsc(label) + (period.ganzhi ? ' ' + zwEsc(period.ganzhi) : '') + '</span>'
+  const suffix = period.ganzhi ? period.ganzhi : (period.nominal_age ? (period.nominal_age + '岁') : '')
+  return '<span class="zw-flow-badge ' + cls + '">' + zwEsc(label) + (suffix ? ' ' + zwEsc(suffix) : '') + '</span>'
 }
 
 function zwPalaceCell(p, periods) {
@@ -1043,8 +1059,10 @@ function zwPalaceCell(p, periods) {
   const yearly = periods && periods.yearly
   const monthly = periods && periods.monthly
   const decadal = periods && periods.decadal
+  const age = periods && periods.age
   const flowBadges = []
   if (decadal && decadal.index === p.index) { cls += ' is-flow-decadal'; flowBadges.push(zwFlowPeriodBadge(decadal, '大限', 'decadal')) }
+  if (age && age.index === p.index) { cls += ' is-flow-age'; flowBadges.push(zwFlowPeriodBadge(age, '小限', 'age')) }
   if (yearly && yearly.index === p.index) { cls += ' is-flow-year'; flowBadges.push(zwFlowPeriodBadge(yearly, '流年', 'year')) }
   if (monthly && monthly.index === p.index) { cls += ' is-flow-month'; flowBadges.push(zwFlowPeriodBadge(monthly, '流月', 'month')) }
   const majorHtml = (p.major_stars || []).map(function(s) { return zwStarHtml(s, 'zw-star-major') }).join('')
@@ -1079,8 +1097,10 @@ function zwCenterInfo(bi, cp, meta, periods) {
   }).join('')
   const yearly = periods && periods.yearly
   const monthly = periods && periods.monthly
+  const age = periods && periods.age
   const selectedMonthName = zwLunarMonthNames[zwFlowState.selectedMonth - 1] || (zwFlowState.selectedMonth + '月')
-  const flowLine = '<div class="zw-center-flow"><span>流年 ' + zwEsc(zwFlowState.selectedYear) + ' ' + zwEsc((yearly && yearly.ganzhi) || zwGanzhiYear(zwFlowState.selectedYear)) + '</span><span>流月 ' + zwEsc(selectedMonthName) + ' ' + zwEsc((monthly && monthly.ganzhi) || zwGanzhiMonth(zwFlowState.selectedYear, zwFlowState.selectedMonth)) + '</span></div>'
+  const ageText = age ? ('小限 ' + zwEsc(age.nominal_age) + '岁 ' + zwEsc(age.palace_name || '')) : ('小限 ' + zwEsc(zwSelectedNominalAge(zwPanData.value || {})) + '岁')
+  const flowLine = '<div class="zw-center-flow"><span>流年 ' + zwEsc(zwFlowState.selectedYear) + ' ' + zwEsc((yearly && yearly.ganzhi) || zwGanzhiYear(zwFlowState.selectedYear)) + '</span><span>' + ageText + '</span><span>流月 ' + zwEsc(selectedMonthName) + ' ' + zwEsc((monthly && monthly.ganzhi) || zwGanzhiMonth(zwFlowState.selectedYear, zwFlowState.selectedMonth)) + '</span></div>'
   const flowStatus = zwFlowState.error ? '<div class="zw-center-error">' + zwEsc(zwFlowState.error) + '</div>' : ''
   return '<div class="zw-center-info">' +
     '<div class="zw-center-kicker">' + zwEsc(method) + '</div>' +
@@ -1121,6 +1141,20 @@ function zwYearTimeline(palaces, d) {
     return '<span class="zw-flow-item zw-flow-clickable compact' + active + '" data-flow-year="' + year + '"><b>' + year + '</b><em>' + zwEsc(zwGanzhiYear(year)) + '年</em><i>' + zwEsc(age + '岁 ' + (p ? p.name : '')) + '</i></span>'
   }).join('')
   return '<div class="zw-flow-row"><div class="zw-flow-title">流年</div><div class="zw-flow-scroll">' + items + '</div></div>'
+}
+
+function zwAgeTimeline(palaces, d) {
+  const birthYear = zwBirthYearFromPan(d)
+  const selectedAge = zwFlowState.selectedDecadeAge || zwDecadeStartForYear(palaces, d, zwFlowState.selectedYear)
+  const startAge = selectedAge || Math.max(1, zwSelectedNominalAge(d) - 4)
+  const ages = Array.from({ length: 10 }, function(_, i) { return startAge + i })
+  const items = ages.map(function(age) {
+    const year = birthYear + age - 1
+    const p = zwPalaceByAge(palaces, age)
+    const active = year === zwFlowState.selectedYear ? ' active' : ''
+    return '<span class="zw-flow-item zw-flow-clickable zw-flow-age compact' + active + '" data-flow-year="' + year + '"><b>' + zwEsc(age) + '岁</b><em>' + zwEsc(year) + '</em><i>' + zwEsc(p ? p.name : '') + '</i></span>'
+  }).join('')
+  return '<div class="zw-flow-row"><div class="zw-flow-title">小限</div><div class="zw-flow-scroll">' + items + '</div></div>'
 }
 
 function zwMonthTimeline() {
@@ -1172,6 +1206,7 @@ function renderZiweiPan(d) {
   html += '<div class="zw-orientation zw-orientation-bottom">正北方</div>'
   html += zwTimeline('大限', palaces, periods)
   html += zwYearTimeline(palaces, d)
+  html += zwAgeTimeline(palaces, d)
   html += zwMonthTimeline()
   html += '<div class="privacy-note" style="margin-top:16px;">⚠️ 以上内容仅为民俗文化与传统命理科普参考，不构成任何决策建议</div>'
   html += '</div>'
@@ -1390,6 +1425,7 @@ onUnmounted(function() {
 .zw-palace-cell:hover { border-color: var(--accent); box-shadow: 0 0 20px rgba(212,168,71,0.08); }
 .zw-palace-cell.is-soul { border-color: var(--accent); box-shadow: 0 0 16px rgba(212,168,71,0.12); }
 .zw-palace-cell.is-body { border-color: var(--danger); }
+.zw-palace-cell.is-flow-age { box-shadow: inset 0 0 0 1px rgba(39,174,96,0.52), 0 0 14px rgba(39,174,96,0.08); }
 .zw-palace-cell.is-flow-year { border-color: rgba(212,168,71,0.62); background: rgba(212,168,71,0.06); }
 .zw-palace-cell.is-flow-month { box-shadow: inset 0 0 0 1px rgba(45,156,219,0.55), 0 0 16px rgba(45,156,219,0.08); }
 .zw-palace-header { display: flex; justify-content: space-between; align-items: center; gap: 4px; margin-bottom: 4px; padding-right: 28px; }
@@ -1412,6 +1448,7 @@ onUnmounted(function() {
 .zw-palace-flow { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
 .zw-flow-badge { display: inline-flex; align-items: center; border-radius: 4px; padding: 1px 4px; font-size: 0.56rem; font-weight: 800; line-height: 1.25; }
 .zw-flow-badge.decadal { background: rgba(132,84,190,0.14); color: #a48cff; }
+.zw-flow-badge.age { background: rgba(39,174,96,0.14); color: #27ae60; }
 .zw-flow-badge.year { background: rgba(212,168,71,0.14); color: var(--accent); }
 .zw-flow-badge.month { background: rgba(45,156,219,0.14); color: #2d9cdb; }
 .zw-palace-decadal { margin-top: 5px; font-size: 0.65rem; color: var(--text-3); border-top: 1px solid var(--border); padding-top: 4px; line-height: 1.3; }
@@ -1424,7 +1461,7 @@ onUnmounted(function() {
 .zw-center-line { display: grid; grid-template-columns: 64px minmax(0,1fr); gap: 6px; align-items: baseline; text-align: left; margin: 2px 0; font-size: 0.72rem; color: var(--text-4); }
 .zw-center-line strong { color: var(--text-2); font-size: 0.76rem; font-weight: 700; word-break: break-word; }
 .zw-center-two { display: flex; justify-content: center; gap: 8px; margin: 8px 0 6px; color: var(--text-2); font-size: 0.75rem; font-weight: 700; }
-.zw-center-flow { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 5px 0 6px; }
+.zw-center-flow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin: 5px 0 6px; }
 .zw-center-flow span { padding: 4px 5px; border-radius: 6px; background: rgba(255,255,255,0.055); border: 1px solid var(--border); color: var(--text-2); font-size: 0.66rem; font-weight: 800; }
 .zw-center-error { margin: 2px auto 4px; font-size: 0.62rem; }
 .zw-center-error { color: var(--danger); }
@@ -1439,6 +1476,7 @@ onUnmounted(function() {
 .zw-flow-clickable { cursor: pointer; transition: border-color 0.15s, background 0.15s, transform 0.15s; }
 .zw-flow-clickable:hover { border-color: rgba(212,168,71,0.55); transform: translateY(-1px); }
 .zw-flow-item.active { border-color: var(--accent); background: rgba(212,168,71,0.13); box-shadow: 0 0 0 1px rgba(212,168,71,0.08); }
+.zw-flow-age.active { border-color: #27ae60; background: rgba(39,174,96,0.13); }
 .zw-flow-month.active { border-color: #2d9cdb; background: rgba(45,156,219,0.13); }
 .zw-flow-item b, .zw-flow-item em, .zw-flow-item i { display: block; font-style: normal; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .zw-flow-item b { color: var(--text-1); font-size: 0.72rem; }
@@ -1472,6 +1510,7 @@ onUnmounted(function() {
 .zw-result :deep(.zw-palace-cell:hover) { border-color: var(--accent); box-shadow: 0 0 20px rgba(212,168,71,0.08); }
 .zw-result :deep(.zw-palace-cell.is-soul) { border-color: var(--accent); box-shadow: 0 0 16px rgba(212,168,71,0.12); }
 .zw-result :deep(.zw-palace-cell.is-body) { border-color: var(--danger); }
+.zw-result :deep(.zw-palace-cell.is-flow-age) { box-shadow: inset 0 0 0 1px rgba(39,174,96,0.52), 0 0 14px rgba(39,174,96,0.08); }
 .zw-result :deep(.zw-palace-cell.is-flow-year) { border-color: rgba(212,168,71,0.62); background: rgba(212,168,71,0.06); }
 .zw-result :deep(.zw-palace-cell.is-flow-month) { box-shadow: inset 0 0 0 1px rgba(45,156,219,0.55), 0 0 16px rgba(45,156,219,0.08); }
 .zw-result :deep(.zw-palace-header) { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
@@ -1531,6 +1570,7 @@ onUnmounted(function() {
 .zw-result :deep(.zw-palace-flow) { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
 .zw-result :deep(.zw-flow-badge) { display: inline-flex; align-items: center; border-radius: 4px; padding: 1px 4px; font-size: 0.56rem; font-weight: 800; line-height: 1.25; }
 .zw-result :deep(.zw-flow-badge.decadal) { background: rgba(132,84,190,0.14); color: #a48cff; }
+.zw-result :deep(.zw-flow-badge.age) { background: rgba(39,174,96,0.14); color: #27ae60; }
 .zw-result :deep(.zw-flow-badge.year) { background: rgba(212,168,71,0.14); color: var(--accent); }
 .zw-result :deep(.zw-flow-badge.month) { background: rgba(45,156,219,0.14); color: #2d9cdb; }
 .zw-result :deep(.zw-pro-grid .zw-palace-decadal) { margin-top: 5px; font-size: 0.65rem; color: var(--text-3); border-top: 1px solid var(--border); padding-top: 4px; line-height: 1.3; }
@@ -1543,7 +1583,7 @@ onUnmounted(function() {
 .zw-result :deep(.zw-center-line) { display: grid; grid-template-columns: 64px minmax(0,1fr); gap: 6px; align-items: baseline; text-align: left; margin: 2px 0; font-size: 0.72rem; color: var(--text-4); }
 .zw-result :deep(.zw-center-line strong) { color: var(--text-2); font-size: 0.76rem; font-weight: 700; word-break: break-word; }
 .zw-result :deep(.zw-center-two) { display: flex; justify-content: center; gap: 8px; margin: 8px 0 6px; color: var(--text-2); font-size: 0.75rem; font-weight: 700; }
-.zw-result :deep(.zw-center-flow) { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 5px 0 6px; }
+.zw-result :deep(.zw-center-flow) { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin: 5px 0 6px; }
 .zw-result :deep(.zw-center-flow span) { padding: 4px 5px; border-radius: 6px; background: rgba(255,255,255,0.055); border: 1px solid var(--border); color: var(--text-2); font-size: 0.66rem; font-weight: 800; }
 .zw-result :deep(.zw-center-error) { margin: 2px auto 4px; font-size: 0.62rem; }
 .zw-result :deep(.zw-center-error) { color: var(--danger); }
@@ -1558,6 +1598,7 @@ onUnmounted(function() {
 .zw-result :deep(.zw-flow-clickable) { cursor: pointer; transition: border-color 0.15s, background 0.15s, transform 0.15s; }
 .zw-result :deep(.zw-flow-clickable:hover) { border-color: rgba(212,168,71,0.55); transform: translateY(-1px); }
 .zw-result :deep(.zw-flow-item.active) { border-color: var(--accent); background: rgba(212,168,71,0.13); box-shadow: 0 0 0 1px rgba(212,168,71,0.08); }
+.zw-result :deep(.zw-flow-age.active) { border-color: #27ae60; background: rgba(39,174,96,0.13); }
 .zw-result :deep(.zw-flow-month.active) { border-color: #2d9cdb; background: rgba(45,156,219,0.13); }
 .zw-result :deep(.zw-flow-item b), .zw-result :deep(.zw-flow-item em), .zw-result :deep(.zw-flow-item i) { display: block; font-style: normal; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .zw-result :deep(.zw-flow-item b) { color: var(--text-1); font-size: 0.72rem; }
