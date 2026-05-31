@@ -382,6 +382,10 @@ def test_small_recharge_ignores_alipay_reward_numbers_when_matching_amount(app_m
         assert membership.points == 1
 
 
+def test_spaced_ocr_receiver_text_still_matches(app_module):
+    assert app_module._payment_text_matches_receiver("支 付 成 功\n时 安 解 忧 屋 ¥0.01") is True
+
+
 def test_large_recharge_screenshot_waits_for_manual_confirmation(app_module, user_factory):
     member = user_factory("large-manual-buyer")
 

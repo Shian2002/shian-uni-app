@@ -10085,23 +10085,54 @@ def _ocr_payment_image(path):
     """尽量用服务器本地 tesseract 识别付款截图；不可用时返回空文本。"""
     if not shutil.which('tesseract'):
         return ''
+    texts = []
+
+    def run_tesseract(image_path):
+        try:
+            with tempfile.NamedTemporaryFile(suffix='.txt', delete=True) as out:
+                base = out.name[:-4]
+            cmd = ['tesseract', image_path, base, '-l', 'chi_sim+eng', '--psm', '6']
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=8, check=False)
+            txt_path = base + '.txt'
+            if os.path.exists(txt_path):
+                with open(txt_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    text = f.read()
+                try:
+                    os.remove(txt_path)
+                except OSError:
+                    pass
+                return text
+        except Exception as e:
+            logger.warning(f"付款截图 OCR 失败: {e}")
+        return ''
+
+    full_text = run_tesseract(path)
+    if full_text:
+        texts.append(full_text)
+
+    crop_path = ''
     try:
-        with tempfile.NamedTemporaryFile(suffix='.txt', delete=True) as out:
-            base = out.name[:-4]
-        cmd = ['tesseract', path, base, '-l', 'chi_sim+eng', '--psm', '6']
-        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=8, check=False)
-        txt_path = base + '.txt'
-        if os.path.exists(txt_path):
-            with open(txt_path, 'r', encoding='utf-8', errors='ignore') as f:
-                text = f.read()
+        from PIL import Image
+        with Image.open(path) as img:
+            width, height = img.size
+            if height > 0 and width > 0:
+                upper = img.crop((0, 0, width, max(1, int(height * 0.45))))
+                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as out:
+                    crop_path = out.name
+                upper.save(crop_path)
+        crop_text = run_tesseract(crop_path) if crop_path else ''
+        if crop_text:
+            texts.append(crop_text)
+    except Exception as e:
+        logger.warning(f"付款截图上半部分 OCR 失败: {e}")
+    finally:
+        if crop_path:
             try:
-                os.remove(txt_path)
+                os.remove(crop_path)
             except OSError:
                 pass
-            return text
-    except Exception as e:
-        logger.warning(f"付款截图 OCR 失败: {e}")
-    return ''
+
+    return '\n'.join(t for t in texts if t)
 
 
 def _save_recharge_proof_file(file_storage):
