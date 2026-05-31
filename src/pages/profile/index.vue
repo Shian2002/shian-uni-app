@@ -150,7 +150,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import TopNav from '@/components/TopNav.vue'
 
@@ -225,13 +225,13 @@ async function doLogout() {
   try {
     await uni.request({ url: '/api/logout', method: 'POST' })
   } catch (_) {}
-  isLoggedIn.value = false
-  profiles.value = []
-  userInfo.username = '用户'
-  userInfo.regDate = '—'
-  userInfo.avatar = DEFAULT_AVATAR_URL
   uni.removeStorageSync('xc_token')
   uni.removeStorageSync('xc_user')
+  resetProfileSessionState()
+  try {
+    window.dispatchEvent(new CustomEvent('xc-auth-changed', { detail: { type: 'logout' } }))
+    uni.$emit('xc-auth-changed', { type: 'logout' })
+  } catch(_) {}
   uni.showToast({ title: '已退出登录', icon: 'none' })
 }
 
@@ -324,6 +324,62 @@ function handleProfileAvatarError() {
   if (userInfo.avatar && userInfo.avatar.indexOf(DEFAULT_AVATAR_URL) === -1) {
     uni.removeStorageSync('xc_avatar')
     userInfo.avatar = DEFAULT_AVATAR_URL
+  }
+}
+
+function resetProfileSessionState() {
+  isLoggedIn.value = false
+  profiles.value = []
+  userInfo.username = '用户'
+  userInfo.regDate = '—'
+  userInfo.avatar = DEFAULT_AVATAR_URL
+}
+
+async function refreshProfileSessionState() {
+  if (!uni.getStorageSync('xc_token')) {
+    resetProfileSessionState()
+    return
+  }
+  isLoggedIn.value = true
+  const cachedUser = uni.getStorageSync('xc_user')
+  if (cachedUser) userInfo.username = cachedUser
+  try {
+    const res = await uni.request({ url: '/api/me', method: 'GET' })
+    const d = res.data && res.data[0] ? res.data[0] : res.data
+    if (d && d.guest) {
+      uni.removeStorageSync('xc_token')
+      uni.removeStorageSync('xc_user')
+      resetProfileSessionState()
+      return
+    }
+    if (d && d.username) {
+      isLoggedIn.value = true
+      uni.setStorageSync('xc_token', 'session')
+      uni.setStorageSync('xc_user', d.username)
+      uni.setStorageSync('xc_has_password', d.has_password !== false ? '1' : '0')
+      hasPassword.value = d.has_password !== false
+      window.__xc_hasPassword = hasPassword.value
+      userInfo.username = d.username
+      if (d.created_at) userInfo.regDate = new Date(d.created_at).toLocaleString('zh-CN')
+      setProfileAvatar(d.avatar || DEFAULT_AVATAR_URL, !!d.avatar)
+      if (typeof window !== 'undefined' && window._xc_loadBindings) window._xc_loadBindings()
+    }
+  } catch (_) {}
+  await loadProfiles()
+}
+
+function onProfileAuthChanged(event) {
+  const detail = event && event.detail ? event.detail : {}
+  if (detail.type === 'logout' || detail.loggedIn === false) {
+    resetProfileSessionState()
+    return
+  }
+  if (detail.type === 'login' || detail.loggedIn === true) {
+    isLoggedIn.value = true
+    if (detail.user && detail.user.username) userInfo.username = detail.user.username
+    else if (uni.getStorageSync('xc_user')) userInfo.username = uni.getStorageSync('xc_user')
+    if (detail.user && detail.user.avatar) setProfileAvatar(detail.user.avatar, true)
+    refreshProfileSessionState()
   }
 }
 const oauthProviders = reactive([
@@ -639,6 +695,7 @@ function goNav(url, type) {
 // 页面加载时从后端获取档案
 onMounted(() => {
   window.__xc_hasPassword = hasPassword.value
+  window.addEventListener('xc-auth-changed', onProfileAuthChanged)
   // 全局账号设置弹窗操作（解决 tabBar 多实例问题 + 防止弹出层覆盖）
   if (!window._xc_showAccountSettings) {
     window._xc_showAccountSettings = function() {
@@ -855,20 +912,7 @@ onMounted(() => {
   createNativeInput('profileName', 'text', '姓名')
   createNativeInput('profileBirthAddr', 'text', '如：北京')
 
-  if (isLoggedIn.value) {
-    loadProfiles()
-    // 获取用户信息
-    uni.request({ url: '/api/me', method: 'GET' }).then(res => {
-      const d = res.data && res.data[0] ? res.data[0] : res.data
-      if (d && !d.error) {
-        window.__xc_hasPassword = d.has_password !== false
-        hasPassword.value = d.has_password !== false
-        if (d.username) userInfo.username = d.username
-        if (d.created_at) userInfo.regDate = new Date(d.created_at).toLocaleString('zh-CN')
-        setProfileAvatar(d.avatar || DEFAULT_AVATAR_URL, !!d.avatar)
-      }
-    }).catch(() => {})
-  }
+  if (isLoggedIn.value) refreshProfileSessionState()
 
   // OAuth 回调处理
   try {
@@ -890,31 +934,16 @@ onMounted(() => {
     }
   } catch(_) {}
 
-  // 验证真实登录状态（后端session可能已过期）
-  uni.request({ url: '/api/me', method: 'GET' }).then(function(res) {
-    var d = res.data
-    if (d && d.guest) {
-      isLoggedIn.value = false
-      uni.removeStorageSync('xc_token')
-      uni.removeStorageSync('xc_user')
-    } else if (d && d.username) {
-      isLoggedIn.value = true
-      uni.setStorageSync('xc_token', 'session')
-      uni.setStorageSync('xc_user', d.username)
-      uni.setStorageSync('xc_has_password', d.has_password !== false ? '1' : '0')
-      hasPassword.value = d.has_password !== false
-      userInfo.username = d.username
-      setProfileAvatar(d.avatar || DEFAULT_AVATAR_URL, !!d.avatar)
-      if (d.created_at) userInfo.regDate = new Date(d.created_at).toLocaleString('zh-CN')
-      loadBindings()
-    }
-  }).catch(function() {})
+  // 验证真实登录状态（后端 session 可能已过期）
+  refreshProfileSessionState()
 })
 
 onShow(function() {
-  if (uni.getStorageSync('xc_token')) {
-    loadProfiles()
-  }
+  refreshProfileSessionState()
+})
+
+onBeforeUnmount(function() {
+  window.removeEventListener('xc-auth-changed', onProfileAuthChanged)
 })
 </script>
 
