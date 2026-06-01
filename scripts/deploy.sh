@@ -47,7 +47,11 @@ fi
 # 创建虚拟环境并安装依赖
 sudo python3 -m venv "$FLASK_DIR/venv"
 sudo "$FLASK_DIR/venv/bin/pip" install --upgrade pip
-sudo "$FLASK_DIR/venv/bin/pip" install -r "$FLASK_DIR/requirements.txt" || echo "[WARN] pip install 部分失败，请手动检查"
+if [ -f "$FLASK_DIR/constraints.txt" ]; then
+  sudo "$FLASK_DIR/venv/bin/pip" install -c "$FLASK_DIR/constraints.txt" -r "$FLASK_DIR/requirements.txt" || echo "[WARN] pip install 部分失败，请手动检查"
+else
+  sudo "$FLASK_DIR/venv/bin/pip" install -r "$FLASK_DIR/requirements.txt" || echo "[WARN] pip install 部分失败，请手动检查"
+fi
 sudo "$FLASK_DIR/venv/bin/pip" install "gunicorn>=22.0"
 
 # 修正 app.py 中 PAIPAN_DIR 路径（服务器上不需要排盘脚本）

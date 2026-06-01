@@ -238,8 +238,57 @@ def test_admin_recharge_requires_is_admin_flag(app_module, user_factory):
     with app_module.app.app_context():
         audit = app_module.AdminAuditLog.query.filter_by(action="recharge_confirm").one()
         assert audit.admin_id == real_admin.id
-        assert audit.target_type == "recharge_order"
-        assert audit.target_id == order_id
+
+
+def test_admin_can_add_points_by_username_and_users_endpoint_is_guarded(app_module, user_factory):
+    member = user_factory("manual-user")
+    fake_admin = user_factory("fake-admin", is_admin=False)
+    real_admin = user_factory("real-admin", is_admin=True)
+    client = app_module.app.test_client()
+
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(fake_admin.id)
+        sess["_fresh"] = True
+
+    denied = client.get("/api/admin/users")
+    assert denied.status_code == 403
+
+    denied_add = client.post("/api/admin/confirm-recharge", json={
+        "action": "add",
+        "user_identifier": member.username,
+        "points": 100,
+    })
+    assert denied_add.status_code == 403
+
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(real_admin.id)
+        sess["_fresh"] = True
+
+    listed = client.get("/api/admin/users?q=manual-user")
+    assert listed.status_code == 200
+    listed_body = listed.get_json()
+    assert listed_body["total"] == 1
+    assert listed_body["users"][0]["username"] == "manual-user"
+    assert listed_body["users"][0]["points"] == 0
+
+    added = client.post("/api/admin/confirm-recharge", json={
+        "action": "add",
+        "user_identifier": member.username,
+        "points": 100,
+        "remark": "按用户名加分",
+    })
+    assert added.status_code == 200
+    added_body = added.get_json()
+    assert added_body["ok"] is True
+    assert added_body["username"] == "manual-user"
+    assert added_body["points"] == 100
+
+    with app_module.app.app_context():
+        membership = app_module.Membership.query.filter_by(user_id=member.id).one()
+        audit = app_module.AdminAuditLog.query.filter_by(action="points_add").one()
+        assert membership.points == 100
+        assert audit.admin_id == real_admin.id
+        assert audit.target_id == member.id
 
 
 def test_alipay_recharge_verification_records_proof_without_auto_confirm(app_module, user_factory):

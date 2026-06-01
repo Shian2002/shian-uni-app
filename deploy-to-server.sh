@@ -23,9 +23,10 @@ eval "$RSYNC_CMD" \
     "$LOCAL_DIR/backend/bazi_engine.py" \
     "$LOCAL_DIR/backend/comprehensive_ai.py" \
     "$LOCAL_DIR/backend/deepseek_service.py" \
-    "$LOCAL_DIR/backend/extensions.py" \
-    "$LOCAL_DIR/backend/models.py" \
-    "$LOCAL_DIR/backend/requirements.txt" \
+	    "$LOCAL_DIR/backend/extensions.py" \
+	    "$LOCAL_DIR/backend/models.py" \
+	    "$LOCAL_DIR/backend/constraints.txt" \
+	    "$LOCAL_DIR/backend/requirements.txt" \
     "$LOCAL_DIR/backend/tarot_engine.py" \
     "$LOCAL_DIR/backend/ziwei_engine.py" \
     "$SERVER:/opt/xuan-cet/backend/"
@@ -49,7 +50,7 @@ eval "$RSYNC_CMD" \
 # 4. 重启后端
 echo "[4/4] 重启后端..."
 $SSH_CMD "$SERVER" "if [ -f '$LIVE_DB' ]; then cp '$LIVE_DB' '$LIVE_DB.bak-deploy-'\$(date +%Y%m%d-%H%M%S); else echo '[ERROR] 未找到线上生产库 $LIVE_DB，停止部署以避免创建空库'; exit 1; fi"
-$SSH_CMD "$SERVER" "cd /opt/xuan-cet/backend && ./venv/bin/pip install -q -r requirements.txt"
+$SSH_CMD "$SERVER" "cd /opt/xuan-cet/backend && ./venv/bin/pip install -q -c constraints.txt -r requirements.txt"
 $SSH_CMD "$SERVER" "sudo tee /etc/systemd/system/xuan-cet-flask.service > /dev/null <<'EOF'
 [Unit]
 Description=时安解忧屋 Gunicorn Backend
