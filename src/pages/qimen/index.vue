@@ -403,7 +403,7 @@ function renderQimenPalaceGrid(data) {
     let menColor = C_DEFAULT; let menWeight = '500'
     if (isZhiShi) { menColor = C_ZHISHI; menWeight = '700' }
     if (hasMenPo) { menColor = C_MENPO; menWeight = '700' }
-    let tianHtml = ''; tianGanArr.filter(Boolean).forEach(g => { let c = C_DEFAULT, w = '400'; if (jiXingTianSet.has(g)) { c = C_JIXING; w = '700' } else if (ruMuTianSet.has(g)) { c = C_RUMU; w = '700' }; tianHtml += `<span style="color:${c};font-weight:${w};">${g}</span>` })
+    let tianHtml = ''; tianGanArr.filter(Boolean).forEach(g => { let c = C_DEFAULT, w = '400'; if (jiXingTianSet.has(g)) { c = C_JIXING; w = '700' } else if (ruMuTianSet.has(g)) { c = C_RUMU; w = '700' }; tianHtml += `<span class="qm-heaven-stem" style="color:${c};font-weight:${w};">${g}</span>` })
     let diHtml = ''; diGanArr.filter(Boolean).forEach(g => { let c = C_DIGAN, w = '400'; if (jiXingDiSet.has(g)) { c = C_JIXING; w = '700' } else if (ruMuDiSet.has(g)) { c = C_RUMU; w = '700' }; diHtml += `<span style="color:${c};font-weight:${w};">${g}</span>` })
     const gongLabel = `${gongNum}·${baguaSimple[p.bagua]||p.bagua}`
     const FS = 'var(--qm-cell-font)'

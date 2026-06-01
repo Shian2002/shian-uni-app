@@ -186,3 +186,4 @@ def test_qimen_standalone_grid_scales_with_available_width():
     assert "max-width: 300px" not in source
     assert "p.isMa?`<span class=\"qm-ma-marker\"" in source
     assert "p.isMa?`<span class=\"qm-ma-marker\"" in source.split("${tianHtml}")[0]
+    assert "class=\"qm-heaven-stem\"" in source
