@@ -18,6 +18,8 @@ def test_comprehensive_stream_rendering_is_batched():
     source = _source()
 
     assert "const COMPREHENSIVE_TYPE_FRAME_MS = 16" in source
+    assert "const COMPREHENSIVE_TYPE_BASE_CPS = 54" in source
+    assert "const COMPREHENSIVE_TYPE_MAX_CPS = 132" in source
     assert "const COMPREHENSIVE_ARTIFACT_FLUSH_MS = 120" in source
     assert "let comprehensiveRenderFrame = null" in source
     assert "let comprehensiveTypeFrame = null" in source
@@ -33,7 +35,9 @@ def test_comprehensive_stream_rendering_is_batched():
     )
     assert typewriter, "缺少综合问答打字机函数"
     assert "requestAnimationFrame(tick)" in typewriter.group("body")
-    assert "state.queue.length > 240 ? 48" in typewriter.group("body")
+    assert "comprehensiveTypeSpeed(state.queue.length)" in typewriter.group("body")
+    assert "state.charBudget" in typewriter.group("body")
+    assert "Math.min(18, state.queue.length" in typewriter.group("body")
     assert "scheduleComprehensiveAssistantUpdate" in typewriter.group("body")
     assert "setInterval" not in typewriter.group("body")
 
@@ -43,6 +47,15 @@ def test_comprehensive_stream_rendering_is_batched():
     assert "function finishComprehensiveAnswer" in source
     assert "finishComprehensiveAnswer(aiIndex, typeState)" in source
     assert "updateComprehensiveAssistant(aiIndex, { stage: data.message" not in source
+
+    finish_fn = re.search(
+        r"function finishComprehensiveAnswer\(aiIndex, state\) \{(?P<body>.*?)\n\}",
+        source,
+        re.S,
+    )
+    assert finish_fn, "缺少综合问答收尾函数"
+    assert "flushComprehensiveTypewriter" not in finish_fn.group("body")
+    assert "startComprehensiveTypewriter(aiIndex, state)" in finish_fn.group("body")
 
 
 def test_comprehensive_chat_scroll_is_coalesced():

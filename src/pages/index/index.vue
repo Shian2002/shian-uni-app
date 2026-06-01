@@ -352,6 +352,8 @@ let comprehensiveTypeFrame = null
 let comprehensivePendingAssistantUpdate = null
 let comprehensiveArtifactAnalysisTimers = {}
 const COMPREHENSIVE_TYPE_FRAME_MS = 16
+const COMPREHENSIVE_TYPE_BASE_CPS = 54
+const COMPREHENSIVE_TYPE_MAX_CPS = 132
 const COMPREHENSIVE_ARTIFACT_FLUSH_MS = 120
 const HOME_AI_NEAR_BOTTOM_PX = 140
 
@@ -1746,17 +1748,26 @@ function flushComprehensiveTypewriter(aiIndex, state) {
 
 function finishComprehensiveAnswer(aiIndex, state) {
   flushPendingArtifactAnalyses()
-  flushComprehensiveTypewriter(aiIndex, state)
-  if (state) state.done = true
-  flushComprehensiveAssistantUpdate()
+  if (state) {
+    state.done = true
+    startComprehensiveTypewriter(aiIndex, state)
+  }
+  scheduleComprehensiveAssistantUpdate(aiIndex, { stage: '' })
   setActiveArtifact(aiIndex, '__summary__')
   stopComprehensiveProgressTimer()
   try { window.__sidebarCache = null } catch(_) {}
 }
 
+function comprehensiveTypeSpeed(queueLength) {
+  if (queueLength > 900) return COMPREHENSIVE_TYPE_MAX_CPS
+  if (queueLength > 360) return 96
+  if (queueLength > 140) return 72
+  return COMPREHENSIVE_TYPE_BASE_CPS
+}
+
 function startComprehensiveTypewriter(aiIndex, state) {
   if (comprehensiveTypeFrame || comprehensiveTypeTimer) return
-  const tick = function() {
+  const tick = function(now) {
     comprehensiveTypeFrame = null
     const current = comprehensiveMessages.value[aiIndex]
     if (!current) {
@@ -1768,17 +1779,19 @@ function startComprehensiveTypewriter(aiIndex, state) {
       else comprehensiveTypeFrame = requestAnimationFrame(tick)
       return
     }
-    const take = state.queue.length > 240 ? 48 : (state.queue.length > 120 ? 24 : (state.queue.length > 40 ? 10 : 3))
+    const lastAt = state.lastTypeAt || now
+    const elapsed = Math.max(COMPREHENSIVE_TYPE_FRAME_MS, Math.min(80, now - lastAt))
+    state.lastTypeAt = now
+    state.charBudget = (state.charBudget || 0) + (elapsed / 1000) * comprehensiveTypeSpeed(state.queue.length)
+    const take = Math.max(1, Math.min(18, state.queue.length, Math.floor(state.charBudget)))
+    state.charBudget = Math.max(0, (state.charBudget || 0) - take)
     state.displayed += state.queue.slice(0, take)
     state.queue = state.queue.slice(take)
     scheduleComprehensiveAssistantUpdate(aiIndex, {
       stage: '',
       content: stripComprehensiveMarkdown(state.displayed)
     })
-    comprehensiveTypeTimer = setTimeout(function() {
-      comprehensiveTypeTimer = null
-      comprehensiveTypeFrame = requestAnimationFrame(tick)
-    }, COMPREHENSIVE_TYPE_FRAME_MS)
+    comprehensiveTypeFrame = requestAnimationFrame(tick)
   }
   comprehensiveTypeFrame = requestAnimationFrame(tick)
 }
