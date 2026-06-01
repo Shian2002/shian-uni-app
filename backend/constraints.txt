@@ -1,5 +1,9 @@
 # 与当前排盘依赖兼容的部署约束。
-# kinqimen 0.0.6.6 对这两个库声明了精确版本要求；不加约束时 pip
+# kinqimen 0.0.6.6 对 sxtwl 声明了精确版本要求；不加约束时 pip
 # 可能安装更新版本，导致 pip check 报错并增加排盘差异风险。
-ephem==4.1.3
+#
+# Python 3.12 下 ephem 4.1.3 的二进制扩展会触发
+# `undefined symbol: PyUnicode_GET_SIZE`，线上奇门/八字节气计算会 500；
+# 4.2.1 提供 cp312 wheel，且当前固定样本回归通过。
+ephem==4.2.1
 sxtwl==2.0.6
