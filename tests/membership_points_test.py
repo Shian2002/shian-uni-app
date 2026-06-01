@@ -1,4 +1,5 @@
 import importlib
+import io
 import os
 import sys
 from types import SimpleNamespace
@@ -847,3 +848,47 @@ def test_zeji_api_returns_direct_analysis_for_public_page(app_module):
     assert "2024-02-10" in data["result"]
     assert "搬家" in data["result"]
     assert "民俗文化参考" in data["result"]
+
+
+def test_search_returns_only_current_user_records(app_module, user_factory):
+    owner = user_factory("search-owner")
+    other = user_factory("search-other")
+
+    with app_module.app.app_context():
+        app_module.db.session.add_all([
+            app_module.Record(user_id=owner.id, app_type="qimen", question="我要找工作", result_html="ok"),
+            app_module.Record(user_id=other.id, app_type="qimen", question="我要找工作", result_html="hidden"),
+        ])
+        app_module.db.session.commit()
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(owner.id)
+
+    response = client.get("/api/search?q=找工作&type=qimen")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["total"] == 1
+    assert data["results"][0]["question"] == "我要找工作"
+    assert data["results"][0]["hasResult"] is True
+
+
+def test_upload_saves_allowed_file_for_logged_in_user(app_module, user_factory, tmp_path):
+    user = user_factory("upload-owner")
+    upload_dir = tmp_path / "uploads"
+    app_module.app.config["UPLOAD_FOLDER"] = str(upload_dir)
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(user.id)
+
+    response = client.post(
+        "/api/upload",
+        data={"file": (io.BytesIO(b"fake image"), "proof.png")},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 201
+    data = response.get_json()
+    assert data["url"].startswith("/static/uploads/")
+    assert (upload_dir / data["filename"]).exists()

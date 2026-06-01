@@ -6522,148 +6522,6 @@ def _score_zeji_day(zeji_type, huangli):
     return max(0, min(100, score)), reasons, warnings
 
 
-# ═══════════════════════════════════════════════════════════════
-# 搜索 API
-# ═══════════════════════════════════════════════════════════════
-
-@app.route('/api/search')
-@login_required
-def api_search():
-    """搜索用户的排盘记录"""
-    q = (request.args.get('q') or '').strip()
-    app_type = request.args.get('type', '')
-    if not q:
-        return jsonify({'results': [], 'total': 0})
-
-    query = Record.query.filter_by(user_id=current_user.id)
-    if app_type:
-        query = query.filter_by(app_type=app_type)
-    query = query.filter(Record.question.contains(q))
-    records = query.order_by(Record.created_at.desc()).limit(20).all()
-
-    return jsonify({
-        'results': [{
-            'id': r.id, 'appType': r.app_type or 'qimen',
-            'question': r.question, 'hasResult': bool(r.result_html),
-            'createdAt': r.created_at.isoformat() if r.created_at else None,
-        } for r in records],
-        'total': len(records),
-    })
-
-
-# ═══════════════════════════════════════════════════════════════
-# 图片上传 API
-# ═══════════════════════════════════════════════════════════════
-
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-@app.route('/api/upload', methods=['POST'])
-@login_required
-def api_upload():
-    """图片上传 — 支持 jpg/png/gif/webp，最大 5MB"""
-    if 'file' not in request.files:
-        return jsonify({'error': '未选择文件'}), 400
-    f = request.files['file']
-    if not f.filename:
-        return jsonify({'error': '未选择文件'}), 400
-    if not allowed_file(f.filename):
-        return jsonify({'error': '不支持的文件格式，仅支持 jpg/png/gif/webp'}), 400
-
-    # 生成唯一文件名
-    ext = f.filename.rsplit('.', 1)[1].lower()
-    fname = f"{int(time.time())}_{secrets.token_hex(6)}.{ext}"
-    upload_dir = app.config['UPLOAD_FOLDER']
-    os.makedirs(upload_dir, exist_ok=True)
-    fpath = os.path.join(upload_dir, fname)
-    f.save(fpath)
-
-    url = f"/static/uploads/{fname}"
-    return jsonify({'url': url, 'filename': fname}), 201
-
-
-@app.route('/api/avatar', methods=['POST'])
-@login_required
-@csrf.exempt
-def api_avatar():
-    """用户头像上传 — 图片会被裁剪为圆形显示"""
-    logger.info(f"[avatar] upload request from user={current_user.id}, files={list(request.files.keys())}, content_type={request.content_type}")
-    if 'file' not in request.files:
-        logger.warning(f"[avatar] no 'file' in request.files, keys={list(request.files.keys())}")
-        return jsonify({'error': '未选择文件'}), 400
-    f = request.files['file']
-    if not f.filename:
-        logger.warning("[avatar] empty filename")
-        return jsonify({'error': '未选择文件'}), 400
-    if not allowed_file(f.filename):
-        logger.warning(f"[avatar] not allowed file: {f.filename}")
-        return jsonify({'error': '不支持的文件格式，仅支持 jpg/png/gif/webp'}), 400
-
-    # 用 Pillow 裁剪为正方形（居中裁剪）
-    try:
-        from PIL import Image
-        img = Image.open(f.stream)
-        # 转为 RGB（处理 RGBA/P 模式）
-        if img.mode not in ('RGB', 'RGBA'):
-            img = img.convert('RGBA')
-        w, h = img.size
-        side = min(w, h)
-        left = (w - side) // 2
-        top = (h - side) // 2
-        img = img.crop((left, top, left + side, top + side))
-        # 缩放到合适大小（200x200 足够用于头像）
-        img = img.resize((200, 200), Image.LANCZOS)
-        # 保存为 PNG
-        ext = 'png'
-        fname = f"avatar_{current_user.id}_{int(time.time())}.{ext}"
-        upload_dir = app.config['UPLOAD_FOLDER']
-        os.makedirs(upload_dir, exist_ok=True)
-        fpath = os.path.join(upload_dir, fname)
-        # 如果有透明通道，保留；否则转 RGB
-        if img.mode == 'RGBA':
-            img.save(fpath, 'PNG')
-        else:
-            img = img.convert('RGB')
-            img.save(fpath, 'PNG')
-        url = f"/static/uploads/{fname}"
-        # 更新用户头像
-        # 删除旧头像文件
-        if current_user.avatar:
-            old_path = os.path.join(upload_dir, current_user.avatar.split('/')[-1])
-            if os.path.exists(old_path):
-                try:
-                    os.remove(old_path)
-                except OSError:
-                    pass
-        current_user.avatar = url
-        db.session.commit()
-        return jsonify({'url': url}), 200
-    except ImportError:
-        # Pillow 未安装，直接保存原图
-        ext = f.filename.rsplit('.', 1)[1].lower()
-        fname = f"avatar_{current_user.id}_{int(time.time())}.{ext}"
-        upload_dir = app.config['UPLOAD_FOLDER']
-        os.makedirs(upload_dir, exist_ok=True)
-        fpath = os.path.join(upload_dir, fname)
-        f.save(fpath)
-        url = f"/static/uploads/{fname}"
-        if current_user.avatar:
-            old_path = os.path.join(upload_dir, current_user.avatar.split('/')[-1])
-            if os.path.exists(old_path):
-                try:
-                    os.remove(old_path)
-                except OSError:
-                    pass
-        current_user.avatar = url
-        db.session.commit()
-        return jsonify({'url': url}), 200
-    except Exception as e:
-        logger.error(f"[avatar] 上传失败: {e}")
-        return jsonify({'error': '头像上传失败，请重试'}), 500
-
-
 def record_admin_audit(action, target_type, target_id=None, detail=None):
     """记录管理员写操作，随外层事务一起提交。"""
     payload = detail or {}
@@ -6814,6 +6672,7 @@ from bazi_history_routes import register_bazi_history_routes
 from calendar_routes import register_calendar_routes
 from community_routes import register_community_routes
 from comprehensive_routes import register_comprehensive_routes
+from media_routes import allowed_file, register_media_routes
 from metaphysics_routes import register_metaphysics_routes
 from ops_routes import register_ops_routes
 from points_routes import register_points_routes
@@ -6853,6 +6712,10 @@ register_recharge_routes(app, db, {
 })
 register_community_routes(app, db, {
     'allowed_file': allowed_file,
+})
+register_media_routes(app, db, {
+    'Record': Record,
+    'logger': logger,
 })
 register_comprehensive_routes(app, db, {
     'get_or_create_membership': get_or_create_membership,
