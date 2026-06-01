@@ -15,6 +15,7 @@ server-backup/
 temp.js
 replace.txt
 tmp/
+artifacts/
 *.png
 test_*.py
 test-*.mjs
