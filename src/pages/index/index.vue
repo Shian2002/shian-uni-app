@@ -348,9 +348,10 @@ let comprehensiveProgressTimer = null
 let comprehensiveTypeTimer = null
 let comprehensiveScrollTimer = null
 let comprehensiveRenderFrame = null
+let comprehensiveTypeFrame = null
 let comprehensivePendingAssistantUpdate = null
 let comprehensiveArtifactAnalysisTimers = {}
-const COMPREHENSIVE_TYPE_FRAME_MS = 80
+const COMPREHENSIVE_TYPE_FRAME_MS = 16
 const COMPREHENSIVE_ARTIFACT_FLUSH_MS = 120
 const HOME_AI_NEAR_BOTTOM_PX = 140
 
@@ -1650,6 +1651,12 @@ function stopComprehensiveTypeTimer() {
     clearInterval(comprehensiveTypeTimer)
     comprehensiveTypeTimer = null
   }
+  // #ifdef H5
+  if (comprehensiveTypeFrame) {
+    cancelAnimationFrame(comprehensiveTypeFrame)
+    comprehensiveTypeFrame = null
+  }
+  // #endif
 }
 
 function stripComprehensiveMarkdown(text) {
@@ -1737,9 +1744,20 @@ function flushComprehensiveTypewriter(aiIndex, state) {
   flushComprehensiveAssistantUpdate()
 }
 
+function finishComprehensiveAnswer(aiIndex, state) {
+  flushPendingArtifactAnalyses()
+  flushComprehensiveTypewriter(aiIndex, state)
+  if (state) state.done = true
+  flushComprehensiveAssistantUpdate()
+  setActiveArtifact(aiIndex, '__summary__')
+  stopComprehensiveProgressTimer()
+  try { window.__sidebarCache = null } catch(_) {}
+}
+
 function startComprehensiveTypewriter(aiIndex, state) {
-  if (comprehensiveTypeTimer) return
-  comprehensiveTypeTimer = setInterval(function() {
+  if (comprehensiveTypeFrame || comprehensiveTypeTimer) return
+  const tick = function() {
+    comprehensiveTypeFrame = null
     const current = comprehensiveMessages.value[aiIndex]
     if (!current) {
       stopComprehensiveTypeTimer()
@@ -1747,16 +1765,22 @@ function startComprehensiveTypewriter(aiIndex, state) {
     }
     if (!state.queue.length) {
       if (state.done) stopComprehensiveTypeTimer()
+      else comprehensiveTypeFrame = requestAnimationFrame(tick)
       return
     }
-    const take = state.queue.length > 120 ? 24 : (state.queue.length > 40 ? 12 : 4)
+    const take = state.queue.length > 240 ? 48 : (state.queue.length > 120 ? 24 : (state.queue.length > 40 ? 10 : 3))
     state.displayed += state.queue.slice(0, take)
     state.queue = state.queue.slice(take)
     scheduleComprehensiveAssistantUpdate(aiIndex, {
       stage: '',
       content: stripComprehensiveMarkdown(state.displayed)
     })
-  }, COMPREHENSIVE_TYPE_FRAME_MS)
+    comprehensiveTypeTimer = setTimeout(function() {
+      comprehensiveTypeTimer = null
+      comprehensiveTypeFrame = requestAnimationFrame(tick)
+    }, COMPREHENSIVE_TYPE_FRAME_MS)
+  }
+  comprehensiveTypeFrame = requestAnimationFrame(tick)
 }
 
 function updateComprehensiveAssistant(aiIndex, patch, options) {
@@ -1921,18 +1945,11 @@ async function startComprehensiveAsk() {
         if (typeof data.ai_combo_credits === 'number') aiComboCredits.value = data.ai_combo_credits
         if (data.used_credit === 'daily_light') dailyLightAvailable.value = false
         if (data.done) {
-          flushPendingArtifactAnalyses()
-          flushComprehensiveTypewriter(aiIndex, typeState)
-          typeState.done = true
-          flushComprehensiveAssistantUpdate()
-          setActiveArtifact(aiIndex, '__summary__')
-          stopComprehensiveProgressTimer()
-          try { window.__sidebarCache = null } catch(_) {}
+          finishComprehensiveAnswer(aiIndex, typeState)
         }
       })
     }
-    typeState.done = true
-    flushComprehensiveTypewriter(aiIndex, typeState)
+    finishComprehensiveAnswer(aiIndex, typeState)
     if (!typeState.queue.length) stopComprehensiveTypeTimer()
   } catch (e) {
     stopPendingArtifactAnalysisTimers()
@@ -2004,7 +2021,7 @@ async function restoreComprehensiveConversation(id) {
 function isComprehensiveChatNearBottom() {
   // #ifdef H5
   try {
-    const el = document.querySelector('.home-ai-chat')
+    const el = getComprehensiveScrollTarget()
     if (!el) return true
     return el.scrollHeight - el.scrollTop - el.clientHeight < HOME_AI_NEAR_BOTTOM_PX
   } catch(_) {
@@ -2018,6 +2035,18 @@ function onHomeChatScroll() {
   shouldAutoFollowChat.value = isComprehensiveChatNearBottom()
 }
 
+function getComprehensiveScrollTarget() {
+  // #ifdef H5
+  const pageTarget = document.scrollingElement || document.documentElement || document.body
+  const chat = document.querySelector('.home-ai-chat')
+  if (!chat) return pageTarget
+  const style = window.getComputedStyle ? window.getComputedStyle(chat) : null
+  const canScrollChat = chat.scrollHeight - chat.clientHeight > 8 && style && style.overflowY !== 'visible'
+  return canScrollChat ? chat : pageTarget
+  // #endif
+  return null
+}
+
 function scrollComprehensiveChatToBottom(behavior, force) {
   if (!force && !shouldAutoFollowChat.value) return
   // #ifdef H5
@@ -2025,7 +2054,7 @@ function scrollComprehensiveChatToBottom(behavior, force) {
   comprehensiveScrollTimer = requestAnimationFrame(function() {
     comprehensiveScrollTimer = null
     try {
-      const el = document.querySelector('.home-ai-chat')
+      const el = getComprehensiveScrollTarget()
       if (el) el.scrollTo({ top: el.scrollHeight, behavior: behavior || 'auto' })
     } catch(_) {}
   })
@@ -2111,7 +2140,7 @@ onLoad((query) => {
 })
 
 onShow(() => {
-  setHomeFixedPage(true)
+  setHomeFixedPage(false)
   var t = uni.getStorageSync('xc_theme')
   if (t && t !== theme.value) {
     theme.value = t
@@ -2148,7 +2177,7 @@ onMounted(() => {
   loadComprehensiveOptions()
   loadProfiles()
   // #ifdef H5
-  setHomeFixedPage(true)
+  setHomeFixedPage(false)
   window._xc_restoreComprehensive = restoreComprehensiveFromSidebar
   window._xc_newComprehensive = startNewComprehensiveConversation
   window.addEventListener('keydown', onHomeKeydown)
@@ -2233,12 +2262,12 @@ onBeforeUnmount(() => {
 }
 
 :global(html.home-fixed-page),
-:global(body.home-fixed-page) { height: 100%; overflow: hidden !important; overscroll-behavior: none; }
+:global(body.home-fixed-page) { min-height: 100%; overflow-y: auto; overscroll-behavior: auto; }
 :global(body.home-fixed-page uni-page-body),
 :global(body.home-fixed-page uni-page-wrapper),
-:global(body.home-fixed-page .uni-page-body) { height: 100dvh !important; overflow: hidden !important; }
+:global(body.home-fixed-page .uni-page-body) { min-height: 100dvh; overflow-y: auto; }
 
-.page-root { --home-ai-dock-space: 116px; --home-ai-chat-bottom-buffer: 126px; height: 100dvh; min-height: 0; overflow: hidden !important; width: 100% !important; max-width: 100vw !important; box-sizing: border-box; }
+.page-root { --home-ai-dock-space: 116px; --home-ai-chat-bottom-buffer: 126px; min-height: 100dvh; overflow-x: hidden; overflow-y: auto; width: 100% !important; max-width: 100vw !important; box-sizing: border-box; }
 .bg-layer { position: fixed; inset: 0; z-index: 0; transition: background 0.8s var(--ease); pointer-events: none; overflow: hidden; }
 [data-theme="dark"] .bg-layer {
   background: radial-gradient(ellipse 80% 60% at 18% 8%, rgba(45,50,90,0.30) 0%, transparent 72%),
@@ -2250,7 +2279,7 @@ onBeforeUnmount(() => {
               radial-gradient(ellipse 55% 42% at 92% 85%, rgba(195,175,135,0.13) 0%, transparent 60%),
               linear-gradient(155deg, var(--bg-grad-1), var(--bg-grad-2) 60%, var(--bg-grad-3));
 }
-.page-wrap { position: relative; z-index: 1; width: 100%; height: calc(100dvh - 60px); max-width: 100vw; overflow: hidden; box-sizing: border-box; }
+.page-wrap { position: relative; z-index: 1; width: 100%; min-height: calc(100dvh - 60px); max-width: 100vw; overflow: visible; box-sizing: border-box; }
 
 @media (min-width: 769px) {
   :deep(.topnav) { padding-left: 16px; padding-right: 16px; }
@@ -2279,15 +2308,15 @@ onBeforeUnmount(() => {
 .section-desc { color: var(--text-3); font-size: 0.875rem; margin-bottom: 40px; max-width: 600px; }
 
 /* ═══ Hero ═══ */
-.hero-home { height: calc(100dvh - 60px); min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; padding: 36px 32px 154px; overflow: hidden; box-sizing: border-box; }
-.hero-home-content { max-width: var(--max-w); width: 100%; height: 100%; min-height: 0; margin: 0 auto; text-align: center; display: flex; flex-direction: column; justify-content: center; }
+.hero-home { min-height: calc(100dvh - 60px); display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; padding: 36px 32px 154px; overflow: visible; box-sizing: border-box; }
+.hero-home-content { max-width: var(--max-w); width: 100%; min-height: 0; margin: 0 auto; text-align: center; display: flex; flex-direction: column; justify-content: center; }
 .hero-brand { margin-bottom: 24px; flex: 0 0 auto; }
 .hero-home.chat-active { padding: 14px 32px 176px; justify-content: flex-start; }
 .hero-home.chat-active .hero-home-content { justify-content: flex-start; }
 .hero-home.chat-active .hero-brand { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 12px; }
 .hero-home.chat-active.reading-active { padding: 0 32px var(--home-ai-dock-space); }
 .hero-home.chat-active.reading-active .hero-brand { display: none; }
-.hero-home.chat-active.reading-active .home-ai-console.has-chat { flex: 0 0 auto; height: calc(100dvh - 60px - var(--home-ai-dock-space)); }
+.hero-home.chat-active.reading-active .home-ai-console.has-chat { flex: 0 0 auto; min-height: calc(100dvh - 60px - var(--home-ai-dock-space)); }
 .hero-brand-icon-wrap { position: relative; display: flex; align-items: center; justify-content: center; width: 120px; height: 120px; margin: 0 auto 16px; animation: float 6s ease-in-out infinite; }
 .hero-brand-icon-wrap::before { content: ''; position: absolute; left: 50%; top: 50%; width: 100%; height: 100%; transform: translate(-50%, -50%); border-radius: 50%; background: var(--hero-logo-backdrop); box-shadow: var(--hero-logo-backdrop-shadow); z-index: 0; }
 .hero-brand-icon { width: 100px; height: 100px; object-fit: cover; object-position: center center; position: relative; z-index: 1; display: block; transform: translateY(4px); }
@@ -2318,8 +2347,8 @@ onBeforeUnmount(() => {
 .home-scan-action-sub { display: block; min-width: 0; color: var(--text-3); font-size: 0.66rem; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ═══ 首页综合 AI 输入框 ═══ */
-.home-ai-console { max-width: 920px; margin: 0 auto; padding-bottom: 0; text-align: left; display: flex; flex-direction: column; gap: 12px; width: 100%; min-height: 0; overflow: hidden; box-sizing: border-box; }
-.home-ai-console.has-chat { width: min(1180px, calc(100vw - 48px)); max-width: none; flex: 1 1 auto; min-height: 0; margin: 0 auto; padding: 0; box-sizing: border-box; overflow: hidden; }
+.home-ai-console { max-width: 920px; margin: 0 auto; padding-bottom: 0; text-align: left; display: flex; flex-direction: column; gap: 12px; width: 100%; min-height: 0; overflow: visible; box-sizing: border-box; }
+.home-ai-console.has-chat { width: min(1180px, calc(100vw - 48px)); max-width: none; flex: 1 1 auto; min-height: 0; margin: 0 auto; padding: 0; box-sizing: border-box; overflow: visible; }
 .home-ai-main { position: fixed; left: 50%; bottom: 14px; z-index: 260; transform: translateX(-50%); width: min(960px, calc(100vw - 36px)); box-sizing: border-box; display: flex; flex-direction: column; gap: 7px; padding: 10px 12px; border: 1px solid rgba(178,149,93,0.18); border-radius: 18px; background: rgba(34, 31, 25, 0.50); backdrop-filter: blur(30px) saturate(145%); box-shadow: 0 16px 48px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.08); overflow-x: hidden; transition: border-color .2s ease, box-shadow .2s ease, background .2s ease; }
 .home-ai-main:focus-within { border-color: rgba(178,149,93,0.50); box-shadow: 0 18px 52px rgba(0,0,0,0.24), 0 0 0 3px rgba(178,149,93,0.10), inset 0 1px 0 rgba(255,255,255,0.12); }
 [data-theme="light"] .home-ai-main { background: rgba(255,253,248,0.80); box-shadow: 0 12px 34px rgba(60,40,15,0.10), inset 0 1px 0 rgba(255,255,255,0.75); }
@@ -2346,9 +2375,9 @@ onBeforeUnmount(() => {
 [data-theme="light"] .home-ai-send { background: var(--accent); border-color: var(--accent); color: #fff; }
 .home-ai-send:hover { transform: translateY(-1px); }
 .home-ai-send.disabled { opacity: 0.55; pointer-events: none; }
-.home-ai-chat { border: 1px solid rgba(178,149,93,0.16); border-radius: 18px; background: rgba(255,255,255,0.045); backdrop-filter: blur(18px); padding: 16px; max-height: 420px; overflow-y: auto; overscroll-behavior: contain; box-shadow: inset 0 1px 0 rgba(255,255,255,0.06); }
+.home-ai-chat { border: 1px solid rgba(178,149,93,0.16); border-radius: 18px; background: rgba(255,255,255,0.045); backdrop-filter: blur(18px); padding: 16px; max-height: none; overflow: visible; overscroll-behavior: auto; box-shadow: inset 0 1px 0 rgba(255,255,255,0.06); }
 [data-theme="light"] .home-ai-chat { background: rgba(255,253,248,0.66); }
-.home-ai-console.has-chat .home-ai-chat { flex: 1 1 0; min-height: 0; max-height: none; height: 100%; box-sizing: border-box; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-y; padding-bottom: var(--home-ai-chat-bottom-buffer); scroll-padding-bottom: var(--home-ai-chat-bottom-buffer); }
+.home-ai-console.has-chat .home-ai-chat { flex: 1 1 auto; min-height: 0; max-height: none; box-sizing: border-box; overflow: visible; touch-action: pan-y; padding-bottom: var(--home-ai-chat-bottom-buffer); scroll-padding-bottom: var(--home-ai-chat-bottom-buffer); }
 .home-ai-console.has-chat .home-ai-input { min-height: 38px; max-height: 58px; }
 .home-ai-chat-head { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; margin: 0 0 12px; border: 1px solid rgba(178,149,93,0.16); border-radius: 14px; background: rgba(34,31,25,0.62); backdrop-filter: blur(18px) saturate(145%); box-shadow: 0 10px 28px rgba(0,0,0,0.12); }
 [data-theme="light"] .home-ai-chat-head { background: rgba(255,251,242,0.86); box-shadow: 0 10px 28px rgba(80,55,18,0.08); }
@@ -2818,8 +2847,8 @@ onBeforeUnmount(() => {
 }
 @media (max-width: 768px) {
   .page-root { --home-ai-dock-space: 124px; --home-ai-chat-bottom-buffer: 136px; }
-  .hero-home { height: calc(100dvh - 60px); min-height: 0; padding: 34px 16px 126px; }
-  .hero-home.chat-active { height: calc(100dvh - 60px); min-height: 0; padding: 10px 16px 162px; }
+  .hero-home { min-height: calc(100dvh - 60px); padding: 34px 16px 126px; }
+  .hero-home.chat-active { min-height: calc(100dvh - 60px); padding: 10px 16px 162px; }
   .hero-home.chat-active.reading-active { padding: 0 16px var(--home-ai-dock-space); }
   .hero-brand { margin-bottom: 38px; }
   .hero-home.chat-active .hero-brand { gap: 8px; margin-bottom: 10px; }
@@ -2840,7 +2869,7 @@ onBeforeUnmount(() => {
   .home-scan-action-sub { display: none; }
   .home-ai-console { margin-top: 0; padding-bottom: 0; }
   .home-ai-console.has-chat { width: calc(100vw - 32px); padding: 0; margin-top: 0; }
-  .home-ai-console.has-chat .home-ai-chat { flex: 1 1 0; height: 100%; min-height: 0; max-height: none; padding-bottom: var(--home-ai-chat-bottom-buffer); overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-y; scroll-padding-bottom: var(--home-ai-chat-bottom-buffer); }
+  .home-ai-console.has-chat .home-ai-chat { flex: 1 1 auto; min-height: 0; max-height: none; padding-bottom: var(--home-ai-chat-bottom-buffer); overflow: visible; touch-action: pan-y; scroll-padding-bottom: var(--home-ai-chat-bottom-buffer); }
   .home-ai-main { bottom: 8px; width: calc(100vw - 18px); border-radius: 16px; }
   .home-ai-main { padding: 9px 10px; gap: 6px; }
   .home-ai-input { min-height: 40px; max-height: 58px; font-size: 0.88rem; }
@@ -2915,7 +2944,7 @@ onBeforeUnmount(() => {
 @media (max-width: 480px) {
   .page-root { --home-ai-dock-space: 120px; --home-ai-chat-bottom-buffer: 132px; }
   .hero-home { padding: 54px 16px 120px; }
-  .hero-home.chat-active { height: calc(100dvh - 60px); min-height: 0; padding: 10px 16px 156px; }
+  .hero-home.chat-active { min-height: calc(100dvh - 60px); padding: 10px 16px 156px; }
   .hero-home.chat-active.reading-active { padding: 0 16px var(--home-ai-dock-space); }
   .hero-brand-icon-wrap { width: 120px; height: 120px; }
   .hero-brand-icon { width: 90px; height: 90px; transform: translateY(3px); }
@@ -2925,7 +2954,7 @@ onBeforeUnmount(() => {
   .home-scan-panel { display: none; }
   .hero-home.chat-active .hero-brand-slogan { display: none; }
   .home-ai-console.has-chat { width: calc(100vw - 32px); padding-top: 0; }
-  .home-ai-console.has-chat .home-ai-chat { flex: 1 1 0; height: 100%; min-height: 0; max-height: none; padding: 10px 10px var(--home-ai-chat-bottom-buffer); overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-y; scroll-padding-bottom: var(--home-ai-chat-bottom-buffer); }
+  .home-ai-console.has-chat .home-ai-chat { flex: 1 1 auto; min-height: 0; max-height: none; padding: 10px 10px var(--home-ai-chat-bottom-buffer); overflow: visible; touch-action: pan-y; scroll-padding-bottom: var(--home-ai-chat-bottom-buffer); }
   .home-ai-main { padding: 7px 9px; gap: 4px; border-radius: 15px; }
   .home-ai-input { min-height: 34px; max-height: 50px; font-size: 0.84rem; padding: 3px 4px 0; }
   .home-ai-toolbar { gap: 3px; flex-wrap: nowrap !important; overflow-x: hidden; box-sizing: border-box; }

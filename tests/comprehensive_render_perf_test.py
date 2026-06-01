@@ -17,9 +17,10 @@ def _qimen_source():
 def test_comprehensive_stream_rendering_is_batched():
     source = _source()
 
-    assert "const COMPREHENSIVE_TYPE_FRAME_MS = 80" in source
+    assert "const COMPREHENSIVE_TYPE_FRAME_MS = 16" in source
     assert "const COMPREHENSIVE_ARTIFACT_FLUSH_MS = 120" in source
     assert "let comprehensiveRenderFrame = null" in source
+    assert "let comprehensiveTypeFrame = null" in source
     assert "function scheduleComprehensiveAssistantUpdate" in source
     assert "function flushComprehensiveAssistantUpdate" in source
     assert "function flushPendingArtifactAnalyses()" in source
@@ -31,13 +32,16 @@ def test_comprehensive_stream_rendering_is_batched():
         re.S,
     )
     assert typewriter, "缺少综合问答打字机函数"
-    assert "state.queue.length > 120 ? 24" in typewriter.group("body")
+    assert "requestAnimationFrame(tick)" in typewriter.group("body")
+    assert "state.queue.length > 240 ? 48" in typewriter.group("body")
     assert "scheduleComprehensiveAssistantUpdate" in typewriter.group("body")
-    assert ", COMPREHENSIVE_TYPE_FRAME_MS)" in typewriter.group("body")
+    assert "setInterval" not in typewriter.group("body")
 
     assert "async function startComprehensiveAsk()" in source
     assert "scheduleComprehensiveAssistantUpdate(aiIndex, { stage: data.message" in source
     assert "flushComprehensiveAssistantUpdate()" in source
+    assert "function finishComprehensiveAnswer" in source
+    assert "finishComprehensiveAnswer(aiIndex, typeState)" in source
     assert "updateComprehensiveAssistant(aiIndex, { stage: data.message" not in source
 
 
@@ -55,6 +59,20 @@ def test_comprehensive_chat_scroll_is_coalesced():
     assert "cancelAnimationFrame(comprehensiveScrollTimer)" in body
     assert "comprehensiveScrollTimer = requestAnimationFrame" in body
     assert "behavior: behavior || 'auto'" in body
+    assert "getComprehensiveScrollTarget()" in body
+
+
+def test_home_ai_does_not_lock_page_scroll_while_generating():
+    source = _source()
+
+    assert "setHomeFixedPage(true)" not in source
+    assert "overflow: hidden !important" not in source
+    page_root = re.search(r"\.page-root \{(?P<body>[^}]*)\}", source)
+    assert page_root, "缺少首页根容器样式"
+    assert "overflow-y: auto" in page_root.group("body")
+    page_wrap = re.search(r"\.page-wrap \{(?P<body>[^}]*)\}", source)
+    assert page_wrap, "缺少首页页面容器样式"
+    assert "overflow: visible" in page_wrap.group("body")
 
 
 def test_home_artifacts_are_normalized_for_old_history_display():
