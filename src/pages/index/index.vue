@@ -1921,15 +1921,17 @@ function updateComprehensiveAssistant(aiIndex, patch, options) {
   const shouldFollow = Object.prototype.hasOwnProperty.call(opts, 'shouldFollow')
     ? !!opts.shouldFollow
     : isComprehensiveChatNearBottom()
-  comprehensiveMessages.value[aiIndex] = Object.assign({}, current, patch)
+  Object.keys(patch || {}).forEach(function(key) {
+    current[key] = patch[key]
+  })
   if (patch.artifacts) {
-    ensureActiveArtifact(aiIndex, visibleArtifactList(comprehensiveMessages.value[aiIndex]))
+    ensureActiveArtifact(aiIndex, visibleArtifactList(current))
   }
   scheduleComprehensiveDraftSave()
   if (comprehensiveMessages.value.length && (patch.content || patch.stage || patch.artifacts) && shouldFollow) {
     scrollComprehensiveChatToBottom('auto')
   }
-  return comprehensiveMessages.value[aiIndex]
+  return current
 }
 
 function startComprehensiveProgressTimer(aiIndex) {

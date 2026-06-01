@@ -45,6 +45,17 @@ def test_comprehensive_stream_rendering_is_batched():
     assert "COMPREHENSIVE_TYPE_MAX_FRAME_CHARS" in source
     assert "home-ai-stream-text" in source
 
+    update_fn = re.search(
+        r"function updateComprehensiveAssistant\(aiIndex, patch, options\) \{(?P<body>.*?)\n\}",
+        source,
+        re.S,
+    )
+    assert update_fn, "缺少综合问答消息更新函数"
+    update_body = update_fn.group("body")
+    assert "Object.keys(patch || {}).forEach" in update_body
+    assert "current[key] = patch[key]" in update_body
+    assert "comprehensiveMessages.value[aiIndex] = Object.assign" not in update_body
+
     assert "async function startComprehensiveAsk()" in source
     assert "scheduleComprehensiveAssistantUpdate(aiIndex, { stage: data.message" in source
     assert "flushComprehensiveAssistantUpdate()" in source
