@@ -25,7 +25,7 @@
     <view class="page-wrap">
 
       <!-- ═══ 首屏 Hero ═══ -->
-      <section class="hero-home" :class="{ 'chat-active': comprehensiveMessages.length }">
+      <section class="hero-home" :class="{ 'chat-active': comprehensiveMessages.length, 'reading-active': comprehensiveLoading }">
         <view class="hero-home-content">
           <!-- LOGO 和品牌 -->
           <view class="hero-brand">
@@ -285,10 +285,8 @@ const profileSheetOpen = ref(false)
 const toolSheetOpen = ref(false)
 const profileTab = ref('全部')
 const profileTabs = ['全部', '客户', '用户']
-const profileSelectionStorageKey = 'xc_home_selected_profile_keys_v2'
-const toolSelectionStorageKey = 'xc_home_selected_tool_models_v2'
-const autoToolStorageKey = 'xc_home_auto_tool_select_v1'
 const readingModeStorageKey = 'xc_home_reading_mode_v1'
+const artifactCollapseStorageKey = 'xc_home_artifact_collapse_v1'
 const readingModes = [
   { id: 'concise', name: '简洁', cost_delta: -1 },
   { id: 'standard', name: '标准', cost_delta: 0 },
@@ -305,8 +303,8 @@ const toolModels = ref([
   { id: 'zeji', name: '择吉工具', cost: 2 },
 ])
 const llmModelIdx = ref(0)
-const selectedToolModels = ref(loadSavedToolSelection())
-const autoSelectTools = ref(readStorageJson(autoToolStorageKey, true) !== false)
+const selectedToolModels = ref([])
+const autoSelectTools = ref(true)
 const currentPoints = ref(0)
 const aiSingleCredits = ref(0)
 const aiComboCredits = ref(0)
@@ -438,17 +436,12 @@ function writeStorageJson(key, value) {
   } catch (_) {}
 }
 
-function loadSavedToolSelection() {
-  const saved = readStorageJson(toolSelectionStorageKey, [])
-  return Array.isArray(saved) ? saved.filter(Boolean).map(String) : []
-}
-
 function saveSelectedProfiles() {
-  writeStorageJson(profileSelectionStorageKey, selectedProfiles.value.map(profileKey))
+  // 命盘选择只属于当前这次提问。不要写入本地缓存，否则刷新后会误恢复上次选中的客户。
 }
 
 function saveSelectedToolModels() {
-  writeStorageJson(toolSelectionStorageKey, selectedToolModels.value.slice())
+  // 术数模型选择也只属于当前这次提问。刷新和新对话都回到自动选术数。
 }
 
 function isProfileSelected(p) {
@@ -498,7 +491,6 @@ function modeCostDelta() {
 
 function toggleToolModel(id) {
   autoSelectTools.value = false
-  writeStorageJson(autoToolStorageKey, false)
   const list = selectedToolModels.value.slice()
   const idx = list.indexOf(id)
   if (idx >= 0) list.splice(idx, 1)
@@ -509,7 +501,7 @@ function toggleToolModel(id) {
 
 function toggleAutoSelectTools() {
   autoSelectTools.value = !autoSelectTools.value
-  writeStorageJson(autoToolStorageKey, autoSelectTools.value)
+  if (autoSelectTools.value) selectedToolModels.value = []
 }
 
 async function loadComprehensiveOptions() {
@@ -535,12 +527,6 @@ async function loadProfiles() {
       return Object.assign({ source: 'profile' }, p)
     })
     profiles.value = profileList
-    if (!selectedProfiles.value.length && profiles.value.length) {
-      const savedKeys = readStorageJson(profileSelectionStorageKey, [])
-      if (Array.isArray(savedKeys) && savedKeys.length) {
-        selectedProfiles.value = profiles.value.filter(p => savedKeys.includes(profileKey(p)))
-      }
-    }
   } catch (_) {
     profiles.value = []
   }
@@ -597,14 +583,52 @@ function artifactListFromMap(map, options) {
     .map(function(key) {
       const artifact = source[key] || {}
       const previous = existingMap[key] || {}
+      const savedCollapsed = getSavedArtifactCollapsed(key)
       return Object.assign({}, artifact, {
         key: artifact.key || key,
         title: artifact.title || artifactTitle(key, artifact.tool),
-        collapsed: previous.collapsed !== undefined ? !!previous.collapsed : !!artifact.collapsed,
+        collapsed: previous.collapsed !== undefined ? !!previous.collapsed : (savedCollapsed !== undefined ? savedCollapsed : !!artifact.collapsed),
         visible: previous.visible !== undefined ? !!previous.visible : (opts.defaultVisible !== undefined ? !!opts.defaultVisible : artifact.visible !== false),
         analysis: artifact.analysis || previous.analysis || '',
       })
     })
+}
+
+function getArtifactCollapseStore() {
+  const stored = readStorageJson(artifactCollapseStorageKey, {})
+  return stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {}
+}
+
+function artifactCollapseStoreKey(artifactKey, conversationId) {
+  return (conversationId ? ('conv:' + conversationId) : 'global') + ':' + artifactKey
+}
+
+function getSavedArtifactCollapsed(artifactKey) {
+  const store = getArtifactCollapseStore()
+  const convId = currentComprehensiveConvId.value
+  const convKey = artifactCollapseStoreKey(artifactKey, convId)
+  if (Object.prototype.hasOwnProperty.call(store, convKey)) return !!store[convKey]
+  const globalKey = artifactCollapseStoreKey(artifactKey, null)
+  if (Object.prototype.hasOwnProperty.call(store, globalKey)) return !!store[globalKey]
+  return undefined
+}
+
+function saveArtifactCollapsed(artifactKey, collapsed, conversationId) {
+  if (!artifactKey) return
+  const store = getArtifactCollapseStore()
+  store[artifactCollapseStoreKey(artifactKey, null)] = !!collapsed
+  const convId = conversationId || currentComprehensiveConvId.value
+  if (convId) store[artifactCollapseStoreKey(artifactKey, convId)] = !!collapsed
+  uni.setStorageSync(artifactCollapseStorageKey, store)
+}
+
+function syncArtifactCollapseStateToConversation(conversationId) {
+  if (!conversationId) return
+  comprehensiveMessages.value.forEach(function(msg) {
+    ;(msg.artifacts || []).forEach(function(artifact) {
+      if (artifact && artifact.key) saveArtifactCollapsed(artifact.key, !!artifact.collapsed, conversationId)
+    })
+  })
 }
 
 function visibleArtifactList(msg) {
@@ -616,9 +640,13 @@ function visibleArtifactList(msg) {
 function revealArtifact(aiIndex, artifactKey) {
   const current = comprehensiveMessages.value[aiIndex]
   if (!current || !artifactKey) return
+  const savedCollapsed = getSavedArtifactCollapsed(artifactKey)
   const artifacts = (current.artifacts || []).map(function(artifact) {
     if (artifact.key !== artifactKey) return artifact
-    return Object.assign({}, artifact, { visible: true, collapsed: false })
+    return Object.assign({}, artifact, {
+      visible: true,
+      collapsed: savedCollapsed !== undefined ? savedCollapsed : false,
+    })
   })
   updateComprehensiveAssistant(aiIndex, { artifacts }, { shouldFollow: isComprehensiveChatNearBottom() })
 }
@@ -631,7 +659,6 @@ function appendArtifactAnalysis(aiIndex, artifactKey, content) {
     if (artifact.key !== artifactKey) return artifact
     return Object.assign({}, artifact, {
       visible: true,
-      collapsed: false,
       analysis: stripComprehensiveMarkdown((artifact.analysis || '') + content)
     })
   })
@@ -926,6 +953,30 @@ function qimenArrayValue(value) {
   return value || ''
 }
 
+function qimenDizhiGong(zhi) {
+  const map = {
+    '子': 1,
+    '丑': 8,
+    '寅': 8,
+    '卯': 3,
+    '辰': 4,
+    '巳': 4,
+    '午': 9,
+    '未': 2,
+    '申': 2,
+    '酉': 7,
+    '戌': 6,
+    '亥': 6,
+  }
+  return map[String(zhi || '').trim()] || 0
+}
+
+function qimenMaGongFromData(maXing) {
+  const mx = maXing || {}
+  const yima = mx['驛馬'] || mx['驿马'] || mx.yima || mx.yiMa || ''
+  return qimenDizhiGong(yima)
+}
+
 function renderQimenArtifact(data) {
   const d = normalizeQimenData(data)
   const palaces = d.palaces || []
@@ -934,6 +985,7 @@ function renderQimenArtifact(data) {
   const baguaSimple = { '坎': '坎', '坤': '坤', '震': '震', '巽': '巽', '中': '中', '乾': '乾', '兌': '兑', '兑': '兑', '艮': '艮', '離': '离', '离': '离' }
   const xk = d.xunKong || {}
   const mx = d.maXing || {}
+  const fallbackMaGong = qimenMaGongFromData(mx)
   const maList = []
   if (mx['驛馬'] || mx['驿马']) maList.push('驿马->' + (mx['驛馬'] || mx['驿马']))
   if (mx['丁馬'] || mx['丁马']) maList.push('丁马->' + (mx['丁馬'] || mx['丁马']))
@@ -985,14 +1037,15 @@ function renderQimenArtifact(data) {
     const tianGan = qimenArrayValue(p.tianGan || p.tian_gan || p.tianPan || p.tian_pan)
     const diGan = qimenArrayValue(p.diGan || p.di_gan || p.diPan || p.di_pan)
     const bagua = baguaSimple[p.bagua] || p.bagua || ''
+    const isMa = !!(p.isMa || p.is_ma || (fallbackMaGong && fallbackMaGong === gongNum))
     html += '<div class="qm-palace">'
-    html += '<div class="qm-palace-line"><span class="qm-shen">' + htmlEscape(shen) + (p.isKong ? '<em>○</em>' : '') + '</span><span class="qm-gan">' + coloredGzInline(tianGan) + (p.isMa ? '<i>马</i>' : '') + '</span></div>'
+    html += '<div class="qm-palace-line"><span class="qm-shen">' + htmlEscape(shen) + (p.isKong ? '<em>○</em>' : '') + '</span><span class="qm-gan">' + coloredGzInline(tianGan) + (isMa ? '<i class="qm-horse">🐎</i>' : '') + '</span></div>'
     html += '<div class="qm-palace-line"><span class="qm-xing' + (xing === d.zhiFuStar ? ' highlight' : '') + '">' + htmlEscape(xing) + '</span><span class="qm-gan di">' + coloredGzInline(diGan) + '</span></div>'
     html += '<div class="qm-palace-line"><span class="qm-men' + (men === d.zhiShiMen ? ' highlight' : '') + (p.isMenPo ? ' menpo' : '') + '">' + htmlEscape(men) + '</span><span class="qm-yingan">' + htmlEscape(yinGan) + '</span></div>'
     html += '<div class="qm-gong-label">' + htmlEscape(gongNum + '·' + bagua) + '</div>'
     html += '</div>'
   })
-  html += '</div><div class="qm-legend"><span><b class="green">值使</b></span><span><b class="red">门迫</b></span><span><b class="purple">击刑</b></span><span><b class="brown">入墓</b></span><span>○ 空亡</span><span>马星</span></div></div>'
+  html += '</div><div class="qm-legend"><span><b class="green">值使</b></span><span><b class="red">门迫</b></span><span><b class="purple">击刑</b></span><span><b class="brown">入墓</b></span><span>○ 空亡</span><span><i class="qm-horse">🐎</i>马星</span></div></div>'
   return html
 }
 
@@ -1140,11 +1193,15 @@ function renderArtifactHtml(artifact) {
 function toggleArtifact(messageIndex, artifactKey) {
   const msg = comprehensiveMessages.value[messageIndex]
   if (!msg || !msg.artifacts) return
+  let nextCollapsed = false
   comprehensiveMessages.value[messageIndex] = Object.assign({}, msg, {
     artifacts: msg.artifacts.map(function(artifact) {
-      return artifact.key === artifactKey ? Object.assign({}, artifact, { collapsed: !artifact.collapsed }) : artifact
+      if (artifact.key !== artifactKey) return artifact
+      nextCollapsed = !artifact.collapsed
+      return Object.assign({}, artifact, { collapsed: nextCollapsed })
     })
   })
+  saveArtifactCollapsed(artifactKey, nextCollapsed)
 }
 
 function normalizeMessageHistory() {
@@ -1179,6 +1236,16 @@ function stripComprehensiveMarkdown(text) {
     .replace(/`{1,3}/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .replace(/^\s+/, '')
+}
+
+function comprehensiveSummaryOnly(text) {
+  const raw = String(text || '')
+  const markers = ['【综合合参总结】', '综合合参总结：', '综合合参总结']
+  for (let i = 0; i < markers.length; i += 1) {
+    const idx = raw.lastIndexOf(markers[i])
+    if (idx >= 0) return raw.slice(idx + markers[i].length).trim()
+  }
+  return raw.trim()
 }
 
 function startComprehensiveTypewriter(aiIndex, state) {
@@ -1337,7 +1404,10 @@ async function startComprehensiveAsk() {
           }
           stopComprehensiveProgressTimer()
         }
-        if (data.conversation_id) currentComprehensiveConvId.value = data.conversation_id
+        if (data.conversation_id) {
+          currentComprehensiveConvId.value = data.conversation_id
+          syncArtifactCollapseStateToConversation(data.conversation_id)
+        }
         if (Array.isArray(data.tool_models) && data.tool_models.length) selectedToolModels.value = data.tool_models
         if (data.paipan) {
           currentPaipanContext.value = data.paipan
@@ -1397,7 +1467,7 @@ async function restoreComprehensiveConversation(id) {
     let attached = false
     comprehensiveMessages.value = (data.messages || []).map(function(m) {
       if (m && m.role === 'assistant' && m.content) {
-        const next = Object.assign({}, m, { content: stripComprehensiveMarkdown(m.content) })
+        const next = Object.assign({}, m, { content: stripComprehensiveMarkdown(comprehensiveSummaryOnly(m.content)) })
         if (!attached && restoredArtifacts.length) {
           next.artifacts = restoredArtifacts
           attached = true
@@ -1410,7 +1480,7 @@ async function restoreComprehensiveConversation(id) {
     const mi = llmModels.value.findIndex(m => m.id === mid)
     if (mi >= 0) llmModelIdx.value = mi
     const p = data.profile_data || {}
-    selectedProfiles.value = [{
+    selectedProfiles.value = (p.id || p.name || p.birth_time) ? [{
       id: p.id,
       name: p.name,
       gender: p.gender,
@@ -1418,7 +1488,8 @@ async function restoreComprehensiveConversation(id) {
       calType: p.cal_type,
       birthAddr: p.birth_addr,
       profileType: p.profile_type,
-    }]
+      source: p.source || 'profile',
+    }] : []
     shouldAutoFollowChat.value = true
     scrollComprehensiveChatToBottom('smooth', true)
   } catch (_) {}
@@ -1465,6 +1536,10 @@ function startNewComprehensiveConversation() {
   stopComprehensiveTypeTimer()
   comprehensiveQuestion.value = ''
   comprehensiveMessages.value = []
+  selectedProfiles.value = []
+  draftSelectedProfiles.value = []
+  selectedToolModels.value = []
+  autoSelectTools.value = true
   currentComprehensiveConvId.value = null
   currentPaipanContext.value = {}
   currentArtifacts.value = {}
@@ -1694,6 +1769,9 @@ onBeforeUnmount(() => {
 .hero-home.chat-active { padding: 14px 32px 176px; justify-content: flex-start; }
 .hero-home.chat-active .hero-home-content { justify-content: flex-start; }
 .hero-home.chat-active .hero-brand { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 12px; }
+.hero-home.chat-active.reading-active { padding-top: 10px; padding-bottom: 130px; }
+.hero-home.chat-active.reading-active .hero-brand { display: none; }
+.hero-home.chat-active.reading-active .home-ai-console.has-chat { flex: 1 1 auto; height: 100%; }
 .hero-brand-icon-wrap { position: relative; display: flex; align-items: center; justify-content: center; width: 120px; height: 120px; margin: 0 auto 16px; animation: float 6s ease-in-out infinite; }
 .hero-brand-icon-wrap::before { content: ''; position: absolute; left: 50%; top: 50%; width: 100%; height: 100%; transform: translate(-50%, -50%); border-radius: 50%; background: var(--hero-logo-backdrop); box-shadow: var(--hero-logo-backdrop-shadow); z-index: 0; }
 .hero-brand-icon { width: 100px; height: 100px; object-fit: cover; object-position: center center; position: relative; z-index: 1; display: block; transform: translateY(4px); }
@@ -1726,11 +1804,11 @@ onBeforeUnmount(() => {
 /* ═══ 首页综合 AI 输入框 ═══ */
 .home-ai-console { max-width: 920px; margin: 0 auto; padding-bottom: 0; text-align: left; display: flex; flex-direction: column; gap: 12px; width: 100%; min-height: 0; overflow: hidden; box-sizing: border-box; }
 .home-ai-console.has-chat { width: min(1180px, calc(100vw - 48px)); max-width: none; flex: 1 1 auto; min-height: 0; margin: 0 auto; padding: 0; box-sizing: border-box; overflow: hidden; }
-.home-ai-main { position: fixed; left: 50%; bottom: 18px; z-index: 260; transform: translateX(-50%); width: min(960px, calc(100vw - 36px)); box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid rgba(178,149,93,0.18); border-radius: 20px; background: rgba(34, 31, 25, 0.50); backdrop-filter: blur(30px) saturate(145%); box-shadow: 0 22px 70px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.08); overflow-x: hidden; transition: border-color .2s ease, box-shadow .2s ease, background .2s ease; }
-.home-ai-main:focus-within { border-color: rgba(178,149,93,0.50); box-shadow: 0 22px 76px rgba(0,0,0,0.26), 0 0 0 3px rgba(178,149,93,0.10), inset 0 1px 0 rgba(255,255,255,0.12); }
-[data-theme="light"] .home-ai-main { background: rgba(255,253,248,0.80); box-shadow: 0 16px 44px rgba(60,40,15,0.10), inset 0 1px 0 rgba(255,255,255,0.75); }
-[data-theme="light"] .home-ai-main:focus-within { box-shadow: 0 18px 52px rgba(60,40,15,0.13), 0 0 0 3px rgba(150,103,20,0.10), inset 0 1px 0 rgba(255,255,255,0.82); }
-.home-ai-input { width: 100%; min-height: 92px; max-height: 180px; padding: 10px 4px 2px; color: var(--text-1); font-size: 0.94rem; line-height: 1.65; background: transparent; border: none; outline: none; box-sizing: border-box; }
+.home-ai-main { position: fixed; left: 50%; bottom: 14px; z-index: 260; transform: translateX(-50%); width: min(960px, calc(100vw - 36px)); box-sizing: border-box; display: flex; flex-direction: column; gap: 7px; padding: 10px 12px; border: 1px solid rgba(178,149,93,0.18); border-radius: 18px; background: rgba(34, 31, 25, 0.50); backdrop-filter: blur(30px) saturate(145%); box-shadow: 0 16px 48px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.08); overflow-x: hidden; transition: border-color .2s ease, box-shadow .2s ease, background .2s ease; }
+.home-ai-main:focus-within { border-color: rgba(178,149,93,0.50); box-shadow: 0 18px 52px rgba(0,0,0,0.24), 0 0 0 3px rgba(178,149,93,0.10), inset 0 1px 0 rgba(255,255,255,0.12); }
+[data-theme="light"] .home-ai-main { background: rgba(255,253,248,0.80); box-shadow: 0 12px 34px rgba(60,40,15,0.10), inset 0 1px 0 rgba(255,255,255,0.75); }
+[data-theme="light"] .home-ai-main:focus-within { box-shadow: 0 14px 42px rgba(60,40,15,0.13), 0 0 0 3px rgba(150,103,20,0.10), inset 0 1px 0 rgba(255,255,255,0.82); }
+.home-ai-input { width: 100%; min-height: 52px; max-height: 96px; padding: 6px 4px 0; color: var(--text-1); font-size: 0.92rem; line-height: 1.45; background: transparent; border: none; outline: none; box-sizing: border-box; }
 .home-ai-input::placeholder { color: rgba(120,108,86,0.68); }
 .home-ai-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; flex-wrap: nowrap !important; overflow-x: hidden; box-sizing: border-box; width: 100%; }
 .home-ai-toolbar-left { display: flex; align-items: center; gap: 6px; flex-shrink: 1; min-width: 0; }
@@ -1743,9 +1821,9 @@ onBeforeUnmount(() => {
 .profile-name, .tool-picker text:last-child { display: block; font-size: 0.75rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .profile-meta { display: block; margin-top: 2px; font-size: 0.66rem; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .llm-picker { min-width: 96px; max-width: 128px; padding: 4px 10px; flex-direction: column; align-items: flex-start; gap: 1px; color: var(--text-2); white-space: nowrap; flex-shrink: 1; overflow: hidden; }
-.reading-mode-picker { min-width: 82px; max-width: 96px; padding: 4px 10px; flex-direction: column; align-items: flex-start; gap: 1px; color: var(--text-2); white-space: nowrap; flex-shrink: 0; overflow: hidden; }
-.reading-mode-label { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 0.56rem; color: var(--text-3); line-height: 1.15; }
-.reading-mode-name { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 0.72rem; color: var(--text-1); line-height: 1.2; }
+.reading-mode-picker { min-width: 82px; max-width: 96px; padding: 4px 10px; flex-direction: column; align-items: center; justify-content: center; gap: 1px; color: var(--text-2); white-space: nowrap; flex-shrink: 0; overflow: hidden; text-align: center; }
+.reading-mode-label { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 0.56rem; color: var(--text-3); line-height: 1.15; text-align: center; }
+.reading-mode-name { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 0.72rem; color: var(--text-1); line-height: 1.2; text-align: center; }
 .llm-name { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 0.72rem; color: var(--text-1); line-height: 1.2; }
 .llm-points { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 0.58rem; color: var(--text-3); line-height: 1.2; }
 .home-ai-send { width: 36px; height: 36px; min-height: 36px; background: var(--accent); border-color: var(--accent); color: #fff; font-size: 1.1rem; font-weight: 700; line-height: 1; flex-shrink: 0; box-shadow: 0 8px 22px rgba(120,80,12,0.22); }
@@ -1754,9 +1832,9 @@ onBeforeUnmount(() => {
 .home-ai-send.disabled { opacity: 0.55; pointer-events: none; }
 .home-ai-chat { border: 1px solid rgba(178,149,93,0.16); border-radius: 18px; background: rgba(255,255,255,0.045); backdrop-filter: blur(18px); padding: 16px; max-height: 420px; overflow-y: auto; overscroll-behavior: contain; box-shadow: inset 0 1px 0 rgba(255,255,255,0.06); }
 [data-theme="light"] .home-ai-chat { background: rgba(255,253,248,0.66); }
-.home-ai-console.has-chat .home-ai-chat { flex: 1 1 0; min-height: 0; max-height: none; height: 100%; box-sizing: border-box; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
-.home-ai-console.has-chat .home-ai-input { min-height: 62px; max-height: 130px; }
-.home-ai-chat-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; margin: -4px 0 12px; border: 1px solid rgba(178,149,93,0.16); border-radius: 14px; background: rgba(34,31,25,0.62); backdrop-filter: blur(18px) saturate(145%); box-shadow: 0 10px 28px rgba(0,0,0,0.12); }
+.home-ai-console.has-chat .home-ai-chat { flex: 1 1 0; min-height: 0; max-height: none; height: 100%; box-sizing: border-box; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-y; scroll-padding-bottom: 132px; }
+.home-ai-console.has-chat .home-ai-input { min-height: 48px; max-height: 82px; }
+.home-ai-chat-head { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; margin: 0 0 12px; border: 1px solid rgba(178,149,93,0.16); border-radius: 14px; background: rgba(34,31,25,0.62); backdrop-filter: blur(18px) saturate(145%); box-shadow: 0 10px 28px rgba(0,0,0,0.12); }
 [data-theme="light"] .home-ai-chat-head { background: rgba(255,251,242,0.86); box-shadow: 0 10px 28px rgba(80,55,18,0.08); }
 .home-ai-chat-head-main { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .home-ai-chat-title { color: var(--text-1); font-size: 0.88rem; font-weight: 700; letter-spacing: 1px; }
@@ -1786,7 +1864,7 @@ onBeforeUnmount(() => {
 .home-tool-card-title { display: block; color: var(--text-1); font-size: 0.84rem; font-weight: 700; }
 .home-tool-card-sub { display: block; margin-top: 3px; color: var(--text-3); font-size: 0.68rem; line-height: 1.35; }
 .home-tool-card-toggle { flex-shrink: 0; color: var(--accent); font-size: 0.68rem; }
-.home-tool-card-body { min-height: 360px; padding: 0 12px 12px; display: grid; gap: 12px; }
+.home-tool-card-body { min-width: 0; min-height: 360px; padding: 0 12px 12px; display: grid; gap: 12px; overflow: hidden; }
 .home-artifact-render { width: 100%; min-height: 300px; max-height: min(60vh, 620px); overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; border-radius: 12px; }
 .home-artifact-analysis { margin-top: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(178,149,93,.16); background: rgba(178,149,93,.055); color: var(--text-2); line-height: 1.8; white-space: pre-wrap; font-size: .84rem; }
 .home-artifact-analysis-title { color: var(--accent); font-weight: 800; font-size: .78rem; margin-bottom: 6px; letter-spacing: 1px; }
@@ -1965,6 +2043,8 @@ onBeforeUnmount(() => {
 .home-artifact-render :deep(.qm-gan),
 .home-artifact-render :deep(.qm-yingan) { display: inline-flex; align-items: baseline; color: #555; gap: 0; }
 .home-artifact-render :deep(.qm-gan i) { margin-left: 2px; color: #D4A017; font-size: .55rem; font-style: normal; }
+.home-artifact-render :deep(.qm-horse) { color: #D4A017; font-style: normal; font-size: .72rem; line-height: 1; display: inline-flex; align-items: center; margin-right: 2px; }
+.home-artifact-render :deep(.qm-gan .qm-horse) { margin-left: 2px; margin-right: 0; font-size: .62rem; }
 .home-artifact-render :deep(.qm-gong-label) { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #d0d0d0; font-size: .45rem; pointer-events: none; }
 .home-artifact-render :deep(.qm-legend) { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin-top: 10px; color: var(--text-3); font-size: .65rem; }
 .home-artifact-render :deep(.qm-legend b) { font-weight: 800; }
@@ -2157,9 +2237,10 @@ onBeforeUnmount(() => {
   .home-scan-panel { margin-bottom: 12px; }
   .home-scan-status-item, .home-scan-action { padding-top: 8px; padding-bottom: 8px; }
   .home-scan-action-sub { display: none; }
-  .home-ai-input { min-height: 74px; max-height: 120px; }
-  .home-ai-main { bottom: 14px; }
+  .home-ai-input { min-height: 48px; max-height: 86px; }
+  .home-ai-main { bottom: 12px; }
   .hero-home.chat-active { padding: 10px 32px 158px; }
+  .hero-home.chat-active.reading-active { padding-top: 8px; padding-bottom: 118px; }
   .hero-home.chat-active .hero-brand { margin-bottom: 10px; }
   .hero-home.chat-active .hero-brand-icon-wrap { width: 50px; height: 50px; }
   .hero-home.chat-active .hero-brand-icon { width: 42px; height: 42px; transform: translateY(2px); }
@@ -2179,12 +2260,13 @@ onBeforeUnmount(() => {
   .home-scan-action-mark { width: 22px; height: 22px; border-radius: 7px; font-size: 0.7rem; }
   .home-scan-action-main { font-size: 0.72rem; }
   .home-scan-action-sub { display: none; }
-  .home-ai-input { min-height: 58px; max-height: 92px; font-size: 0.9rem; }
-  .home-ai-main { padding: 10px; gap: 6px; bottom: 10px; }
+  .home-ai-input { min-height: 44px; max-height: 72px; font-size: 0.88rem; }
+  .home-ai-main { padding: 8px 10px; gap: 5px; bottom: 8px; }
   .home-ai-toolbar { min-height: 34px; }
   .profile-picker, .tool-picker, .reading-mode-picker, .llm-picker, .home-ai-send { min-height: 32px; }
   .home-ai-send { width: 32px; height: 32px; }
   .hero-home.chat-active { padding: 8px 32px 156px; }
+  .hero-home.chat-active.reading-active { padding-top: 6px; padding-bottom: 108px; }
   .hero-home.chat-active .hero-brand { margin-bottom: 8px; }
   .hero-home.chat-active .hero-brand-icon-wrap { width: 42px; height: 42px; }
   .hero-home.chat-active .hero-brand-icon { width: 34px; height: 34px; transform: translateY(1px); }
@@ -2193,6 +2275,7 @@ onBeforeUnmount(() => {
 @media (max-width: 768px) {
   .hero-home { height: calc(100dvh - 60px); min-height: 0; padding: 34px 16px 126px; }
   .hero-home.chat-active { height: calc(100dvh - 60px); min-height: 0; padding: 10px 16px 162px; }
+  .hero-home.chat-active.reading-active { padding: 8px 16px 122px; }
   .hero-brand { margin-bottom: 38px; }
   .hero-home.chat-active .hero-brand { gap: 8px; margin-bottom: 10px; }
   .hero-home.chat-active .hero-brand-icon-wrap { width: 48px; height: 48px; margin: 0; }
@@ -2212,11 +2295,11 @@ onBeforeUnmount(() => {
   .home-scan-action-sub { display: none; }
   .home-ai-console { margin-top: 0; padding-bottom: 0; }
   .home-ai-console.has-chat { width: calc(100vw - 32px); padding: 0; margin-top: 0; }
-  .home-ai-console.has-chat .home-ai-chat { flex: 1 1 0; height: 100%; min-height: 0; max-height: none; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
-  .home-ai-main { bottom: 10px; width: calc(100vw - 18px); border-radius: 16px; }
-  .home-ai-main { padding: 12px; gap: 8px; }
-  .home-ai-input { min-height: 76px; font-size: 0.9rem; }
-  .home-ai-console.has-chat .home-ai-input { min-height: 58px; max-height: 116px; }
+  .home-ai-console.has-chat .home-ai-chat { flex: 1 1 0; height: 100%; min-height: 0; max-height: none; padding-bottom: 124px; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-y; scroll-padding-bottom: 142px; }
+  .home-ai-main { bottom: 8px; width: calc(100vw - 18px); border-radius: 16px; }
+  .home-ai-main { padding: 9px 10px; gap: 6px; }
+  .home-ai-input { min-height: 48px; max-height: 84px; font-size: 0.88rem; }
+  .home-ai-console.has-chat .home-ai-input { min-height: 42px; max-height: 74px; }
   .home-ai-toolbar { gap: 4px; flex-wrap: nowrap !important; overflow-x: hidden; box-sizing: border-box; }
   .home-ai-toolbar-left, .home-ai-toolbar-right { gap: 4px; }
   .home-ai-toolbar-right { gap: 3px; overflow-x: hidden; box-sizing: border-box; }
@@ -2244,12 +2327,23 @@ onBeforeUnmount(() => {
   .home-artifact-render :deep(.bz-artifact-pillars),
   .home-artifact-render :deep(.bz-artifact-meta) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .home-artifact-render :deep(.bz-artifact-head) { flex-direction: column; }
-  .home-artifact-render :deep(.zw-artifact-grid) { min-width: 560px; }
+  .home-artifact-render :deep(.zw-artifact-wrap) { overflow-x: auto; overscroll-behavior-x: contain; }
+  .home-artifact-render :deep(.zw-artifact-grid) { min-width: 0; width: 100%; grid-template-columns: repeat(4, minmax(68px, 1fr)); grid-template-rows: repeat(4, minmax(94px, auto)); }
+  .home-artifact-render :deep(.zw-orientation),
+  .home-artifact-render :deep(.zw-flow-row) { min-width: 0; width: 100%; }
+  .home-artifact-render :deep(.zw-artifact-center) { padding: 10px 6px; gap: 4px; }
+  .home-artifact-render :deep(.zw-artifact-center b) { font-size: .82rem; letter-spacing: 1px; }
+  .home-artifact-render :deep(.zw-artifact-center span),
+  .home-artifact-render :deep(.zw-artifact-center em) { font-size: .52rem; line-height: 1.25; }
   .home-artifact-render :deep(.gua-display) { grid-template-columns: 1fr; gap: 12px; }
   .home-artifact-render :deep(.ti-yong-grid) { grid-template-columns: 1fr; gap: 8px; }
   .home-artifact-render :deep(.ti-yong-rel) { white-space: normal; }
-  .home-artifact-render :deep(.qm-nine-grid) { grid-template-columns: repeat(3, minmax(82px, 1fr)); }
-  .home-artifact-render :deep(.qm-palace) { min-height: 96px; padding: 6px; }
+  .home-artifact-render :deep(.qm-free-layout) { padding: 12px; overflow: hidden; }
+  .home-artifact-render :deep(.qm-free-line),
+  .home-artifact-render :deep(.qm-free-pillars) { gap: 6px 10px; font-size: .72rem; }
+  .home-artifact-render :deep(.qm-free-pillars span) { gap: 5px; }
+  .home-artifact-render :deep(.qm-nine-grid) { width: 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .home-artifact-render :deep(.qm-palace) { min-height: 90px; padding: 5px; }
   .home-artifact-render :deep(.qm-star-row) { font-size: .76rem; }
   .home-artifact-render :deep(.ly-ben-bian-box) { padding: 12px; }
   .home-artifact-render :deep(.ly-row-ben-side),
@@ -2264,7 +2358,7 @@ onBeforeUnmount(() => {
   .home-artifact-render :deep(.tarot-cards-display[data-count="6"]) { grid-template-columns: repeat(3, 1fr); max-width: 420px; }
   .home-artifact-render :deep(.tarot-cards-display[data-count="7"]) { grid-template-columns: repeat(4, 1fr); max-width: 560px; }
   .home-artifact-render :deep(.tarot-cards-display[data-count="10"]) { grid-template-columns: repeat(5, 1fr); max-width: 680px; }
-  .home-artifact-render { max-height: none; overflow: visible; overscroll-behavior: auto; }
+  .home-artifact-render { max-height: none; overflow-x: auto; overflow-y: visible; overscroll-behavior: contain; }
   .mini-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mini-palace:nth-child(3n) { border-right: 1px solid rgba(178,149,93,0.12); }
   .mini-palace:nth-child(2n) { border-right: none; }
@@ -2277,6 +2371,7 @@ onBeforeUnmount(() => {
 @media (max-width: 480px) {
   .hero-home { padding: 54px 16px 120px; }
   .hero-home.chat-active { height: calc(100dvh - 60px); min-height: 0; padding: 10px 16px 156px; }
+  .hero-home.chat-active.reading-active { padding: 8px 16px 116px; }
   .hero-brand-icon-wrap { width: 120px; height: 120px; }
   .hero-brand-icon { width: 90px; height: 90px; transform: translateY(3px); }
   .hero-brand-name { font-size: 1.6rem; letter-spacing: 4px; }
@@ -2285,9 +2380,9 @@ onBeforeUnmount(() => {
   .home-scan-panel { display: none; }
   .hero-home.chat-active .hero-brand-slogan { display: none; }
   .home-ai-console.has-chat { width: calc(100vw - 32px); padding-top: 0; }
-  .home-ai-console.has-chat .home-ai-chat { flex: 1 1 0; height: 100%; min-height: 0; max-height: none; padding: 10px; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
-  .home-ai-main { padding: 10px; gap: 6px; border-radius: 16px; }
-  .home-ai-input { min-height: 68px; font-size: 0.86rem; padding: 8px 4px 2px; }
+  .home-ai-console.has-chat .home-ai-chat { flex: 1 1 0; height: 100%; min-height: 0; max-height: none; padding: 10px 10px 130px; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-y; scroll-padding-bottom: 148px; }
+  .home-ai-main { padding: 8px 9px; gap: 5px; border-radius: 15px; }
+  .home-ai-input { min-height: 42px; max-height: 72px; font-size: 0.84rem; padding: 5px 4px 0; }
   .home-ai-toolbar { gap: 3px; flex-wrap: nowrap !important; overflow-x: hidden; box-sizing: border-box; }
   .home-ai-toolbar-left, .home-ai-toolbar-right { gap: 3px; }
   .home-ai-toolbar-right { overflow-x: hidden; box-sizing: border-box; }
@@ -2300,7 +2395,7 @@ onBeforeUnmount(() => {
   .llm-name { font-size: 0.58rem; }
   .llm-points { font-size: 0.48rem; }
   .home-ai-send { width: 26px; height: 26px; min-height: 26px; font-size: 0.9rem; }
-  .home-ai-chat-head { margin: -2px 0 10px; border-radius: 12px; }
+  .home-ai-chat-head { margin: 0 0 10px; border-radius: 12px; }
   .home-ai-chat-title { font-size: 0.8rem; }
   .home-ai-chat-sub { max-width: calc(100vw - 136px); font-size: 0.6rem; }
   .home-ai-stage-note { font-size: 0.6rem; }
@@ -2322,14 +2417,41 @@ onBeforeUnmount(() => {
   .home-artifact-render :deep(.bz-artifact-pillars),
   .home-artifact-render :deep(.bz-artifact-meta) { grid-template-columns: 1fr 1fr; gap: 7px; }
   .home-artifact-render :deep(.bz-artifact-gz b) { width: 30px; height: 30px; font-size: .9rem; }
-  .home-artifact-render :deep(.zw-artifact-grid) { min-width: 520px; grid-template-rows: repeat(4, minmax(100px, auto)); }
+  .home-artifact-render :deep(.zw-artifact-wrap) { overflow-x: auto; overscroll-behavior-x: contain; }
+  .home-artifact-render :deep(.zw-artifact-grid) { min-width: 0; width: 100%; grid-template-columns: repeat(4, minmax(58px, 1fr)); grid-template-rows: repeat(4, minmax(88px, auto)); }
   .home-artifact-render :deep(.zw-artifact-palace) { min-height: 100px; padding: 6px; }
-  .home-artifact-render :deep(.qm-nine-grid) { grid-template-columns: repeat(3, minmax(76px, 1fr)); }
-  .home-artifact-render :deep(.qm-palace) { min-height: 88px; padding: 5px; }
+  .home-artifact-render :deep(.zw-artifact-top) { font-size: .54rem; }
+  .home-artifact-render :deep(.zw-artifact-top b) { font-size: .62rem; }
+  .home-artifact-render :deep(.zw-artifact-stars.major span) { font-size: .66rem; }
+  .home-artifact-render :deep(.zw-artifact-stars.minor span) { font-size: .58rem; }
+  .home-artifact-render :deep(.zw-artifact-stars.adj span),
+  .home-artifact-render :deep(.zw-artifact-support),
+  .home-artifact-render :deep(.zw-artifact-ages) { font-size: .48rem; }
+  .home-artifact-render :deep(.zw-artifact-foot) { font-size: .5rem; }
+  .home-artifact-render :deep(.zw-artifact-center) { padding: 8px 5px; gap: 3px; }
+  .home-artifact-render :deep(.zw-artifact-center b) { font-size: .68rem; letter-spacing: 0; }
+  .home-artifact-render :deep(.zw-artifact-center span),
+  .home-artifact-render :deep(.zw-artifact-center em) { font-size: .45rem; line-height: 1.22; }
+  .home-artifact-render :deep(.zw-orientation),
+  .home-artifact-render :deep(.zw-flow-row) { min-width: 0; width: 100%; }
+  .home-artifact-render :deep(.qm-free-layout) { padding: 10px; overflow: hidden; }
+  .home-artifact-render :deep(.qm-free-title) { font-size: .9rem; }
+  .home-artifact-render :deep(.qm-free-line),
+  .home-artifact-render :deep(.qm-free-pillars) { gap: 5px 8px; font-size: .66rem; }
+  .home-artifact-render :deep(.qm-free-pillars span) { gap: 4px; }
+  .home-artifact-render :deep(.qm-free-pillars strong) { font-size: .8rem; }
+  .home-artifact-render :deep(.qm-nine-grid) { width: 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .home-artifact-render :deep(.qm-palace) { min-height: 78px; padding: 4px; }
   .home-artifact-render :deep(.qm-palace-head) { font-size: .56rem; }
   .home-artifact-render :deep(.qm-palace-head b) { font-size: .66rem; }
   .home-artifact-render :deep(.qm-star-row) { font-size: .68rem; gap: 2px; }
   .home-artifact-render :deep(.qm-info-row) { font-size: .58rem; }
+  .home-artifact-render :deep(.qm-palace-line) { min-height: 14px; font-size: .54rem; gap: 2px; }
+  .home-artifact-render :deep(.qm-center-date) { font-size: .5rem; }
+  .home-artifact-render :deep(.qm-center-xun),
+  .home-artifact-render :deep(.qm-center-pillars),
+  .home-artifact-render :deep(.qm-center-meta) { font-size: .44rem; }
+  .home-artifact-render :deep(.qm-center-title) { font-size: .46rem; }
   .home-artifact-render :deep(.ly-ben-bian-top) { grid-template-columns: 1fr; }
   .home-artifact-render :deep(.ly-ben-bian-top-arrow) { transform: rotate(90deg); text-align: center; }
   .home-artifact-render :deep(.ly-paired-row),

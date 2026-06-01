@@ -4333,10 +4333,33 @@ def _select_artifacts_for_context(paipan_context, tool_models, question, existin
     return artifacts, actions
 
 
+def _comprehensive_summary_only(text):
+    """旧综合历史曾把单盘解析拼进正文；展示时只保留最终合参总结。"""
+    raw = str(text or '')
+    markers = ['【综合合参总结】', '综合合参总结：', '综合合参总结']
+    for marker in markers:
+        idx = raw.rfind(marker)
+        if idx >= 0:
+            return raw[idx + len(marker):].strip()
+    return raw.strip()
+
+
+def _clean_comprehensive_messages_for_display(messages):
+    cleaned = []
+    for item in messages or []:
+        if not isinstance(item, dict):
+            continue
+        next_item = dict(item)
+        if next_item.get('role') == 'assistant':
+            next_item['content'] = _comprehensive_summary_only(next_item.get('content', ''))
+        cleaned.append(next_item)
+    return cleaned
+
+
 def save_comprehensive_conversation(data, question, profile, tool_models, paipan_context, artifacts, model_id, cost, history, answer):
     messages = list(history or [])
     messages.append({'role': 'user', 'content': question})
-    messages.append({'role': 'assistant', 'content': answer})
+    messages.append({'role': 'assistant', 'content': _comprehensive_summary_only(answer)})
     conv_id = data.get('conversation_id')
     conv = None
     if conv_id:
@@ -4445,7 +4468,7 @@ def api_comprehensive_conversation_detail(cid):
         'artifacts': _unwrap_comprehensive_paipan(_json_loads_safe(conv.paipan_json, {}))[1],
         'model_id': conv.model_id,
         'points_cost': conv.points_cost,
-        'messages': _json_loads_safe(conv.messages_json, []),
+        'messages': _clean_comprehensive_messages_for_display(_json_loads_safe(conv.messages_json, [])),
         'created_at': conv.created_at.isoformat() if conv.created_at else None,
         'updated_at': conv.updated_at.isoformat() if conv.updated_at else None,
     })
@@ -4630,7 +4653,7 @@ def api_comprehensive_ask_stream():
                     summary_text += chunk
                     full_text += chunk
                     yield _event({'summary': True, 'content': chunk})
-            conv = save_comprehensive_conversation(data, question, profile, tool_models, paipan_context, artifacts, model_id, cost, history, full_text)
+            conv = save_comprehensive_conversation(data, question, profile, tool_models, paipan_context, artifacts, model_id, cost, history, summary_text)
             points_left = get_or_create_membership(current_user.id).points
             membership = get_or_create_membership(current_user.id)
             yield _event({

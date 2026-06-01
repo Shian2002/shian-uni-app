@@ -31,7 +31,7 @@
           <text id="themeToggleIcon">{{ theme === 'dark' ? '🌙' : '☀️' }}</text>
         </view>
         <view class="nav-auth-btns" v-if="!localLoggedIn">
-          <view class="btn btn-outline btn-sm" onclick="window._openLoginModal()">登录</view>
+          <view class="btn btn-outline btn-sm" @click="openLoginFromNav" @tap="openLoginFromNav" onclick="window._openLoginModal && window._openLoginModal()">登录</view>
         </view>
         <view class="nav-avatar-wrap" v-else>
            <view class="nav-avatar-trigger nav-avatar-trigger-global" id="avatarGlobalTrigger">
@@ -180,8 +180,8 @@ function ensureGlobalSidebar() {
   sidebar.id = 'tarotSidebarGlobal'
   sidebar.setAttribute('aria-hidden', 'true')
   sidebar.innerHTML = '<div class="sidebar-brand"><span class="sidebar-brand-icon-wrap"><img class="sidebar-brand-icon" src="/static/images/logo.webp?v=2"></span><span class="sidebar-brand-name">时安解忧屋</span></div>'
-    + '<div class="sidebar-header"><span class="sidebar-title">对话历史</span></div>'
-    + '<div class="sidebar-tabs"><span class="sidebar-tab" id="sidebarTabFlat" onclick="window._xc_setSidebarView(\'flat\')">全部</span><span class="sidebar-tab" id="sidebarTabComprehensive" onclick="window._xc_setSidebarView(\'comprehensive\')">综合</span><span class="sidebar-tab" id="sidebarTabGrouped" onclick="window._xc_setSidebarView(\'grouped\')">分类</span></div>'
+    + '<div class="sidebar-header"><span class="sidebar-title">对话历史</span><button class="sidebar-new-chat-btn" id="sidebarNewChatBtn" type="button" onclick="window._xc_startNewConversation(\'comprehensive\')">新对话</button></div>'
+    + '<div class="sidebar-tabs"><span class="sidebar-tab active" id="sidebarTabFlat" onclick="window._xc_setSidebarView(\'flat\')">全部</span></div>'
     + '<div class="sidebar-content" id="sidebarListGlobal"><div class="sidebar-empty">加载中...</div></div>'
     + '<div class="sidebar-detail" id="sidebarDetailGlobal" style="display:none;">'
     + '<div class="sidebar-detail-back" onclick="window._xc_backToSidebarList()">← 返回</div>'
@@ -201,6 +201,7 @@ function ensureGlobalSidebar() {
   sidebar.querySelector('#sidebarUserSetting').onclick = function() { toggleSidebar(); go('#/pages/profile/index') }
   sidebar.querySelector('#sidebarUserLogout').onclick = function() { if (window._xc_doLogout) window._xc_doLogout() }
   sidebar.querySelector('#sidebarGuestLogin').onclick = function() { if (window._openLoginModal) window._openLoginModal() }
+  sidebar.querySelector('#sidebarNewChatBtn').onclick = function() { if (window._xc_startNewConversation) window._xc_startNewConversation('comprehensive') }
 
   document.body.appendChild(overlay)
   document.body.appendChild(sidebar)
@@ -217,12 +218,10 @@ onMounted(function() {
     window._xc_getVisibleModal = function() {
       var modals = Array.prototype.slice.call(document.querySelectorAll('#topnavLoginModal'))
       if (!modals.length) return null
-      var isUsable = function(el) {
+      var isCurrentPageModal = function(el) {
         if (!el) return false
-        var rect = el.getBoundingClientRect()
         var style = window.getComputedStyle ? window.getComputedStyle(el) : null
         if (style && (style.display === 'none' || style.visibility === 'hidden')) return false
-        if (rect.width <= 0 || rect.height <= 0) return false
         var page = el.closest('.tab-page-wrapper')
         if (page) {
           var pageStyle = window.getComputedStyle ? window.getComputedStyle(page) : null
@@ -230,10 +229,10 @@ onMounted(function() {
         }
         return true
       }
-      var openModal = modals.find(function(el) { return el.classList.contains('open') && isUsable(el) })
+      var openModal = modals.find(function(el) { return el.classList.contains('open') && isCurrentPageModal(el) })
       if (openModal) return openModal
-      var visibleModal = modals.find(isUsable)
-      return visibleModal || modals[modals.length - 1]
+      var currentModal = modals.find(isCurrentPageModal)
+      return currentModal || modals[0]
     }
   }
   // 全局登录tab切换（纯DOM操作，不依赖Vue reactive）
@@ -256,6 +255,7 @@ onMounted(function() {
     window._openLoginModal = function() {
       // 打开登录弹窗前关闭所有其他弹窗，防止 overlay 冲突
       try { document.querySelectorAll('#accountSettingsModal').forEach(function(el) { el.classList.remove('open') }) } catch(_) {}
+      try { document.querySelectorAll('#topnavLoginModal').forEach(function(el) { el.classList.remove('open') }) } catch(_) {}
      var modal = window._xc_getVisibleModal()
       if (modal) {
         modal.classList.add('open')
@@ -508,15 +508,7 @@ function toggleSidebar() {
   var now = Date.now()
   if (window.__sidebarCache && (now - window.__sidebarCache.ts) < 30000) {
     _restoreSidebarView()
-    var ft = document.getElementById('sidebarTabFlat')
-    var ct = document.getElementById('sidebarTabComprehensive')
-    if (ft && ft.classList.contains('active')) {
-      window._xc_setSidebarView('flat')
-    } else if (ct && ct.classList.contains('active')) {
-      window._xc_setSidebarView('comprehensive')
-    } else {
-      _renderSidebarGroups(window.__sidebarCache.groups, listEl)
-    }
+    window._xc_setSidebarView('flat')
     return
   }
   listEl.innerHTML = '<div class="sidebar-empty">加载中...</div>'
@@ -548,17 +540,9 @@ function toggleSidebar() {
     if (!allRecords.length) { listEl.innerHTML = '<div class="sidebar-empty">暂无历史记录</div>'; return }
     var groups = _groupRecords(allRecords)
     window.__sidebarCache = { ts: Date.now(), groups: groups, flat: allRecords }
-    // 恢复用户上次的视图选择，再渲染对应视图
+    // 对话历史只保留全部视图。
     _restoreSidebarView()
-    var flatTab = document.getElementById('sidebarTabFlat')
-    var comprehensiveTab = document.getElementById('sidebarTabComprehensive')
-    if (flatTab && flatTab.classList.contains('active')) {
-      window._xc_setSidebarView('flat')
-    } else if (comprehensiveTab && comprehensiveTab.classList.contains('active')) {
-      window._xc_setSidebarView('comprehensive')
-    } else {
-      _renderSidebarGroups(groups, listEl)
-    }
+    window._xc_setSidebarView('flat')
   }
   uni.request({ url: '/api/records?per_page=50', method: 'GET', success: function(res) {
     allRecords = res.data.records || []; recordsLoaded = true; _renderMerged()
@@ -906,70 +890,30 @@ window._showZwConvDetail = function(cid) {
   }, fail: function() { uni.showToast({ title: '加载失败', icon: 'none' }) } })
 }
 
-// 恢复上次使用的视图选择
+// 对话历史只保留全部视图。
 function _restoreSidebarView() {
   var flatTab = document.getElementById('sidebarTabFlat')
-  var groupedTab = document.getElementById('sidebarTabGrouped')
-  var comprehensiveTab = document.getElementById('sidebarTabComprehensive')
-  if (!flatTab || !groupedTab || !comprehensiveTab) return
-  var saved = ''
-  try { saved = localStorage.getItem('xc_sidebar_view') || '' } catch(_) {}
-  if (saved === 'grouped') {
-    groupedTab.classList.add('active')
-    comprehensiveTab.classList.remove('active')
-    flatTab.classList.remove('active')
-  } else if (saved === 'comprehensive') {
-    comprehensiveTab.classList.add('active')
-    groupedTab.classList.remove('active')
-    flatTab.classList.remove('active')
-  } else {
-    // 默认 flat
-    flatTab.classList.add('active')
-    comprehensiveTab.classList.remove('active')
-    groupedTab.classList.remove('active')
-  }
+  if (flatTab) flatTab.classList.add('active')
+  try { localStorage.setItem('xc_sidebar_view', 'flat') } catch(_) {}
 }
 
-// 侧边栏视图切换（分类/全部）
-window._xc_setSidebarView = function(view) {
-  var groupedTab = document.getElementById('sidebarTabGrouped')
+// 侧边栏视图切换：保留兼容入口，统一渲染全部。
+window._xc_setSidebarView = function() {
   var flatTab = document.getElementById('sidebarTabFlat')
-  var comprehensiveTab = document.getElementById('sidebarTabComprehensive')
   var listEl = document.getElementById('sidebarListGlobal')
-  if (!groupedTab || !flatTab || !comprehensiveTab || !listEl) return
+  if (!flatTab || !listEl) return
   var cache = window.__sidebarCache
-  if (!cache || !cache.groups) return
-  // 持久化用户选择的视图
-  try { localStorage.setItem('xc_sidebar_view', view) } catch(_) {}
-  if (view === 'grouped') {
-    groupedTab.classList.add('active')
-    flatTab.classList.remove('active')
-    comprehensiveTab.classList.remove('active')
-    _renderSidebarGroups(cache.groups, listEl)
-  } else if (view === 'comprehensive') {
-    comprehensiveTab.classList.add('active')
-    flatTab.classList.remove('active')
-    groupedTab.classList.remove('active')
-    var comprehensive = (cache.flat || []).filter(function(r) { return r.app_type === 'comprehensive' })
-    comprehensive.sort(function(a, b) { return (b.created_at || '').localeCompare(a.created_at || '') })
-    var ch = _renderNewConversationItem('comprehensive', '综合')
-    comprehensive.forEach(function(r) { ch += _renderSidebarItem(r) })
-    if (!comprehensive.length) ch += '<div class="sidebar-empty">暂无综合对话</div>'
-    listEl.innerHTML = ch
-  } else {
-    flatTab.classList.add('active')
-    groupedTab.classList.remove('active')
-    comprehensiveTab.classList.remove('active')
-    // 全部：展平按时间倒序排列
-    var flat = cache.flat || []
-    flat.sort(function(a, b) { return (b.created_at || '').localeCompare(a.created_at || '') })
-    var h = ''
-    flat.forEach(function(r) {
-      h += _renderSidebarItem(r)
-    })
-    if (!flat.length) h = '<div class="sidebar-empty">暂无历史记录</div>'
-    listEl.innerHTML = h
-  }
+  if (!cache || !cache.flat) return
+  try { localStorage.setItem('xc_sidebar_view', 'flat') } catch(_) {}
+  flatTab.classList.add('active')
+  var flat = cache.flat || []
+  flat.sort(function(a, b) { return (b.created_at || '').localeCompare(a.created_at || '') })
+  var h = ''
+  flat.forEach(function(r) {
+    h += _renderSidebarItem(r)
+  })
+  if (!flat.length) h = '<div class="sidebar-empty">暂无历史记录</div>'
+  listEl.innerHTML = h
 }
 
 function _formatSidebarTime(created_at) {
@@ -1105,13 +1049,31 @@ if (!window.__xcPointsListener) {
     }
   })
 }
-function doLogout() {
+function openLoginFromNav() {
+  try {
+    if (window._openLoginModal) window._openLoginModal()
+  } catch(_) {}
+}
+
+function performLogout() {
   uni.request({ url: '/api/logout', method: 'POST' }).then(function() {
-    uni.removeStorageSync('xc_token'); uni.removeStorageSync('xc_user')
+    uni.removeStorageSync('xc_token'); uni.removeStorageSync('xc_user'); uni.removeStorageSync('xc_has_password')
     applyLogoutState()
   }).catch(function() {
-    uni.removeStorageSync('xc_token'); uni.removeStorageSync('xc_user')
+    uni.removeStorageSync('xc_token'); uni.removeStorageSync('xc_user'); uni.removeStorageSync('xc_has_password')
     applyLogoutState()
+  })
+}
+
+function doLogout() {
+  uni.showModal({
+    title: '确认退出',
+    content: '确定要退出当前账号吗？',
+    confirmText: '退出',
+    cancelText: '取消',
+    success: function(res) {
+      if (res && res.confirm) performLogout()
+    }
   })
 }
 function closeLoginModal() { try { document.querySelectorAll('#topnavLoginModal').forEach(function(el) { el.classList.remove('open') }) } catch(_) {} }
@@ -1761,17 +1723,9 @@ onMounted(() => {
       }
     }, true)
   }
-  // 全局退出登录函数
-  if (!window._xc_doLogout) {
-    window._xc_doLogout = function() {
-      uni.request({ url: '/api/logout', method: 'POST' }).then(function() {
-        uni.removeStorageSync('xc_token'); uni.removeStorageSync('xc_user')
-        applyLogoutState()
-      }).catch(function() {
-        uni.removeStorageSync('xc_token'); uni.removeStorageSync('xc_user')
-        applyLogoutState()
-      })
-    }
+  // 全局退出登录函数：所有头像菜单、侧边栏退出都统一走确认弹窗。
+  window._xc_doLogout = function() {
+    doLogout()
   }
   // 创建登录弹窗原生输入框
   try {

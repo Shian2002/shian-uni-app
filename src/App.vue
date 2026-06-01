@@ -312,11 +312,19 @@ uni-tabbar, .uni-tabbar, .uni-tabbar-bottom {
 .sidebar-brand-icon-wrap::before { content:''; position:absolute; inset:0; border-radius:50%; background:var(--hero-logo-backdrop); box-shadow:var(--hero-logo-backdrop-shadow); z-index:0; }
 .sidebar-brand-icon { width:38px; height:38px; object-fit:contain; position:relative; z-index:1; }
 .sidebar-brand-name { font-family:var(--font-serif); font-size:1.3rem; color:var(--text-1); letter-spacing:4px; }
-.sidebar-header { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; }
+.sidebar-header { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 20px 10px; }
 .sidebar-title { font-size:0.8rem; color:var(--text-4); letter-spacing:1px; }
 .sidebar-close { font-size:1.2rem; color:var(--text-3); cursor:pointer; padding:4px; }
+.sidebar-new-chat-btn {
+  appearance:none; border:1px solid rgba(178,149,93,.42); border-radius:999px;
+  background:rgba(178,149,93,.14); color:var(--accent); cursor:pointer;
+  font-size:.75rem; font-weight:600; line-height:1; padding:8px 12px;
+  transition:background .16s ease, border-color .16s ease, transform .16s ease;
+}
+.sidebar-new-chat-btn:hover { background:rgba(178,149,93,.22); border-color:rgba(178,149,93,.62); }
+.sidebar-new-chat-btn:active { transform:translateY(1px) scale(.98); }
 .sidebar-tabs { display:flex; gap:4px; padding:0 20px 8px; }
-.sidebar-tab { font-size:0.75rem; padding:4px 12px; border-radius:12px; cursor:pointer; color:var(--text-3); background:transparent; transition:all .2s; }
+.sidebar-tab { font-size:0.75rem; padding:4px 12px; border-radius:12px; color:var(--text-3); background:transparent; transition:all .2s; }
 .sidebar-tab.active { color:var(--accent); background:var(--accent-glow); }
 /* 内容区（可滚动） */
 .sidebar-content { flex:1; overflow-y:auto; min-height:0; }

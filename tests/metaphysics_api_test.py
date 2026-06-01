@@ -468,6 +468,45 @@ def test_comprehensive_followup_reuses_existing_artifact_and_adds_yun_when_neede
     assert timing_done["artifacts"]["bazi.yun"]["display"] == "bazi_yun"
 
 
+def test_comprehensive_history_detail_hides_single_tool_analysis(app_module, user_factory):
+    user = user_factory("history-summary-user")
+    with app_module.app.app_context():
+        conv = app_module.ComprehensiveConversation(
+            user_id=user.id,
+            title="旧综合记录",
+            profile_data=json.dumps({"name": "样例"}, ensure_ascii=False),
+            models_json=json.dumps(["qimen", "bazi"], ensure_ascii=False),
+            paipan_json=json.dumps({
+                "paipan": {"qimen": {"ju": "阳遁一局"}},
+                "artifacts": {"qimen.pan": {"key": "qimen.pan", "analysis": "奇门单盘分析"}},
+            }, ensure_ascii=False),
+            model_id="basic",
+            points_cost=4,
+            messages_json=json.dumps([
+                {"role": "user", "content": "我今年怎么样"},
+                {
+                    "role": "assistant",
+                    "content": "【奇门遁甲解析】\n单盘内容\n\n【八字解析】\n八字内容\n\n【综合合参总结】\n只显示综合总结",
+                },
+            ], ensure_ascii=False),
+        )
+        app_module.db.session.add(conv)
+        app_module.db.session.commit()
+        conv_id = conv.id
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+      sess["_user_id"] = str(user.id)
+      sess["_fresh"] = True
+
+    response = client.get(f"/api/comprehensive/conversations/{conv_id}")
+    assert response.status_code == 200
+    content = response.get_json()["messages"][-1]["content"]
+    assert content == "只显示综合总结"
+    assert "奇门遁甲解析" not in content
+    assert "八字解析" not in content
+
+
 def test_homepage_uses_artifact_renderer_and_reading_mode_control():
     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     index_path = os.path.join(repo_root, "src", "pages", "index", "index.vue")
@@ -479,3 +518,7 @@ def test_homepage_uses_artifact_renderer_and_reading_mode_control():
     assert "renderArtifactHtml" in source
     assert "buildResultCards(" not in source
     assert "shouldAutoFollowChat" in source
+    assert "xc_home_artifact_collapse_v1" in source
+    assert "saveArtifactCollapsed" in source
+    assert "🐎" in source
+    assert "qimenMaGongFromData" in source
