@@ -170,6 +170,147 @@ def test_recharge_packages_include_points_and_ai_credit_packages(app_module):
     assert any(p["id"] == "ai-combo" and p["ai_combo_credits"] == 20 for p in packages)
 
 
+def test_paid_content_purchase_deducts_buyer_and_rewards_master(app_module, user_factory):
+    buyer = user_factory("paid-buyer")
+    author = user_factory("paid-author")
+
+    with app_module.app.app_context():
+        app_module.add_points(buyer.id, "admin_add", 100, "初始积分")
+        master = app_module.Master(user_id=author.id, display_name="作者")
+        app_module.db.session.add(master)
+        app_module.db.session.flush()
+        content = app_module.PaidContent(
+            title="合婚报告",
+            content_type="report",
+            preview="预览",
+            full_content="完整报告内容",
+            price=30,
+            master_id=master.id,
+            category="bazi",
+        )
+        app_module.db.session.add(content)
+        app_module.db.session.commit()
+        content_id = content.id
+
+    client = app_module.app.test_client()
+    detail_before = client.get(f"/api/paid-contents/{content_id}")
+    assert detail_before.status_code == 200
+    assert detail_before.get_json()["purchased"] is False
+    assert "fullContent" not in detail_before.get_json()
+
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(buyer.id)
+        sess["_fresh"] = True
+
+    purchase = client.post(f"/api/paid-contents/{content_id}/purchase")
+    assert purchase.status_code == 200
+    assert purchase.get_json()["pointsCost"] == 30
+
+    detail_after = client.get(f"/api/paid-contents/{content_id}")
+    assert detail_after.status_code == 200
+    assert detail_after.get_json()["purchased"] is True
+    assert detail_after.get_json()["fullContent"] == "完整报告内容"
+
+    duplicate = client.post(f"/api/paid-contents/{content_id}/purchase")
+    assert duplicate.status_code == 409
+
+    with app_module.app.app_context():
+        buyer_membership = app_module.Membership.query.filter_by(user_id=buyer.id).one()
+        author_membership = app_module.Membership.query.filter_by(user_id=author.id).one()
+        purchase_record = app_module.Purchase.query.filter_by(user_id=buyer.id, content_id=content_id).one()
+        assert buyer_membership.points == 70
+        assert author_membership.points == 21
+        assert purchase_record.points_cost == 30
+
+
+def test_master_can_create_paid_content_and_list_uses_preview_only(app_module, user_factory):
+    ordinary = user_factory("ordinary-user")
+    author = user_factory("master-user")
+
+    with app_module.app.app_context():
+        master = app_module.Master(user_id=author.id, display_name="专栏作者")
+        app_module.db.session.add(master)
+        app_module.db.session.commit()
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(ordinary.id)
+        sess["_fresh"] = True
+
+    denied = client.post("/api/paid-contents", json={
+        "title": "普通用户内容",
+        "fullContent": "不应创建",
+        "price": 10,
+    })
+    assert denied.status_code == 403
+
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(author.id)
+        sess["_fresh"] = True
+
+    created = client.post("/api/paid-contents", json={
+        "title": "择吉专栏",
+        "contentType": "article",
+        "preview": "只看摘要",
+        "fullContent": "完整专栏正文",
+        "price": 12,
+        "category": "zeji",
+    })
+    assert created.status_code == 201
+    content_id = created.get_json()["id"]
+
+    listed = client.get("/api/paid-contents?category=zeji")
+    assert listed.status_code == 200
+    body = listed.get_json()
+    assert body["total"] == 1
+    assert body["contents"][0]["id"] == content_id
+    assert body["contents"][0]["preview"] == "只看摘要"
+    assert "fullContent" not in body["contents"][0]
+
+
+def test_tool_run_meihua_creates_record_with_template_reading(app_module, user_factory):
+    member = user_factory("tool-run-user")
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(member.id)
+        sess["_fresh"] = True
+
+    response = client.post("/api/tool-run", json={
+        "appType": "meihua",
+        "name": "测事",
+        "method": "number",
+        "num1": 7,
+        "num2": 12,
+        "question": "这件事能成吗",
+    })
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["success"] is True
+    assert "梅花易数解读" in body["result"]
+    assert "山雷颐" in body["result"]
+
+    with app_module.app.app_context():
+        record = app_module.db.session.get(app_module.Record, body["record_id"])
+        assert record.user_id == member.id
+        assert record.app_type == "meihua"
+        assert "本卦:山雷颐" in record.question
+        assert "梅花易数解读" in record.result_html
+
+
+def test_tool_run_rejects_unknown_tool_type(app_module, user_factory):
+    member = user_factory("bad-tool-user")
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(member.id)
+        sess["_fresh"] = True
+
+    response = client.post("/api/tool-run", json={"appType": "unknown"})
+
+    assert response.status_code == 400
+    assert "不支持的工具类型" in response.get_json()["error"]
+
+
 def test_ai_credit_package_confirmation_adds_ai_quota_not_points(app_module, user_factory):
     member = user_factory("ai-credit-buyer")
 

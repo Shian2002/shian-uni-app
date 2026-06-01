@@ -1,16 +1,16 @@
 export const HOME_AI_STREAM_DEFAULTS = {
   frameMs: 16,
-  baseCps: 88,
-  maxCps: 180,
-  maxFrameChars: 2,
-  reactiveSyncMs: 180,
+  baseCps: 58,
+  maxCps: 72,
+  maxFrameChars: 1,
+  reactiveSyncMs: 420,
 }
 
 export function smoothTextSpeed(queueLength, options) {
   const opts = Object.assign({}, HOME_AI_STREAM_DEFAULTS, options || {})
   if (queueLength > 1200) return opts.maxCps
-  if (queueLength > 520) return 140
-  if (queueLength > 180) return 108
+  if (queueLength > 520) return 66
+  if (queueLength > 180) return 62
   return opts.baseCps
 }
 

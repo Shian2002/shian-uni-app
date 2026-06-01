@@ -211,6 +211,30 @@ def cleanup_old_runs(keep_run_id):
     except (OSError, ValueError):
         pass
 
+def reserve_run_id():
+    """申请新的自动化运行 ID，并停止上一轮 shell 进程。"""
+    global current_run_id, current_process
+    with current_lock:
+        if current_process and current_process.poll() is None:
+            current_process.terminate()
+            try:
+                current_process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                current_process.kill()
+        current_run_id += 1
+        return current_run_id
+
+def set_current_process(proc):
+    """记录当前自动化进程，供后续运行打断。"""
+    global current_process
+    with current_lock:
+        current_process = proc
+
+def is_current_run(run_id):
+    """判断后台线程是否仍属于最新运行。"""
+    with current_lock:
+        return run_id == current_run_id
+
 def run_automation(question, run_id, record_id=None):
     """在后台线程中运行奇门自动化"""
     global current_process
@@ -4607,314 +4631,6 @@ def _bazi_ask_task(run_id):
 
 
 # ═══════════════════════════════════════════════════════════════
-# 通用工具运行 API（六爻/梅花/紫微/择吉/塔罗等）
-# ═══════════════════════════════════════════════════════════════
-
-VALID_APP_TYPES = {'qimen', 'paipan', 'liuyao', 'meihua', 'ziwei', 'zeji', 'huangli', 'taluo'}
-
-@app.route('/api/tool-run', methods=['POST'])
-@login_required
-@csrf.exempt
-def api_tool_run():
-    """通用工具运行接口 — 接收工具类型和参数，执行排盘+AI解读"""
-    data = request.get_json(silent=True) or {}
-    app_type = (data.get('appType') or '').strip()
-
-    if app_type not in VALID_APP_TYPES:
-        return jsonify({'error': f'不支持的工具类型: {app_type}'}), 400
-
-    # 构建问题描述
-    question_parts = []
-    name = (data.get('name') or app_type).strip()
-    question_parts.append(f'[{app_type}] {name}')
-
-    if app_type == 'liuyao':
-        method = data.get('method', 'coin')
-        question_parts.append(f'起卦方式:{method}')
-        if data.get('coinResult'): question_parts.append(f'铜钱:{data["coinResult"]}')
-        if data.get('num1'): question_parts.append(f'数字:{data["num1"]}/{data.get("num2","")}')
-        if data.get('time'): question_parts.append(f'时间:{data["time"]}')
-    elif app_type == 'meihua':
-        method = data.get('method', 'time')
-        question_parts.append(f'起卦方式:{method}')
-        if data.get('num1'): question_parts.append(f'数字:{data["num1"]}/{data.get("num2","")}')
-        if data.get('char'): question_parts.append(f'字:{data["char"]}')
-        if data.get('time'): question_parts.append(f'时间:{data["time"]}')
-        # 用Python精准排盘，结果注入data供AI使用
-        try:
-            mh_result = _meihua_paipan(
-                method=method,
-                num1=data.get('num1'),
-                num2=data.get('num2'),
-                words=data.get('char') or data.get('words', ''),
-                year=data.get('year'), month=data.get('month'),
-                day=data.get('day'), hour=data.get('hour'),
-            )
-            if 'error' not in mh_result:
-                data['_mh_paipan'] = mh_result
-                question_parts.append(f'本卦:{mh_result.get("benGua",{}).get("name","")}')
-                question_parts.append(f'变卦:{mh_result.get("bianGua",{}).get("name","")}')
-                if mh_result.get('tiYong'):
-                    ty = mh_result['tiYong']
-                    question_parts.append(f'体:{ty.get("tiWuxing","")}({ty.get("tiPosition","")})')
-                    question_parts.append(f'用:{ty.get("yongWuxing","")}({ty.get("yongPosition","")})')
-                    question_parts.append(f'体用:{ty.get("tiYongRel","")}')
-        except Exception:
-            pass
-    elif app_type == 'ziwei':
-        question_parts.append(f'性别:{data.get("gender","男")}')
-        question_parts.append(f'出生:{data.get("birthTime","")}')
-        if data.get('birthAddr'): question_parts.append(f'出生地:{data["birthAddr"]}')
-    elif app_type == 'zeji':
-        question_parts.append(f'事项:{data.get("zejiType","")}')
-        question_parts.append(f'日期:{data.get("startDate","")}~{data.get("endDate","")}')
-    elif app_type == 'taluo':
-        question_parts.append(f'牌阵:{data.get("spread_name","three")}')
-
-    q = data.get('question') or data.get('time') or ''
-    if q: question_parts.append(f'问题:{q}')
-
-    question = ' | '.join(question_parts)
-
-    # 检查是否有对应的shell脚本
-    script_name = f'{app_type}_auto.sh'
-    script_path = os.path.join(BASE_DIR, script_name)
-
-    if os.path.exists(script_path):
-        # 有shell脚本 — 走后台自动化（类似奇门问策）
-        global current_run_id, current_process
-        with current_lock:
-            if current_process and current_process.poll() is None:
-                current_process.terminate()
-                try: current_process.wait(timeout=3)
-                except subprocess.TimeoutExpired: current_process.kill()
-            current_run_id += 1
-            run_id = current_run_id
-
-        cleanup_old_runs(run_id)
-        write_run_status(run_id, {'phase': 'starting', 'message': '准备中...', 'progress': 0, 'run_id': run_id})
-
-        # 写入参数文件
-        run_dir = get_run_dir(run_id)
-        with open(os.path.join(run_dir, 'params.json'), 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False)
-        with open(os.path.join(run_dir, 'question.txt'), 'w', encoding='utf-8') as f:
-            f.write(question)
-
-        record = Record(question=question, user_id=current_user.id, app_type=app_type, run_id=run_id)
-        db.session.add(record)
-        db.session.commit()
-
-        # 后台执行
-        env = os.environ.copy()
-        env['TOOL_PARAMS_FILE'] = os.path.join(run_dir, 'params.json')
-        env['QIMEN_QUESTION_FILE'] = os.path.join(run_dir, 'question.txt')
-        env['QIMEN_RUN_DIR'] = run_dir
-        env['QIMEN_RUN_ID'] = str(run_id)
-
-        def run_tool():
-            global current_process
-            try:
-                stdout_log = open(os.path.join(run_dir, 'stdout.log'), 'w')
-                stderr_log = open(os.path.join(run_dir, 'stderr.log'), 'w')
-                proc = subprocess.Popen(['bash', script_path], env=env, stdout=stdout_log, stderr=stderr_log)
-                with current_lock: current_process = proc
-                proc.wait()
-                stdout_log.close(); stderr_log.close()
-
-                with current_lock:
-                    if run_id != current_run_id: return
-
-                result = read_run_result(run_id)
-                if result:
-                    write_run_status(run_id, {'phase': 'done', 'message': '解读完成', 'progress': 100, 'run_id': run_id})
-                    with app.app_context():
-                        rec = db.session.get(Record, record.id)
-                        if rec:
-                            rec.result_html = result
-                            db.session.commit()
-                else:
-                    write_run_status(run_id, {'phase': 'error', 'message': '自动化完成但未获取到结果', 'progress': 0})
-            except Exception as e:
-                write_run_status(run_id, {'phase': 'error', 'message': str(e), 'progress': 0})
-
-        t = threading.Thread(target=run_tool, daemon=True)
-        t.start()
-        return jsonify({'status': 'started', 'run_id': run_id, 'record_id': record.id})
-
-    else:
-        # 无shell脚本 — 直接使用AI解读（基于问题生成解读）
-        # 生成结构化排盘描述 + AI解读请求
-        ai_prompt = _build_ai_prompt(app_type, data)
-        result_text = _generate_ai_reading(app_type, ai_prompt, question, data)
-
-        record = Record(
-            question=question, user_id=current_user.id,
-            app_type=app_type, result_html=result_text,
-        )
-        db.session.add(record)
-        db.session.commit()
-
-        return jsonify({
-            'success': True,
-            'result': result_text,
-            'message': result_text,
-            'record_id': record.id,
-        })
-
-
-def _build_ai_prompt(app_type, data):
-    """构建AI解读的prompt"""
-    prompts = {
-        'liuyao': f"请根据六爻排盘参数进行解卦。起卦方式:{data.get('method','coin')}，"
-                  f"问题:{data.get('question','综合解卦')}。"
-                  f"请按传统六爻规则排盘并给出卦宫、世应、动爻、六亲、六神分析，"
-                  f"最后给出简明白话解读和行动建议。"
-                  f"注意：内容仅为民俗文化参考，不构成任何决策建议。",
-
-        'meihua': f"请根据梅花易数参数进行起卦解读。起卦方式:{data.get('method','time')}，"
-                  f"问题:{data.get('question','综合解读')}。"
-                  + (f"\n排盘结果：本卦={data.get('_mh_paipan',{}).get('benGua',{}).get('name','')}, "
-                     f"互卦={data.get('_mh_paipan',{}).get('huGua',{}).get('name','')}, "
-                     f"变卦={data.get('_mh_paipan',{}).get('bianGua',{}).get('name','')}, "
-                     f"动爻={data.get('_mh_paipan',{}).get('dongYao','')}, "
-                     f"体用={data.get('_mh_paipan',{}).get('tiYong',{}).get('tiYongRel','')}, "
-                     f"吉凶={data.get('_mh_paipan',{}).get('tiYong',{}).get('tiYongJiXiong','')}, "
-                     f"断语={data.get('_mh_paipan',{}).get('tiYong',{}).get('verdict','')}。"
-                     if data.get('_mh_paipan') else "")
-                  + f"请基于以上排盘结果，给出本卦、互卦、变卦、体用生克的专业分析，"
-                  f"最后给出简明白话解读和行动建议。"
-                  f"注意：内容仅为民俗文化参考，不构成任何决策建议。",
-
-        'ziwei': f"请根据紫微斗数参数进行命盘解读。性别:{data.get('gender','男')}，"
-                 f"出生时间:{data.get('birthTime','')}，出生地:{data.get('birthAddr','')}。"
-                 f"请按紫微斗数规则排盘并给出十二宫、主星、四化、流年大运分析，"
-                 f"最后给出简明白话解读。"
-                 f"注意：内容仅为民俗文化参考，不构成任何决策建议。",
-
-        'zeji': f"请根据择吉参数进行分析。事项:{data.get('zejiType','')}，"
-                f"日期范围:{data.get('startDate','')}~{data.get('endDate','')}。"
-                f"请给出宜忌吉日、吉时、冲煞提醒，以及择吉建议。"
-                f"注意：内容仅为民俗文化参考，不构成任何决策建议。",
-
-        'taluo': f"请进行塔罗牌解读。牌阵:{data.get('spread','three')}，"
-                 f"问题:{data.get('question','综合解读')}。"
-                 f"请随机抽取对应数量的塔罗牌，给出正/逆位、牌意解读和综合建议。"
-                 f"注意：内容仅为民俗文化参考，不构成任何决策建议。",
-    }
-    return prompts.get(app_type, '请进行综合解读。注意：内容仅为民俗文化参考。')
-
-
-def _generate_ai_reading(app_type, prompt, question, data=None):
-    """生成AI解读 — 当前使用结构化模板，后续可对接真实AI接口"""
-    from datetime import datetime
-    now = datetime.now().strftime('%Y年%m月%d日 %H:%M')
-
-    # 提取梅花排盘数据
-    mh = (data or {}).get('_mh_paipan', {})
-
-    templates = {
-        'liuyao': f"""═══ 六爻排盘解读 ═══
-起卦时间：{now}
-问事：{question}
-
-【排盘参数已接收，AI解读生成中...】
-当前版本为模板解读，完整排盘功能开发中。
-
-── 卦象分析 ──
-根据起卦参数，本卦与变卦已生成。
-世爻代表问卦者自身，应爻代表所问之事。
-动爻为变化之关键，需重点关注。
-
-── 综合解读 ──
-当前为系统内测阶段，完整AI解卦功能即将上线。
-建议您使用「天机问策」获取完整的AI解读。
-
-⚠️ 以上内容仅为民俗文化参考，不构成任何决策建议。""",
-
-        'meihua': f"""═══ 梅花易数解读 ═══
-起卦时间：{now}
-问事：{question}
-
-── 排盘结果 ──
-本卦：{mh.get('benGua',{}).get('name','') if mh else '待排'}
-  上卦：{mh.get('benGua',{}).get('upper',{}).get('name','')}({mh.get('benGua',{}).get('upper',{}).get('wuxing','')}) {mh.get('benGua',{}).get('upper',{}).get('nature','')}
-  下卦：{mh.get('benGua',{}).get('lower',{}).get('name','')}({mh.get('benGua',{}).get('lower',{}).get('wuxing','')}) {mh.get('benGua',{}).get('lower',{}).get('nature','')}
-  动爻：第{mh.get('dongYao','')}爻
-互卦：{mh.get('huGua',{}).get('name','') if mh else ''}
-变卦：{mh.get('bianGua',{}).get('name','') if mh else ''}
-干支：{mh.get('ganzhi','') if mh else ''}
-
-── 体用分析 ──
-体卦：{mh.get('tiYong',{}).get('tiGua','')}({mh.get('tiYong',{}).get('tiPosition','')}) {mh.get('tiYong',{}).get('tiWuxing','')} {mh.get('tiYong',{}).get('tiWangshuai','')}
-用卦：{mh.get('tiYong',{}).get('yongGua','')}({mh.get('tiYong',{}).get('yongPosition','')}) {mh.get('tiYong',{}).get('yongWuxing','')} {mh.get('tiYong',{}).get('yongWangshuai','')}
-体用关系：体{mh.get('tiYong',{}).get('tiWuxing','')} {mh.get('tiYong',{}).get('tiYongRel','')} 用{mh.get('tiYong',{}).get('yongWuxing','')}
-吉凶：{mh.get('tiYong',{}).get('tiYongJiXiong','')}
-断语：{mh.get('tiYong',{}).get('verdict','')}
-
-── 综合解读 ──
-体卦代表自身，用卦代表所问之事。
-体用生克关系决定事物发展趋势。
-{mh.get('tiYong',{}).get('verdict','') if mh else ''}
-
-⚠️ 以上内容仅为民俗文化参考，不构成任何决策建议。""",
-
-        'ziwei': f"""═══ 紫微斗数命盘解读 ═══
-排盘时间：{now}
-问事：{question}
-
-【排盘参数已接收，AI解读生成中...】
-当前版本为模板解读，完整排盘功能开发中。
-
-── 命盘分析 ──
-根据出生信息，十二宫位与主星已排布完成。
-命宫为命盘核心，决定基本性格与人生走向。
-四化飞星为流年变化的关键。
-
-── 综合解读 ──
-当前为系统内测阶段，完整紫微斗数AI解读功能即将上线。
-
-⚠️ 以上内容仅为民俗文化参考，不构成任何决策建议。""",
-
-        'zeji': f"""═══ 择吉分析 ═══
-分析时间：{now}
-事项：{question}
-
-【择吉参数已接收，分析生成中...】
-当前版本为模板分析，完整择吉功能开发中。
-
-── 吉日推荐 ──
-根据择吉事项与日期范围，筛选出以下吉日：
-（完整黄历数据对接后，将显示详细宜忌信息）
-
-── 综合建议 ──
-当前为系统内测阶段，完整择吉功能即将上线。
-您可使用「黄历万年历」查询每日宜忌。
-
-⚠️ 以上内容仅为民俗文化参考，不构成任何决策建议。""",
-
-        'taluo': f"""═══ 塔罗牌解读 ═══
-抽牌时间：{now}
-牌阵：{data.get('spread_name', 'three') if 'data' in dir() else '三张牌'}
-问事：{question}
-
-【牌阵已生成，AI解读中...】
-当前版本为模板解读，完整塔罗功能开发中。
-
-── 牌意解读 ──
-根据牌阵类型，已抽取对应数量的塔罗牌。
-每张牌的正逆位与位置含义不同，需综合分析。
-
-── 综合解读 ──
-当前为系统内测阶段，完整塔罗牌AI解读功能即将上线。
-
-⚠️ 以上内容仅为民俗文化参考，不构成任何决策建议。""",
-    }
-
-    return templates.get(app_type, f'解读生成中...当前为模板解读，完整功能即将上线。\n\n⚠️ 以上内容仅为民俗文化参考，不构成任何决策建议。')
-
-
-# ═══════════════════════════════════════════════════════════════
 # 认证 API
 # ═══════════════════════════════════════════════════════════════
 
@@ -5957,6 +5673,7 @@ from comprehensive_routes import register_comprehensive_routes
 from media_routes import allowed_file, register_media_routes
 from metaphysics_routes import register_metaphysics_routes
 from ops_routes import register_ops_routes
+from paid_content_routes import register_paid_content_routes
 from points_routes import register_points_routes
 from profile_routes import register_profile_routes, sync_bazi_record_to_profile
 from recharge_routes import (
@@ -5965,6 +5682,7 @@ from recharge_routes import (
     make_confirm_recharge_order_once,
     register_recharge_routes,
 )
+from tool_run_routes import register_tool_run_routes
 from ziwei_routes import register_ziwei_routes
 
 _build_one_tool = None
@@ -6049,151 +5767,21 @@ register_admin_routes(app, db, {
     'add_points': add_points,
     'confirm_recharge_order_once': confirm_recharge_order_once,
 })
-
-@app.route('/api/paid-contents', methods=['GET'])
-def api_paid_contents_list():
-    """付费内容列表（返回preview，不返回full_content）"""
-    page = request.args.get('page', 1, type=int)
-    per_page = min(request.args.get('per_page', 20, type=int), 50)
-    content_type = request.args.get('type', '')
-    category = request.args.get('category', '')
-
-    query = PaidContent.query
-    if content_type:
-        query = query.filter_by(content_type=content_type)
-    if category:
-        query = query.filter_by(category=category)
-
-    pagination = query.order_by(PaidContent.created_at.desc())\
-        .paginate(page=page, per_page=per_page, error_out=False)
-
-    items = []
-    for c in pagination.items:
-        master = db.session.get(Master, c.master_id) if c.master_id else None
-        items.append({
-            'id': c.id,
-            'title': c.title,
-            'contentType': c.content_type,
-            'preview': c.preview,
-            'price': c.price,
-            'category': c.category,
-            'masterName': master.display_name if master else None,
-            'masterId': c.master_id,
-            'createdAt': c.created_at.isoformat() if c.created_at else None,
-        })
-
-    return jsonify({
-        'contents': items,
-        'total': pagination.total,
-        'page': page,
-        'per_page': per_page,
-        'has_next': pagination.has_next,
-        'disclaimer': '民俗文化内容，仅供学习参考',
-    })
-
-@app.route('/api/paid-contents/<int:cid>')
-def api_paid_contents_detail(cid):
-    """付费内容详情（已购买返回full_content，未购买只返回preview）"""
-    content = db.session.get(PaidContent, cid)
-    if not content:
-        return jsonify({'error': '内容不存在'}), 404
-
-    purchased = False
-    if current_user.is_authenticated:
-        purchased = Purchase.query.filter_by(user_id=current_user.id, content_id=cid).first() is not None
-
-    result = {
-        'id': content.id,
-        'title': content.title,
-        'contentType': content.content_type,
-        'preview': content.preview,
-        'price': content.price,
-        'category': content.category,
-        'purchased': purchased,
-        'masterId': content.master_id,
-        'createdAt': content.created_at.isoformat() if content.created_at else None,
-        'disclaimer': '民俗文化内容，仅供学习参考',
-    }
-
-    if purchased:
-        result['fullContent'] = content.full_content
-
-    return jsonify(result)
-
-@app.route('/api/paid-contents/<int:cid>/purchase', methods=['POST'])
-@login_required
-def api_paid_contents_purchase(cid):
-    """购买付费内容（扣积分）"""
-    content = db.session.get(PaidContent, cid)
-    if not content:
-        return jsonify({'error': '内容不存在'}), 404
-
-    # 检查是否已购买
-    existing = Purchase.query.filter_by(user_id=current_user.id, content_id=cid).first()
-    if existing:
-        return jsonify({'error': '已购买该内容'}), 409
-
-    # 扣除购买者积分
-    spend = use_points(current_user.id, 'purchase', content.price, f'购买内容: {content.title}', commit=False)
-    if not spend.get('ok'):
-        return jsonify(spend), 400
-
-    # 创建购买记录
-    purchase = Purchase(user_id=current_user.id, content_id=cid, points_cost=content.price)
-    db.session.add(purchase)
-
-    # 作者（大师）获得 70% 积分
-    if content.master_id:
-        master = db.session.get(Master, content.master_id)
-        if master:
-            author_points = int(content.price * 0.7)
-            add_points(master.user_id, 'purchased', author_points, f'内容被购买: {content.title}', commit=False)
-
-    db.session.commit()
-
-    return jsonify({
-        'ok': True,
-        'pointsCost': content.price,
-        'disclaimer': '民俗文化内容，仅供学习参考',
-    })
-
-@app.route('/api/paid-contents', methods=['POST'])
-@login_required
-def api_paid_contents_create():
-    """创建付费内容（仅大师可创建）"""
-    master = Master.query.filter_by(user_id=current_user.id).first()
-    if not master:
-        return jsonify({'error': '仅大师可创建付费内容'}), 403
-
-    data = request.get_json(silent=True) or {}
-    title = (data.get('title') or '').strip()
-    content_type = data.get('contentType', 'article')
-    preview = (data.get('preview') or '').strip()
-    full_content = (data.get('fullContent') or '').strip()
-    price = data.get('price', 100)
-    category = (data.get('category') or '').strip()
-
-    if not title:
-        return jsonify({'error': '标题不能为空'}), 400
-    if content_type not in ('article', 'report', 'reading'):
-        return jsonify({'error': '无效内容类型'}), 400
-    if not full_content:
-        return jsonify({'error': '完整内容不能为空'}), 400
-    if not isinstance(price, int) or price < 1:
-        return jsonify({'error': '价格须为正整数'}), 400
-
-    content = PaidContent(
-        title=title, content_type=content_type,
-        preview=preview, full_content=full_content,
-        price=price, master_id=master.id, category=category,
-    )
-    db.session.add(content)
-    db.session.commit()
-
-    return jsonify({
-        'id': content.id,
-        'disclaimer': '民俗文化内容，仅供学习参考',
-    }), 201
+register_paid_content_routes(app, db, {
+    'use_points': use_points,
+    'add_points': add_points,
+})
+register_tool_run_routes(app, db, {
+    'base_dir': BASE_DIR,
+    'meihua_paipan': _meihua_paipan,
+    'reserve_run_id': reserve_run_id,
+    'set_current_process': set_current_process,
+    'is_current_run': is_current_run,
+    'cleanup_old_runs': cleanup_old_runs,
+    'write_run_status': write_run_status,
+    'get_run_dir': get_run_dir,
+    'read_run_result': read_run_result,
+})
 
 
 

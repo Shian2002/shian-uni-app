@@ -340,6 +340,7 @@ let comprehensiveRenderFrame = null
 let comprehensiveTypeFrame = null
 let comprehensivePendingAssistantUpdate = null
 let comprehensiveArtifactAnalysisTimers = {}
+let comprehensiveTypeStates = {}
 const COMPREHENSIVE_TYPE_FRAME_MS = HOME_AI_STREAM_DEFAULTS.frameMs
 const COMPREHENSIVE_TYPE_MAX_FRAME_CHARS = HOME_AI_STREAM_DEFAULTS.maxFrameChars
 const COMPREHENSIVE_REACTIVE_SYNC_MS = HOME_AI_STREAM_DEFAULTS.reactiveSyncMs
@@ -1587,6 +1588,7 @@ function normalizeMessageHistory() {
 }
 
 function comprehensiveDraftPayload() {
+  syncActiveComprehensiveStreamText()
   return {
     updatedAt: Date.now(),
     conversationId: currentComprehensiveConvId.value || null,
@@ -1687,6 +1689,28 @@ function stopComprehensiveTypeTimer() {
     cancelAnimationFrame(comprehensiveTypeFrame)
     comprehensiveTypeFrame = null
   }
+  // #endif
+}
+
+function syncActiveComprehensiveStreamText() {
+  Object.keys(comprehensiveTypeStates).forEach(function(key) {
+    const aiIndex = Number(key)
+    const state = comprehensiveTypeStates[key]
+    const msg = comprehensiveMessages.value[aiIndex]
+    if (!state || !msg) return
+    const displayText = stripComprehensiveMarkdown(state.displayed || '')
+    if (displayText && msg.content !== displayText) msg.content = displayText
+  })
+}
+
+function saveComprehensiveDraftForUnload() {
+  syncActiveComprehensiveStreamText()
+  saveComprehensiveDraftNow()
+}
+
+function onHomeVisibilityChange() {
+  // #ifdef H5
+  if (document.visibilityState === 'hidden') saveComprehensiveDraftForUnload()
   // #endif
 }
 
@@ -1808,7 +1832,18 @@ function paintComprehensiveStreamText(aiIndex, text) {
   // #endif
 }
 
+function repaintComprehensiveStreamText(aiIndex) {
+  // #ifdef H5
+  const state = comprehensiveTypeStates[String(aiIndex)]
+  if (!state || !state.displayed) return
+  requestAnimationFrame(function() {
+    paintComprehensiveStreamText(aiIndex, stripComprehensiveMarkdown(state.displayed))
+  })
+  // #endif
+}
+
 function startComprehensiveTypewriter(aiIndex, state) {
+  comprehensiveTypeStates[String(aiIndex)] = state
   if (comprehensiveTypeFrame || comprehensiveTypeTimer) return
   const tick = function(now) {
     comprehensiveTypeFrame = null
@@ -1834,6 +1869,7 @@ function startComprehensiveTypewriter(aiIndex, state) {
           _streaming: false,
         })
         stopComprehensiveTypeTimer()
+        delete comprehensiveTypeStates[String(aiIndex)]
       }
       else comprehensiveTypeFrame = requestAnimationFrame(tick)
       return
@@ -1881,6 +1917,9 @@ function updateComprehensiveAssistant(aiIndex, patch, options) {
   scheduleComprehensiveDraftSave()
   if (comprehensiveMessages.value.length && (patch.content || patch.stage || patch.artifacts || patch._streaming) && shouldFollow) {
     scrollComprehensiveChatToBottom('auto')
+  }
+  if (current._streaming && comprehensiveTypeStates[String(aiIndex)] && !Object.prototype.hasOwnProperty.call(patch || {}, 'content')) {
+    repaintComprehensiveStreamText(aiIndex)
   }
   return current
 }
@@ -2180,6 +2219,7 @@ function startNewComprehensiveConversation() {
   currentComprehensiveConvId.value = null
   currentPaipanContext.value = {}
   currentArtifacts.value = {}
+  comprehensiveTypeStates = {}
   Object.keys(activeArtifactKeyByMessage).forEach(function(key) { delete activeArtifactKeyByMessage[key] })
   shouldAutoFollowChat.value = true
   pendingComprehensiveId = ''
@@ -2284,6 +2324,8 @@ onMounted(() => {
   window._xc_newComprehensive = startNewComprehensiveConversation
   window.addEventListener('keydown', onHomeKeydown)
   window.addEventListener('scroll', onHomePageScroll, { passive: true })
+  window.addEventListener('beforeunload', saveComprehensiveDraftForUnload)
+  document.addEventListener('visibilitychange', onHomeVisibilityChange)
   document.addEventListener('click', onHomeBaziYunClick)
   // 视频加载超时处理：3秒后如果视频还没准备好，显示fallback背景
   setTimeout(() => {
@@ -2305,7 +2347,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  saveComprehensiveDraftNow()
+  saveComprehensiveDraftForUnload()
   stopComprehensiveProgressTimer()
   stopComprehensiveTypeTimer()
   stopPendingArtifactAnalysisTimers()
@@ -2316,6 +2358,8 @@ onBeforeUnmount(() => {
   if (window._xc_newComprehensive === startNewComprehensiveConversation) window._xc_newComprehensive = null
   window.removeEventListener('keydown', onHomeKeydown)
   window.removeEventListener('scroll', onHomePageScroll)
+  window.removeEventListener('beforeunload', saveComprehensiveDraftForUnload)
+  document.removeEventListener('visibilitychange', onHomeVisibilityChange)
   document.removeEventListener('click', onHomeBaziYunClick)
   setHomeFixedPage(false)
   // #endif

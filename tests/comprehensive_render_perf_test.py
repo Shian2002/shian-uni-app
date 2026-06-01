@@ -39,13 +39,14 @@ def test_comprehensive_stream_rendering_is_batched():
     stream_source = _home_ai_stream_source()
 
     assert "frameMs: 16" in stream_source
-    assert "baseCps: 88" in stream_source
-    assert "maxCps: 180" in stream_source
-    assert "maxFrameChars: 2" in stream_source
-    assert "reactiveSyncMs: 180" in stream_source
+    assert "baseCps: 58" in stream_source
+    assert "maxCps: 72" in stream_source
+    assert "maxFrameChars: 1" in stream_source
+    assert "reactiveSyncMs: 420" in stream_source
     assert "const COMPREHENSIVE_ARTIFACT_FLUSH_MS = 120" in source
     assert "let comprehensiveRenderFrame = null" in source
     assert "let comprehensiveTypeFrame = null" in source
+    assert "let comprehensiveTypeStates = {}" in source
     assert "function scheduleComprehensiveAssistantUpdate" in source
     assert "function flushComprehensiveAssistantUpdate" in source
     assert "function flushPendingArtifactAnalyses()" in source
@@ -63,6 +64,8 @@ def test_comprehensive_stream_rendering_is_batched():
     assert "takeSmoothTextChunk(state.queue" in typewriter.group("body")
     assert "scheduleComprehensiveAssistantUpdate" in typewriter.group("body")
     assert "paintComprehensiveStreamText(aiIndex, displayText)" in typewriter.group("body")
+    assert "comprehensiveTypeStates[String(aiIndex)] = state" in source
+    assert "repaintComprehensiveStreamText(aiIndex)" in source
     assert "setInterval" not in typewriter.group("body")
     assert "function takeSmoothTextChunk" in stream_source
     assert "function shouldSyncStreamContent" in stream_source
@@ -125,6 +128,8 @@ def test_comprehensive_home_draft_survives_refresh_during_stream():
     assert "const COMPREHENSIVE_DRAFT_SAVE_MS = 320" in source
     assert "createHomeAiDraftStorage" in source
     assert "function saveComprehensiveDraftNow()" in source
+    assert "function saveComprehensiveDraftForUnload()" in source
+    assert "function syncActiveComprehensiveStreamText()" in source
     assert "function scheduleComprehensiveDraftSave()" in source
     assert "function restoreComprehensiveDraft()" in source
     assert "localStorage.setItem(storageKey" in draft_source
@@ -133,6 +138,9 @@ def test_comprehensive_home_draft_survives_refresh_during_stream():
     assert "saveComprehensiveDraftNow()" in source
     assert "restoreComprehensiveDraft()" in source
     assert "上次解读在刷新时中断，已恢复已生成内容" in source
+    assert "syncActiveComprehensiveStreamText()" in source
+    assert "window.addEventListener('beforeunload', saveComprehensiveDraftForUnload)" in source
+    assert "document.addEventListener('visibilitychange', onHomeVisibilityChange)" in source
 
     update_fn = re.search(
         r"function updateComprehensiveAssistant\(aiIndex, patch, options\) \{(?P<body>.*?)\n\}",
