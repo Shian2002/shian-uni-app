@@ -14,6 +14,7 @@ REMOTE_OPS_DIR="${REMOTE_OPS_DIR:-/opt/xuan-cet/ops}"
 REMOTE_ALERT_PY="$REMOTE_OPS_DIR/production_alert.py"
 ALERT_ENV_FILE="${ALERT_ENV_FILE:-/etc/xuan-cet-alert.env}"
 ALERT_EMAIL_TO="${ALERT_EMAIL_TO:-}"
+ALERT_WECHAT_MENTION_MOBILE="${ALERT_WECHAT_MENTION_MOBILE:-}"
 ALERT_INTERVAL_MIN="${ALERT_INTERVAL_MIN:-10}"
 ALERT_BASE_URL="${ALERT_BASE_URL:-http://119.29.128.18}"
 
@@ -23,6 +24,7 @@ echo "== 安装线上健康自动告警 =="
 echo "服务器: $SERVER"
 echo "检查间隔: ${ALERT_INTERVAL_MIN} 分钟"
 echo "邮箱收件人: ${ALERT_EMAIL_TO:-未设置}"
+echo "微信 @ 手机号: ${ALERT_WECHAT_MENTION_MOBILE:-未设置}"
 
 "${SSH_CMD[@]}" "$SERVER" "mkdir -p '$REMOTE_OPS_DIR'"
 "${SCP_CMD[@]}" "$ROOT_DIR/scripts/production_alert.py" "$SERVER:$REMOTE_ALERT_PY"
@@ -38,6 +40,13 @@ if [ -n '$ALERT_EMAIL_TO' ]; then
     sudo sed -i 's#^ALERT_EMAIL_TO=.*#ALERT_EMAIL_TO=$ALERT_EMAIL_TO#' '$ALERT_ENV_FILE'
   else
     echo 'ALERT_EMAIL_TO=$ALERT_EMAIL_TO' | sudo tee -a '$ALERT_ENV_FILE' >/dev/null
+  fi
+fi
+if [ -n '$ALERT_WECHAT_MENTION_MOBILE' ]; then
+  if sudo grep -q '^ALERT_WECHAT_MENTION_MOBILE=' '$ALERT_ENV_FILE'; then
+    sudo sed -i 's#^ALERT_WECHAT_MENTION_MOBILE=.*#ALERT_WECHAT_MENTION_MOBILE=$ALERT_WECHAT_MENTION_MOBILE#' '$ALERT_ENV_FILE'
+  else
+    echo 'ALERT_WECHAT_MENTION_MOBILE=$ALERT_WECHAT_MENTION_MOBILE' | sudo tee -a '$ALERT_ENV_FILE' >/dev/null
   fi
 fi
 sudo tee /usr/local/bin/xuan-cet-alert-check >/dev/null <<'EOF'

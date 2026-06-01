@@ -104,6 +104,13 @@ ALERT_EMAIL_TO=你的邮箱 bash scripts/install_production_alert.sh
 
 ```bash
 ALERT_WECHAT_WEBHOOK=https://...
+ALERT_WECHAT_MENTION_MOBILE=你的手机号
+```
+
+如果通过 `scripts/install_production_alert.sh` 安装，也可以这样写入手机号：
+
+```bash
+ALERT_EMAIL_TO=你的邮箱 ALERT_WECHAT_MENTION_MOBILE=你的手机号 bash scripts/install_production_alert.sh
 ```
 
 发送一条正常测试通知：

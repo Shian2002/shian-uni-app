@@ -144,9 +144,17 @@ def send_wechat(subject, body):
     webhook = os.environ.get("ALERT_WECHAT_WEBHOOK", "").strip()
     if not webhook:
         return False, "微信机器人 webhook 未配置"
+    mentioned_mobile = [
+        item.strip()
+        for item in os.environ.get("ALERT_WECHAT_MENTION_MOBILE", "").split(",")
+        if item.strip()
+    ]
+    text = {"content": f"{subject}\n\n{body}"}
+    if mentioned_mobile:
+        text["mentioned_mobile_list"] = mentioned_mobile
     payload = json.dumps({
         "msgtype": "text",
-        "text": {"content": f"{subject}\n\n{body}"},
+        "text": text,
     }).encode("utf-8")
     request = urllib.request.Request(
         webhook,
