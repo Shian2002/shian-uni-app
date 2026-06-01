@@ -89,8 +89,37 @@ def test_home_ai_answers_show_rotating_shian_agent_header():
     assert "时安 agent" in source
     assert "home-artifact-analysis-head" in source
     assert "home-ai-agent-logo" in source
+    assert "home-ai-agent-logo.spinning" in source
     assert "animation: stage-spin 3.2s linear infinite" in source
-    assert "{{ artifact.title }}解析" in source
+    assert "home-ai-agent-logo.idle" in source
+    assert "animation: none" in source
+    assert "综合解答</text>" not in source
+    assert "currentArtifactForMessage(msg, idx).title }}解析" in source
+
+
+def test_home_ai_artifacts_use_switcher_not_full_stack():
+    source = _source()
+
+    assert "activeArtifactKeyByMessage" in source
+    assert "setActiveArtifact(idx, artifact.key)" in source
+    assert "currentArtifactForMessage(msg, idx)" in source
+    assert "home-artifact-switcher" in source
+    assert 'v-for="artifact in visibleArtifactList(msg)"' in source
+    assert 'v-if="currentArtifactForMessage(msg, idx) && !isSummaryActive(msg, idx)"' in source
+    assert "home-ai-summary-panel" in source
+    assert "activeArtifactKeyByMessage[messageIndex] = key" in source
+    assert "ensureActiveArtifact(index, visibleArtifactList(message))" in source
+
+
+def test_home_ai_switcher_layout_is_compact():
+    source = _source()
+
+    assert ".home-artifact-switcher" in source
+    assert "overflow-x: auto" in source
+    assert ".home-artifact-tab.active" in source
+    assert ".home-ai-summary-panel" in source
+    assert ".home-tool-card-toggle { display: none; }" in source
+    assert "home-ai-stage-wrap { display: none; }" in source
 
 
 def test_home_ziwei_timeline_is_sorted_by_decadal_age():

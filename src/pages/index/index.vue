@@ -52,18 +52,20 @@
                 :class="msg.role === 'user' ? 'user' : 'assistant'"
               >
                 <text class="home-ai-role" v-if="msg.role === 'user'">你</text>
-                <view class="home-ai-agent-head" v-else>
-                  <img class="home-ai-agent-logo" src="/static/images/logo.webp?v=2" alt="时安解忧屋" />
+                <view
+                  class="home-ai-agent-head"
+                  v-else-if="msg.stage || msg.content || visibleArtifactList(msg).length"
+                >
+                  <img
+                    class="home-ai-agent-logo"
+                    :class="msg.stage ? 'spinning' : 'idle'"
+                    src="/static/images/logo.webp?v=2"
+                    alt="时安解忧屋"
+                  />
                   <view class="home-ai-agent-texts">
                     <text class="home-ai-agent-name">时安 agent</text>
-                    <text class="home-ai-agent-sub">综合解答</text>
-                  </view>
-                </view>
-                <view class="home-ai-stage-wrap" v-if="msg.stage">
-                  <img class="home-ai-stage-logo" src="/static/images/logo.webp?v=2" alt="时安解忧屋" />
-                  <view class="home-ai-stage-texts">
-                    <text class="home-ai-stage">{{ msg.stage }}</text>
-                    <text class="home-ai-stage-note">正在按所选命盘和术数生成，可继续停留在当前页</text>
+                    <text class="home-ai-agent-sub">{{ msg.stage || '已完成解读' }}</text>
+                    <text class="home-ai-stage-note" v-if="msg.stage">正在按所选命盘和术数生成，可继续停留在当前页</text>
                   </view>
                 </view>
                 <view class="home-ai-step-row" v-if="msg.stage && !msg.content">
@@ -76,35 +78,59 @@
                   <view class="home-ai-progress-bar"></view>
                 </view>
                 <view class="home-tool-cards" v-if="visibleArtifactList(msg).length">
-                  <view
-                    class="home-tool-card"
-                    v-for="artifact in visibleArtifactList(msg)"
-                    :key="artifact.key"
-                    :class="{ collapsed: artifact.collapsed }"
-                  >
-                    <view class="home-tool-card-head" @tap="toggleArtifact(idx, artifact.key)">
-                      <view>
-                        <text class="home-tool-card-title">{{ artifact.title }}</text>
-                        <text class="home-tool-card-sub">{{ artifactSummary(artifact) }}</text>
-                      </view>
-                      <text class="home-tool-card-toggle">{{ artifact.collapsed ? '展开' : '收起' }}</text>
+                  <view class="home-artifact-switcher">
+                    <view
+                      class="home-artifact-tab"
+                      v-for="artifact in visibleArtifactList(msg)"
+                      :key="artifact.key"
+                      :class="{ active: activeArtifactKeyForMessage(msg, idx) === artifact.key }"
+                      @tap="setActiveArtifact(idx, artifact.key)"
+                    >
+                      <text class="home-artifact-tab-title">{{ artifact.title }}</text>
+                      <text class="home-artifact-tab-sub">{{ artifactSummary(artifact) }}</text>
                     </view>
-                    <view class="home-tool-card-body" v-if="!artifact.collapsed">
-                      <view class="home-artifact-render" v-html="renderArtifactHtml(artifact)"></view>
-                      <view class="home-artifact-analysis" v-if="artifact.analysis">
+                    <view
+                      class="home-artifact-tab conclusion"
+                      :class="{ active: isSummaryActive(msg, idx) }"
+                      v-if="msg.content"
+                      @tap="setActiveArtifact(idx, '__summary__')"
+                    >
+                      <text class="home-artifact-tab-title">综合结论</text>
+                      <text class="home-artifact-tab-sub">最终合参建议</text>
+                    </view>
+                  </view>
+                  <view class="home-tool-card" v-if="currentArtifactForMessage(msg, idx) && !isSummaryActive(msg, idx)">
+                    <view class="home-tool-card-head">
+                      <view>
+                        <text class="home-tool-card-title">{{ currentArtifactForMessage(msg, idx).title }}</text>
+                        <text class="home-tool-card-sub">{{ artifactSummary(currentArtifactForMessage(msg, idx)) }}</text>
+                      </view>
+                    </view>
+                    <view class="home-tool-card-body">
+                      <view class="home-artifact-render" v-html="renderArtifactHtml(currentArtifactForMessage(msg, idx))"></view>
+                      <view class="home-artifact-analysis" v-if="currentArtifactForMessage(msg, idx).analysis">
                         <view class="home-artifact-analysis-head">
-                          <img class="home-ai-agent-logo small" src="/static/images/logo.webp?v=2" alt="时安解忧屋" />
+                          <img class="home-ai-agent-logo small idle" src="/static/images/logo.webp?v=2" alt="时安解忧屋" />
                           <view class="home-ai-agent-texts">
                             <text class="home-ai-agent-name">时安 agent</text>
-                            <text class="home-artifact-analysis-title">{{ artifact.title }}解析</text>
+                            <text class="home-artifact-analysis-title">{{ currentArtifactForMessage(msg, idx).title }}解析</text>
                           </view>
                         </view>
-                        <text>{{ artifact.analysis }}</text>
+                        <text>{{ currentArtifactForMessage(msg, idx).analysis }}</text>
                       </view>
                     </view>
                   </view>
                 </view>
-                <text class="home-ai-content" v-if="msg.content">{{ msg.content }}</text>
+                <view class="home-ai-summary-panel" v-if="msg.content && (!visibleArtifactList(msg).length || isSummaryActive(msg, idx))">
+                  <view class="home-artifact-analysis-head">
+                    <img class="home-ai-agent-logo small idle" src="/static/images/logo.webp?v=2" alt="时安解忧屋" />
+                    <view class="home-ai-agent-texts">
+                      <text class="home-ai-agent-name">时安 agent</text>
+                      <text class="home-artifact-analysis-title">综合结论</text>
+                    </view>
+                  </view>
+                  <text class="home-ai-content">{{ msg.content }}</text>
+                </view>
               </view>
             </view>
 
@@ -683,6 +709,39 @@ function visibleArtifactList(msg) {
   })
 }
 
+const activeArtifactKeyByMessage = reactive({})
+
+function ensureActiveArtifact(messageIndex, artifacts) {
+  const list = artifacts || []
+  const current = activeArtifactKeyByMessage[messageIndex]
+  if (!list.length) return ''
+  if (current === '__summary__') return current
+  if (current && list.some(function(item) { return item.key === current })) return current
+  activeArtifactKeyByMessage[messageIndex] = list[0].key
+  return list[0].key
+}
+
+function activeArtifactKeyForMessage(msg, messageIndex) {
+  const list = visibleArtifactList(msg)
+  return activeArtifactKeyByMessage[messageIndex] || (list[0] && list[0].key) || ''
+}
+
+function setActiveArtifact(messageIndex, key) {
+  if (!key) return
+  activeArtifactKeyByMessage[messageIndex] = key
+}
+
+function isSummaryActive(msg, messageIndex) {
+  const list = visibleArtifactList(msg)
+  return !!msg && !!msg.content && activeArtifactKeyByMessage[messageIndex] === '__summary__' && list.length > 0
+}
+
+function currentArtifactForMessage(msg, messageIndex) {
+  const list = visibleArtifactList(msg)
+  const key = activeArtifactKeyForMessage(msg, messageIndex)
+  return list.find(function(item) { return item.key === key }) || list[0] || null
+}
+
 function revealArtifact(aiIndex, artifactKey) {
   const current = comprehensiveMessages.value[aiIndex]
   if (!current || !artifactKey) return
@@ -694,6 +753,7 @@ function revealArtifact(aiIndex, artifactKey) {
       collapsed: savedCollapsed !== undefined ? savedCollapsed : false,
     })
   })
+  setActiveArtifact(aiIndex, artifactKey)
   updateComprehensiveAssistant(aiIndex, { artifacts }, { shouldFollow: isComprehensiveChatNearBottom() })
 }
 
@@ -1654,6 +1714,9 @@ function updateComprehensiveAssistant(aiIndex, patch, options) {
     ? !!opts.shouldFollow
     : isComprehensiveChatNearBottom()
   comprehensiveMessages.value[aiIndex] = Object.assign({}, current, patch)
+  if (patch.artifacts) {
+    ensureActiveArtifact(aiIndex, visibleArtifactList(comprehensiveMessages.value[aiIndex]))
+  }
   if (comprehensiveMessages.value.length && (patch.content || patch.stage || patch.artifacts) && shouldFollow) {
     scrollComprehensiveChatToBottom('auto')
   }
@@ -1855,6 +1918,9 @@ async function restoreComprehensiveConversation(id) {
       }
       return m
     })
+    comprehensiveMessages.value.forEach(function(message, index) {
+      ensureActiveArtifact(index, visibleArtifactList(message))
+    })
     const mid = data.model_id || 'basic'
     const mi = llmModels.value.findIndex(m => m.id === mid)
     if (mi >= 0) llmModelIdx.value = mi
@@ -1925,6 +1991,7 @@ function startNewComprehensiveConversation() {
   currentComprehensiveConvId.value = null
   currentPaipanContext.value = {}
   currentArtifacts.value = {}
+  Object.keys(activeArtifactKeyByMessage).forEach(function(key) { delete activeArtifactKeyByMessage[key] })
   shouldAutoFollowChat.value = true
   pendingComprehensiveId = ''
   try { sessionStorage.removeItem('xc_comprehensive_resume_id') } catch(_) {}
@@ -2232,13 +2299,15 @@ onBeforeUnmount(() => {
 .home-ai-message.assistant { margin-right: 72px; background: rgba(255,255,255,0.045); }
 .home-ai-role { display: block; font-size: 0.68rem; color: var(--text-3); margin-bottom: 6px; }
 .home-ai-agent-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.home-ai-agent-logo { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; object-fit: cover; animation: stage-spin 3.2s linear infinite; box-shadow: 0 0 0 1px rgba(178,149,93,.18), 0 6px 16px rgba(0,0,0,.12); }
+.home-ai-agent-logo { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; object-fit: cover; box-shadow: 0 0 0 1px rgba(178,149,93,.18), 0 6px 16px rgba(0,0,0,.12); }
+.home-ai-agent-logo.spinning { animation: stage-spin 3.2s linear infinite; }
+.home-ai-agent-logo.idle { animation: none; }
 .home-ai-agent-logo.small { width: 22px; height: 22px; }
 .home-ai-agent-texts { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .home-ai-agent-name { color: var(--text-1); font-size: .78rem; font-weight: 800; letter-spacing: .5px; line-height: 1.15; }
 .home-ai-agent-sub { color: var(--text-3); font-size: .66rem; line-height: 1.2; }
 .home-ai-stage { display: inline; font-size: 0.82rem; color: var(--accent); }
-.home-ai-stage-wrap { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.home-ai-stage-wrap { display: none; }
 .home-ai-stage-logo { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; animation: stage-spin 1.8s linear infinite; }
 .home-ai-stage-texts { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .home-ai-stage-note { color: var(--text-3); font-size: 0.68rem; line-height: 1.35; }
@@ -2252,15 +2321,23 @@ onBeforeUnmount(() => {
 .home-ai-content { display: block; white-space: pre-wrap; font-size: 0.9rem; color: var(--text-2); line-height: 1.86; letter-spacing: 0; word-break: break-word; }
 .home-tool-cards { display: grid; gap: 10px; margin: 10px 0 12px; }
 .home-tool-card { min-height: 92px; border: 1px solid rgba(178,149,93,0.18); border-radius: 12px; background: rgba(178,149,93,0.055); overflow: hidden; }
-.home-tool-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; cursor: pointer; }
+.home-artifact-switcher { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 10px; margin-bottom: 10px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.home-artifact-switcher::-webkit-scrollbar { display: none; }
+.home-artifact-tab { flex: 0 0 auto; min-width: 138px; max-width: 190px; padding: 9px 11px; border-radius: 12px; border: 1px solid rgba(178,149,93,.14); background: rgba(255,255,255,.04); cursor: pointer; box-sizing: border-box; }
+.home-artifact-tab.active { border-color: rgba(178,149,93,.48); background: rgba(178,149,93,.12); box-shadow: inset 0 1px 0 rgba(255,255,255,.08); }
+.home-artifact-tab.conclusion { border-color: rgba(120,150,110,.24); }
+.home-artifact-tab-title { display: block; color: var(--text-1); font-size: .76rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-artifact-tab-sub { display: block; margin-top: 3px; color: var(--text-3); font-size: .62rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-tool-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; cursor: default; }
 .home-tool-card-title { display: block; color: var(--text-1); font-size: 0.84rem; font-weight: 700; }
 .home-tool-card-sub { display: block; margin-top: 3px; color: var(--text-3); font-size: 0.68rem; line-height: 1.35; }
-.home-tool-card-toggle { flex-shrink: 0; color: var(--accent); font-size: 0.68rem; }
+.home-tool-card-toggle { display: none; }
 .home-tool-card-body { min-width: 0; padding: 0 12px 12px; display: grid; gap: 12px; overflow: visible; }
 .home-artifact-render { width: 100%; min-height: 0; overflow-x: visible; overflow-y: visible; border-radius: 12px; }
 .home-artifact-analysis { margin-top: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(178,149,93,.16); background: rgba(178,149,93,.055); color: var(--text-2); line-height: 1.8; white-space: pre-wrap; font-size: .84rem; }
 .home-artifact-analysis-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .home-artifact-analysis-title { color: var(--accent); font-weight: 800; font-size: .72rem; letter-spacing: .5px; line-height: 1.2; }
+.home-ai-summary-panel { margin-top: 10px; padding: 14px 16px; border-radius: 14px; border: 1px solid rgba(178,149,93,.16); background: rgba(255,255,255,.045); }
 .home-artifact-render :deep(.artifact-panel) { display: grid; gap: 10px; color: var(--text-2); font-size: 0.74rem; }
 .home-artifact-render :deep(.artifact-grid) { display: grid; gap: 8px; }
 .home-artifact-render :deep(.artifact-grid-4) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -2805,6 +2882,10 @@ onBeforeUnmount(() => {
   .home-ai-chat-sub { max-width: calc(100vw - 136px); font-size: 0.6rem; }
   .home-ai-stage-note { font-size: 0.6rem; }
   .home-ai-step-row text { font-size: 0.5rem; }
+  .home-artifact-tab { min-width: 116px; max-width: 152px; padding: 8px 9px; }
+  .home-artifact-tab-title { font-size: .7rem; }
+  .home-artifact-tab-sub { font-size: .56rem; }
+  .home-ai-summary-panel { padding: 12px; }
   .profile-sheet-panel { bottom: max(10px, env(safe-area-inset-bottom)); max-height: calc(100dvh - 22px); padding: 16px; border-radius: 18px; }
   .profile-sheet-head { flex-shrink: 0; margin-bottom: 10px; }
   .profile-tabs { flex-shrink: 0; }
