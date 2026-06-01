@@ -431,6 +431,42 @@ def test_followups_and_collections_are_user_scoped(app_module, user_factory):
     assert deleted_followup.status_code == 200
 
 
+def test_email_code_login_uses_shared_verification_store(app_module, user_factory):
+    member = user_factory("email-code-user")
+    email_addr = "email-code@example.com"
+
+    with app_module.app.app_context():
+        user = app_module.db.session.get(app_module.User, member.id)
+        user.email = email_addr
+        app_module.db.session.commit()
+
+    import auth_channel_routes
+    auth_channel_routes._store_code(f"email_{email_addr}", "123456")
+
+    client = app_module.app.test_client()
+    response = client.post("/api/email/login", json={
+        "email": email_addr,
+        "code": "123456",
+    })
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["username"] == "email-code-user"
+
+
+def test_unconfigured_oauth_url_returns_actionable_error(app_module):
+    import auth_channel_routes
+    auth_channel_routes.QQ_APP_ID = ""
+    client = app_module.app.test_client()
+
+    response = client.get("/api/oauth/qq/url")
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["url"] == ""
+    assert "暂未配置" in body["error"]
+
+
 def test_ai_credit_package_confirmation_adds_ai_quota_not_points(app_module, user_factory):
     member = user_factory("ai-credit-buyer")
 
