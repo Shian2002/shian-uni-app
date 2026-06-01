@@ -17,9 +17,11 @@ def _qimen_source():
 def test_comprehensive_stream_rendering_is_batched():
     source = _source()
 
-    assert "const COMPREHENSIVE_TYPE_FRAME_MS = 16" in source
-    assert "const COMPREHENSIVE_TYPE_BASE_CPS = 54" in source
-    assert "const COMPREHENSIVE_TYPE_MAX_CPS = 132" in source
+    assert "const COMPREHENSIVE_TYPE_FRAME_MS = 42" in source
+    assert "const COMPREHENSIVE_TYPE_BASE_CPS = 96" in source
+    assert "const COMPREHENSIVE_TYPE_MAX_CPS = 240" in source
+    assert "const COMPREHENSIVE_TYPE_MIN_CHUNK = 3" in source
+    assert "const COMPREHENSIVE_TYPE_MAX_CHUNK = 18" in source
     assert "const COMPREHENSIVE_ARTIFACT_FLUSH_MS = 120" in source
     assert "let comprehensiveRenderFrame = null" in source
     assert "let comprehensiveTypeFrame = null" in source
@@ -37,9 +39,13 @@ def test_comprehensive_stream_rendering_is_batched():
     assert "requestAnimationFrame(tick)" in typewriter.group("body")
     assert "comprehensiveTypeSpeed(state.queue.length)" in typewriter.group("body")
     assert "state.charBudget" in typewriter.group("body")
-    assert "Math.min(18, state.queue.length" in typewriter.group("body")
+    assert "nextComprehensiveTypeChunk(state.queue" in typewriter.group("body")
     assert "scheduleComprehensiveAssistantUpdate" in typewriter.group("body")
     assert "setInterval" not in typewriter.group("body")
+    assert "function nextComprehensiveTypeChunk" in source
+    assert "COMPREHENSIVE_TYPE_MIN_CHUNK" in source
+    assert "COMPREHENSIVE_TYPE_MAX_CHUNK" in source
+    assert "home-ai-stream-text" in source
 
     assert "async function startComprehensiveAsk()" in source
     assert "scheduleComprehensiveAssistantUpdate(aiIndex, { stage: data.message" in source

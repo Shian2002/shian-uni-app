@@ -118,7 +118,7 @@
                 <text class="home-ai-content" v-if="msg.role === 'user' && msg.content">{{ msg.content }}</text>
                 <view class="home-ai-summary-panel" v-if="msg.role === 'assistant' && msg.content && (!visibleArtifactList(msg).length || isSummaryActive(msg, idx))">
                   <view class="home-artifact-analysis-title">综合结论</view>
-                  <text class="home-ai-content">{{ msg.content }}</text>
+                  <view class="home-ai-content home-ai-stream-text">{{ msg.content }}</view>
                 </view>
               </view>
             </view>
@@ -353,9 +353,11 @@ let comprehensiveTypeFrame = null
 let comprehensivePendingAssistantUpdate = null
 let comprehensiveArtifactAnalysisTimers = {}
 let comprehensiveDraftTimer = null
-const COMPREHENSIVE_TYPE_FRAME_MS = 16
-const COMPREHENSIVE_TYPE_BASE_CPS = 54
-const COMPREHENSIVE_TYPE_MAX_CPS = 132
+const COMPREHENSIVE_TYPE_FRAME_MS = 42
+const COMPREHENSIVE_TYPE_BASE_CPS = 96
+const COMPREHENSIVE_TYPE_MAX_CPS = 240
+const COMPREHENSIVE_TYPE_MIN_CHUNK = 3
+const COMPREHENSIVE_TYPE_MAX_CHUNK = 18
 const COMPREHENSIVE_ARTIFACT_FLUSH_MS = 120
 const HOME_AI_NEAR_BOTTOM_PX = 140
 const COMPREHENSIVE_DRAFT_SAVE_MS = 320
@@ -1865,10 +1867,24 @@ function finishComprehensiveAnswer(aiIndex, state) {
 }
 
 function comprehensiveTypeSpeed(queueLength) {
-  if (queueLength > 900) return COMPREHENSIVE_TYPE_MAX_CPS
-  if (queueLength > 360) return 96
-  if (queueLength > 140) return 72
+  if (queueLength > 1200) return COMPREHENSIVE_TYPE_MAX_CPS
+  if (queueLength > 520) return 176
+  if (queueLength > 180) return 128
   return COMPREHENSIVE_TYPE_BASE_CPS
+}
+
+function nextComprehensiveTypeChunk(queue, targetCount) {
+  const chars = Array.from(queue || '')
+  if (!chars.length) return ''
+  const minCount = Math.min(chars.length, COMPREHENSIVE_TYPE_MIN_CHUNK)
+  const wanted = Math.max(minCount, Math.min(chars.length, COMPREHENSIVE_TYPE_MAX_CHUNK, targetCount || minCount))
+  const maxLook = Math.min(chars.length, Math.max(wanted, Math.min(COMPREHENSIVE_TYPE_MAX_CHUNK, wanted + 6)))
+  for (let i = wanted; i < maxLook; i += 1) {
+    if (/[\s，。！？；：、,.!?;:）】》」』]/.test(chars[i - 1])) {
+      return chars.slice(0, i).join('')
+    }
+  }
+  return chars.slice(0, wanted).join('')
 }
 
 function startComprehensiveTypewriter(aiIndex, state) {
@@ -1886,13 +1902,21 @@ function startComprehensiveTypewriter(aiIndex, state) {
       return
     }
     const lastAt = state.lastTypeAt || now
-    const elapsed = Math.max(COMPREHENSIVE_TYPE_FRAME_MS, Math.min(80, now - lastAt))
+    const elapsed = now - lastAt
+    if (elapsed < COMPREHENSIVE_TYPE_FRAME_MS) {
+      comprehensiveTypeFrame = requestAnimationFrame(tick)
+      return
+    }
     state.lastTypeAt = now
-    state.charBudget = (state.charBudget || 0) + (elapsed / 1000) * comprehensiveTypeSpeed(state.queue.length)
-    const take = Math.max(1, Math.min(18, state.queue.length, Math.floor(state.charBudget)))
-    state.charBudget = Math.max(0, (state.charBudget || 0) - take)
-    state.displayed += state.queue.slice(0, take)
-    state.queue = state.queue.slice(take)
+    state.charBudget = (state.charBudget || 0) + (Math.min(120, elapsed) / 1000) * comprehensiveTypeSpeed(state.queue.length)
+    const chunk = nextComprehensiveTypeChunk(state.queue, Math.floor(state.charBudget))
+    if (!chunk) {
+      comprehensiveTypeFrame = requestAnimationFrame(tick)
+      return
+    }
+    state.charBudget = Math.max(0, (state.charBudget || 0) - Array.from(chunk).length)
+    state.displayed += chunk
+    state.queue = state.queue.slice(chunk.length)
     scheduleComprehensiveAssistantUpdate(aiIndex, {
       stage: '',
       content: stripComprehensiveMarkdown(state.displayed)
