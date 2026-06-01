@@ -51,7 +51,14 @@
                 class="home-ai-message"
                 :class="msg.role === 'user' ? 'user' : 'assistant'"
               >
-                <text class="home-ai-role">{{ msg.role === 'user' ? '你' : '时安综合 AI' }}</text>
+                <text class="home-ai-role" v-if="msg.role === 'user'">你</text>
+                <view class="home-ai-agent-head" v-else>
+                  <img class="home-ai-agent-logo" src="/static/images/logo.webp?v=2" alt="时安解忧屋" />
+                  <view class="home-ai-agent-texts">
+                    <text class="home-ai-agent-name">时安 agent</text>
+                    <text class="home-ai-agent-sub">综合解答</text>
+                  </view>
+                </view>
                 <view class="home-ai-stage-wrap" v-if="msg.stage">
                   <img class="home-ai-stage-logo" src="/static/images/logo.webp?v=2" alt="时安解忧屋" />
                   <view class="home-ai-stage-texts">
@@ -85,7 +92,13 @@
                     <view class="home-tool-card-body" v-if="!artifact.collapsed">
                       <view class="home-artifact-render" v-html="renderArtifactHtml(artifact)"></view>
                       <view class="home-artifact-analysis" v-if="artifact.analysis">
-                        <view class="home-artifact-analysis-title">{{ artifact.title }}解析</view>
+                        <view class="home-artifact-analysis-head">
+                          <img class="home-ai-agent-logo small" src="/static/images/logo.webp?v=2" alt="时安解忧屋" />
+                          <view class="home-ai-agent-texts">
+                            <text class="home-ai-agent-name">时安 agent</text>
+                            <text class="home-artifact-analysis-title">{{ artifact.title }}解析</text>
+                          </view>
+                        </view>
                         <text>{{ artifact.analysis }}</text>
                       </view>
                     </view>
@@ -2218,6 +2231,12 @@ onBeforeUnmount(() => {
 .home-ai-message.user { margin-left: 72px; background: rgba(178,149,93,0.13); border-color: rgba(178,149,93,0.26); }
 .home-ai-message.assistant { margin-right: 72px; background: rgba(255,255,255,0.045); }
 .home-ai-role { display: block; font-size: 0.68rem; color: var(--text-3); margin-bottom: 6px; }
+.home-ai-agent-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.home-ai-agent-logo { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; object-fit: cover; animation: stage-spin 3.2s linear infinite; box-shadow: 0 0 0 1px rgba(178,149,93,.18), 0 6px 16px rgba(0,0,0,.12); }
+.home-ai-agent-logo.small { width: 22px; height: 22px; }
+.home-ai-agent-texts { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.home-ai-agent-name { color: var(--text-1); font-size: .78rem; font-weight: 800; letter-spacing: .5px; line-height: 1.15; }
+.home-ai-agent-sub { color: var(--text-3); font-size: .66rem; line-height: 1.2; }
 .home-ai-stage { display: inline; font-size: 0.82rem; color: var(--accent); }
 .home-ai-stage-wrap { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
 .home-ai-stage-logo { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; animation: stage-spin 1.8s linear infinite; }
@@ -2240,7 +2259,8 @@ onBeforeUnmount(() => {
 .home-tool-card-body { min-width: 0; padding: 0 12px 12px; display: grid; gap: 12px; overflow: visible; }
 .home-artifact-render { width: 100%; min-height: 0; overflow-x: visible; overflow-y: visible; border-radius: 12px; }
 .home-artifact-analysis { margin-top: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(178,149,93,.16); background: rgba(178,149,93,.055); color: var(--text-2); line-height: 1.8; white-space: pre-wrap; font-size: .84rem; }
-.home-artifact-analysis-title { color: var(--accent); font-weight: 800; font-size: .78rem; margin-bottom: 6px; letter-spacing: 1px; }
+.home-artifact-analysis-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.home-artifact-analysis-title { color: var(--accent); font-weight: 800; font-size: .72rem; letter-spacing: .5px; line-height: 1.2; }
 .home-artifact-render :deep(.artifact-panel) { display: grid; gap: 10px; color: var(--text-2); font-size: 0.74rem; }
 .home-artifact-render :deep(.artifact-grid) { display: grid; gap: 8px; }
 .home-artifact-render :deep(.artifact-grid-4) { grid-template-columns: repeat(4, minmax(0, 1fr)); }

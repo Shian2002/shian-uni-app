@@ -82,6 +82,17 @@ def test_home_artifact_layout_has_no_inner_vertical_scroll_box():
     assert "overflow-y: visible" in body
 
 
+def test_home_ai_answers_show_rotating_shian_agent_header():
+    source = _source()
+
+    assert "home-ai-agent-head" in source
+    assert "时安 agent" in source
+    assert "home-artifact-analysis-head" in source
+    assert "home-ai-agent-logo" in source
+    assert "animation: stage-spin 3.2s linear infinite" in source
+    assert "{{ artifact.title }}解析" in source
+
+
 def test_home_ziwei_timeline_is_sorted_by_decadal_age():
     source = _source()
 
