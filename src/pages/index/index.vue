@@ -315,6 +315,7 @@ const profileTab = ref('全部')
 const profileTabs = ['全部', '客户', '用户']
 const readingModeStorageKey = 'xc_home_reading_mode_v1'
 const artifactCollapseStorageKey = 'xc_home_artifact_collapse_v1'
+const comprehensiveDraftStorageKey = 'xc_home_comprehensive_draft_v1'
 const readingModes = [
   { id: 'concise', name: '简洁', cost_delta: -1 },
   { id: 'standard', name: '标准', cost_delta: 0 },
@@ -351,11 +352,14 @@ let comprehensiveRenderFrame = null
 let comprehensiveTypeFrame = null
 let comprehensivePendingAssistantUpdate = null
 let comprehensiveArtifactAnalysisTimers = {}
+let comprehensiveDraftTimer = null
 const COMPREHENSIVE_TYPE_FRAME_MS = 16
 const COMPREHENSIVE_TYPE_BASE_CPS = 54
 const COMPREHENSIVE_TYPE_MAX_CPS = 132
 const COMPREHENSIVE_ARTIFACT_FLUSH_MS = 120
 const HOME_AI_NEAR_BOTTOM_PX = 140
+const COMPREHENSIVE_DRAFT_SAVE_MS = 320
+const COMPREHENSIVE_DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000
 
 const selectedLlmModel = computed(() => llmModels.value[llmModelIdx.value] || llmModels.value[0] || {})
 const llmModelNames = computed(() => llmModels.value.map(m => m.name + ' · ' + (m.strength || '基础')))
@@ -724,6 +728,7 @@ function activeArtifactKeyForMessage(msg, messageIndex) {
 function setActiveArtifact(messageIndex, key) {
   if (!key) return
   activeArtifactKeyByMessage[messageIndex] = key
+  scheduleComprehensiveDraftSave()
 }
 
 function isSummaryActive(msg, messageIndex) {
@@ -1641,6 +1646,106 @@ function normalizeMessageHistory() {
     .map(m => ({ role: m.role, content: m.content }))
 }
 
+function comprehensiveDraftPayload() {
+  return {
+    updatedAt: Date.now(),
+    conversationId: currentComprehensiveConvId.value || null,
+    messages: comprehensiveMessages.value || [],
+    paipan: currentPaipanContext.value || {},
+    artifacts: currentArtifacts.value || {},
+    selectedProfiles: selectedProfiles.value || [],
+    selectedToolModels: selectedToolModels.value || [],
+    autoSelectTools: !!autoSelectTools.value,
+    llmModelId: selectedLlmModel.value.id || 'basic',
+    readingMode: readingMode.value,
+    activeArtifacts: Object.assign({}, activeArtifactKeyByMessage),
+    loading: !!comprehensiveLoading.value,
+  }
+}
+
+function saveComprehensiveDraftNow() {
+  if (comprehensiveDraftTimer) {
+    clearTimeout(comprehensiveDraftTimer)
+    comprehensiveDraftTimer = null
+  }
+  try {
+    if (!comprehensiveMessages.value.length) {
+      localStorage.removeItem(comprehensiveDraftStorageKey)
+      return
+    }
+    localStorage.setItem(comprehensiveDraftStorageKey, JSON.stringify(comprehensiveDraftPayload()))
+  } catch(_) {}
+}
+
+function scheduleComprehensiveDraftSave() {
+  // #ifdef H5
+  if (comprehensiveDraftTimer) return
+  comprehensiveDraftTimer = setTimeout(saveComprehensiveDraftNow, COMPREHENSIVE_DRAFT_SAVE_MS)
+  // #endif
+}
+
+function clearComprehensiveDraft() {
+  if (comprehensiveDraftTimer) {
+    clearTimeout(comprehensiveDraftTimer)
+    comprehensiveDraftTimer = null
+  }
+  try { localStorage.removeItem(comprehensiveDraftStorageKey) } catch(_) {}
+}
+
+function restoreComprehensiveDraft() {
+  // #ifdef H5
+  try {
+    if (pendingComprehensiveId || comprehensiveMessages.value.length) return false
+    const raw = localStorage.getItem(comprehensiveDraftStorageKey)
+    if (!raw) return false
+    const draft = JSON.parse(raw)
+    if (!draft || !Array.isArray(draft.messages) || !draft.messages.length) {
+      clearComprehensiveDraft()
+      return false
+    }
+    if (draft.updatedAt && Date.now() - Number(draft.updatedAt) > COMPREHENSIVE_DRAFT_MAX_AGE_MS) {
+      clearComprehensiveDraft()
+      return false
+    }
+    currentComprehensiveConvId.value = draft.conversationId || null
+    currentPaipanContext.value = draft.paipan || {}
+    currentArtifacts.value = draft.artifacts || {}
+    selectedProfiles.value = Array.isArray(draft.selectedProfiles) ? draft.selectedProfiles : []
+    selectedToolModels.value = Array.isArray(draft.selectedToolModels) ? draft.selectedToolModels : []
+    autoSelectTools.value = draft.autoSelectTools !== false
+    if (draft.readingMode) readingMode.value = draft.readingMode
+    const mid = draft.llmModelId || 'basic'
+    const mi = llmModels.value.findIndex(m => m.id === mid)
+    if (mi >= 0) llmModelIdx.value = mi
+    comprehensiveMessages.value = draft.messages.map(function(msg) {
+      if (!msg || msg.role !== 'assistant') return msg
+      if (msg.stage && draft.loading) {
+        return Object.assign({}, msg, {
+          stage: '',
+          content: msg.content || '上次解读在刷新时中断，已恢复已生成内容；可以继续追问或重新发送。',
+        })
+      }
+      return Object.assign({}, msg, { stage: '' })
+    })
+    Object.keys(activeArtifactKeyByMessage).forEach(function(key) { delete activeArtifactKeyByMessage[key] })
+    Object.assign(activeArtifactKeyByMessage, draft.activeArtifacts || {})
+    comprehensiveMessages.value.forEach(function(message, index) {
+      ensureActiveArtifact(index, visibleArtifactList(message))
+      if (message && message.role === 'assistant' && message.content && visibleArtifactList(message).length && !activeArtifactKeyByMessage[index]) {
+        setActiveArtifact(index, '__summary__')
+      }
+    })
+    comprehensiveLoading.value = false
+    shouldAutoFollowChat.value = true
+    scrollComprehensiveChatToBottom('auto', true)
+    return true
+  } catch(_) {
+    return false
+  }
+  // #endif
+  return false
+}
+
 function stopComprehensiveProgressTimer() {
   if (comprehensiveProgressTimer) {
     clearInterval(comprehensiveProgressTimer)
@@ -1755,6 +1860,7 @@ function finishComprehensiveAnswer(aiIndex, state) {
   scheduleComprehensiveAssistantUpdate(aiIndex, { stage: '' })
   setActiveArtifact(aiIndex, '__summary__')
   stopComprehensiveProgressTimer()
+  scheduleComprehensiveDraftSave()
   try { window.__sidebarCache = null } catch(_) {}
 }
 
@@ -1807,6 +1913,7 @@ function updateComprehensiveAssistant(aiIndex, patch, options) {
   if (patch.artifacts) {
     ensureActiveArtifact(aiIndex, visibleArtifactList(comprehensiveMessages.value[aiIndex]))
   }
+  scheduleComprehensiveDraftSave()
   if (comprehensiveMessages.value.length && (patch.content || patch.stage || patch.artifacts) && shouldFollow) {
     scrollComprehensiveChatToBottom('auto')
   }
@@ -1874,6 +1981,7 @@ async function startComprehensiveAsk() {
   comprehensiveQuestion.value = ''
   const aiIndex = comprehensiveMessages.value.length
   comprehensiveMessages.value.push({ role: 'assistant', content: '', stage: '正在连接综合解读服务' })
+  scheduleComprehensiveDraftSave()
   startComprehensiveProgressTimer(aiIndex)
   shouldAutoFollowChat.value = true
   scrollComprehensiveChatToBottom('smooth', true)
@@ -1938,6 +2046,7 @@ async function startComprehensiveAsk() {
         if (data.conversation_id) {
           currentComprehensiveConvId.value = data.conversation_id
           syncArtifactCollapseStateToConversation(data.conversation_id)
+          scheduleComprehensiveDraftSave()
         }
         if (Array.isArray(data.tool_models) && data.tool_models.length) selectedToolModels.value = data.tool_models
         if (data.paipan) {
@@ -1974,6 +2083,7 @@ async function startComprehensiveAsk() {
     flushComprehensiveAssistantUpdate()
     comprehensiveLoading.value = false
     stopComprehensiveProgressTimer()
+    saveComprehensiveDraftNow()
   }
 }
 
@@ -2027,6 +2137,7 @@ async function restoreComprehensiveConversation(id) {
       source: p.source || 'profile',
     }] : []
     shouldAutoFollowChat.value = true
+    saveComprehensiveDraftNow()
     scrollComprehensiveChatToBottom('smooth', true)
   } catch (_) {}
 }
@@ -2099,6 +2210,7 @@ function startNewComprehensiveConversation() {
   shouldAutoFollowChat.value = true
   pendingComprehensiveId = ''
   try { sessionStorage.removeItem('xc_comprehensive_resume_id') } catch(_) {}
+  clearComprehensiveDraft()
   scrollComprehensiveChatToBottom('auto', true)
 }
 
@@ -2177,11 +2289,14 @@ onShow(() => {
       const id = pendingComprehensiveId
       pendingComprehensiveId = ''
       restoreComprehensiveConversation(id)
+    } else {
+      restoreComprehensiveDraft()
     }
   })
 })
 
 onHide(() => {
+  saveComprehensiveDraftNow()
   setHomeFixedPage(false)
 })
 
@@ -2215,6 +2330,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  saveComprehensiveDraftNow()
   stopComprehensiveProgressTimer()
   stopComprehensiveTypeTimer()
   stopPendingArtifactAnalysisTimers()

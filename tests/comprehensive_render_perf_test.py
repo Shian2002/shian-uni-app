@@ -75,6 +75,43 @@ def test_comprehensive_chat_scroll_is_coalesced():
     assert "getComprehensiveScrollTarget()" in body
 
 
+def test_comprehensive_home_draft_survives_refresh_during_stream():
+    source = _source()
+
+    assert "const comprehensiveDraftStorageKey = 'xc_home_comprehensive_draft_v1'" in source
+    assert "const COMPREHENSIVE_DRAFT_SAVE_MS = 320" in source
+    assert "function saveComprehensiveDraftNow()" in source
+    assert "function scheduleComprehensiveDraftSave()" in source
+    assert "function restoreComprehensiveDraft()" in source
+    assert "localStorage.setItem(comprehensiveDraftStorageKey" in source
+    assert "localStorage.getItem(comprehensiveDraftStorageKey)" in source
+    assert "scheduleComprehensiveDraftSave()" in source
+    assert "saveComprehensiveDraftNow()" in source
+    assert "restoreComprehensiveDraft()" in source
+    assert "上次解读在刷新时中断，已恢复已生成内容" in source
+
+    update_fn = re.search(
+        r"function updateComprehensiveAssistant\(aiIndex, patch, options\) \{(?P<body>.*?)\n\}",
+        source,
+        re.S,
+    )
+    assert update_fn, "缺少综合问答消息更新函数"
+    assert "scheduleComprehensiveDraftSave()" in update_fn.group("body")
+
+    onshow = re.search(r"onShow\(\(\) => \{(?P<body>.*?)\n\}\)", source, re.S)
+    assert onshow, "缺少首页 onShow 恢复逻辑"
+    assert "restoreComprehensiveConversation(id)" in onshow.group("body")
+    assert "restoreComprehensiveDraft()" in onshow.group("body")
+
+    new_chat = re.search(
+        r"function startNewComprehensiveConversation\(\) \{(?P<body>.*?)\n\}",
+        source,
+        re.S,
+    )
+    assert new_chat, "缺少新对话清理逻辑"
+    assert "clearComprehensiveDraft()" in new_chat.group("body")
+
+
 def test_home_ai_does_not_lock_page_scroll_while_generating():
     source = _source()
 
