@@ -58,6 +58,9 @@ def test_comprehensive_stream_rendering_is_batched():
 
     assert "async function startComprehensiveAsk()" in source
     assert "scheduleComprehensiveAssistantUpdate(aiIndex, { stage: data.message" in source
+    assert "if (data.summary_start)" in source
+    assert "setActiveArtifact(aiIndex, '__summary__')" in source
+    assert "正在生成综合结论" in source
     assert "flushComprehensiveAssistantUpdate()" in source
     assert "function finishComprehensiveAnswer" in source
     assert "finishComprehensiveAnswer(aiIndex, typeState)" in source

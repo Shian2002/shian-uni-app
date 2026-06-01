@@ -2048,6 +2048,10 @@ async function startComprehensiveAsk() {
         if (data.stage === 'tool_analysis_start' && data.tool_key) {
           revealArtifact(aiIndex, data.tool_key)
         }
+        if (data.summary_start) {
+          setActiveArtifact(aiIndex, '__summary__')
+          scheduleComprehensiveAssistantUpdate(aiIndex, { stage: data.message || '正在生成综合结论' })
+        }
         if (data.content) {
           if (data.tool_key) {
             appendArtifactAnalysis(aiIndex, data.tool_key, data.content)
