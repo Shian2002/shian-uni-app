@@ -78,27 +78,13 @@
                   <view class="home-ai-progress-bar"></view>
                 </view>
                 <view class="home-tool-cards" v-if="visibleArtifactList(msg).length">
-                  <view class="home-artifact-switcher">
-                    <view
-                      class="home-artifact-tab conclusion"
-                      :class="{ active: isSummaryActive(msg, idx) }"
-                      v-if="msg.role === 'assistant' && msg.content"
-                      @tap="setActiveArtifact(idx, '__summary__')"
-                    >
-                      <text class="home-artifact-tab-title">综合结论</text>
-                      <text class="home-artifact-tab-sub">最终合参建议</text>
-                    </view>
-                    <view
-                      class="home-artifact-tab"
-                      v-for="artifact in visibleArtifactList(msg)"
-                      :key="artifact.key"
-                      :class="{ active: activeArtifactKeyForMessage(msg, idx) === artifact.key }"
-                      @tap="setActiveArtifact(idx, artifact.key)"
-                    >
-                      <text class="home-artifact-tab-title">{{ artifact.title }}</text>
-                      <text class="home-artifact-tab-sub">{{ artifactSummary(artifact) }}</text>
-                    </view>
-                  </view>
+                  <HomeArtifactTabs
+                    :artifacts="artifactTabsForMessage(msg)"
+                    :active-key="activeArtifactKeyForMessage(msg, idx)"
+                    :summary-active="isSummaryActive(msg, idx)"
+                    :show-summary="msg.role === 'assistant' && !!msg.content"
+                    @select="setActiveArtifact(idx, $event)"
+                  />
                   <view class="home-tool-card" v-if="currentArtifactForMessage(msg, idx) && !isSummaryActive(msg, idx)">
                     <view class="home-tool-card-head">
                       <view>
@@ -116,52 +102,38 @@
                   </view>
                 </view>
                 <text class="home-ai-content" v-if="msg.role === 'user' && msg.content">{{ msg.content }}</text>
-                <view class="home-ai-summary-panel" v-if="msg.role === 'assistant' && msg.content && (!visibleArtifactList(msg).length || isSummaryActive(msg, idx))">
+                <view class="home-ai-summary-panel" v-if="msg.role === 'assistant' && (msg.content || msg._streaming) && (!visibleArtifactList(msg).length || isSummaryActive(msg, idx))">
                   <view class="home-artifact-analysis-title">综合结论</view>
-                  <view class="home-ai-content home-ai-stream-text">{{ msg.content }}</view>
+                  <view
+                    class="home-ai-content home-ai-stream-text"
+                    :data-home-ai-stream-key="'summary-' + idx"
+                  >{{ msg.content }}</view>
                 </view>
               </view>
             </view>
 
-            <view class="home-ai-main">
-              <textarea
-                class="home-ai-input"
-                v-model="comprehensiveQuestion"
-                auto-height
-                maxlength="800"
-                :placeholder="comprehensivePlaceholder"
-                @keydown="onComprehensiveInputKeydown"
-              />
-              <view class="home-ai-toolbar">
-                <view class="home-ai-toolbar-left">
-                  <view class="profile-picker" @tap="openProfilePicker">
-                    <text class="profile-plus">＋</text>
-                    <text class="profile-name">{{ selectedProfileName || '选择命盘' }}</text>
-                  </view>
-                  <view class="tool-picker" @tap="openToolPicker">
-                    <text class="tool-picker-icon">☷</text>
-                    <text>{{ autoSelectTools ? '自动选术数' : selectedToolSummary }}</text>
-                  </view>
-                </view>
-                <view class="home-ai-toolbar-right">
-                  <picker :range="readingModeNames" :value="readingModeIdx" @change="onReadingModeChange">
-                    <view class="reading-mode-picker">
-                      <text class="reading-mode-label">解读模式</text>
-                      <text class="reading-mode-name">{{ selectedReadingMode.name }}</text>
-                    </view>
-                  </picker>
-                  <picker :range="llmModelNames" :value="llmModelIdx" @change="onLlmModelChange">
-                    <view class="llm-picker">
-                      <text class="llm-name">{{ selectedLlmModel.name || '基础模型' }}</text>
-                      <text class="llm-points">消耗 {{ estimatedCost }} · 余 {{ currentPoints }}</text>
-                    </view>
-                  </picker>
-                  <view class="home-ai-send" :class="{ disabled: comprehensiveLoading }" @tap="startComprehensiveAsk">
-                    ↑
-                  </view>
-                </view>
-              </view>
-            </view>
+            <HomeAiComposer
+              v-model="comprehensiveQuestion"
+              :placeholder="comprehensivePlaceholder"
+              :loading="comprehensiveLoading"
+              :selected-profile-name="selectedProfileName"
+              :auto-select-tools="autoSelectTools"
+              :selected-tool-summary="selectedToolSummary"
+              :reading-mode-names="readingModeNames"
+              :reading-mode-idx="readingModeIdx"
+              :selected-reading-mode="selectedReadingMode"
+              :llm-model-names="llmModelNames"
+              :llm-model-idx="llmModelIdx"
+              :selected-llm-model="selectedLlmModel"
+              :estimated-cost="estimatedCost"
+              :current-points="currentPoints"
+              @open-profile="openProfilePicker"
+              @open-tool="openToolPicker"
+              @reading-mode-change="onReadingModeChange"
+              @llm-model-change="onLlmModelChange"
+              @send="startComprehensiveAsk"
+              @keydown="onComprehensiveInputKeydown"
+            />
           </view>
         </view>
 
@@ -246,7 +218,15 @@
 import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { onLoad, onShow, onHide } from '@dcloudio/uni-app'
 import TopNav from '@/components/TopNav.vue'
+import HomeAiComposer from './components/HomeAiComposer.vue'
+import HomeArtifactTabs from './components/HomeArtifactTabs.vue'
 import { createHomeAiDraftStorage } from './useHomeAiDraft.js'
+import {
+  HOME_AI_STREAM_DEFAULTS,
+  shouldSyncStreamContent,
+  smoothTextSpeed,
+  takeSmoothTextChunk,
+} from './useHomeAiStream.js'
 import {
   htmlEscape,
   pillarText,
@@ -360,10 +340,9 @@ let comprehensiveRenderFrame = null
 let comprehensiveTypeFrame = null
 let comprehensivePendingAssistantUpdate = null
 let comprehensiveArtifactAnalysisTimers = {}
-const COMPREHENSIVE_TYPE_FRAME_MS = 16
-const COMPREHENSIVE_TYPE_BASE_CPS = 88
-const COMPREHENSIVE_TYPE_MAX_CPS = 180
-const COMPREHENSIVE_TYPE_MAX_FRAME_CHARS = 2
+const COMPREHENSIVE_TYPE_FRAME_MS = HOME_AI_STREAM_DEFAULTS.frameMs
+const COMPREHENSIVE_TYPE_MAX_FRAME_CHARS = HOME_AI_STREAM_DEFAULTS.maxFrameChars
+const COMPREHENSIVE_REACTIVE_SYNC_MS = HOME_AI_STREAM_DEFAULTS.reactiveSyncMs
 const COMPREHENSIVE_ARTIFACT_FLUSH_MS = 120
 const HOME_AI_NEAR_BOTTOM_PX = 140
 const COMPREHENSIVE_DRAFT_SAVE_MS = 320
@@ -659,6 +638,12 @@ function syncArtifactCollapseStateToConversation(conversationId) {
 function visibleArtifactList(msg) {
   return ((msg && msg.artifacts) || []).filter(function(artifact) {
     return artifact && artifact.visible !== false
+  })
+}
+
+function artifactTabsForMessage(msg) {
+  return visibleArtifactList(msg).map(function(artifact) {
+    return Object.assign({}, artifact, { summary: artifactSummary(artifact) })
   })
 }
 
@@ -1783,9 +1768,11 @@ function flushComprehensiveTypewriter(aiIndex, state) {
   if (!state || !state.queue) return
   state.displayed += state.queue
   state.queue = ''
+  paintComprehensiveStreamText(aiIndex, stripComprehensiveMarkdown(state.displayed))
   scheduleComprehensiveAssistantUpdate(aiIndex, {
     stage: '',
     content: stripComprehensiveMarkdown(state.displayed),
+    _streaming: false,
   })
   flushComprehensiveAssistantUpdate()
 }
@@ -1803,18 +1790,22 @@ function finishComprehensiveAnswer(aiIndex, state) {
   try { window.__sidebarCache = null } catch(_) {}
 }
 
-function comprehensiveTypeSpeed(queueLength) {
-  if (queueLength > 1200) return COMPREHENSIVE_TYPE_MAX_CPS
-  if (queueLength > 520) return 140
-  if (queueLength > 180) return 108
-  return COMPREHENSIVE_TYPE_BASE_CPS
+function getComprehensiveStreamTextElement(aiIndex) {
+  // #ifdef H5
+  try {
+    return document.querySelector('[data-home-ai-stream-key="summary-' + aiIndex + '"]')
+  } catch (_) {
+    return null
+  }
+  // #endif
+  return null
 }
 
-function nextComprehensiveTypeChunk(queue, targetCount) {
-  const chars = Array.from(queue || '')
-  if (!chars.length) return ''
-  const wanted = Math.max(1, Math.min(chars.length, COMPREHENSIVE_TYPE_MAX_FRAME_CHARS, targetCount || 1))
-  return chars.slice(0, wanted).join('')
+function paintComprehensiveStreamText(aiIndex, text) {
+  // #ifdef H5
+  const target = getComprehensiveStreamTextElement(aiIndex)
+  if (target) target.textContent = text || ''
+  // #endif
 }
 
 function startComprehensiveTypewriter(aiIndex, state) {
@@ -1826,27 +1817,49 @@ function startComprehensiveTypewriter(aiIndex, state) {
       stopComprehensiveTypeTimer()
       return
     }
+    if (!state.started) {
+      state.started = true
+      state.lastReactiveSyncAt = now
+      updateComprehensiveAssistant(aiIndex, { stage: '', _streaming: true }, {
+        shouldFollow: isComprehensiveChatNearBottom()
+      })
+      comprehensiveTypeFrame = requestAnimationFrame(tick)
+      return
+    }
     if (!state.queue.length) {
-      if (state.done) stopComprehensiveTypeTimer()
+      if (state.done) {
+        scheduleComprehensiveAssistantUpdate(aiIndex, {
+          stage: '',
+          content: stripComprehensiveMarkdown(state.displayed),
+          _streaming: false,
+        })
+        stopComprehensiveTypeTimer()
+      }
       else comprehensiveTypeFrame = requestAnimationFrame(tick)
       return
     }
     const lastAt = state.lastTypeAt || now
     const elapsed = Math.max(COMPREHENSIVE_TYPE_FRAME_MS, Math.min(48, now - lastAt))
     state.lastTypeAt = now
-    state.charBudget = (state.charBudget || 0) + (elapsed / 1000) * comprehensiveTypeSpeed(state.queue.length)
-    const chunk = nextComprehensiveTypeChunk(state.queue, Math.floor(state.charBudget))
-    if (!chunk) {
+    state.charBudget = (state.charBudget || 0) + (elapsed / 1000) * smoothTextSpeed(state.queue.length)
+    const nextChunk = takeSmoothTextChunk(state.queue, Math.floor(state.charBudget), COMPREHENSIVE_TYPE_MAX_FRAME_CHARS)
+    if (!nextChunk.chunk) {
       comprehensiveTypeFrame = requestAnimationFrame(tick)
       return
     }
-    state.charBudget = Math.max(0, (state.charBudget || 0) - Array.from(chunk).length)
-    state.displayed += chunk
-    state.queue = state.queue.slice(chunk.length)
-    scheduleComprehensiveAssistantUpdate(aiIndex, {
-      stage: '',
-      content: stripComprehensiveMarkdown(state.displayed)
-    })
+    state.charBudget = Math.max(0, (state.charBudget || 0) - nextChunk.count)
+    state.displayed += nextChunk.chunk
+    state.queue = nextChunk.rest
+    const displayText = stripComprehensiveMarkdown(state.displayed)
+    paintComprehensiveStreamText(aiIndex, displayText)
+    if (shouldSyncStreamContent(now, state.lastReactiveSyncAt || 0, COMPREHENSIVE_REACTIVE_SYNC_MS, state.done && !state.queue.length)) {
+      state.lastReactiveSyncAt = now
+      scheduleComprehensiveAssistantUpdate(aiIndex, {
+        stage: '',
+        content: displayText,
+        _streaming: !state.done || !!state.queue.length,
+      })
+    }
     comprehensiveTypeFrame = requestAnimationFrame(tick)
   }
   comprehensiveTypeFrame = requestAnimationFrame(tick)
@@ -1866,7 +1879,7 @@ function updateComprehensiveAssistant(aiIndex, patch, options) {
     ensureActiveArtifact(aiIndex, visibleArtifactList(current))
   }
   scheduleComprehensiveDraftSave()
-  if (comprehensiveMessages.value.length && (patch.content || patch.stage || patch.artifacts) && shouldFollow) {
+  if (comprehensiveMessages.value.length && (patch.content || patch.stage || patch.artifacts || patch._streaming) && shouldFollow) {
     scrollComprehensiveChatToBottom('auto')
   }
   return current
@@ -2115,6 +2128,11 @@ function onHomeChatScroll() {
   shouldAutoFollowChat.value = isComprehensiveChatNearBottom()
 }
 
+function onHomePageScroll() {
+  if (!comprehensiveMessages.value.length) return
+  shouldAutoFollowChat.value = isComprehensiveChatNearBottom()
+}
+
 function getComprehensiveScrollTarget() {
   // #ifdef H5
   const pageTarget = document.scrollingElement || document.documentElement || document.body
@@ -2265,6 +2283,7 @@ onMounted(() => {
   window._xc_restoreComprehensive = restoreComprehensiveFromSidebar
   window._xc_newComprehensive = startNewComprehensiveConversation
   window.addEventListener('keydown', onHomeKeydown)
+  window.addEventListener('scroll', onHomePageScroll, { passive: true })
   document.addEventListener('click', onHomeBaziYunClick)
   // 视频加载超时处理：3秒后如果视频还没准备好，显示fallback背景
   setTimeout(() => {
@@ -2296,6 +2315,7 @@ onBeforeUnmount(() => {
   if (window._xc_restoreComprehensive === restoreComprehensiveFromSidebar) window._xc_restoreComprehensive = null
   if (window._xc_newComprehensive === startNewComprehensiveConversation) window._xc_newComprehensive = null
   window.removeEventListener('keydown', onHomeKeydown)
+  window.removeEventListener('scroll', onHomePageScroll)
   document.removeEventListener('click', onHomeBaziYunClick)
   setHomeFixedPage(false)
   // #endif

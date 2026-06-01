@@ -515,11 +515,14 @@ def test_comprehensive_history_detail_hides_single_tool_analysis(app_module, use
 def test_homepage_uses_artifact_renderer_and_reading_mode_control():
     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     index_path = os.path.join(repo_root, "src", "pages", "index", "index.vue")
+    composer_path = os.path.join(repo_root, "src", "pages", "index", "components", "HomeAiComposer.vue")
     with open(index_path, encoding="utf-8") as fh:
         source = fh.read()
+    with open(composer_path, encoding="utf-8") as fh:
+        composer_source = fh.read()
 
     assert "readingMode" in source
-    assert "解读模式" in source
+    assert "解读模式" in composer_source
     assert "renderArtifactHtml" in source
     assert "buildResultCards(" not in source
     assert "shouldAutoFollowChat" in source

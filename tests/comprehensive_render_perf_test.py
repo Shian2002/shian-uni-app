@@ -6,6 +6,8 @@ INDEX_VUE = Path(__file__).resolve().parents[1] / "src" / "pages" / "index" / "i
 QIMEN_VUE = Path(__file__).resolve().parents[1] / "src" / "pages" / "qimen" / "index.vue"
 HOME_AI_UTILS = Path(__file__).resolve().parents[1] / "src" / "pages" / "index" / "homeAiUtils.js"
 HOME_AI_DRAFT = Path(__file__).resolve().parents[1] / "src" / "pages" / "index" / "useHomeAiDraft.js"
+HOME_AI_STREAM = Path(__file__).resolve().parents[1] / "src" / "pages" / "index" / "useHomeAiStream.js"
+HOME_ARTIFACT_TABS = Path(__file__).resolve().parents[1] / "src" / "pages" / "index" / "components" / "HomeArtifactTabs.vue"
 
 
 def _source():
@@ -24,13 +26,23 @@ def _home_ai_draft_source():
     return HOME_AI_DRAFT.read_text(encoding="utf-8")
 
 
+def _home_ai_stream_source():
+    return HOME_AI_STREAM.read_text(encoding="utf-8")
+
+
+def _home_artifact_tabs_source():
+    return HOME_ARTIFACT_TABS.read_text(encoding="utf-8")
+
+
 def test_comprehensive_stream_rendering_is_batched():
     source = _source()
+    stream_source = _home_ai_stream_source()
 
-    assert "const COMPREHENSIVE_TYPE_FRAME_MS = 16" in source
-    assert "const COMPREHENSIVE_TYPE_BASE_CPS = 88" in source
-    assert "const COMPREHENSIVE_TYPE_MAX_CPS = 180" in source
-    assert "const COMPREHENSIVE_TYPE_MAX_FRAME_CHARS = 2" in source
+    assert "frameMs: 16" in stream_source
+    assert "baseCps: 88" in stream_source
+    assert "maxCps: 180" in stream_source
+    assert "maxFrameChars: 2" in stream_source
+    assert "reactiveSyncMs: 180" in stream_source
     assert "const COMPREHENSIVE_ARTIFACT_FLUSH_MS = 120" in source
     assert "let comprehensiveRenderFrame = null" in source
     assert "let comprehensiveTypeFrame = null" in source
@@ -46,12 +58,14 @@ def test_comprehensive_stream_rendering_is_batched():
     )
     assert typewriter, "缺少综合问答打字机函数"
     assert "requestAnimationFrame(tick)" in typewriter.group("body")
-    assert "comprehensiveTypeSpeed(state.queue.length)" in typewriter.group("body")
+    assert "smoothTextSpeed(state.queue.length)" in typewriter.group("body")
     assert "state.charBudget" in typewriter.group("body")
-    assert "nextComprehensiveTypeChunk(state.queue" in typewriter.group("body")
+    assert "takeSmoothTextChunk(state.queue" in typewriter.group("body")
     assert "scheduleComprehensiveAssistantUpdate" in typewriter.group("body")
+    assert "paintComprehensiveStreamText(aiIndex, displayText)" in typewriter.group("body")
     assert "setInterval" not in typewriter.group("body")
-    assert "function nextComprehensiveTypeChunk" in source
+    assert "function takeSmoothTextChunk" in stream_source
+    assert "function shouldSyncStreamContent" in stream_source
     assert "COMPREHENSIVE_TYPE_MAX_FRAME_CHARS" in source
     assert "home-ai-stream-text" in source
 
@@ -214,24 +228,26 @@ def test_home_ai_answers_show_rotating_shian_agent_header():
 
 def test_home_ai_artifacts_use_switcher_not_full_stack():
     source = _source()
+    tabs_source = _home_artifact_tabs_source()
 
     assert "activeArtifactKeyByMessage" in source
-    assert "setActiveArtifact(idx, artifact.key)" in source
+    assert '@select="setActiveArtifact(idx, $event)"' in source
     assert "currentArtifactForMessage(msg, idx)" in source
+    assert "artifactTabsForMessage(msg)" in source
     assert "home-artifact-switcher" in source
-    assert 'v-for="artifact in visibleArtifactList(msg)"' in source
+    assert 'v-for="artifact in artifacts"' in tabs_source
     assert 'v-if="currentArtifactForMessage(msg, idx) && !isSummaryActive(msg, idx)"' in source
     assert "home-ai-summary-panel" in source
     assert "activeArtifactKeyByMessage[messageIndex] = key" in source
     assert "ensureActiveArtifact(index, visibleArtifactList(message))" in source
-    assert 'msg.role === \'assistant\' && msg.content"' in source
+    assert "msg.role === 'assistant' && (msg.content || msg._streaming)" in source
     assert "setActiveArtifact(aiIndex, '__summary__')" in source
     assert "setActiveArtifact(index, '__summary__')" in source
     assert "msg.role === 'user' && msg.content" in source
 
 
 def test_home_ai_switcher_layout_is_compact():
-    source = _source()
+    source = _source() + "\n" + _home_artifact_tabs_source()
     switcher_rule = re.search(r"\.home-artifact-switcher \{(?P<body>[^}]*)\}", source)
     assert switcher_rule, "缺少术数切换栏样式"
 
