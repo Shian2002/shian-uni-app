@@ -597,8 +597,9 @@ function _renderSidebarGroups(groups, listEl) {
 function _renderNewConversationItem(type, label) {
   var text = '＋ 新对话'
   if (label) text += ' · ' + _escHtml(label)
-  return '<div class="sidebar-item sidebar-new-item">'
-    + '<div class="sidebar-item-body" onclick="window._xc_startNewConversation(\'' + type + '\')">'
+  var action = 'window._xc_startNewConversation(\'' + type + '\')'
+  return '<div class="sidebar-item sidebar-new-item" onclick="' + action + '" ontouchend="event.preventDefault();event.stopPropagation();' + action + '">'
+    + '<div class="sidebar-item-body">'
     + '<span class="sidebar-item-text">' + text + '</span>'
     + '<span class="sidebar-item-time">开始新的提问</span>'
     + '</div></div>'
@@ -609,40 +610,40 @@ function _renderSidebarItem(r) {
   var text = _escHtml(r.question || '(无问题)')
   var realId = r._comprehensiveConvId || r._tarotConvId || r._lyConvId || r._mhConvId || r._qaiConvId || r._baziConvId || r._zwConvId || r.id
   var appType = r.app_type || ''
-  var deleteConfirm = 'if(confirm(\'确定要删除这条记录吗？\'))window._xc_deleteHistoryItem(\'' + appType + '\',\'' + realId + '\',this)'
+  var deleteConfirm = 'event.stopPropagation();if(confirm(\'确定要删除这条记录吗？\'))window._xc_deleteHistoryItem(\'' + appType + '\',\'' + realId + '\',this)'
   var clickAction = r._comprehensiveConvId
-    ? 'onclick="window._showComprehensiveConv(' + r._comprehensiveConvId + ')"'
+    ? 'window._showComprehensiveConv(' + r._comprehensiveConvId + ')'
     : r._tarotConvId
-    ? 'onclick="window._showTarotConv(' + r._tarotConvId + ')"'
+    ? 'window._showTarotConv(' + r._tarotConvId + ')'
     : r.app_type === 'tarot'
-    ? 'onclick="window._showTarotRecordDetail(' + r.id + ')"'
+    ? 'window._showTarotRecordDetail(' + r.id + ')'
     : r._lyConvId
-    ? 'onclick="window._showLyConvDetail(' + r._lyConvId + ')"'
+    ? 'window._showLyConvDetail(' + r._lyConvId + ')'
     : r._mhConvId
-    ? 'onclick="window._showMhConvDetail(' + r._mhConvId + ')"'
+    ? 'window._showMhConvDetail(' + r._mhConvId + ')'
     : r._qaiConvId
-    ? 'onclick="window._showQiConvDetail(' + r._qaiConvId + ')"'
+    ? 'window._showQiConvDetail(' + r._qaiConvId + ')'
     : r._baziConvId
-    ? 'onclick="window._showBaziConvDetail(' + r._baziConvId + ')"'
+    ? 'window._showBaziConvDetail(' + r._baziConvId + ')'
     : r._zwConvId
-    ? 'onclick="window._showZwConvDetail(' + r._zwConvId + ')"'
+    ? 'window._showZwConvDetail(' + r._zwConvId + ')'
     : r.app_type === 'comprehensive'
-    ? 'onclick="window._showComprehensiveConv(' + realId + ')"'
+    ? 'window._showComprehensiveConv(' + realId + ')'
     : r.app_type === 'liuyao'
-    ? 'onclick="window._showLyRecordDetail(' + r.id + ')"'
+    ? 'window._showLyRecordDetail(' + r.id + ')'
     : r.app_type === 'qimen'
-    ? 'onclick="window._showQiRecordDetail(' + r.id + ')"'
+    ? 'window._showQiRecordDetail(' + r.id + ')'
     : r.app_type === 'bazi'
-    ? 'onclick="window._showBaziRecordDetail(' + r.id + ')"'
+    ? 'window._showBaziRecordDetail(' + r.id + ')'
     : r.app_type === 'ziwei'
-    ? 'onclick="window._showHistoryDetail(' + r.id + ')"'
-    : 'onclick="window._showHistoryDetail(' + r.id + ')"'
-  return '<div class="sidebar-item">'
-    + '<div class="sidebar-item-body" ' + clickAction + '>'
+    ? 'window._showHistoryDetail(' + r.id + ')'
+    : 'window._showHistoryDetail(' + r.id + ')'
+  return '<div class="sidebar-item" onclick="' + clickAction + '" ontouchend="event.preventDefault();event.stopPropagation();' + clickAction + '">'
+    + '<div class="sidebar-item-body">'
     + '<span class="sidebar-item-text">' + text + '</span>'
     + '<span class="sidebar-item-time">' + time + '</span>'
     + '</div>'
-    + '<span class="sidebar-item-del" onclick="' + deleteConfirm + '" title="删除">✕</span>'
+    + '<span class="sidebar-item-del" onclick="' + deleteConfirm + '" ontouchend="event.preventDefault();' + deleteConfirm + '" title="删除">✕</span>'
     + '</div>'
 }
 

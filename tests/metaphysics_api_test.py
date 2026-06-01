@@ -160,6 +160,11 @@ def test_qimen_meihua_and_liuyao_fixed_samples(client):
     assert meihua["bianGua"]["name"] == "山地剥"
     assert meihua["dongYao"] == 1
 
+    meihua_same_gua = _post_json(client, "/api/meihua/paipan", {"method": "number", "num1": 3, "num2": 3})
+    assert meihua_same_gua["success"] is True
+    assert meihua_same_gua["benGua"]["name"] == "离为火"
+    assert "离离卦" not in json.dumps(meihua_same_gua, ensure_ascii=False)
+
     liuyao = _post_json(
         client,
         "/api/liuyao/paipan",

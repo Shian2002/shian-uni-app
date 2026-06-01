@@ -42,7 +42,7 @@
       </view>
 
       <!-- 记录列表 -->
-      <view v-for="(item, idx) in filteredRecords" :key="idx" class="record-card" @tap="rePaipan(item)">
+      <view v-for="(item, idx) in filteredRecords" :key="idx" class="record-card" @tap="rePaipan(item)" @click="rePaipan(item)">
         <view class="record-header">
           <text class="record-name">{{ item.name || item.title || '未命名' }}</text>
           <text class="record-time">{{ formatTime(item.created_at) }}</text>
@@ -90,6 +90,7 @@ const records = ref([])
 const loading = ref(true)
 const searchQuery = ref('')
 const filterType = ref('')
+let lastHistoryOpenAt = 0
 
 // 模式B: filterType DOM classList切换
 function switchHistFilter(type) {
@@ -153,6 +154,9 @@ function formatTime(ts) {
 
 // 重新排盘 — 保存参数并跳转到排盘结果页
 function rePaipan(item) {
+  const now = Date.now()
+  if (now - lastHistoryOpenAt < 500) return
+  lastHistoryOpenAt = now
   if (item.type === '综合') {
     // #ifdef H5
     try { sessionStorage.setItem('xc_comprehensive_resume_id', String(item.id || '')) } catch(_) {}

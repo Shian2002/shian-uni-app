@@ -2126,6 +2126,9 @@ _MH_XIAN_TIAN_NUM = {'乾': 1, '兑': 2, '离': 3, '震': 4, '巽': 5, '坎': 6,
 
 _MH_GUA64 = {
     ('乾', '乾'): '乾为天', ('坤', '坤'): '坤为地',
+    ('兑', '兑'): '兑为泽', ('离', '离'): '离为火',
+    ('震', '震'): '震为雷', ('巽', '巽'): '巽为风',
+    ('坎', '坎'): '坎为水', ('艮', '艮'): '艮为山',
     ('乾', '坎'): '天水讼', ('坎', '乾'): '水天需',
     ('乾', '震'): '天雷无妄', ('震', '乾'): '雷天大壮',
     ('乾', '巽'): '天风姤', ('巽', '乾'): '风天小畜',
@@ -2154,6 +2157,15 @@ _MH_GUA64 = {
     ('艮', '兑'): '山泽损', ('兑', '艮'): '泽山咸',
     ('离', '兑'): '火泽睽', ('兑', '离'): '泽火革',
 }
+
+
+def _mh_gua64_name(upper_gua, lower_gua):
+    name = _MH_GUA64.get((upper_gua, lower_gua))
+    if name:
+        return name
+    if upper_gua == lower_gua:
+        return f'{upper_gua}卦'
+    return f'{upper_gua}{lower_gua}卦'
 
 _MH_SHENG = {'金': '水', '水': '木', '木': '火', '火': '土', '土': '金'}
 _MH_KE = {'金': '木', '木': '土', '土': '水', '水': '火', '火': '金'}
@@ -2321,7 +2333,7 @@ def _meihua_paipan(method='time', num1=None, num2=None, words=None,
         lower_gua = _MH_BAGUA_NAMES[lower_num - 1]
 
         # ── 本卦 ──
-        ben_gua_name = _MH_GUA64.get((upper_gua, lower_gua), f'{upper_gua}{lower_gua}卦')
+        ben_gua_name = _mh_gua64_name(upper_gua, lower_gua)
         upper_wuxing = _MH_BAGUA[upper_gua]['wuxing']
         lower_wuxing = _MH_BAGUA[lower_gua]['wuxing']
 
@@ -2334,14 +2346,14 @@ def _meihua_paipan(method='time', num1=None, num2=None, words=None,
         hu_upper = [all_yao[2], all_yao[3], all_yao[4]]
         hu_lower_gua = _mh_yao_to_gua_name(hu_lower)
         hu_upper_gua = _mh_yao_to_gua_name(hu_upper)
-        hu_gua_name = _MH_GUA64.get((hu_upper_gua, hu_lower_gua), f'{hu_upper_gua}{hu_lower_gua}卦')
+        hu_gua_name = _mh_gua64_name(hu_upper_gua, hu_lower_gua)
 
         # ── 变卦 ──
         bian_yao = all_yao[:]
         bian_yao[dong_yao - 1] = 1 - bian_yao[dong_yao - 1]
         bian_lower_gua = _mh_yao_to_gua_name(bian_yao[:3])
         bian_upper_gua = _mh_yao_to_gua_name(bian_yao[3:])
-        bian_gua_name = _MH_GUA64.get((bian_upper_gua, bian_lower_gua), f'{bian_upper_gua}{bian_lower_gua}卦')
+        bian_gua_name = _mh_gua64_name(bian_upper_gua, bian_lower_gua)
 
         # ── 体用分析 ──
         if dong_yao <= 3:

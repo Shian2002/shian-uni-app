@@ -344,7 +344,7 @@ uni-tabbar, .uni-tabbar, .uni-tabbar-bottom {
 .sidebar-group.collapsed .sidebar-group-items { display:none; }
 .sidebar-group-items { padding:0 8px 4px; }
 /* 列表项 */
-.sidebar-item { display:flex; align-items:center; gap:8px; padding:0; border-bottom:1px solid var(--card-border); transition:background .15s; }
+.sidebar-item { display:flex; align-items:center; gap:8px; padding:0; border-bottom:1px solid var(--card-border); transition:background .15s; cursor:pointer; touch-action:manipulation; }
 .sidebar-new-item .sidebar-item-body { background:var(--accent-glow); border-radius:10px; margin:6px; padding:9px 12px; }
 .sidebar-new-item .sidebar-item-text { color:var(--accent); font-weight:600; }
 .sidebar-item-body { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; padding:10px 14px; cursor:pointer; }
@@ -354,6 +354,11 @@ uni-tabbar, .uni-tabbar, .uni-tabbar-bottom {
 .sidebar-item-time { font-size:.68rem; color:var(--text-3); }
 .sidebar-item-del { padding:8px 10px; font-size:.7rem; color:var(--text-4); cursor:pointer; flex-shrink:0; opacity:0; transition:opacity .15s,color .15s; }
 .sidebar-item:hover .sidebar-item-del { opacity:1; }
+.sidebar-item-del { touch-action:manipulation; }
+@media (hover: none) {
+  .sidebar-item-body:hover { background:transparent; }
+  .sidebar-item:hover .sidebar-item-del { opacity:0; }
+}
 .sidebar-item-del:hover { color:var(--danger); }
 .sidebar-item:last-child { border-bottom:none; }
 /* 底部用户面板 */
