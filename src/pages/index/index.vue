@@ -353,11 +353,10 @@ let comprehensiveTypeFrame = null
 let comprehensivePendingAssistantUpdate = null
 let comprehensiveArtifactAnalysisTimers = {}
 let comprehensiveDraftTimer = null
-const COMPREHENSIVE_TYPE_FRAME_MS = 42
-const COMPREHENSIVE_TYPE_BASE_CPS = 96
-const COMPREHENSIVE_TYPE_MAX_CPS = 240
-const COMPREHENSIVE_TYPE_MIN_CHUNK = 3
-const COMPREHENSIVE_TYPE_MAX_CHUNK = 18
+const COMPREHENSIVE_TYPE_FRAME_MS = 16
+const COMPREHENSIVE_TYPE_BASE_CPS = 88
+const COMPREHENSIVE_TYPE_MAX_CPS = 180
+const COMPREHENSIVE_TYPE_MAX_FRAME_CHARS = 2
 const COMPREHENSIVE_ARTIFACT_FLUSH_MS = 120
 const HOME_AI_NEAR_BOTTOM_PX = 140
 const COMPREHENSIVE_DRAFT_SAVE_MS = 320
@@ -1868,22 +1867,15 @@ function finishComprehensiveAnswer(aiIndex, state) {
 
 function comprehensiveTypeSpeed(queueLength) {
   if (queueLength > 1200) return COMPREHENSIVE_TYPE_MAX_CPS
-  if (queueLength > 520) return 176
-  if (queueLength > 180) return 128
+  if (queueLength > 520) return 140
+  if (queueLength > 180) return 108
   return COMPREHENSIVE_TYPE_BASE_CPS
 }
 
 function nextComprehensiveTypeChunk(queue, targetCount) {
   const chars = Array.from(queue || '')
   if (!chars.length) return ''
-  const minCount = Math.min(chars.length, COMPREHENSIVE_TYPE_MIN_CHUNK)
-  const wanted = Math.max(minCount, Math.min(chars.length, COMPREHENSIVE_TYPE_MAX_CHUNK, targetCount || minCount))
-  const maxLook = Math.min(chars.length, Math.max(wanted, Math.min(COMPREHENSIVE_TYPE_MAX_CHUNK, wanted + 6)))
-  for (let i = wanted; i < maxLook; i += 1) {
-    if (/[\s，。！？；：、,.!?;:）】》」』]/.test(chars[i - 1])) {
-      return chars.slice(0, i).join('')
-    }
-  }
+  const wanted = Math.max(1, Math.min(chars.length, COMPREHENSIVE_TYPE_MAX_FRAME_CHARS, targetCount || 1))
   return chars.slice(0, wanted).join('')
 }
 
@@ -1902,13 +1894,9 @@ function startComprehensiveTypewriter(aiIndex, state) {
       return
     }
     const lastAt = state.lastTypeAt || now
-    const elapsed = now - lastAt
-    if (elapsed < COMPREHENSIVE_TYPE_FRAME_MS) {
-      comprehensiveTypeFrame = requestAnimationFrame(tick)
-      return
-    }
+    const elapsed = Math.max(COMPREHENSIVE_TYPE_FRAME_MS, Math.min(48, now - lastAt))
     state.lastTypeAt = now
-    state.charBudget = (state.charBudget || 0) + (Math.min(120, elapsed) / 1000) * comprehensiveTypeSpeed(state.queue.length)
+    state.charBudget = (state.charBudget || 0) + (elapsed / 1000) * comprehensiveTypeSpeed(state.queue.length)
     const chunk = nextComprehensiveTypeChunk(state.queue, Math.floor(state.charBudget))
     if (!chunk) {
       comprehensiveTypeFrame = requestAnimationFrame(tick)
