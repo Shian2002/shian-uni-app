@@ -109,13 +109,7 @@
                     <view class="home-tool-card-body">
                       <view class="home-artifact-render" v-html="renderArtifactHtml(currentArtifactForMessage(msg, idx))"></view>
                       <view class="home-artifact-analysis" v-if="currentArtifactForMessage(msg, idx).analysis">
-                        <view class="home-artifact-analysis-head">
-                          <img class="home-ai-agent-logo small idle" src="/static/images/logo.webp?v=2" alt="时安解忧屋" />
-                          <view class="home-ai-agent-texts">
-                            <text class="home-ai-agent-name">时安 agent</text>
-                            <text class="home-artifact-analysis-title">{{ currentArtifactForMessage(msg, idx).title }}解析</text>
-                          </view>
-                        </view>
+                        <view class="home-artifact-analysis-title">{{ currentArtifactForMessage(msg, idx).title }}解析</view>
                         <text>{{ currentArtifactForMessage(msg, idx).analysis }}</text>
                       </view>
                     </view>
@@ -123,13 +117,7 @@
                 </view>
                 <text class="home-ai-content" v-if="msg.role === 'user' && msg.content">{{ msg.content }}</text>
                 <view class="home-ai-summary-panel" v-if="msg.role === 'assistant' && msg.content && (!visibleArtifactList(msg).length || isSummaryActive(msg, idx))">
-                  <view class="home-artifact-analysis-head">
-                    <img class="home-ai-agent-logo small idle" src="/static/images/logo.webp?v=2" alt="时安解忧屋" />
-                    <view class="home-ai-agent-texts">
-                      <text class="home-ai-agent-name">时安 agent</text>
-                      <text class="home-artifact-analysis-title">综合结论</text>
-                    </view>
-                  </view>
+                  <view class="home-artifact-analysis-title">综合结论</view>
                   <text class="home-ai-content">{{ msg.content }}</text>
                 </view>
               </view>
@@ -2325,9 +2313,9 @@ onBeforeUnmount(() => {
 .home-ai-content { display: block; white-space: pre-wrap; font-size: 0.9rem; color: var(--text-2); line-height: 1.86; letter-spacing: 0; word-break: break-word; }
 .home-tool-cards { display: grid; gap: 10px; margin: 10px 0 12px; }
 .home-tool-card { min-height: 92px; border: 1px solid rgba(178,149,93,0.18); border-radius: 12px; background: rgba(178,149,93,0.055); overflow: hidden; }
-.home-artifact-switcher { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 10px; margin-bottom: 10px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.home-artifact-switcher { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 8px; overflow: visible; padding: 2px 0 10px; margin-bottom: 10px; }
 .home-artifact-switcher::-webkit-scrollbar { display: none; }
-.home-artifact-tab { flex: 0 0 auto; min-width: 138px; max-width: 190px; padding: 9px 11px; border-radius: 12px; border: 1px solid rgba(178,149,93,.14); background: rgba(255,255,255,.04); cursor: pointer; box-sizing: border-box; }
+.home-artifact-tab { min-width: 0; padding: 8px 9px; border-radius: 12px; border: 1px solid rgba(178,149,93,.14); background: rgba(255,255,255,.04); cursor: pointer; box-sizing: border-box; }
 .home-artifact-tab.active { border-color: rgba(178,149,93,.48); background: rgba(178,149,93,.12); box-shadow: inset 0 1px 0 rgba(255,255,255,.08); }
 .home-artifact-tab.conclusion { border-color: rgba(120,150,110,.24); }
 .home-artifact-tab-title { display: block; color: var(--text-1); font-size: .76rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2886,7 +2874,8 @@ onBeforeUnmount(() => {
   .home-ai-chat-sub { max-width: calc(100vw - 136px); font-size: 0.6rem; }
   .home-ai-stage-note { font-size: 0.6rem; }
   .home-ai-step-row text { font-size: 0.5rem; }
-  .home-artifact-tab { min-width: 116px; max-width: 152px; padding: 8px 9px; }
+  .home-artifact-switcher { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .home-artifact-tab { min-width: 0; max-width: none; padding: 7px 8px; }
   .home-artifact-tab-title { font-size: .7rem; }
   .home-artifact-tab-sub { font-size: .56rem; }
   .home-ai-summary-panel { padding: 12px; }

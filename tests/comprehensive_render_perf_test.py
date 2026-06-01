@@ -95,6 +95,7 @@ def test_home_ai_answers_show_rotating_shian_agent_header():
     assert "animation: none" in source
     assert "综合解答</text>" not in source
     assert "currentArtifactForMessage(msg, idx).title }}解析" in source
+    assert '<img class="home-ai-agent-logo small idle"' not in source
 
 
 def test_home_ai_artifacts_use_switcher_not_full_stack():
@@ -117,9 +118,13 @@ def test_home_ai_artifacts_use_switcher_not_full_stack():
 
 def test_home_ai_switcher_layout_is_compact():
     source = _source()
+    switcher_rule = re.search(r"\.home-artifact-switcher \{(?P<body>[^}]*)\}", source)
+    assert switcher_rule, "缺少术数切换栏样式"
 
     assert ".home-artifact-switcher" in source
-    assert "overflow-x: auto" in source
+    assert "grid-template-columns: repeat(auto-fit, minmax(112px, 1fr))" in source
+    assert "overflow-x: auto" not in switcher_rule.group("body")
+    assert "-webkit-overflow-scrolling: touch" not in switcher_rule.group("body")
     assert ".home-artifact-tab.active" in source
     assert ".home-ai-summary-panel" in source
     assert ".home-tool-card-toggle { display: none; }" in source
