@@ -40,3 +40,72 @@ def test_comprehensive_chat_scroll_is_coalesced():
     body = scroll_fn.group("body")
     assert "clearTimeout(comprehensiveScrollTimer)" in body
     assert "comprehensiveScrollTimer = setTimeout" in body
+
+
+def test_home_artifacts_are_normalized_for_old_history_display():
+    source = _source()
+
+    assert "function normalizeHomeArtifactForDisplay" in source
+    assert "normalizeHomeArtifactForDisplay(artifact" in source
+    assert "sanitizeArtifactAnalysisText" in source
+    assert "'zhi_liu_chong': '地支六冲'" in source
+    assert "artifact.analysis || previous.analysis || ''" not in source
+
+
+def test_home_tarot_artifact_uses_real_images_not_emoji_cards():
+    source = _source()
+
+    tarot_fn = re.search(
+        r"function renderTarotArtifact\(data\) \{(?P<body>.*?)\n\}",
+        source,
+        re.S,
+    )
+    assert tarot_fn, "缺少首页塔罗 artifact 渲染函数"
+    body = tarot_fn.group("body")
+    assert "tarot-card-img" in body
+    assert "getHomeTarotImage" in body
+    assert "tarot-card-fallback" in body
+    assert "tarot-card-icon" not in body
+    assert "🃏" not in body
+
+
+def test_home_artifact_layout_has_no_inner_vertical_scroll_box():
+    source = _source()
+
+    assert ".home-tool-card-body { min-width: 0; padding:" in source
+    assert ".home-tool-card-body { min-width: 0; min-height:" not in source
+    artifact_rule = re.search(r"\.home-artifact-render \{(?P<body>[^}]*)\}", source)
+    assert artifact_rule, "缺少首页 artifact 容器样式"
+    body = artifact_rule.group("body")
+    assert "max-height" not in body
+    assert "overflow: auto" not in body
+    assert "overflow-y: visible" in body
+
+
+def test_home_ziwei_timeline_is_sorted_by_decadal_age():
+    source = _source()
+
+    assert "function ziweiDecadalStart" in source
+    timeline = re.search(r"const timeline = palaces(?P<body>.*?)\.map\(function\(p\)", source, re.S)
+    assert timeline, "缺少紫微大限 timeline 生成"
+    assert ".sort(function(a, b)" in timeline.group("body")
+    assert "ziweiDecadalStart(a) - ziweiDecadalStart(b)" in timeline.group("body")
+
+
+def test_home_liuyao_keeps_visual_center_on_mobile():
+    source = _source()
+
+    assert "ly-visual-side" in source
+    assert "--ly-yao-width" in source
+    assert "ly-row-ben-side\"><div class=\"ly-yao-tags-left\"" not in source
+    assert ".home-artifact-render :deep(.ly-paired-row.has-bian) { grid-template-columns: 1fr; }" not in source
+    assert ".home-artifact-render :deep(.ly-row-divider) { width: 100%; height: 1px; }" not in source
+
+
+def test_home_qimen_grid_scales_with_available_width():
+    source = _source()
+
+    assert "qm-scale-shell" in source
+    assert "--qm-grid-size" in source
+    assert "width: min(100%, var(--qm-grid-size))" in source
+    assert "font-size: clamp(" in source

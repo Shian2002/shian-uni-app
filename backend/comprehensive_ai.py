@@ -134,7 +134,8 @@ def build_tool_analysis_messages(question, profile, tool, tool_data, history=Non
 1. 先用一句话给出该术数对用户问题的判断；
 2. 再列出盘面依据，必须引用当前盘面的具体信息；
 3. 最后给出该术数下的建议或提醒；
-4. 不要重复排盘数据，不要编造盘里没有的信息。
+4. 不要重复排盘数据，不要编造盘里没有的信息；
+5. 不要输出 JSON 字段名或 snake_case 内部键名，八字关系字段必须改用中文术语，例如 zhi_liu_chong 说成“地支六冲”。
 """
     messages = [{"role": "system", "content": system}]
     for item in history or []:
