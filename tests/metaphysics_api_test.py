@@ -309,6 +309,112 @@ def test_qimen_ask_background_status_from_split_route(app_module, monkeypatch):
     assert body["reasoning"] == "后台推理"
 
 
+def test_ziwei_ask_stream_uses_split_route(app_module, monkeypatch):
+    import ziwei_ask_routes
+
+    class FakeOpenAI:
+        def __init__(self, api_key=None, base_url=None):
+            self.chat = SimpleNamespace(
+                completions=SimpleNamespace(create=self.create)
+            )
+
+        def create(self, **kwargs):
+            assert kwargs["stream"] is True
+            return iter([
+                SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content="紫微"))]),
+                SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content="解读正文"))]),
+            ])
+
+    monkeypatch.setenv("SILICONFLOW_API_KEY", "test-key")
+    monkeypatch.setattr(ziwei_ask_routes, "OpenAI", FakeOpenAI)
+
+    client = app_module.app.test_client()
+    response = client.post("/api/ziwei/ask/stream", json={
+        "question": "我的事业如何",
+        "year": 1990,
+        "month": 1,
+        "day": 27,
+        "hour": 10,
+        "minute": 30,
+        "gender": "男",
+        "date_type": "solar",
+        "analysis_type": "career",
+    })
+
+    assert response.status_code == 200
+    payloads = _sse_payloads(response)
+    assert {"type": "delta", "content": "紫微解读正文"} in payloads
+    assert {"type": "done"} in payloads
+
+
+def test_ziwei_ask_stream_requires_run_id_for_get(client):
+    response = client.get("/api/ziwei/ask/stream")
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "无效的 run_id"
+
+
+def test_bazi_ask_stream_uses_split_route_and_updates_record(app_module, user_factory, monkeypatch):
+    import bazi_ask_routes
+
+    class FakeOpenAI:
+        def __init__(self, api_key=None, base_url=None):
+            self.chat = SimpleNamespace(
+                completions=SimpleNamespace(create=self.create)
+            )
+
+        def create(self, **kwargs):
+            assert kwargs["stream"] is True
+            assert "八字" in kwargs["messages"][0]["content"]
+            return iter([
+                SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content="八字"))]),
+                SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content="解读正文"))]),
+            ])
+
+    member = user_factory("bazi-stream-user")
+    monkeypatch.setenv("SILICONFLOW_API_KEY", "test-key")
+    monkeypatch.setattr(bazi_ask_routes, "OpenAI", FakeOpenAI)
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(member.id)
+        sess["_fresh"] = True
+
+    response = client.post("/api/bazi/ask/stream", json={
+        "question": "事业如何",
+        "pan_data": {
+            "success": True,
+            "name": "样例",
+            "gender": "男",
+            "birth_solar": "1990-01-27 10:02",
+            "four_pillars": {
+                "year": {"gan_zhi": "己巳"},
+                "month": {"gan_zhi": "丁丑"},
+                "day": {"gan_zhi": "壬辰", "gan": "壬", "wu_xing": "水"},
+                "hour": {"gan_zhi": "乙巳"},
+            },
+            "shi_shen": {},
+            "da_yun": [{"start_age": 1, "end_age": 10, "gan_zhi": "戊辰"}],
+            "liu_nian": [{"year": 2026, "gan_zhi": "丙午"}],
+        },
+    })
+
+    assert response.status_code == 200
+    payloads = _sse_payloads(response)
+    assert {"type": "delta", "content": "八字解读正文"} in payloads
+    assert {"type": "done"} in payloads
+
+    with app_module.app.app_context():
+        record = app_module.Record.query.filter_by(user_id=member.id, app_type="bazi").one()
+        assert record.question == "事业如何"
+        assert record.result_html == "八字解读正文"
+
+
+def test_bazi_ask_stream_requires_input(client):
+    response = client.post("/api/bazi/ask/stream", json={"question": "事业如何"})
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "请提供出生时间或选择档案"
+
+
 def test_tarot_huangli_zeji_and_calendar_fixed_samples(client):
     tarot_verify = client.get("/api/tarot/verify")
     assert tarot_verify.status_code == 200
