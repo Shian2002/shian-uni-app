@@ -15,7 +15,7 @@
 
       <!-- 工具面板 -->
       <section class="section">
-        <view class="tool-container">
+        <view class="tool-container" :class="{ 'has-qimen-result': qfResult }">
 
           <!-- Tab 切换 -->
           <view class="tool-tabs">
@@ -305,7 +305,7 @@ function renderQimenPalaceGrid(data) {
   const C_RIGAN = '#E74C3C', C_SHIGAN = '#E74C3C', C_DIGAN = '#555', C_YINGAN = '#AAA', C_MAHORSE = '#D4A017'
   const zhiFuStar = data.zhiFuStar || ''; const zhiShiMen = data.zhiShiMen || ''
   const baguaSimple = {'坎':'坎','坤':'坤','震':'震','巽':'巽','中':'中','乾':'乾','兌':'兑','艮':'艮','離':'离'}
-  let html = `<div style="background:var(--card-bg);border-radius:12px;padding:20px;border:1px solid var(--card-border);">`
+  let html = `<div class="qf-result-card">`
   // 概要信息区
   html += `<div style="margin-bottom:16px;border-bottom:1px solid var(--card-border);padding-bottom:12px;">`
   html += `<div style="font-size:1.1rem;font-weight:700;margin-bottom:10px;color:var(--accent);letter-spacing:2px;">奇门遁甲排盘</div>`
@@ -344,10 +344,10 @@ function renderQimenPalaceGrid(data) {
   if (maList.length) html += `<span><b style="color:var(--text-1);">马星：</b>${maList.join(' ')}</span>`
   html += `</div></div>`
   // 九宫格
-  html += `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;max-width:300px;margin:0 auto;background:#d5cfc2;border-radius:12px;overflow:hidden;border:2px solid #b8b0a0;box-shadow:0 2px 12px rgba(0,0,0,0.08);">`
+  html += `<div class="qm-scale-shell"><div class="qm-palace-grid">`
   for (const gongNum of luoOrder) {
     const p = palaces[gongNum - 1]
-    if (!p) { html += `<div style="background:#f5f0e8;aspect-ratio:1;"></div>`; continue }
+    if (!p) { html += `<div class="qm-palace-cell qm-empty-cell"></div>`; continue }
     if (gongNum === 5) {
       const WX_GAN = {'甲':'木','乙':'木','丙':'火','丁':'火','戊':'土','己':'土','庚':'金','辛':'金','壬':'水','癸':'水'}
       const WX_ZHI = {'子':'水','丑':'土','寅':'木','卯':'木','辰':'土','巳':'火','午':'火','未':'土','申':'金','酉':'金','戌':'土','亥':'水'}
@@ -372,10 +372,10 @@ function renderQimenPalaceGrid(data) {
       const juDisplay = ydStr ? `${ydStr}${juNumArab}局` : juRaw
       const zhiFuNum = BAGUA_NUM[data.zhiFuGong] || 5
       const zhiShiNum = BAGUA_NUM[data.zhiShiGong] || 2
-      const FS_C = '0.55rem', FS_S = '0.48rem'
-      html += `<div style="background:#f0ede5;aspect-ratio:1;color:${C_DEFAULT};padding:4px 5px;display:flex;flex-direction:column;justify-content:center;gap:1px;box-sizing:border-box;line-height:1.25;font-size:${FS_C};text-align:center;">`
+      const FS_C = 'var(--qm-center-font)', FS_S = 'var(--qm-center-small-font)'
+      html += `<div class="qm-palace-cell qm-center-cell" style="color:${C_DEFAULT};font-size:${FS_C};">`
       const dateStr = (data.solarDate || '').split(' ')[0]
-      if (dateStr) html += `<div style="font-weight:700;font-size:0.58rem;">${dateStr}</div>`
+      if (dateStr) html += `<div style="font-weight:700;font-size:var(--qm-center-date-font);">${dateStr}</div>`
       html += `<div>${wxSpan(xunRaw + '旬')}`
       if (xkHour) html += ` ${wxSpan(xkHour)}<span style="color:${C_DEFAULT};">空</span>`
       html += `</div>`
@@ -406,11 +406,11 @@ function renderQimenPalaceGrid(data) {
     let tianHtml = ''; tianGanArr.filter(Boolean).forEach(g => { let c = C_DEFAULT, w = '400'; if (jiXingTianSet.has(g)) { c = C_JIXING; w = '700' } else if (ruMuTianSet.has(g)) { c = C_RUMU; w = '700' }; tianHtml += `<span style="color:${c};font-weight:${w};">${g}</span>` })
     let diHtml = ''; diGanArr.filter(Boolean).forEach(g => { let c = C_DIGAN, w = '400'; if (jiXingDiSet.has(g)) { c = C_JIXING; w = '700' } else if (ruMuDiSet.has(g)) { c = C_RUMU; w = '700' }; diHtml += `<span style="color:${c};font-weight:${w};">${g}</span>` })
     const gongLabel = `${gongNum}·${baguaSimple[p.bagua]||p.bagua}`
-    const FS = '0.65rem'
-    html += `<div style="background:#fff;aspect-ratio:1;position:relative;color:${C_DEFAULT};padding:4px 4px;display:flex;flex-direction:column;justify-content:space-between;box-sizing:border-box;">`
+    const FS = 'var(--qm-cell-font)'
+    html += `<div class="qm-palace-cell" style="color:${C_DEFAULT};">`
     html += `<div style="display:flex;justify-content:space-between;align-items:center;">`
     html += `<span style="color:${shenColor};font-weight:${shenWeight};font-size:${FS};white-space:nowrap;">${p.shenFull||''}${p.isKong?`<span style="color:${C_KONG};font-size:0.6rem;font-weight:700;margin-left:2px;">○</span>`:''}</span>`
-    html += `<span style="display:inline-flex;align-items:center;gap:2px;font-size:${FS};white-space:nowrap;">${p.isMa?`<span style="color:${C_MAHORSE};font-size:0.55rem;">🐎</span>`:''}${tianHtml}</span></div>`
+    html += `<span class="qm-tian-gan" style="font-size:${FS};">${p.isMa?`<span class="qm-ma-marker" style="color:${C_MAHORSE};">🐎</span>`:''}${tianHtml}</span></div>`
     html += `<div style="display:flex;justify-content:space-between;align-items:center;">`
     const xingDisplay = xingFullArr.length > 1 ? xingArr.filter(Boolean).join("") : xingFullArr.filter(Boolean).join("")
     html += `<span style="color:${xingColor};font-weight:${xingWeight};font-size:${FS};white-space:nowrap;">${xingDisplay}</span>`
@@ -424,7 +424,7 @@ function renderQimenPalaceGrid(data) {
     html += `<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:0.45rem;color:#d0d0d0;font-weight:400;pointer-events:none;">${gongLabel}</div>`
     html += `</div>`
   }
-  html += `</div>`
+  html += `</div></div>`
   html += `<div style="display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:10px;font-size:0.65rem;color:var(--text-3);justify-content:center;align-items:center;">`
   html += `<span><span style="color:${C_ZHISHI};font-weight:700;">值使</span></span>`
   html += `<span><span style="color:${C_MENPO};font-weight:700;">门迫</span></span>`
@@ -1119,6 +1119,7 @@ function _checkQiRestore() {
 
 /* 工具容器 */
 .tool-container { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; backdrop-filter: blur(20px); box-shadow: var(--card-shadow); max-width: 720px; margin: 0 auto; }
+.tool-container.has-qimen-result { max-width: min(1120px, calc(100vw - 64px)); }
 .tool-tabs { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid var(--card-border); }
 .tool-tab { padding: 12px 20px; border-radius: 10px 10px 0 0; font-size: 0.875rem; cursor: pointer; border: 1px solid transparent; border-bottom: none; color: var(--text-3); background: transparent; }
 .tool-tab.active { color: var(--accent); background: var(--accent-glow); border-color: var(--accent); font-weight: 600; }
@@ -1161,6 +1162,60 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .qf-result-card { background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid var(--card-border); }
 .qf-result-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 10px; color: var(--accent); letter-spacing: 2px; }
 .qf-result-row { font-size: 0.82rem; color: var(--text-2); margin-bottom: 6px; }
+.qf-result :deep(.qf-result-card) { background: var(--card-bg); border-radius: 12px; padding: clamp(14px, 2.2vw, 24px); border: 1px solid var(--card-border); }
+.qf-result :deep(.qm-scale-shell) {
+  --qm-grid-size: clamp(300px, min(72vw, 72dvh), 760px);
+  --qm-cell-font: clamp(0.62rem, calc(var(--qm-grid-size) / 48), 1rem);
+  --qm-center-font: clamp(0.54rem, calc(var(--qm-grid-size) / 58), 0.86rem);
+  --qm-center-small-font: clamp(0.48rem, calc(var(--qm-grid-size) / 68), 0.76rem);
+  --qm-center-date-font: clamp(0.56rem, calc(var(--qm-grid-size) / 54), 0.9rem);
+  width: min(100%, var(--qm-grid-size));
+  margin: 0 auto;
+}
+.qf-result :deep(.qm-palace-grid) {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(2px, 0.35vw, 4px);
+  width: 100%;
+  aspect-ratio: 1;
+  background: #d5cfc2;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid #b8b0a0;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+.qf-result :deep(.qm-palace-cell) {
+  aspect-ratio: 1;
+  position: relative;
+  background: #fff;
+  padding: clamp(4px, 1.3%, 9px);
+  font-size: clamp(0.62rem, calc(var(--qm-grid-size) / 48), 1rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+  min-width: 0;
+  line-height: 1.18;
+}
+.qf-result :deep(.qm-center-cell) {
+  background: #f0ede5;
+  justify-content: center;
+  gap: clamp(1px, 0.45vw, 4px);
+  text-align: center;
+  line-height: 1.25;
+}
+.qf-result :deep(.qm-empty-cell) { background: #f5f0e8; }
+.qf-result :deep(.qm-tian-gan) {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+.qf-result :deep(.qm-ma-marker) {
+  flex: 0 0 auto;
+  font-size: 0.82em;
+  line-height: 1;
+}
 
 /* AI进度条 */
 .qai-progress { margin-top: 16px; }
@@ -1198,20 +1253,25 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 @media (max-width: 768px) {
   .tool-hero { padding: 40px 16px 24px; }
   .tool-hero-title { font-size: 1.5rem; letter-spacing: 2px; }
-  .tool-container { padding: 20px 16px; }
+  .tool-container,
+  .tool-container.has-qimen-result { padding: 20px 16px; max-width: calc(100vw - 32px); }
   .section { padding: 48px 16px; }
   .qf-datetime-row { flex-wrap: wrap; }
   .qf-dt-col { flex: 1 1 calc(33% - 8px); min-width: 60px; }
+  .qf-result :deep(.qm-scale-shell) { --qm-grid-size: clamp(280px, 92vw, 560px); }
 }
 @media (max-width: 480px) {
   .tool-hero-title { font-size: 1.2rem; letter-spacing: 1px; }
   .tool-hero-desc { font-size: 0.75rem; }
-  .tool-container { padding: 16px 12px; }
+  .tool-container,
+  .tool-container.has-qimen-result { padding: 16px 12px; max-width: calc(100vw - 24px); }
   .qf-dt-col { flex: 1 1 calc(50% - 6px); min-width: 50px; }
   .qf-datetime-select { font-size: 0.78rem; padding: 7px 4px; }
   .tool-tab { padding: 8px 10px; font-size: 0.75rem; }
   .submit-btn { font-size: 0.875rem; padding: 12px 16px; }
   .btn-row { flex-direction: column; }
+  .qf-result :deep(.qf-result-card) { padding: 12px; }
+  .qf-result :deep(.qm-scale-shell) { --qm-grid-size: clamp(260px, 92vw, 420px); }
 }
 
 /* ═══ 流式解读卡片 ═══ */

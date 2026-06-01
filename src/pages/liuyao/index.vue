@@ -397,8 +397,9 @@ function renderLiuyaoResult(d) {
           ? '<div class="ly-yang-bar"></div>'
           : '<div class="ly-yin-bars"><div class="ly-yin-seg"></div><div class="ly-yin-seg"></div></div>'
         html += '</div>'
-        // 信息区（六亲 + 六神 + 纳甲）
+        // 信息区（爻位 + 六亲 + 六神 + 纳甲）
         html += '<div class="ly-paired-bian-info">'
+        html += `<span class="ly-yao-pos">${bian.name}</span>`
         html += `<span class="ly-tag ly-tag-liuqin">${bian.liuqin}</span>`
         html += `<span class="ly-tag ly-tag-liushen">${bian.liushen}</span>`
         html += `<span class="ly-tag ly-tag-naja">${bian.naja}</span>`
@@ -1031,28 +1032,26 @@ function _updateLyConversation() {
 /* ═══ 六爻纳甲排盘结果样式 ═══ */
 .ly-result-wrap { margin: 24px auto 0; width: min(100%, 860px); }
 .ly-trigram-badge { padding: 4px 12px; background: var(--accent-glow); border: 1px solid var(--border); border-radius: 8px; font-size: 0.8125rem; color: var(--accent); }
-.ly-ben-bian-box { background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 20px; }
-.ly-ben-bian-top { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding-bottom: 12px; margin-bottom: 10px; border-bottom: 1px solid var(--border); }
+.ly-ben-bian-box { --ly-center-gap: 28px; --ly-side-width: minmax(0, calc((100% - var(--ly-center-gap)) / 2)); background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 20px; }
+.ly-ben-bian-top { display: grid; grid-template-columns: var(--ly-side-width) var(--ly-center-gap) var(--ly-side-width); align-items: center; gap: 0; padding-bottom: 12px; margin-bottom: 10px; border-bottom: 1px solid var(--border); }
 .ly-ben-bian-name-block { text-align: center; }
 .ly-ben-bian-name-block:first-child:nth-last-child(1) { grid-column: 1 / -1; }
 .ly-ben-bian-label { font-size: 0.75rem; color: var(--text-3); letter-spacing: 2px; margin-bottom: 4px; }
 .ly-ben-bian-name-text { font-size: 1.75rem; font-weight: 700; color: var(--accent); letter-spacing: 4px; font-family: var(--font-serif), serif; }
 .ly-ben-bian-trigrams { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 6px 0 0; }
-.ly-ben-bian-top-arrow { font-size: 1.5rem; color: var(--danger); animation: lyPulse 2s ease-in-out infinite; }
+.ly-ben-bian-top-arrow { font-size: 1.5rem; color: var(--danger); animation: lyPulse 2s ease-in-out infinite; text-align: center; }
 @keyframes lyPulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
 .ly-ben-bian-body { display: flex; flex-direction: column; gap: 2px; }
-.ly-paired-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: 3px 0; border-radius: 6px; min-height: 28px; transition: background 0.2s; }
+.ly-paired-row { display: grid; grid-template-columns: var(--ly-side-width) var(--ly-center-gap) var(--ly-side-width); align-items: center; gap: 0; padding: 3px 0; border-radius: 6px; min-height: 28px; transition: background 0.2s; }
 .ly-paired-row:hover { background: rgba(212,168,71,0.04); }
 .ly-paired-row.moving { background: rgba(231,76,60,0.04); }
 .ly-paired-row.bian { background: rgba(155,89,182,0.04); }
 .ly-paired-ben, .ly-paired-bian { width: 40px; height: 10px; display: flex; align-items: center; flex-shrink: 0; }
-.ly-paired-info { flex: 1; display: flex; align-items: center; gap: 2px; flex-wrap: nowrap; min-width: 0; }
-.ly-paired-bian-info { flex: 1; display: flex; align-items: center; gap: 2px; flex-wrap: nowrap; min-width: 0; }
-.ly-row-ben-side, .ly-row-bian-side { display: flex; align-items: center; gap: 4px; min-width: 0; }
-.ly-yao-tags-left { display: flex; align-items: center; gap: 2px; flex-shrink: 0; width: 44px; }
-.ly-row-bian-side .ly-yao-tags-left { width: 24px; }
-.ly-row-bian-side { padding-left: 20px; }
-.ly-row-divider { width: 24px; display: flex; align-items: center; justify-content: center; align-self: stretch; }
+.ly-paired-info { display: flex; align-items: center; gap: 2px; flex-wrap: nowrap; min-width: 0; }
+.ly-paired-bian-info { display: flex; align-items: center; gap: 2px; flex-wrap: nowrap; min-width: 0; }
+.ly-row-ben-side, .ly-row-bian-side { display: grid; grid-template-columns: 44px 40px minmax(0, 1fr); align-items: center; column-gap: 4px; min-width: 0; width: 100%; }
+.ly-yao-tags-left { display: flex; align-items: center; gap: 2px; width: 44px; min-width: 0; }
+.ly-row-divider { width: var(--ly-center-gap); display: flex; align-items: center; justify-content: center; align-self: stretch; }
 .ly-row-divider::after { content: ''; width: 1px; align-self: stretch; background: var(--border); min-height: 16px; }
 /* 静卦：只有本卦区，跨全行居中 */
 .ly-paired-row.has-ben-only .ly-row-ben-side { grid-column: 1 / -1; justify-self: center; }
@@ -1090,7 +1089,7 @@ function _updateLyConversation() {
 .ly-detail-table .moving-row td { color: var(--danger); }
 .ly-paipan-meta { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 14px; background: var(--bg-2); border-radius: 10px; margin-top: 16px; font-size: 0.8125rem; color: var(--text-3); flex-wrap: wrap; }
 .ly-paipan-meta span { display: flex; align-items: center; gap: 4px; }
-@media (max-width: 480px) { .ly-ben-bian-name-text { font-size: 1.25rem; letter-spacing: 2px; } .ly-ben-bian-footer { flex-direction: column; gap: 6px; } .ly-paired-row { gap: 8px; padding: 3px 0; } .ly-paired-ben, .ly-paired-bian { width: 30px; } .ly-paired-info { gap: 1px; } .ly-yao-pos { width: 22px; font-size: 0.55rem; } .ly-tag { font-size: 0.45rem; padding: 1px 2px; border-radius: 2px; } .ly-yao-tags-left { width: 34px; } .ly-row-bian-side .ly-yao-tags-left { width: 20px; } .ly-row-bian-side { padding-left: 14px; } .ly-ben-bian-box { padding: 10px; } .ly-detail-table { font-size: 0.625rem; } .ly-detail-table th, .ly-detail-table td { padding: 6px 2px; } }
+@media (max-width: 480px) { .ly-ben-bian-box { --ly-center-gap: 18px; padding: 10px; } .ly-ben-bian-name-text { font-size: 1.25rem; letter-spacing: 2px; } .ly-ben-bian-footer { flex-direction: column; gap: 6px; } .ly-paired-row { padding: 3px 0; } .ly-row-ben-side, .ly-row-bian-side { grid-template-columns: 34px 30px minmax(0, 1fr); column-gap: 2px; } .ly-paired-ben, .ly-paired-bian { width: 30px; } .ly-paired-info, .ly-paired-bian-info { gap: 1px; } .ly-yao-pos { width: 22px; font-size: 0.55rem; } .ly-tag { font-size: 0.45rem; padding: 1px 2px; border-radius: 2px; } .ly-yao-tags-left { width: 34px; } .ly-detail-table { font-size: 0.625rem; } .ly-detail-table th, .ly-detail-table td { padding: 6px 2px; } }
 
 /* AI进度条/结果/开关 */
 .qai-deep-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
@@ -1166,14 +1165,14 @@ function _updateLyConversation() {
 /* 超窄屏（375px以下）六爻结果进一步紧凑 */
 @media (max-width: 420px) {
   .ly-ben-bian-name-text { font-size: 1rem; letter-spacing: 1px; }
-  .ly-ben-bian-box { padding: 6px; }
-  .ly-paired-row { padding: 2px 0; gap: 6px; min-height: 20px; } .ly-row-divider { width: 16px; } .ly-paired-ben, .ly-paired-bian { width: 26px; }
-  .ly-paired-info { gap: 1px; }
+  .ly-ben-bian-box { --ly-center-gap: 16px; padding: 6px; }
+  .ly-paired-row { padding: 2px 0; min-height: 20px; } .ly-paired-ben, .ly-paired-bian { width: 26px; }
+  .ly-row-ben-side, .ly-row-bian-side { grid-template-columns: 28px 26px minmax(0, 1fr); column-gap: 1px; }
+  .ly-paired-info, .ly-paired-bian-info { gap: 1px; }
   .ly-yao-pos { width: 16px; font-size: 0.45rem; }
   .ly-yao-tags-left { width: 28px; }
-  .ly-row-bian-side .ly-yao-tags-left { width: 16px; }
   .ly-tag { font-size: 0.38rem; padding: 0 2px; border-radius: 2px; letter-spacing: 0; }
-  .ly-ben-bian-top { padding: 8px 4px; gap: 6px; }
+  .ly-ben-bian-top { padding: 8px 4px; }
   .ly-ben-bian-footer { font-size: 0.65rem; gap: 3px; }
   .ly-ben-bian-label { font-size: 0.6rem; }
   .ly-ben-bian-top-arrow { font-size: 1rem; }

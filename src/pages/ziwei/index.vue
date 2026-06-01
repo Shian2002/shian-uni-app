@@ -16,7 +16,6 @@
           <view class="tool-tabs">
             <view class="tool-tab" :class="{ active: activeTab === 'pan' }" @click="switchTab('pan')">⭐ 排盘<text class="tab-badge free">免费</text></view>
             <view v-if="false" class="tool-tab" :class="{ active: activeTab === 'ai' }" @click="switchTab('ai')">🤖 AI解读</view>
-            <view class="tool-tab" :class="{ active: activeTab === 'horoscope' }" @click="switchTab('horoscope')">📅 推运<text class="tab-badge">PRO</text></view>
           </view>
           <!-- 排盘面板 -->
           <view class="tool-tab-content" v-show="activeTab === 'pan'">
@@ -143,85 +142,6 @@
                 <view class="chat-send-btn" @click="zwSendFollowUp">发送</view>
               </view>
             </view>
-          </view>
-          <!-- 推运面板 -->
-          <view class="tool-tab-content" v-show="activeTab === 'horoscope'">
-            <view class="zw-form-grid">
-              <view class="form-group zw-birth-time-group">
-                <text class="form-label">出生时间</text>
-                <view class="zw-birth-row">
-                  <view class="zw-birth-col zw-birth-col-year">
-                    <picker :range="birthYearOptions" :value="birthYearIndex(zwHoroForm)" @change="setBirthPart(zwHoroForm, 'year', $event)">
-                      <view class="zw-birth-select">{{ zwHoroForm.year }}年</view>
-                    </picker>
-                  </view>
-                  <view class="zw-birth-col">
-                    <picker :range="birthMonthOptions" :value="birthMonthIndex(zwHoroForm)" @change="setBirthPart(zwHoroForm, 'month', $event)">
-                      <view class="zw-birth-select">{{ zwHoroForm.month }}月</view>
-                    </picker>
-                  </view>
-                  <view class="zw-birth-col">
-                    <picker :range="birthDayOptions(zwHoroForm)" :value="birthDayIndex(zwHoroForm)" @change="setBirthPart(zwHoroForm, 'day', $event)">
-                      <view class="zw-birth-select">{{ zwHoroForm.day }}日</view>
-                    </picker>
-                  </view>
-                  <view class="zw-birth-col">
-                    <picker :range="birthHourOptions" :value="birthHourIndex(zwHoroForm)" @change="setBirthPart(zwHoroForm, 'hour', $event)">
-                      <view class="zw-birth-select">{{ pad2(zwHoroForm.hour) }}时</view>
-                    </picker>
-                  </view>
-                  <view class="zw-birth-col zw-birth-col-minute">
-                    <picker :range="birthMinuteOptions" :value="birthMinuteIndex(zwHoroForm)" @change="setBirthPart(zwHoroForm, 'minute', $event)">
-                      <view class="zw-birth-select">{{ pad2(zwHoroForm.minute) }}分</view>
-                    </picker>
-                  </view>
-                </view>
-              </view>
-              <view class="form-group">
-                <text class="form-label">性别</text>
-                <picker :range="['男', '女']" :value="zwHoroForm.genderIdx" @change="zwHoroForm.genderIdx = $event.detail.value">
-                  <view class="form-select-picker">{{ ['男', '女'][zwHoroForm.genderIdx] }}</view>
-                </picker>
-              </view>
-              <view class="form-group">
-                <text class="form-label">历法类型</text>
-                <picker :range="['阳历(公历)', '农历(阴历)']" :value="zwHoroForm.dateTypeIdx" @change="zwHoroForm.dateTypeIdx = $event.detail.value">
-                  <view class="form-select-picker">{{ ['阳历(公历)', '农历(阴历)'][zwHoroForm.dateTypeIdx] }}</view>
-                </picker>
-              </view>
-            </view>
-            <view class="form-group" style="margin-top:12px;">
-              <text class="form-label">🕐 推运日期</text>
-              <view class="qf-datetime-row">
-                <view class="qf-dt-col">
-                  <picker :range="zwYearOptions" :value="zwTargetYearIdx" @change="onTargetYearChange">
-                    <view class="qf-datetime-select">{{ zwTargetYearDisplay || '年' }}</view>
-                  </picker>
-                </view>
-                <view class="qf-dt-col">
-                  <picker :range="zwMonthOptions" :value="zwTargetMonthIdx" @change="onTargetMonthChange">
-                    <view class="qf-datetime-select">{{ zwTargetMonthDisplay || '月' }}</view>
-                  </picker>
-                </view>
-                <view class="qf-dt-col">
-                  <picker :range="zwDayOptions" :value="zwTargetDayIdx" @change="onTargetDayChange">
-                    <view class="qf-datetime-select">{{ zwTargetDayDisplay || '日' }}</view>
-                  </picker>
-                </view>
-                <view class="qf-dt-col">
-                  <picker :range="zwHourOptions" :value="zwTargetHourIdx" @change="onTargetHourChange">
-                    <view class="qf-datetime-select">{{ zwTargetHourDisplay || '时' }}</view>
-                  </picker>
-                </view>
-                <view class="qf-dt-col qf-dt-col-narrow">
-                  <picker :range="zwMinuteOptions" :value="zwTargetMinuteIdx" @change="onTargetMinuteChange">
-                    <view class="qf-datetime-select">{{ zwTargetMinuteDisplay || '分' }}</view>
-                  </picker>
-                </view>
-              </view>
-            </view>
-            <view class="submit-btn" @click="ziweiHoroscope">📅 推运排盘</view>
-            <view class="zw-result" v-if="zwHoroscopeResult" v-html="zwHoroscopeResult"></view>
           </view>
         </view>
       </section>

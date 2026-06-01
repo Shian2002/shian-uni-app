@@ -3,10 +3,15 @@ from pathlib import Path
 
 
 INDEX_VUE = Path(__file__).resolve().parents[1] / "src" / "pages" / "index" / "index.vue"
+QIMEN_VUE = Path(__file__).resolve().parents[1] / "src" / "pages" / "qimen" / "index.vue"
 
 
 def _source():
     return INDEX_VUE.read_text(encoding="utf-8")
+
+
+def _qimen_source():
+    return QIMEN_VUE.read_text(encoding="utf-8")
 
 
 def test_comprehensive_stream_rendering_is_batched():
@@ -167,3 +172,17 @@ def test_home_qimen_grid_scales_with_available_width():
     assert "--qm-grid-size" in source
     assert "width: min(100%, var(--qm-grid-size))" in source
     assert "font-size: clamp(" in source
+
+
+def test_qimen_standalone_grid_scales_with_available_width():
+    source = _qimen_source()
+
+    assert "qm-scale-shell" in source
+    assert "qm-palace-grid" in source
+    assert "--qm-grid-size" in source
+    assert "width: min(100%, var(--qm-grid-size))" in source
+    assert "font-size: clamp(" in source
+    assert "max-width:300px" not in source
+    assert "max-width: 300px" not in source
+    assert "p.isMa?`<span class=\"qm-ma-marker\"" in source
+    assert "p.isMa?`<span class=\"qm-ma-marker\"" in source.split("${tianHtml}")[0]

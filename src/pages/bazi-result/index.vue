@@ -17,7 +17,7 @@
           <view v-else-if="errorMsg" class="error-state">
             <view class="error-icon">❌</view>
             <view class="error-msg">{{ errorMsg }}</view>
-            <view class="btn-retry" @tap="goBack">返回首页</view>
+            <view class="btn-retry" @tap="goHome">返回首页</view>
           </view>
           <!-- 结果内容 -->
           <view v-else-if="baziData">
@@ -752,6 +752,14 @@ function getQiYunMonth(d) {
     if (qd2.month) return qd2.month
   }
   return null
+}
+
+function getQiYunMaxLiuYue(d) {
+  var month = getQiYunMonth(d)
+  if (!month) return 12
+  month = parseInt(month)
+  if (!month || month < 1 || month > 12) return 12
+  return month
 }
 
 function getQiYunYear(d) {
@@ -2221,6 +2229,23 @@ const sortedNotes = computed(() => {
 })
 
 // ═══ 方法 ═══
+function goHome() {
+  // #ifdef H5
+  try {
+    delete window.__xc_lastBaziResultRoute
+    location.hash = '#/pages/index/index'
+  } catch(_) {}
+  // #endif
+  uni.switchTab({
+    url: '/pages/index/index',
+    fail: function() {
+      // #ifdef H5
+      try { location.hash = '#/pages/index/index' } catch(_) {}
+      // #endif
+    }
+  })
+}
+
 function goBack() {
   uni.navigateBack({ delta: 1 })
 }
