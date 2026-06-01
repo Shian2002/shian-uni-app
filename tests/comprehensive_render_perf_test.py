@@ -109,6 +109,10 @@ def test_home_ai_artifacts_use_switcher_not_full_stack():
     assert "home-ai-summary-panel" in source
     assert "activeArtifactKeyByMessage[messageIndex] = key" in source
     assert "ensureActiveArtifact(index, visibleArtifactList(message))" in source
+    assert 'msg.role === \'assistant\' && msg.content"' in source
+    assert "setActiveArtifact(aiIndex, '__summary__')" in source
+    assert "setActiveArtifact(index, '__summary__')" in source
+    assert "msg.role === 'user' && msg.content" in source
 
 
 def test_home_ai_switcher_layout_is_compact():

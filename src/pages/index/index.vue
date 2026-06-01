@@ -80,6 +80,15 @@
                 <view class="home-tool-cards" v-if="visibleArtifactList(msg).length">
                   <view class="home-artifact-switcher">
                     <view
+                      class="home-artifact-tab conclusion"
+                      :class="{ active: isSummaryActive(msg, idx) }"
+                      v-if="msg.role === 'assistant' && msg.content"
+                      @tap="setActiveArtifact(idx, '__summary__')"
+                    >
+                      <text class="home-artifact-tab-title">综合结论</text>
+                      <text class="home-artifact-tab-sub">最终合参建议</text>
+                    </view>
+                    <view
                       class="home-artifact-tab"
                       v-for="artifact in visibleArtifactList(msg)"
                       :key="artifact.key"
@@ -88,15 +97,6 @@
                     >
                       <text class="home-artifact-tab-title">{{ artifact.title }}</text>
                       <text class="home-artifact-tab-sub">{{ artifactSummary(artifact) }}</text>
-                    </view>
-                    <view
-                      class="home-artifact-tab conclusion"
-                      :class="{ active: isSummaryActive(msg, idx) }"
-                      v-if="msg.content"
-                      @tap="setActiveArtifact(idx, '__summary__')"
-                    >
-                      <text class="home-artifact-tab-title">综合结论</text>
-                      <text class="home-artifact-tab-sub">最终合参建议</text>
                     </view>
                   </view>
                   <view class="home-tool-card" v-if="currentArtifactForMessage(msg, idx) && !isSummaryActive(msg, idx)">
@@ -121,7 +121,8 @@
                     </view>
                   </view>
                 </view>
-                <view class="home-ai-summary-panel" v-if="msg.content && (!visibleArtifactList(msg).length || isSummaryActive(msg, idx))">
+                <text class="home-ai-content" v-if="msg.role === 'user' && msg.content">{{ msg.content }}</text>
+                <view class="home-ai-summary-panel" v-if="msg.role === 'assistant' && msg.content && (!visibleArtifactList(msg).length || isSummaryActive(msg, idx))">
                   <view class="home-artifact-analysis-head">
                     <img class="home-ai-agent-logo small idle" src="/static/images/logo.webp?v=2" alt="时安解忧屋" />
                     <view class="home-ai-agent-texts">
@@ -723,6 +724,7 @@ function ensureActiveArtifact(messageIndex, artifacts) {
 
 function activeArtifactKeyForMessage(msg, messageIndex) {
   const list = visibleArtifactList(msg)
+  if (msg && msg.role === 'assistant' && msg.content && !activeArtifactKeyByMessage[messageIndex]) return '__summary__'
   return activeArtifactKeyByMessage[messageIndex] || (list[0] && list[0].key) || ''
 }
 
@@ -733,7 +735,7 @@ function setActiveArtifact(messageIndex, key) {
 
 function isSummaryActive(msg, messageIndex) {
   const list = visibleArtifactList(msg)
-  return !!msg && !!msg.content && activeArtifactKeyByMessage[messageIndex] === '__summary__' && list.length > 0
+  return !!msg && msg.role === 'assistant' && !!msg.content && activeArtifactKeyForMessage(msg, messageIndex) === '__summary__' && list.length > 0
 }
 
 function currentArtifactForMessage(msg, messageIndex) {
@@ -1868,6 +1870,7 @@ async function startComprehensiveAsk() {
         if (data.done) {
           flushPendingArtifactAnalyses()
           typeState.done = true
+          setActiveArtifact(aiIndex, '__summary__')
           stopComprehensiveProgressTimer()
           try { window.__sidebarCache = null } catch(_) {}
         }
@@ -1920,6 +1923,7 @@ async function restoreComprehensiveConversation(id) {
     })
     comprehensiveMessages.value.forEach(function(message, index) {
       ensureActiveArtifact(index, visibleArtifactList(message))
+      if (message && message.role === 'assistant' && message.content) setActiveArtifact(index, '__summary__')
     })
     const mid = data.model_id || 'basic'
     const mi = llmModels.value.findIndex(m => m.id === mid)
