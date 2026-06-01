@@ -4,97 +4,137 @@
 
     <TopNav :theme="theme" :isLoggedIn="isLoggedIn" @toggle-theme="toggleTheme" />
 
-    <!-- 积分中心 -->
-    <view class="page">
-      <!-- 顶部返回 -->
-      <view class="page-header">
-        <view class="back-btn" style="visibility:hidden;">‹ 返回</view>
-        <text class="page-title">积分中心</text>
-        <view class="back-btn-placeholder"></view>
-      </view>
-
-      <!-- 积分余额卡片 -->
-      <view class="points-card">
-        <view class="points-balance">
-          <text class="points-number" id="pointsNumber">--</text>
-          <text class="points-unit">积分</text>
+    <view class="page points-page">
+      <view class="points-hero">
+        <view>
+          <view class="eyebrow">账户中心</view>
+          <text class="page-title">积分中心</text>
         </view>
-        <view class="points-level" id="pointsLevel"></view>
-        <view class="signin-btn" id="signinBtn" @click="doSignin">
-          <text id="signinText">每日签到</text>
-          <text class="signin-reward">+10分</text>
+        <view class="hero-actions">
+          <view class="back-btn" style="visibility:hidden;">‹ 返回</view>
         </view>
       </view>
 
-      <!-- 充值套餐 -->
-      <view class="section">
-        <view class="section-head">
-          <view class="section-title">积分充值</view>
-          <view class="section-hint">横向滑动查看更多</view>
-        </view>
-        <view class="pkg-scroll-wrap">
-          <view class="pkg-scroll" id="pkgScroll">
-            <view class="pkg-card" v-for="pkg in pointPackages" :key="pkg.id" @click="selectPackage(pkg)">
-              <text class="pkg-points">{{ pkg.points }}</text>
-              <text class="pkg-label">积分</text>
-              <view class="pkg-price">¥{{ pkg.price }}</view>
-              <view class="pkg-name">{{ pkg.name }}</view>
+      <view class="points-layout">
+        <view class="account-panel">
+          <view class="account-card points-card">
+            <view class="account-card-head">
+              <view>
+                <text class="account-label">可用积分</text>
+                <view class="points-balance">
+                  <text class="points-number" id="pointsNumber">--</text>
+                  <text class="points-unit">分</text>
+                </view>
+              </view>
+              <view class="points-level" id="pointsLevel"></view>
+            </view>
+            <view class="account-divider"></view>
+            <view class="account-actions">
+              <view class="signin-btn" id="signinBtn" @click="doSignin">
+                <text id="signinText">每日签到</text>
+                <text class="signin-reward">+10</text>
+              </view>
+              <view class="account-note">充值后请在账本核对到账记录</view>
+            </view>
+          </view>
+
+          <view class="account-guide">
+            <view class="guide-item">
+              <text class="guide-k">用途</text>
+              <text class="guide-v">AI 解读、深度合参、工具增值</text>
+            </view>
+            <view class="guide-item">
+              <text class="guide-k">到账</text>
+              <text class="guide-v">小额识别通过后自动到账</text>
             </view>
           </view>
         </view>
-      </view>
 
-      <view class="section">
-        <view class="section-head">
-          <view class="section-title">AI 次数套餐</view>
-          <view class="section-hint">用于首页统一解读</view>
-        </view>
-        <view class="pkg-scroll-wrap">
-          <view class="pkg-scroll ai-pkg-scroll">
-            <view class="pkg-card ai-pkg-card" v-for="pkg in aiPackages" :key="pkg.id" @click="selectPackage(pkg)">
-              <text class="pkg-points">{{ pkg.ai_single_credits || pkg.ai_combo_credits }}</text>
-              <text class="pkg-label">{{ pkg.ai_combo_credits ? '合参次数' : '单术数次数' }}</text>
-              <view class="pkg-price">¥{{ pkg.price }}</view>
-              <view class="pkg-name">{{ pkg.name }}</view>
-              <view class="pkg-desc">{{ pkg.description }}</view>
+        <view class="commerce-panel">
+          <view class="section shop-section">
+            <view class="section-head">
+              <view>
+                <view class="section-title">积分充值</view>
+                <view class="section-subtitle">适合自由选择不同术数解读</view>
+              </view>
+            </view>
+            <view class="pkg-grid" id="pkgScroll">
+              <view class="pkg-card" v-for="(pkg, index) in pointPackages" :key="pkg.id" :class="{ recommended: index === 2 }" @click="selectPackage(pkg)">
+                <view class="pkg-badge" v-if="index === 2">推荐</view>
+                <text class="pkg-name">{{ pkg.name }}</text>
+                <view class="pkg-points-row">
+                  <text class="pkg-points">{{ pkg.points }}</text>
+                  <text class="pkg-label">积分</text>
+                </view>
+                <view class="pkg-price">¥{{ pkg.price }}</view>
+              </view>
             </view>
           </view>
-        </view>
-      </view>
 
-      <!-- 积分明细 -->
-      <view class="section">
-        <view class="section-title">积分明细</view>
-        <view class="dp-tabs">
-          <view class="dp-tab active" id="dpTabAll" onclick="window._switchDpTab('all')">全部</view>
-          <view class="dp-tab" id="dpTabPlus" onclick="window._switchDpTab('plus')">获取</view>
-          <view class="dp-tab" id="dpTabMinus" onclick="window._switchDpTab('minus')">消耗</view>
+          <view class="section shop-section" v-if="aiPackages.length">
+            <view class="section-head">
+              <view>
+                <view class="section-title">AI 次数套餐</view>
+                <view class="section-subtitle">用于首页统一解读和多盘合参</view>
+              </view>
+            </view>
+            <view class="pkg-grid ai-pkg-grid">
+              <view class="pkg-card ai-pkg-card" v-for="(pkg, index) in aiPackages" :key="pkg.id" :class="{ recommended: index === 0 }" @click="selectPackage(pkg)">
+                <view class="pkg-badge" v-if="index === 0">常用</view>
+                <text class="pkg-name">{{ pkg.name }}</text>
+                <view class="pkg-points-row">
+                  <text class="pkg-points">{{ pkg.ai_single_credits || pkg.ai_combo_credits }}</text>
+                  <text class="pkg-label">{{ pkg.ai_combo_credits ? '合参次数' : '单术数次数' }}</text>
+                </view>
+                <view class="pkg-price">¥{{ pkg.price }}</view>
+                <view class="pkg-desc">{{ pkg.description }}</view>
+              </view>
+            </view>
+          </view>
+
+          <view class="section ledger-section">
+            <view class="section-head ledger-head">
+              <view>
+                <view class="section-title">积分账本</view>
+                <view class="section-subtitle">充值、签到和消耗记录</view>
+              </view>
+              <view class="dp-tabs">
+                <view class="dp-tab active" id="dpTabAll" onclick="window._switchDpTab('all')">全部</view>
+                <view class="dp-tab" id="dpTabPlus" onclick="window._switchDpTab('plus')">获取</view>
+                <view class="dp-tab" id="dpTabMinus" onclick="window._switchDpTab('minus')">消耗</view>
+              </view>
+            </view>
+            <view id="pointsLogList">
+              <view class="log-empty" id="logEmpty">暂无记录</view>
+            </view>
+            <view class="dp-pager" id="dpPager"></view>
+          </view>
         </view>
-        <view id="pointsLogList">
-          <view class="log-empty" id="logEmpty">暂无记录</view>
-        </view>
-        <view class="dp-pager" id="dpPager"></view>
       </view>
     </view>
 
     <!-- 充值弹窗 -->
     <view class="modal-overlay" id="rechargeModal" @click="closeRechargeModal">
       <view class="modal-box recharge-modal" @click.stop>
-        <view class="modal-title">选择支付方式</view>
+        <view class="modal-title">充值确认</view>
         <view class="recharge-summary">
           <text class="recharge-pkg-name" id="rechargePkgName"></text>
           <text class="recharge-amount" id="rechargeAmount"></text>
         </view>
         <view class="alipay-panel">
-          <img class="alipay-qr" src="/static/alipay-recharge.jpg" alt="支付宝收款码" />
-          <view class="pay-hint">请用支付宝扫码付款，付款金额必须与当前套餐一致。</view>
-          <view class="service-window">
-            <text class="service-title">大额充值人工确认时间</text>
-            <text class="service-text">每日 10:00 - 24:00 在线处理，在线时间内响应较及时；非在线时间提交后可能延迟到账。</text>
+          <view class="qr-panel">
+            <img class="alipay-qr" src="/static/alipay-recharge.jpg" alt="支付宝收款码" />
+            <view class="pay-hint">请用支付宝扫码付款，付款金额必须与当前套餐一致。</view>
           </view>
-          <view class="proof-picker" @click="choosePaymentProof">
-            <text class="proof-picker-title">{{ paymentProofName || '上传支付宝付款成功截图' }}</text>
-            <text class="proof-picker-desc">系统识别金额和收款方，小额符合规则可自动到账</text>
+          <view class="proof-panel">
+            <view class="service-window">
+              <text class="service-title">到账说明</text>
+              <text class="service-text">每日 10:00 - 24:00 在线处理；小额截图识别通过后可自动到账。</text>
+            </view>
+            <view class="proof-picker" @click="choosePaymentProof">
+              <text class="proof-picker-title">{{ paymentProofName || '上传支付宝付款成功截图' }}</text>
+              <text class="proof-picker-desc">系统识别金额和收款方，提交后写入充值记录</text>
+            </view>
           </view>
         </view>
         <view class="modal-btns">
@@ -463,7 +503,12 @@ export default {
 
 <style>
 .page-root { min-height: 100vh; background: var(--bg); }
-.page { max-width: 640px; margin: 0 auto; padding: 10px 16px 40px; }
+.page.points-page {
+  width: min(1080px, calc(100vw - 32px));
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 18px 0 56px;
+}
 
 @media (min-width: 769px) {
   .topnav { padding-left: 16px; padding-right: 16px; }
@@ -471,237 +516,624 @@ export default {
   .topnav-sidebar-btn { margin-right: 0; }
 }
 
-/* 页头 */
-.page-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 0 16px;
+.points-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 8px 0 18px;
+}
+.eyebrow {
+  margin-bottom: 6px;
+  font-size: 0.72rem;
+  color: var(--text-3);
+  letter-spacing: 0.12em;
+}
+.page-title {
+  display: block;
+  font-size: clamp(1.45rem, 3vw, 2.1rem);
+  font-weight: 800;
+  color: var(--text-1);
+  font-family: var(--font-serif);
+  letter-spacing: 0;
 }
 .back-btn {
-  font-size: 0.88rem; color: var(--accent); cursor: pointer;
-  padding: 6px 10px; border-radius: 8px;
+  font-size: 0.86rem;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 10px;
 }
 .back-btn:hover { background: var(--accent-glow); }
-.page-title { font-size: 1.05rem; font-weight: 700; color: var(--text-1); font-family: var(--font-serif); }
-.back-btn-placeholder { width: 60px; }
 
-/* 积分卡片 */
-.points-card {
-  background: linear-gradient(135deg, #c9a84c, #b2955d, #8d7140);
-  border-radius: 18px; padding: 32px 24px 28px; text-align: center;
-  margin-bottom: 24px; color: #fff;
-  box-shadow: 0 8px 32px rgba(178,149,93,0.3), inset 0 1px 0 rgba(255,255,255,0.15);
-  position: relative; overflow: hidden;
+.points-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
 }
-.points-card::before {
-  content: ''; position: absolute; top: -50%; right: -50%;
-  width: 100%; height: 100%;
-  background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
-  pointer-events: none;
+.account-panel {
+  position: sticky;
+  top: 86px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
-.points-balance { display: flex; align-items: baseline; justify-content: center; gap: 6px; margin-bottom: 4px; position: relative; z-index: 1; }
-.points-number { font-size: 3rem; font-weight: 800; letter-spacing: -1px; text-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-.points-unit { font-size: 1rem; opacity: 0.85; }
-.points-level { font-size: 0.82rem; opacity: 0.75; margin-bottom: 18px; position: relative; z-index: 1; }
-.signin-btn {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: rgba(255,255,255,0.18); backdrop-filter: blur(4px);
-  border: 1px solid rgba(255,255,255,0.3);
-  border-radius: 24px; padding: 10px 28px; cursor: pointer;
-  font-size: 0.88rem; transition: all 0.25s;
-  position: relative; z-index: 1;
-}
-.signin-btn:hover { background: rgba(255,255,255,0.3); transform: translateY(-1px); }
-.signin-btn:active { transform: translateY(0); }
-.signin-btn.signed { opacity: 0.5; cursor: default; background: rgba(255,255,255,0.1); }
-.signin-btn.signed:hover { background: rgba(255,255,255,0.1); transform: none; }
-.signin-reward { font-size: 0.75rem; opacity: 0.8; }
-
-/* 区块标题 */
-.section { margin-bottom: 24px; }
-.section-head {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; margin-bottom: 12px; padding-left: 4px;
-}
-.section-title {
-  font-size: 0.92rem; font-weight: 700; color: var(--text-1);
-}
-.section-hint {
-  display: none; flex-shrink: 0; align-items: center; gap: 4px;
-  font-size: 0.72rem; color: var(--text-3);
-}
-.section-hint::after {
-  content: '›'; display: inline-flex; align-items: center; justify-content: center;
-  width: 18px; height: 18px; border-radius: 50%;
-  color: var(--accent); background: var(--accent-glow);
-}
-
-/* 充值套餐 */
-.pkg-scroll-wrap { position: relative; overflow: hidden; }
-.pkg-scroll {
-  display: flex; gap: 10px;
-  padding: 4px 0 8px;
-  max-width: 100%;
+.points-page .account-card,
+.points-page .account-guide,
+.points-page .section {
+  background: color-mix(in srgb, var(--card-bg) 94%, #f6eddb 6%);
+  border: 1px solid rgba(178,149,93,0.22);
+  box-shadow: 0 16px 42px rgba(80, 62, 34, 0.08);
   box-sizing: border-box;
 }
-.pkg-card {
-  flex: 1 1 0; min-width: 0; background: var(--card-bg); border: 1px solid var(--card-border);
-  border-radius: 14px; padding: 18px 10px; text-align: center;
-  cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;
+.account-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  padding: 22px;
 }
-.pkg-card:hover { transform: translateY(-3px); box-shadow: var(--card-shadow); }
-.pkg-card:first-child { background: linear-gradient(135deg, var(--accent-glow), var(--card-bg)); border-color: var(--accent); }
-.pkg-points { display: block; font-size: 1.6rem; font-weight: 800; color: var(--accent); }
-.pkg-label { display: block; font-size: 0.75rem; color: var(--text-3); margin-bottom: 10px; }
-.pkg-price { font-size: 1rem; font-weight: 700; color: var(--text-1); margin-bottom: 4px; }
-.pkg-name { font-size: 0.72rem; color: var(--text-3); }
-.pkg-desc { margin-top: 6px; font-size: 0.64rem; color: var(--text-3); line-height: 1.35; }
-.ai-pkg-card { border-color: rgba(178,149,93,0.26); }
-.ai-pkg-card .pkg-points { color: var(--text-1); }
-.ai-pkg-card:first-child { background: var(--card-bg); }
-
-/* 积分明细 — 时光轴 */
-.log-empty { text-align: center; padding: 40px 0; color: var(--text-3); font-size: 0.85rem; }
-.load-more {
-  text-align: center; padding: 16px; color: var(--accent); font-size: 0.82rem;
-  cursor: pointer; margin-top: 8px;
+.account-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(178,149,93,0.18), transparent 44%),
+    repeating-linear-gradient(0deg, transparent 0, transparent 33px, rgba(178,149,93,0.06) 34px);
+  pointer-events: none;
 }
-.load-more:hover { opacity: 0.7; }
+.account-card-head,
+.account-actions {
+  position: relative;
+  z-index: 1;
+}
+.account-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+.account-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-3);
+  font-size: 0.78rem;
+}
+.points-balance {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.points-number {
+  font-size: clamp(2.4rem, 6vw, 3.6rem);
+  line-height: 0.95;
+  font-weight: 850;
+  color: var(--text-1);
+  letter-spacing: 0;
+}
+.points-unit {
+  color: var(--accent);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+.points-level {
+  min-height: 22px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(178,149,93,0.13);
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.account-divider {
+  position: relative;
+  z-index: 1;
+  height: 1px;
+  margin: 22px 0 16px;
+  background: linear-gradient(90deg, rgba(178,149,93,0), rgba(178,149,93,0.38), rgba(178,149,93,0));
+}
+.account-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.signin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  border-radius: 12px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.18s, box-shadow 0.18s, opacity 0.18s;
+}
+.signin-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(135,101,42,0.2);
+}
+.signin-btn.signed {
+  opacity: 0.62;
+  cursor: default;
+  background: rgba(178,149,93,0.2);
+  color: var(--accent);
+}
+.signin-btn.signed:hover {
+  transform: none;
+  box-shadow: none;
+}
+.signin-reward {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.22);
+  font-size: 0.74rem;
+}
+.account-note {
+  color: var(--text-3);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  text-align: center;
+}
+.account-guide {
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+.guide-item {
+  display: grid;
+  grid-template-columns: 46px 1fr;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(178,149,93,0.14);
+}
+.guide-item:last-child { border-bottom: 0; }
+.guide-k {
+  color: var(--accent);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+.guide-v {
+  color: var(--text-2);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
 
-/* 弹窗遮罩 */
+.commerce-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.points-page .section {
+  width: auto;
+  max-width: none;
+  margin: 0;
+  border-radius: 18px;
+  padding: 18px;
+}
+.points-page .section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.points-page .section-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-1);
+}
+.points-page .section-subtitle {
+  margin-top: 4px;
+  color: var(--text-3);
+  font-size: 0.76rem;
+}
+.points-page .pkg-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+.points-page .ai-pkg-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.points-page .pkg-card {
+  position: relative;
+  width: auto;
+  min-height: 132px;
+  padding: 15px 13px;
+  box-sizing: border-box;
+  border: 1px solid rgba(178,149,93,0.18);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.45), transparent),
+    color-mix(in srgb, var(--card-bg) 92%, #fff5dd 8%);
+  cursor: pointer;
+  transition: transform 0.16s, box-shadow 0.16s, border-color 0.16s;
+}
+.points-page .pkg-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(178,149,93,0.52);
+  box-shadow: 0 12px 26px rgba(80,62,34,0.12);
+}
+.points-page .pkg-card.recommended {
+  border-color: var(--accent);
+  background:
+    linear-gradient(135deg, rgba(178,149,93,0.18), rgba(178,149,93,0.03) 42%),
+    var(--card-bg);
+}
+.pkg-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.64rem;
+  font-weight: 800;
+}
+.pkg-name {
+  display: block;
+  min-height: 22px;
+  padding-right: 36px;
+  color: var(--text-2);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+.pkg-points-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-top: 16px;
+}
+.pkg-points {
+  color: var(--text-1);
+  font-size: 1.55rem;
+  line-height: 1;
+  font-weight: 850;
+}
+.pkg-label {
+  color: var(--text-3);
+  font-size: 0.68rem;
+  line-height: 1.25;
+}
+.pkg-price {
+  margin-top: 14px;
+  color: var(--accent);
+  font-size: 1rem;
+  font-weight: 850;
+}
+.pkg-desc {
+  margin-top: 8px;
+  color: var(--text-3);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.ledger-head {
+  align-items: center;
+}
+.dp-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid rgba(178,149,93,0.18);
+  border-radius: 999px;
+  background: rgba(178,149,93,0.06);
+}
+.dp-tab {
+  min-width: 44px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  color: var(--text-3);
+  font-size: 0.74rem;
+  text-align: center;
+  cursor: pointer;
+}
+.dp-tab.active {
+  background: var(--card-bg);
+  color: var(--accent);
+  font-weight: 800;
+  box-shadow: 0 4px 10px rgba(80,62,34,0.08);
+}
+.log-empty {
+  padding: 38px 0;
+  color: var(--text-3);
+  font-size: 0.85rem;
+  text-align: center;
+  border: 1px dashed rgba(178,149,93,0.22);
+  border-radius: 14px;
+  background: rgba(178,149,93,0.04);
+}
+.dp-list {
+  border: 1px solid rgba(178,149,93,0.14);
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.18);
+}
+.dp-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 54px;
+  padding: 11px 14px;
+  border-bottom: 1px solid rgba(178,149,93,0.12);
+}
+.dp-item:last-child { border-bottom: 0; }
+.dp-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.dp-desc {
+  color: var(--text-1);
+  font-size: 0.82rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dp-date {
+  color: var(--text-3);
+  font-size: 0.7rem;
+}
+.dp-points {
+  font-size: 0.96rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+.dp-plus { color: #2f8f67; }
+.dp-minus { color: #b15c4f; }
+.dp-pager {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 12px;
+}
+.dp-page-btn,
+.dp-page-num {
+  min-width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(178,149,93,0.2);
+  border-radius: 9px;
+  color: var(--text-2);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.dp-page-cur {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 800;
+}
+
 .modal-overlay {
-  position: fixed; top: 0; right: 0; bottom: 0; left: 0;
-  z-index: 999; background: rgba(0,0,0,.55);
-  display: none; align-items: center; justify-content: center;
-  backdrop-filter: blur(4px);
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(28,22,14,.55);
+  backdrop-filter: blur(5px);
 }
 .modal-overlay.open { display: flex; }
 .modal-box {
-  background: var(--card-bg); border-radius: 18px;
-  padding: 24px 24px; max-width: 400px; width: 90%;
-  box-shadow: 0 12px 40px rgba(0,0,0,.2);
+  width: min(720px, 100%);
+  max-height: calc(100dvh - 32px);
+  padding: 22px;
+  border: 1px solid rgba(178,149,93,0.22);
+  border-radius: 18px;
+  background: var(--card-bg);
+  box-shadow: 0 22px 64px rgba(26,20,12,.24);
+  overflow: auto;
 }
-.modal-title { font-size: 1.05rem; font-weight: 700; color: var(--text-1); margin-bottom: 18px; text-align: center; }
-.modal-btns { display: flex; gap: 10px; margin-top: 6px; }
-.btn {
-  display: inline-flex; align-items: center; justify-content: center;
-  padding: 10px 16px; border-radius: 10px; font-size: 0.82rem;
-  cursor: pointer; text-align: center; box-sizing: border-box;
+.modal-title {
+  margin-bottom: 14px;
+  color: var(--text-1);
+  font-size: 1.05rem;
+  font-weight: 850;
 }
-.btn-outline { background: transparent; border: 1px solid var(--card-border); color: var(--text-2); }
-.btn-primary { border: 1px solid var(--accent); background: var(--accent); color: #fff; font-weight: 700; }
-.btn.disabled { opacity: 0.55; cursor: not-allowed; }
-
-/* 充值弹窗 */
-.recharge-modal { max-width: 360px; }
 .recharge-summary {
-  background: var(--accent-glow); border-radius: 10px;
-  padding: 14px 16px; margin-bottom: 16px; text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 15px;
+  margin-bottom: 14px;
+  border: 1px solid rgba(178,149,93,0.18);
+  border-radius: 13px;
+  background: rgba(178,149,93,0.08);
 }
-.recharge-pkg-name { display: block; font-size: 0.88rem; color: var(--text-2); margin-bottom: 4px; }
-.recharge-amount { display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent); }
-.alipay-panel { display: flex; flex-direction: column; align-items: stretch; gap: 10px; margin-bottom: 14px; }
+.recharge-pkg-name {
+  color: var(--text-2);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+.recharge-amount {
+  color: var(--accent);
+  font-size: 1.12rem;
+  font-weight: 850;
+}
+.alipay-panel {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+}
+.qr-panel,
+.proof-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 .alipay-qr {
-  display: block; width: min(100%, 260px); height: auto;
-  aspect-ratio: 853 / 1280; object-fit: contain;
-  margin: 0 auto; border-radius: 12px; border: 1px solid var(--card-border);
+  display: block;
+  width: 100%;
+  max-height: 330px;
+  object-fit: contain;
+  border: 1px solid rgba(178,149,93,0.2);
+  border-radius: 14px;
   background: #fff;
 }
-.proof-picker {
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-  width: 100%; padding: 12px; box-sizing: border-box;
-  border: 1px dashed var(--accent); border-radius: 10px;
-  background: var(--accent-glow); cursor: pointer;
+.pay-hint,
+.service-text,
+.proof-picker-desc {
+  color: var(--text-3);
+  font-size: 0.72rem;
+  line-height: 1.5;
 }
-.proof-picker-title { font-size: 0.82rem; font-weight: 700; color: var(--text-1); }
-.proof-picker-desc { font-size: 0.68rem; line-height: 1.4; color: var(--text-3); text-align: center; }
-.verify-pay-btn { width: 100%; }
-.pay-hint { font-size: 0.72rem; line-height: 1.5; color: var(--text-3); text-align: center; padding: 0 4px; }
+.pay-hint { text-align: center; }
 .service-window {
-  display: flex; flex-direction: column; gap: 3px;
-  padding: 10px 12px; border-radius: 10px;
-  background: rgba(178,149,93,0.10); border: 1px solid rgba(178,149,93,0.22);
+  padding: 13px;
+  border: 1px solid rgba(178,149,93,0.18);
+  border-radius: 13px;
+  background: rgba(178,149,93,0.07);
 }
-.service-title { font-size: 0.76rem; font-weight: 700; color: var(--text-1); }
-.service-text { font-size: 0.7rem; line-height: 1.45; color: var(--text-3); }
+.service-title {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--text-1);
+  font-size: 0.8rem;
+  font-weight: 850;
+}
+.proof-picker {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  min-height: 108px;
+  padding: 14px;
+  border: 1px dashed var(--accent);
+  border-radius: 13px;
+  background: rgba(178,149,93,0.08);
+  cursor: pointer;
+}
+.proof-picker-title {
+  color: var(--text-1);
+  font-size: 0.86rem;
+  font-weight: 850;
+}
+.modal-btns {
+  display: grid;
+  grid-template-columns: 1fr 120px;
+  gap: 10px;
+  margin-top: 16px;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 0.84rem;
+  cursor: pointer;
+  text-align: center;
+  box-sizing: border-box;
+}
+.btn-outline {
+  background: transparent;
+  border: 1px solid rgba(178,149,93,0.26);
+  color: var(--text-2);
+}
+.btn-primary {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 850;
+}
+.btn.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 
-.recharge-modal {
-  display: flex !important;
-  flex-direction: column !important;
-  overflow: hidden !important;
-}
-body:not(.home-fixed-page) .recharge-modal {
-  max-height: calc(100dvh - 24px) !important;
-  padding: 18px 20px 14px !important;
-}
-body:not(.home-fixed-page) .recharge-modal .modal-title,
-body:not(.home-fixed-page) .recharge-modal .recharge-summary,
-body:not(.home-fixed-page) .recharge-modal .modal-btns {
-  flex-shrink: 0 !important;
-}
-body:not(.home-fixed-page) .recharge-modal .alipay-panel {
-  flex: 1 1 auto !important;
-  min-height: 0 !important;
-  overflow-y: auto !important;
-  padding-right: 2px !important;
-  -webkit-overflow-scrolling: touch !important;
-}
-body:not(.home-fixed-page) .recharge-modal .modal-btns {
-  position: static !important;
-  display: flex !important;
-  flex-direction: column !important;
-  grid-template-columns: none !important;
-  padding-top: 0 !important;
-  margin-top: 10px !important;
-  background: transparent !important;
-}
-body:not(.home-fixed-page) .recharge-modal .modal-btns > * {
-  width: 100% !important;
+@media (max-width: 920px) {
+  .points-layout {
+    grid-template-columns: 1fr;
+  }
+  .account-panel {
+    position: static;
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.8fr);
+  }
+  .pkg-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
-@media (max-height: 780px) {
-  .recharge-modal .modal-title { margin-bottom: 10px; }
-  .recharge-summary { padding: 9px 14px; margin-bottom: 10px; }
-  .alipay-panel { gap: 8px; margin-bottom: 10px; }
-  .alipay-qr { width: min(100%, 190px); height: auto; }
-  .pay-hint { font-size: 0.68rem; }
-  .service-window { padding: 7px 10px; }
-  .service-title { font-size: 0.72rem; }
-  .service-text { font-size: 0.66rem; }
-  .proof-picker { padding: 9px; }
-  .proof-picker-title { font-size: 0.78rem; }
-  .proof-picker-desc { font-size: 0.64rem; }
+@media (max-width: 640px) {
+  .points-page {
+    width: min(100vw - 24px, 520px);
+    padding-top: 12px;
+  }
+  .points-hero {
+    margin-bottom: 14px;
+  }
+  .account-panel {
+    display: flex;
+  }
+  .account-card {
+    padding: 18px;
+  }
+  .account-card-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .points-level {
+    align-self: flex-start;
+  }
+  .points-page .section {
+    padding: 14px;
+    border-radius: 16px;
+  }
+  .points-page .section-head,
+  .points-page .ledger-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .points-page .pkg-grid,
+  .points-page .ai-pkg-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .points-page .pkg-card {
+    min-height: 124px;
+    padding: 13px 11px;
+  }
+  .points-page .pkg-name {
+    padding-right: 34px;
+  }
+  .alipay-panel {
+    grid-template-columns: 1fr;
+  }
+  .alipay-qr {
+    width: min(100%, 220px);
+    margin: 0 auto;
+  }
+  .recharge-summary,
+  .modal-btns {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .modal-btns {
+    display: flex;
+  }
 }
 
-/* 响应式 */
-@media (max-width: 480px) {
-  body:not(.home-fixed-page) .recharge-modal {
-    max-height: min(88dvh, 760px) !important;
-    padding: 16px 20px 14px !important;
+@media (max-width: 390px) {
+  .points-page .pkg-grid,
+  .points-page .ai-pkg-grid {
+    grid-template-columns: 1fr;
   }
-  .recharge-modal .modal-title { margin-bottom: 12px; }
-  .recharge-summary { padding: 10px 14px; margin-bottom: 12px; }
-  .recharge-modal .alipay-panel { gap: 9px; margin-bottom: 0; }
-  .recharge-modal .alipay-qr { width: min(100%, 220px); height: auto; }
-  body:not(.home-fixed-page) .recharge-modal .modal-btns { margin-top: 12px !important; }
-
-  .section-head { padding-left: 0; }
-  .section-hint { display: inline-flex; }
-  .pkg-scroll-wrap::after {
-    content: ''; position: absolute; top: 0; right: 0; bottom: 0;
-    width: 42px; pointer-events: none;
-    background: linear-gradient(90deg, transparent, var(--bg));
-  }
-  .pkg-scroll {
-    overflow-x: auto; overflow-y: hidden;
-    padding: 4px 34px 10px 0;
-    scroll-snap-type: x proximity;
-    -webkit-overflow-scrolling: touch;
-  }
-  .pkg-scroll::-webkit-scrollbar { height: 0; }
-  .pkg-card {
-    flex: 0 0 124px; min-width: 124px; padding: 14px 12px;
-    scroll-snap-align: start;
-  }
-  .points-number { font-size: 2.2rem; }
 }
 </style>
