@@ -2,6 +2,7 @@ import importlib
 import json
 import os
 import sys
+import time
 
 import pytest
 from types import SimpleNamespace
@@ -302,6 +303,7 @@ def test_qimen_ask_background_status_from_split_route(app_module, monkeypatch):
         body = status.get_json()
         if body.get("phase") == "done":
             break
+        time.sleep(0.05)
     else:
         raise AssertionError(f"奇门后台任务未完成: {body}")
 

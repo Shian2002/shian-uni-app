@@ -14,7 +14,10 @@
     "build:mp-toutiao": "uni build -p mp-toutiao",
     "dev:app": "uni dev -p app",
     "build:app": "uni build -p app",
-    "audit:prod": "npm_config_registry=https://registry.npmjs.org npm audit --omit=dev"
+    "audit:prod": "npm_config_registry=https://registry.npmjs.org npm audit --omit=dev",
+    "ops:backup": "bash scripts/install_production_db_backup.sh",
+    "ops:preflight": "bash scripts/preflight_release.sh",
+    "ops:monitor": "bash scripts/production_monitor.sh"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-alpha-5000920260515001",

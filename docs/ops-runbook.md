@@ -1,6 +1,8 @@
-# 时安解忧屋运维说明
+# 时安解忧屋运营上线手册
 
-## 线上环境
+这份手册给只熟悉前端的人使用。记住一句话：代码走 GitHub 和部署脚本，数据库只备份和恢复，不用本地覆盖线上。
+
+## 0. 线上环境
 
 - 服务器：`lighthouse@119.29.128.18`
 - SSH key：`$HOME/.ssh/deploy_key`
@@ -11,7 +13,95 @@
 - 生产数据库：`/home/lighthouse/tianji/flask-source/backend/tianji.db`
 - 用户上传目录：`/var/www/xuan-cet/static/uploads`
 
-## 部署
+## 1. 自动备份数据库
+
+安装或更新线上定时备份：
+
+```bash
+bash scripts/install_production_db_backup.sh
+```
+
+默认行为：
+
+- 每天服务器时间 `03:20` 备份一次线上 SQLite 数据库。
+- 备份目录：`/home/lighthouse/backups/xuan-cet/db`
+- 默认保留最近 `90` 份。
+- 安装时会立即执行一次备份，并用 SQLite `integrity_check` 校验。
+
+常用检查：
+
+```bash
+ssh -i ~/.ssh/deploy_key lighthouse@119.29.128.18 "systemctl list-timers --all xuan-cet-db-backup.timer --no-pager"
+ssh -i ~/.ssh/deploy_key lighthouse@119.29.128.18 "ls -lh /home/lighthouse/backups/xuan-cet/db | tail"
+```
+
+## 2. 上线前一键检查
+
+每次准备上线前先跑：
+
+```bash
+bash scripts/preflight_release.sh
+```
+
+它会检查：
+
+- shell 脚本语法
+- Python 语法
+- 后端全量测试
+- H5 构建
+- 生产依赖审计
+
+如果想同时检查当前线上站点：
+
+```bash
+RUN_PROD_SMOKE=1 bash scripts/preflight_release.sh
+```
+
+当前已知情况：`npm run audit:prod` 会报告 DCloud 间接依赖 `@dcloudio/uni-mp-weixin -> ws` 的中危漏洞，而且官方暂无修复。脚本会识别这个已知项并允许继续；如果出现新的审计风险会失败。
+
+## 3. 线上错误日志监控
+
+上线后或用户反馈异常时运行：
+
+```bash
+bash scripts/production_monitor.sh
+```
+
+默认检查最近 30 分钟：
+
+- `/api/health` 和首页资源是否正常
+- 后端 systemd 服务状态
+- 磁盘和内存
+- 后端 `journalctl` 关键错误
+- Nginx `error.log` 关键错误
+
+常用参数：
+
+```bash
+SINCE="2 hours ago" bash scripts/production_monitor.sh
+FOLLOW=1 bash scripts/production_monitor.sh
+FAIL_ON_ERRORS=1 bash scripts/production_monitor.sh
+```
+
+## 4. 标准上线流程
+
+前端小改：
+
+```bash
+bash scripts/preflight_release.sh
+bash deploy-to-server.sh
+bash scripts/production_monitor.sh
+```
+
+后端或数据库相关改动：
+
+```bash
+bash scripts/install_production_db_backup.sh
+bash scripts/preflight_release.sh
+bash deploy-to-server.sh
+RUN_PROD_SMOKE=1 bash scripts/preflight_release.sh
+bash scripts/production_monitor.sh
+```
 
 轻量部署优先使用仓库根目录脚本：
 
@@ -21,13 +111,12 @@ bash deploy-to-server.sh
 
 脚本会执行这些动作：
 
-- 构建 H5 前端并同步到 `/var/www/xuan-cet`
 - 同步后端代码和 `backend/requirements.txt`
+- 重启前备份真实在线 SQLite 数据库
 - 安装 Python 依赖
 - 写入并重启 `systemd` 服务 `xuan-cet-flask`
-- 使用 `gunicorn --workers 2 --threads 4 --timeout 180 --bind 127.0.0.1:5199 app:app`
+- 同步 H5 前端到 `/var/www/xuan-cet`
 - 同步前端时排除 `/static/uploads/`
-- 重启前备份真实在线 SQLite 数据库
 
 完整服务器初始化或重装时再使用：
 
@@ -35,23 +124,28 @@ bash deploy-to-server.sh
 bash scripts/deploy.sh
 ```
 
-## 巡检
+## 5. 数据库原则
 
-部署后至少执行：
+- 线上数据库是正式用户资产。
+- 本地数据库只是测试用。
+- 不要用本地数据库覆盖线上。
+- 恢复数据库必须先确认备份完整，并先做恢复前安全备份。
+- 如果只想排查数据问题，应该拉一份线上备份到本地只读分析。
+
+每次轻量部署也会在 `/home/lighthouse/backups/xuan-cet/db` 里保留部署前备份。自动备份文件名形如 `tianji-YYYYMMDD-HHMMSS.db`，部署前备份文件名形如 `tianji-deploy-YYYYMMDD-HHMMSS.db`。
+
+恢复数据库前先停服务并再做一次当前库备份，不能直接覆盖：
 
 ```bash
-curl -sS http://119.29.128.18/api/health
-curl -sS -o /dev/null -w '%{http_code} %{time_total}\n' http://119.29.128.18/
-ssh -i "$HOME/.ssh/deploy_key" lighthouse@119.29.128.18 'sudo systemctl is-active xuan-cet-flask'
+ssh -i "$HOME/.ssh/deploy_key" lighthouse@119.29.128.18 '
+  sudo systemctl stop xuan-cet-flask &&
+  cp /home/lighthouse/tianji/flask-source/backend/tianji.db /home/lighthouse/backups/xuan-cet/db/tianji-manual-before-restore-$(date +%Y%m%d-%H%M%S).db &&
+  cp /home/lighthouse/backups/xuan-cet/db/要恢复的备份.db /home/lighthouse/tianji/flask-source/backend/tianji.db &&
+  sudo systemctl start xuan-cet-flask
+'
 ```
 
-期望：
-
-- `/api/health` 返回 `success: true`
-- 首页 HTTP 状态为 `200`
-- `xuan-cet-flask` 状态为 `active`
-
-## 后台管理
+## 6. 后台管理
 
 后台地址：
 
@@ -66,14 +160,14 @@ http://119.29.128.18/#/pages/admin/index
 - 概览：用户数、帖子数、隐藏帖、待审举报、待确认充值。
 - 举报审核：处理或驳回帖子/评论举报。
 - 帖子管理：搜索帖子，置顶、加精、隐藏或恢复。
-- 用户积分：搜索用户，按用户 ID 手动加积分。
+- 用户积分：搜索用户，按用户 ID、用户名、邮箱或手机号手动加积分。
 - 充值订单：查看订单并确认手动充值到账。
 - 操作审计：查看举报处理、帖子管理、手动加积分和确认充值记录。
 - 账号安全：管理员修改自己的登录密码。
 
 管理员写操作会记录到 `admin_audit_log` 表，包含管理员、动作、目标对象、详情、来源 IP 和时间。
 
-## 日志
+## 7. 手动日志与重启
 
 查看服务状态：
 
@@ -93,7 +187,7 @@ ssh -i "$HOME/.ssh/deploy_key" lighthouse@119.29.128.18 'sudo journalctl -u xuan
 ssh -i "$HOME/.ssh/deploy_key" lighthouse@119.29.128.18 'sudo journalctl -u xuan-cet-flask -f'
 ```
 
-## 重启
+重启后端：
 
 ```bash
 ssh -i "$HOME/.ssh/deploy_key" lighthouse@119.29.128.18 'sudo systemctl restart xuan-cet-flask'
@@ -107,32 +201,7 @@ ssh -i "$HOME/.ssh/deploy_key" lighthouse@119.29.128.18 'sudo systemctl show xua
 
 `ExecStart` 应指向 `/opt/xuan-cet/backend/venv/bin/gunicorn`，`DATABASE_URL` 应指向 `/home/lighthouse/tianji/flask-source/backend/tianji.db`，不应再有 `/opt/xuan-cet/backend/app.py` 的 Flask dev server 进程。
 
-## 数据库备份与回滚
-
-每次轻量部署会在生产数据库同目录生成：
-
-```text
-/home/lighthouse/tianji/flask-source/backend/tianji.db.bak-deploy-YYYYMMDD-HHMMSS
-```
-
-查看最近备份：
-
-```bash
-ssh -i "$HOME/.ssh/deploy_key" lighthouse@119.29.128.18 'ls -1t /home/lighthouse/tianji/flask-source/backend/tianji.db.bak-deploy-* | head'
-```
-
-回滚数据库前先停服务并再做一次当前库备份：
-
-```bash
-ssh -i "$HOME/.ssh/deploy_key" lighthouse@119.29.128.18 '
-  sudo systemctl stop xuan-cet-flask &&
-  cp /home/lighthouse/tianji/flask-source/backend/tianji.db /home/lighthouse/tianji/flask-source/backend/tianji.db.bak-manual-$(date +%Y%m%d-%H%M%S) &&
-  cp /home/lighthouse/tianji/flask-source/backend/tianji.db.bak-deploy-YYYYMMDD-HHMMSS /home/lighthouse/tianji/flask-source/backend/tianji.db &&
-  sudo systemctl start xuan-cet-flask
-'
-```
-
-## 配置注意事项
+## 8. 配置注意事项
 
 - 生产库路径由 `DATABASE_URL=sqlite:////home/lighthouse/tianji/flask-source/backend/tianji.db` 指定。当前线上真实用户和社区数据在这个旧路径库中，不要误切到 `/opt/xuan-cet/backend/tianji.db`。
 - 上传目录由 `UPLOAD_FOLDER=/var/www/xuan-cet/static/uploads` 指定。
