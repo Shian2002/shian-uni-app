@@ -1810,53 +1810,6 @@ def _qimen_paipan(year, month, day, hour, minute=0, pan_type=1):
         return {'error': f'排盘计算失败: {e}'}
 
 
-@app.route('/api/qimen/paipan', methods=['POST'])
-@csrf.exempt
-def api_qimen_paipan():
-    """奇门遁甲免费排盘 — 自写排盘引擎"""
-    data = request.get_json(silent=True) or {}
-    year = data.get('year')
-    month = data.get('month')
-    day = data.get('day')
-    hour = data.get('hour', 12)
-    minute = data.get('minute', 0)
-    pan_type = data.get('panType', 1)  # 1=拆补法, 2=置闰法
-
-    if not all([year, month, day]):
-        return jsonify({'error': '请提供完整的日期参数'}), 400
-
-    try:
-        year, month, day, hour = int(year), int(month), int(day), int(hour)
-        minute, pan_type = int(minute), int(pan_type)
-    except (ValueError, TypeError):
-        return jsonify({'error': '日期参数格式错误'}), 400
-
-    if not (1 <= month <= 12 and 1 <= day <= 31 and 0 <= hour <= 23):
-        return jsonify({'error': '日期范围错误'}), 400
-
-    result = _qimen_paipan(year, month, day, hour, minute, pan_type)
-    if 'error' in result:
-        return jsonify(result), 500
-
-    return jsonify(result)
-
-
-@app.route('/api/qimen/paipan', methods=['GET'])
-def api_qimen_paipan_get():
-    """奇门遁甲免费排盘 — GET 版本（方便测试）"""
-    now = datetime.now()
-    year = request.args.get('year', type=int, default=now.year)
-    month = request.args.get('month', type=int, default=now.month)
-    day = request.args.get('day', type=int, default=now.day)
-    hour = request.args.get('hour', type=int, default=now.hour)
-    minute = request.args.get('minute', type=int, default=0)
-    pan_type = request.args.get('panType', type=int, default=1)
-
-    result = _qimen_paipan(year, month, day, hour, minute, pan_type)
-    if 'error' in result:
-        return jsonify(result), 500
-
-    return jsonify(result)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -2438,62 +2391,6 @@ def _meihua_paipan(method='time', num1=None, num2=None, words=None,
         return {'error': f'排盘计算失败: {e}'}
 
 
-@app.route('/api/meihua/paipan', methods=['POST'])
-@csrf.exempt
-def api_meihua_paipan():
-    """梅花易数免费排盘 API — 纯Python本地计算，无需登录"""
-    data = request.get_json(silent=True) or {}
-    method = data.get('method', 'time')
-
-    if method not in ('time', 'number', 'word'):
-        return jsonify({'error': '不支持的起卦方式'}), 400
-
-    # 解析时间参数
-    time_str = data.get('time', '')
-    year = month = day = hour = None
-    if time_str:
-        try:
-            dt = datetime.fromisoformat(time_str.replace('Z', '+00:00'))
-            year, month, day, hour = dt.year, dt.month, dt.day, ((dt.hour + 1) // 2) % 12 + 1
-            if hour == 0:
-                hour = 12
-        except (ValueError, TypeError):
-            pass
-
-    result = _meihua_paipan(
-        method=method,
-        num1=data.get('num1'),
-        num2=data.get('num2'),
-        words=data.get('words'),
-        year=year, month=month, day=day, hour=hour,
-    )
-
-    if 'error' in result:
-        return jsonify(result), 500
-
-    return jsonify(result)
-
-
-@app.route('/api/meihua/paipan', methods=['GET'])
-def api_meihua_paipan_get():
-    """梅花易数免费排盘 — GET 版本（方便测试）"""
-    method = request.args.get('method', 'time')
-    num1 = request.args.get('num1', type=int)
-    num2 = request.args.get('num2', type=int)
-    words = request.args.get('words', '')
-    year = request.args.get('year', type=int)
-    month = request.args.get('month', type=int)
-    day = request.args.get('day', type=int)
-    hour = request.args.get('hour', type=int)
-
-    result = _meihua_paipan(
-        method=method, num1=num1, num2=num2, words=words,
-        year=year, month=month, day=day, hour=hour,
-    )
-    if 'error' in result:
-        return jsonify(result), 500
-
-    return jsonify(result)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -2730,30 +2627,6 @@ def _liuyao_paipan(mode='auto', tosses=None, question=''):
     }
 
 
-@app.route('/api/liuyao/paipan', methods=['POST'])
-@csrf.exempt
-def api_liuyao_paipan():
-    """六爻纳甲免费排盘 API — 纯Python本地计算，无需登录"""
-    data = request.get_json(silent=True) or {}
-    mode = data.get('mode', 'auto')
-    tosses = data.get('tosses')
-    question = data.get('question', '')
-
-    if mode not in ('auto', 'manual'):
-        return jsonify({'error': '不支持的起卦方式'}), 400
-
-    result = _liuyao_paipan(mode=mode, tosses=tosses, question=question)
-    if 'error' in result:
-        return jsonify(result), 400
-
-    return jsonify(result)
-
-
-@app.route('/api/liuyao/paipan', methods=['GET'])
-def api_liuyao_paipan_get():
-    """六爻纳甲免费排盘 — GET 版本（方便测试，自动摇卦）"""
-    result = _liuyao_paipan(mode='auto')
-    return jsonify(result)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -7349,6 +7222,9 @@ register_metaphysics_routes(app, db, {
     'tarot_draw': _tarot_draw,
     'tarot_spreads': _tarot_spreads,
     'tarot_verify': _tarot_verify,
+    'qimen_paipan': _qimen_paipan,
+    'meihua_paipan': _meihua_paipan,
+    'liuyao_paipan': _liuyao_paipan,
     'deepseek_available': deepseek_available,
     'use_points': use_points,
     'logger': logger,

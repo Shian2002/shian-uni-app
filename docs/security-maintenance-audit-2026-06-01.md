@@ -20,12 +20,12 @@
 
 - `npm audit --omit=dev` 仍报告 `@dcloudio/uni-mp-weixin` 依赖链中的 `ws` 中危漏洞，npm 标记为 `No fix available`。当前 H5 线上部署不直接使用微信小程序运行时，但锁文件仍会被审计扫到。
 - DCloud 提示存在 `5.11 alpha` 更新。该更新属于整套 Uni/DCloud 平台链升级，风险高于单点安全覆盖，建议单独做小程序/H5 兼容验证后再切换。
-- `backend/app.py` 仍然过大，后台管理、基础账号、健康检查、八字历史、会员积分、命盘档案、充值、社区、首页综合 AI、塔罗与单项历史对话已经拆出，但普通排盘 AI、第三方/验证码登录仍混在主文件里。
+- `backend/app.py` 仍然过大，后台管理、基础账号、健康检查、八字历史、会员积分、命盘档案、充值、社区、首页综合 AI、塔罗、单项历史对话、奇门/梅花/六爻纯排盘入口已经拆出，但普通排盘 AI、八字/紫微/择吉排盘、第三方/验证码登录仍混在主文件里。
 - `src/pages/index/index.vue` 仍然承载首页 AI 对话编排和 artifact 渲染，后续还应继续拆 `useHomeArtifacts` 与综合 AI 请求流控制。
 
 ## 下一步建议
 
-1. 继续拆后端：继续把 `backend/app.py` 里的八字、紫微、奇门、六爻、梅花、择吉排盘与单项 AI 路由迁入 `metaphysics_routes.py`，再拆第三方/验证码登录路由。
+1. 继续拆后端：继续把 `backend/app.py` 里的八字、紫微、择吉排盘与奇门/六爻/梅花/八字/紫微单项 AI 路由迁入 `metaphysics_routes.py`，再拆第三方/验证码登录路由。
 2. 继续拆首页：`useHomeArtifacts`、综合 AI 请求流控制、artifact 渲染器分组。
 3. 单独评估 Uni/DCloud alpha 版本链，重点验证 H5、微信/支付宝/头条小程序构建与运行时兼容性。
 4. 服务器备份策略移到仓库外目录，例如 `/home/lighthouse/backups/xuan-cet/`，并定期校验恢复。
