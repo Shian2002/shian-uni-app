@@ -3442,222 +3442,6 @@ def _ziwei_ask_task(run_id):
         write_run_status(run_id, {'phase': 'error', 'message': f'运行出错: {str(e)[:200]}', 'progress': 0, 'run_id': run_id})
 
 # ═══════════════════════════════════════════════════════════════
-# 紫微斗数路由 — 100%基于iztro-py官方库
-# ═══════════════════════════════════════════════════════════════
-
-@app.route('/api/ziwei/pan', methods=['POST'])
-@csrf.exempt
-def api_ziwei_pan():
-    """紫微斗数排盘 API — 100%基于iztro-py官方库，纯Python本地计算，无需登录
-
-    请求参数（POST JSON）：
-        year: int, 必填, 出生年(1900-2100)
-        month: int, 必填, 出生月(1-12)
-        day: int, 必填, 出生日(1-31)
-        hour: int, 必填, 出生小时(0-23)
-        minute: int, 可选, 出生分钟(0-59)，默认0
-        gender: str, 必填, 性别(男/女/male/female)
-        date_type: str, 可选, 历法类型(solar/lunar)，默认solar
-        timezone: str, 可选, 时区，默认Asia/Shanghai
-        longitude: float, 可选, 出生地经度(真太阳时校准)
-        question: str, 可选, 问事主题
-
-    返回格式：
-        {
-            "code": 0,
-            "msg": "success",
-            "data": {
-                "basic_info": {...},
-                "core_palace": {...},
-                "twelve_palaces": [...],
-                "decadal_overview": [...],
-                "meta": {...}
-            }
-        }
-    """
-    if not HAS_ZIWEI:
-        return jsonify({'code': 1, 'msg': '紫微斗数引擎未安装(iztro-py)', 'data': None}), 503
-
-    data = request.get_json(silent=True) or {}
-
-    # 参数校验
-    required = ['year', 'month', 'day', 'hour', 'gender']
-    missing = [f for f in required if f not in data or data[f] is None]
-    if missing:
-        return jsonify({
-            'code': 1,
-            'msg': f'缺少必填参数: {", ".join(missing)}',
-            'data': None,
-        }), 400
-
-    year = data['year']
-    month = data['month']
-    day = data['day']
-    hour = data['hour']
-    minute = data.get('minute', 0)
-    gender = data['gender']
-    date_type = data.get('date_type', 'solar')
-    timezone = data.get('timezone', 'Asia/Shanghai')
-    longitude = data.get('longitude')
-    question = data.get('question', '')
-
-    # 值校验
-    try:
-        year = int(year)
-        month = int(month)
-        day = int(day)
-        hour = int(hour)
-        minute = int(minute) if minute else 0
-    except (ValueError, TypeError):
-        return jsonify({'code': 1, 'msg': '数值参数格式错误', 'data': None}), 400
-
-    if not (1900 <= year <= 2100):
-        return jsonify({'code': 1, 'msg': '出生年范围: 1900-2100', 'data': None}), 400
-    if not (1 <= month <= 12):
-        return jsonify({'code': 1, 'msg': '出生月范围: 1-12', 'data': None}), 400
-    if not (1 <= day <= 31):
-        return jsonify({'code': 1, 'msg': '出生日范围: 1-31', 'data': None}), 400
-    if not (0 <= hour <= 23):
-        return jsonify({'code': 1, 'msg': '出生时范围: 0-23', 'data': None}), 400
-    if not (0 <= minute <= 59):
-        return jsonify({'code': 1, 'msg': '出生分范围: 0-59', 'data': None}), 400
-    if gender not in ('male', 'female', '男', '女', 'M', 'F', 'm', 'f', '1', '0'):
-        return jsonify({'code': 1, 'msg': '性别参数无效，请输入 男/女', 'data': None}), 400
-    if date_type not in ('solar', 'lunar'):
-        return jsonify({'code': 1, 'msg': '历法类型无效，请输入 solar/lunar', 'data': None}), 400
-
-    try:
-        result = _zw_engine.calculate(
-            year=year, month=month, day=day,
-            hour=hour, minute=minute,
-            gender=gender, date_type=date_type,
-            timezone=timezone, longitude=longitude,
-        )
-        result['request'] = {
-            'type': 'ziwei_pan',
-            'question': question,
-            'timestamp': datetime.now().isoformat(),
-        }
-        return jsonify({'code': 0, 'msg': 'success', 'data': result})
-    except ValueError as e:
-        return jsonify({'code': 2, 'msg': str(e), 'data': None}), 400
-    except Exception as e:
-        logger.error(f"紫微排盘失败: {e}")
-        return jsonify({'code': 3, 'msg': f'排盘计算失败: {str(e)}', 'data': None}), 500
-
-
-@app.route('/api/ziwei/horoscope', methods=['POST'])
-@csrf.exempt
-def api_ziwei_horoscope():
-    """紫微斗数推运 API — 大限/流年/流月/流日/流时
-
-    请求参数（POST JSON）：
-        year, month, day, hour, minute, gender, date_type: 同排盘
-        target_date: str, 必填, 推运目标日期(YYYY-MM-DD)
-        question: str, 可选
-
-    返回格式：同排盘，额外包含 decadal/age/yearly/monthly/daily/hourly 推运信息
-    """
-    if not HAS_ZIWEI:
-        return jsonify({'code': 1, 'msg': '紫微斗数引擎未安装(iztro-py)', 'data': None}), 503
-
-    data = request.get_json(silent=True) or {}
-
-    required = ['year', 'month', 'day', 'hour', 'gender']
-    missing = [f for f in required if f not in data or data[f] is None]
-    if missing:
-        return jsonify({
-            'code': 1,
-            'msg': f'缺少必填参数: {", ".join(missing)}',
-            'data': None,
-        }), 400
-
-    target_date = data.get('target_date', '')
-    if not target_date:
-        target_date = datetime.now().strftime('%Y-%m-%d')
-
-    try:
-        year = int(data['year'])
-        month = int(data['month'])
-        day = int(data['day'])
-        hour = int(data['hour'])
-    except (ValueError, TypeError):
-        return jsonify({'code': 1, 'msg': '数值参数格式错误', 'data': None}), 400
-
-    try:
-        result = _zw_engine.horoscope(
-            year=year, month=month, day=day,
-            hour=hour, minute=int(data.get('minute', 0) or 0),
-            gender=data['gender'],
-            target_date=target_date,
-            target_hour=int(data.get('target_hour', -1) or -1),
-            target_minute=int(data.get('target_minute', 0) or 0),
-            date_type=data.get('date_type', 'solar'),
-            longitude=data.get('longitude'),
-        )
-        result['request'] = {
-            'type': 'ziwei_horoscope',
-            'question': data.get('question', ''),
-            'timestamp': datetime.now().isoformat(),
-        }
-        return jsonify({'code': 0, 'msg': 'success', 'data': result})
-    except ValueError as e:
-        return jsonify({'code': 2, 'msg': str(e), 'data': None}), 400
-    except Exception as e:
-        logger.error(f"紫微推运失败: {e}")
-        return jsonify({'code': 3, 'msg': f'推运计算失败: {str(e)}', 'data': None}), 500
-
-
-@app.route('/api/ziwei/info')
-def api_ziwei_info():
-    """获取紫微斗数基本信息（用于前端展示和Agent理解）"""
-    if not HAS_ZIWEI:
-        return jsonify({'code': 1, 'msg': '紫微斗数引擎未安装', 'data': None}), 503
-
-    return jsonify({
-        'code': 0,
-        'msg': 'success',
-        'data': {
-            'name': '紫微斗数',
-            'description': '以出生时间排出命盘，通过十二宫星曜组合分析人生运势',
-            'input_requirements': [
-                {'field': 'year', 'type': 'int', 'required': True, 'description': '出生年(1900-2100)'},
-                {'field': 'month', 'type': 'int', 'required': True, 'description': '出生月(1-12)'},
-                {'field': 'day', 'type': 'int', 'required': True, 'description': '出生日(1-31)'},
-                {'field': 'hour', 'type': 'int', 'required': True, 'description': '出生小时(0-23)'},
-                {'field': 'minute', 'type': 'int', 'required': False, 'description': '出生分钟(0-59)'},
-                {'field': 'gender', 'type': 'str', 'required': True, 'description': '性别(男/女)'},
-                {'field': 'date_type', 'type': 'str', 'required': False, 'description': '历法类型(solar/lunar)'},
-            ],
-            'twelve_palaces': list(_ZW_PALACE_MAP.values()),
-            'shichen': [
-                {'index': i, 'name': _ZW_SHICHEN[i], 'range': _ZW_SHICHEN_RANGES[i]}
-                for i in range(12)
-            ],
-            'engine': 'iztro-py v0.3.4',
-            'api_version': '1.0.0',
-            'compatible_with': ['liuyao', 'meihua', 'tarot'],
-        },
-    })
-
-
-@app.route('/api/ziwei/shichen')
-def api_ziwei_shichen():
-    """获取时辰对照表"""
-    return jsonify({
-        'code': 0,
-        'msg': 'success',
-        'data': {
-            'shichen': [
-                {'index': i, 'name': _ZW_SHICHEN[i], 'range': _ZW_SHICHEN_RANGES[i]}
-                for i in range(12)
-            ],
-            'note': 'hour参数为出生小时(0-23)，系统自动转换为对应时辰。23:00-01:00为子时，支持早子晚子。',
-        },
-    }) if HAS_ZIWEI else jsonify({'code': 1, 'msg': '引擎未安装', 'data': None}), 503
-
-
-# ═══════════════════════════════════════════════════════════════
 # 八字排盘路由
 # ═══════════════════════════════════════════════════════════════
 
@@ -6371,62 +6155,6 @@ def api_collections_delete(cid):
 
 
 # ═══════════════════════════════════════════════════════════════
-# 运势日历 API（基于 LunarCalendar）
-# ═══════════════════════════════════════════════════════════════
-
-@app.route('/api/huangli')
-def api_huangli():
-    """黄历万年历 — 返回指定日期的农历、干支、五行、建除、冲煞等"""
-    date_str = request.args.get('date', '')  # YYYY-MM-DD
-    if not date_str:
-        date_str = datetime.now().strftime('%Y-%m-%d')
-    try:
-        parts = date_str.split('-')
-        year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
-    except (ValueError, IndexError):
-        return jsonify({'error': '日期格式错误，需YYYY-MM-DD'}), 400
-
-    result = _compute_huangli(year, month, day)
-    return jsonify(result)
-
-
-@app.route('/api/huangli/month')
-def api_huangli_month():
-    """黄历万年历 — 返回整月日历数据（并发获取API数据，带整月缓存）"""
-    year = request.args.get('year', type=int)
-    month = request.args.get('month', type=int)
-    if not year or not month:
-        now = datetime.now()
-        year, month = now.year, now.month
-
-    month_key = f'{year}-{month:02d}'
-    now_ts = time.time()
-    cached = _huangli_month_cache.get(month_key)
-    if cached and cached[1] > now_ts:
-        return jsonify(cached[0])
-
-    import calendar
-    _, days_in_month = calendar.monthrange(year, month)
-
-    # 并发获取各日数据
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-    days_dict = {}
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        futures = {executor.submit(_compute_huangli, year, month, d): d for d in range(1, days_in_month + 1)}
-        for future in as_completed(futures):
-            d = futures[future]
-            try:
-                days_dict[d] = future.result(timeout=10)
-            except Exception:
-                days_dict[d] = {'solarDate': f'{year}-{month:02d}-{d:02d}', 'source': 'error'}
-
-    days = [days_dict[d] for d in range(1, days_in_month + 1)]
-    result = {'year': year, 'month': month, 'days': days, 'disclaimer': '以上内容仅为民俗文化参考，不构成任何决策建议'}
-    _huangli_month_cache[month_key] = (result, now_ts + _HUANGLI_MONTH_TTL)
-    return jsonify(result)
-
-
-# ═══════════════════════════════════════════════════════════════
 # 黄历万年历 API（外部接口 + 本地 fallback）
 # ═══════════════════════════════════════════════════════════════
 
@@ -6794,91 +6522,6 @@ def _score_zeji_day(zeji_type, huangli):
     return max(0, min(100, score)), reasons, warnings
 
 
-@app.route('/api/zeji', methods=['POST'])
-@csrf.exempt
-def api_zeji():
-    """择吉工具 — 基于本地黄历字段给出日期候选，不依赖登录。"""
-    data = request.get_json(silent=True) or {}
-    zeji_type = (data.get('zejiType') or data.get('type') or '').strip() or '择吉'
-    start_date = (data.get('startDate') or '').strip()
-    end_date = (data.get('endDate') or start_date).strip()
-    addr = (data.get('addr') or '').strip()
-
-    if not start_date:
-        return jsonify({'success': False, 'error': '请选择开始日期'}), 400
-
-    try:
-        start_dt = _parse_zeji_date(start_date, '开始日期')
-        end_dt = _parse_zeji_date(end_date, '结束日期')
-    except ValueError as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
-
-    if end_dt < start_dt:
-        return jsonify({'success': False, 'error': '结束日期不能早于开始日期'}), 400
-
-    if (end_dt - start_dt).days > 60:
-        return jsonify({'success': False, 'error': '择吉日期范围最多支持60天'}), 400
-
-    candidates = []
-    cursor = start_dt
-    while cursor <= end_dt:
-        h = _compute_huangli_local(cursor.year, cursor.month, cursor.day)
-        score, reasons, warnings = _score_zeji_day(zeji_type, h)
-        candidates.append({
-            'date': cursor.strftime('%Y-%m-%d'),
-            'score': score,
-            'lunar': h.get('lunarDate', ''),
-            'ganZhiDay': h.get('ganZhiDay', ''),
-            'jianChu': h.get('jianChu', ''),
-            'zhiShen': h.get('zhiShen', ''),
-            'chong': h.get('chong', ''),
-            'sha': h.get('sha', ''),
-            'reasons': reasons,
-            'warnings': warnings,
-        })
-        cursor += timedelta(days=1)
-
-    candidates.sort(key=lambda item: (-item['score'], item['date']))
-    best = candidates[:3]
-    lines = [
-        '═══ 择吉分析 ═══',
-        f'事项：{zeji_type}',
-        f'日期范围：{start_date} ~ {end_date}',
-    ]
-    if addr:
-        lines.append(f'地点：{addr}')
-    lines.append('')
-    lines.append('推荐日期：')
-    for idx, item in enumerate(best, 1):
-        reason_text = '；'.join(item['reasons'] or ['综合黄历信息较平稳'])
-        warning_text = '；'.join(item['warnings'])
-        line = (
-            f'{idx}. {item["date"]}（评分{item["score"]}）'
-            f' {item["ganZhiDay"]}日 · {item["jianChu"]}日 · 值神{item["zhiShen"]}'
-            f' · {item["chong"]}{item["sha"]}。{reason_text}'
-        )
-        if warning_text:
-            line += f'；提醒：{warning_text}'
-        lines.append(line)
-    lines.extend([
-        '',
-        '建议：优先选择评分靠前且时间安排从容的日期，具体吉时需结合当事人八字、方位和实际行程进一步细排。',
-        '⚠️ 以上内容仅为民俗文化参考，不构成任何决策建议。',
-    ])
-
-    return jsonify({
-        'success': True,
-        'zejiType': zeji_type,
-        'startDate': start_date,
-        'endDate': end_date,
-        'addr': addr,
-        'bestDays': best,
-        'days': candidates,
-        'result': '\n'.join(lines),
-        'message': '\n'.join(lines),
-    })
-
-
 # ═══════════════════════════════════════════════════════════════
 # 搜索 API
 # ═══════════════════════════════════════════════════════════════
@@ -7168,6 +6811,7 @@ def check_tool_limit(user):
 from admin_routes import register_admin_routes
 from auth_routes import register_auth_routes
 from bazi_history_routes import register_bazi_history_routes
+from calendar_routes import register_calendar_routes
 from community_routes import register_community_routes
 from comprehensive_routes import register_comprehensive_routes
 from metaphysics_routes import register_metaphysics_routes
@@ -7180,6 +6824,7 @@ from recharge_routes import (
     make_confirm_recharge_order_once,
     register_recharge_routes,
 )
+from ziwei_routes import register_ziwei_routes
 
 _build_one_tool = None
 confirm_recharge_order_once = make_confirm_recharge_order_once(db, get_or_create_membership, add_points)
@@ -7194,6 +6839,13 @@ register_points_routes(app, db, {
     'get_or_create_membership': get_or_create_membership,
     'create_daily_sign_in_once': create_daily_sign_in_once,
     'use_points': use_points,
+})
+register_calendar_routes(app, {
+    'compute_huangli': _compute_huangli,
+    'compute_huangli_local': _compute_huangli_local,
+    'score_zeji_day': _score_zeji_day,
+    'huangli_month_cache': _huangli_month_cache,
+    'huangli_month_ttl': _HUANGLI_MONTH_TTL,
 })
 register_recharge_routes(app, db, {
     'confirm_recharge_order_once': confirm_recharge_order_once,
@@ -7216,6 +6868,14 @@ register_comprehensive_routes(app, db, {
     'logger': logger,
     'get_build_one_tool_override': lambda: _build_one_tool if callable(_build_one_tool) else None,
     'get_reading_stream': lambda: get_reading_stream,
+})
+register_ziwei_routes(app, {
+    'has_ziwei': HAS_ZIWEI,
+    'ziwei_engine': _zw_engine,
+    'shichen_names': _ZW_SHICHEN if HAS_ZIWEI else [],
+    'shichen_ranges': _ZW_SHICHEN_RANGES if HAS_ZIWEI else [],
+    'palace_name_map': _ZW_PALACE_MAP if HAS_ZIWEI else {},
+    'logger': logger,
 })
 register_metaphysics_routes(app, db, {
     'has_tarot': HAS_TAROT,

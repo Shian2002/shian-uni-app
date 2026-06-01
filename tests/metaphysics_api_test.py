@@ -66,6 +66,16 @@ def _sse_payloads(response):
 
 
 def test_bazi_and_ziwei_share_fixed_sample_four_pillars(client):
+    ziwei_info = client.get("/api/ziwei/info")
+    assert ziwei_info.status_code == 200
+    ziwei_info_data = ziwei_info.get_json()["data"]
+    assert ziwei_info_data["name"] == "紫微斗数"
+    assert len(ziwei_info_data["shichen"]) == 12
+
+    ziwei_shichen = client.get("/api/ziwei/shichen")
+    assert ziwei_shichen.status_code == 200
+    assert ziwei_shichen.get_json()["data"]["shichen"][0]["name"] == "子时"
+
     bazi = _post_json(
         client,
         "/api/bazi/paipan",
