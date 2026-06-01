@@ -2752,7 +2752,7 @@ onBeforeUnmount(() => {
   .home-artifact-render :deep(.qm-palace) { padding: 5px; }
   .home-artifact-render :deep(.qm-star-row) { font-size: .76rem; }
   .home-artifact-render :deep(.ly-ben-bian-box) { padding: 12px; }
-  .home-artifact-render :deep(.ly-ben-bian-body) { --ly-side-width: 210px; --ly-yao-width: 62px; --ly-yao-bar: 54px; --ly-tag-gutter: 34px; }
+  .home-artifact-render :deep(.ly-ben-bian-body) { --ly-side-width: 224px; --ly-marker-width: 32px; --ly-yao-width: 62px; --ly-yao-bar: 54px; }
   .home-artifact-render :deep(.ly-visual-side) { gap: 6px; }
   .home-artifact-render :deep(.ly-yang-bar),
   .home-artifact-render :deep(.ly-yin-bars) { width: 54px; }

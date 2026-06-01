@@ -116,6 +116,7 @@ def test_home_liuyao_keeps_visual_center_on_mobile():
     assert "grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr)" in source
     assert "ly-row-ben-side\"><div class=\"ly-yao-tags-left\"" not in source
     assert "position: absolute; left: calc(-1 * var(--ly-tag-gutter))" not in source
+    assert "--ly-tag-gutter" not in source
     assert "htmlEscape(bian.name || ben.name || '')" in source
     assert ".home-artifact-render :deep(.ly-paired-row.has-bian) { grid-template-columns: 1fr; }" not in source
     assert ".home-artifact-render :deep(.ly-row-divider) { width: 100%; height: 1px; }" not in source
