@@ -19,8 +19,9 @@ echo "============================================"
 # 1. 同步后端代码
 echo "[1/4] 同步后端代码..."
 eval "$RSYNC_CMD" \
-    "$LOCAL_DIR/backend/app.py" \
-    "$LOCAL_DIR/backend/bazi_engine.py" \
+	    "$LOCAL_DIR/backend/app.py" \
+	    "$LOCAL_DIR/backend/admin_routes.py" \
+	    "$LOCAL_DIR/backend/bazi_engine.py" \
     "$LOCAL_DIR/backend/comprehensive_ai.py" \
     "$LOCAL_DIR/backend/deepseek_service.py" \
 	    "$LOCAL_DIR/backend/extensions.py" \
