@@ -2436,12 +2436,12 @@ onBeforeUnmount(() => {
 .home-artifact-render :deep(.ly-ben-bian-trigrams) { width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 .home-artifact-render :deep(.ly-ben-bian-top-arrow) { color: var(--accent); font-size: 1.2rem; font-weight: 800; }
 .home-artifact-render :deep(.ly-ben-bian-body) { --ly-side-width: 250px; --ly-yao-width: 74px; --ly-yao-bar: 64px; --ly-tag-gutter: 42px; display: grid; gap: 7px; }
-.home-artifact-render :deep(.ly-paired-row) { display: grid; grid-template-columns: var(--ly-side-width) 1px var(--ly-side-width); gap: 8px; align-items: center; width: max-content; max-width: 100%; margin: 0 auto; padding: 8px; border-radius: 10px; background: rgba(255,255,255,.035); border: 1px solid rgba(178,149,93,.10); box-sizing: border-box; }
-.home-artifact-render :deep(.ly-paired-row.has-ben-only) { grid-template-columns: var(--ly-side-width); }
+.home-artifact-render :deep(.ly-paired-row) { display: grid; grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr); gap: 8px; align-items: center; width: 100%; padding: 8px; border-radius: 10px; background: rgba(255,255,255,.035); border: 1px solid rgba(178,149,93,.10); box-sizing: border-box; }
+.home-artifact-render :deep(.ly-paired-row.has-ben-only) { grid-template-columns: minmax(0, 1fr); }
 .home-artifact-render :deep(.ly-paired-row.moving) { background: rgba(215,125,110,.08); border-color: rgba(215,125,110,.22); }
 .home-artifact-render :deep(.ly-row-ben-side),
-.home-artifact-render :deep(.ly-row-bian-side) { position: relative; min-width: 0; box-sizing: border-box; }
-.home-artifact-render :deep(.ly-visual-side) { display: grid; grid-template-columns: var(--ly-yao-width) minmax(0, 1fr); gap: 8px; align-items: center; min-width: 0; }
+.home-artifact-render :deep(.ly-row-bian-side) { position: relative; min-width: 0; display: flex; justify-content: center; box-sizing: border-box; }
+.home-artifact-render :deep(.ly-visual-side) { position: relative; display: grid; grid-template-columns: var(--ly-yao-width) minmax(0, 1fr); gap: 8px; align-items: center; width: min(var(--ly-side-width), 100%); min-width: 0; }
 .home-artifact-render :deep(.ly-row-divider) { width: 1px; align-self: stretch; background: rgba(178,149,93,.18); }
 .home-artifact-render :deep(.ly-yao-tags-left) { position: absolute; left: calc(-1 * var(--ly-tag-gutter)); top: 50%; width: calc(var(--ly-tag-gutter) - 6px); transform: translateY(-50%); display: flex; gap: 4px; justify-content: flex-start; flex-wrap: wrap; }
 .home-artifact-render :deep(.ly-tag) { display: inline-flex; align-items: center; justify-content: center; min-height: 20px; padding: 1px 6px; border-radius: 6px; font-size: .65rem; line-height: 1; background: rgba(178,149,93,.10); color: var(--text-2); white-space: nowrap; }
@@ -2841,7 +2841,7 @@ onBeforeUnmount(() => {
   .home-artifact-render :deep(.ly-ben-bian-top) { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 6px; }
   .home-artifact-render :deep(.ly-ben-bian-top-arrow) { transform: none; text-align: center; }
   .home-artifact-render :deep(.ly-paired-row),
-  .home-artifact-render :deep(.ly-paired-row.has-bian) { grid-template-columns: var(--ly-side-width) 1px var(--ly-side-width); gap: 4px; padding: 6px 4px; }
+  .home-artifact-render :deep(.ly-paired-row.has-bian) { grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr); gap: 4px; padding: 6px 4px; }
   .home-artifact-render :deep(.ly-row-divider) { width: 1px; height: auto; }
   .home-artifact-render :deep(.ly-ben-bian-body) { --ly-side-width: 142px; --ly-yao-width: 48px; --ly-yao-bar: 42px; --ly-tag-gutter: 26px; }
   .home-artifact-render :deep(.ly-visual-side) { gap: 4px; }
