@@ -1,5 +1,6 @@
 import importlib
 import io
+import json
 import os
 import sys
 from types import SimpleNamespace
@@ -309,6 +310,125 @@ def test_tool_run_rejects_unknown_tool_type(app_module, user_factory):
 
     assert response.status_code == 400
     assert "不支持的工具类型" in response.get_json()["error"]
+
+
+def test_records_are_user_scoped_and_detail_parses_qimen_json(app_module, user_factory):
+    owner = user_factory("record-owner")
+    other = user_factory("record-other")
+
+    with app_module.app.app_context():
+        owner_record = app_module.Record(
+            user_id=owner.id,
+            app_type="qimen",
+            question="自己的奇门记录",
+            result_html="<p>已解读</p>",
+            qimen_json=json.dumps({"ju": "阳遁九局"}, ensure_ascii=False),
+        )
+        other_record = app_module.Record(
+            user_id=other.id,
+            app_type="qimen",
+            question="别人的奇门记录",
+            result_html="<p>不可见</p>",
+        )
+        app_module.db.session.add_all([owner_record, other_record])
+        app_module.db.session.commit()
+        owner_record_id = owner_record.id
+        other_record_id = other_record.id
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(owner.id)
+        sess["_fresh"] = True
+
+    listed = client.get("/api/records")
+    assert listed.status_code == 200
+    listed_body = listed.get_json()
+    assert listed_body["total"] == 1
+    assert listed_body["records"][0]["id"] == owner_record_id
+    assert listed_body["records"][0]["has_result"] is True
+
+    detail = client.get(f"/api/records/{owner_record_id}")
+    assert detail.status_code == 200
+    detail_body = detail.get_json()
+    assert detail_body["question"] == "自己的奇门记录"
+    assert detail_body["qimen"] == {"ju": "阳遁九局"}
+
+    denied = client.get(f"/api/records/{other_record_id}")
+    assert denied.status_code == 403
+
+
+def test_followups_and_collections_are_user_scoped(app_module, user_factory):
+    owner = user_factory("content-owner")
+    other = user_factory("content-other")
+
+    with app_module.app.app_context():
+        owner_record = app_module.Record(
+            user_id=owner.id,
+            app_type="meihua",
+            question="自己的梅花记录",
+            result_html="",
+        )
+        other_record = app_module.Record(
+            user_id=other.id,
+            app_type="meihua",
+            question="别人的梅花记录",
+            result_html="",
+        )
+        app_module.db.session.add_all([owner_record, other_record])
+        app_module.db.session.commit()
+        owner_record_id = owner_record.id
+        other_record_id = other_record.id
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(owner.id)
+        sess["_fresh"] = True
+
+    denied_followup = client.post("/api/followups", json={
+        "recordId": other_record_id,
+        "note": "不应允许",
+    })
+    assert denied_followup.status_code == 403
+
+    created_followup = client.post("/api/followups", json={
+        "recordId": owner_record_id,
+        "note": "一个月后回看",
+        "feedback": "待验证",
+    })
+    assert created_followup.status_code == 201
+    followup_id = created_followup.get_json()["id"]
+
+    followups = client.get(f"/api/followups?record_id={owner_record_id}")
+    assert followups.status_code == 200
+    assert followups.get_json()["followups"][0]["note"] == "一个月后回看"
+
+    updated_followup = client.put(f"/api/followups/{followup_id}", json={
+        "feedback": "已验证",
+    })
+    assert updated_followup.status_code == 200
+
+    created_collection = client.post("/api/collections", json={
+        "targetType": "record",
+        "targetId": owner_record_id,
+    })
+    assert created_collection.status_code == 201
+    collection_id = created_collection.get_json()["id"]
+
+    duplicate_collection = client.post("/api/collections", json={
+        "targetType": "record",
+        "targetId": owner_record_id,
+    })
+    assert duplicate_collection.status_code == 409
+
+    collections = client.get("/api/collections?type=record")
+    assert collections.status_code == 200
+    assert collections.get_json()["collections"][0]["targetId"] == owner_record_id
+
+    deleted_collection = client.delete(f"/api/collections/{collection_id}")
+    assert deleted_collection.status_code == 200
+
+    deleted_followup = client.delete(f"/api/followups/{followup_id}")
+    assert deleted_followup.status_code == 200
 
 
 def test_ai_credit_package_confirmation_adds_ai_quota_not_points(app_module, user_factory):
