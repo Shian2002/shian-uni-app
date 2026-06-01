@@ -347,6 +347,8 @@ let pendingComprehensiveId = ''
 let comprehensiveProgressTimer = null
 let comprehensiveTypeTimer = null
 let comprehensiveScrollTimer = null
+let comprehensiveRenderFrame = null
+let comprehensivePendingAssistantUpdate = null
 let comprehensiveArtifactAnalysisTimers = {}
 const COMPREHENSIVE_TYPE_FRAME_MS = 80
 const COMPREHENSIVE_ARTIFACT_FLUSH_MS = 120
@@ -1674,6 +1676,67 @@ function comprehensiveSummaryOnly(text) {
   return raw.trim()
 }
 
+function scheduleComprehensiveAssistantUpdate(aiIndex, patch, options) {
+  const opts = options || {}
+  const shouldFollow = Object.prototype.hasOwnProperty.call(opts, 'shouldFollow')
+    ? !!opts.shouldFollow
+    : isComprehensiveChatNearBottom()
+  if (comprehensivePendingAssistantUpdate && comprehensivePendingAssistantUpdate.aiIndex !== aiIndex) {
+    flushComprehensiveAssistantUpdate()
+  }
+  const previous = comprehensivePendingAssistantUpdate || { aiIndex, patch: {}, shouldFollow: false }
+  comprehensivePendingAssistantUpdate = {
+    aiIndex,
+    patch: Object.assign({}, previous.patch, patch),
+    shouldFollow: previous.shouldFollow || shouldFollow,
+  }
+  // #ifdef H5
+  if (!comprehensiveRenderFrame) {
+    comprehensiveRenderFrame = requestAnimationFrame(function() {
+      comprehensiveRenderFrame = null
+      flushComprehensiveAssistantUpdate()
+    })
+  }
+  // #endif
+  // #ifndef H5
+  flushComprehensiveAssistantUpdate()
+  // #endif
+}
+
+function flushComprehensiveAssistantUpdate() {
+  // #ifdef H5
+  if (comprehensiveRenderFrame) {
+    cancelAnimationFrame(comprehensiveRenderFrame)
+    comprehensiveRenderFrame = null
+  }
+  // #endif
+  if (!comprehensivePendingAssistantUpdate) return
+  const pending = comprehensivePendingAssistantUpdate
+  comprehensivePendingAssistantUpdate = null
+  updateComprehensiveAssistant(pending.aiIndex, pending.patch, {
+    shouldFollow: pending.shouldFollow,
+  })
+}
+
+function stopComprehensiveAssistantUpdateQueue() {
+  // #ifdef H5
+  if (comprehensiveRenderFrame) cancelAnimationFrame(comprehensiveRenderFrame)
+  comprehensiveRenderFrame = null
+  // #endif
+  comprehensivePendingAssistantUpdate = null
+}
+
+function flushComprehensiveTypewriter(aiIndex, state) {
+  if (!state || !state.queue) return
+  state.displayed += state.queue
+  state.queue = ''
+  scheduleComprehensiveAssistantUpdate(aiIndex, {
+    stage: '',
+    content: stripComprehensiveMarkdown(state.displayed),
+  })
+  flushComprehensiveAssistantUpdate()
+}
+
 function startComprehensiveTypewriter(aiIndex, state) {
   if (comprehensiveTypeTimer) return
   comprehensiveTypeTimer = setInterval(function() {
@@ -1689,7 +1752,7 @@ function startComprehensiveTypewriter(aiIndex, state) {
     const take = state.queue.length > 120 ? 24 : (state.queue.length > 40 ? 12 : 4)
     state.displayed += state.queue.slice(0, take)
     state.queue = state.queue.slice(take)
-    updateComprehensiveAssistant(aiIndex, {
+    scheduleComprehensiveAssistantUpdate(aiIndex, {
       stage: '',
       content: stripComprehensiveMarkdown(state.displayed)
     })
@@ -1736,12 +1799,12 @@ function startComprehensiveProgressTimer(aiIndex) {
     const elapsed = Math.max(1, Math.floor((Date.now() - startedAt) / 1000))
     const idleMs = Date.now() - (current._lastServerStageAt || startedAt)
     if (idleMs >= 2600) {
-      updateComprehensiveAssistant(aiIndex, {
+      scheduleComprehensiveAssistantUpdate(aiIndex, {
         stage: localStages[Math.min(localIndex, localStages.length - 1)] + ' · 已等待 ' + elapsed + ' 秒'
       })
       localIndex += 1
     } else if (current.stage && elapsed >= 4 && current.stage.indexOf('已等待') < 0) {
-      updateComprehensiveAssistant(aiIndex, {
+      scheduleComprehensiveAssistantUpdate(aiIndex, {
         stage: current.stage.replace(/ · \d+ 秒$/, '') + ' · ' + elapsed + ' 秒'
       })
     }
@@ -1771,6 +1834,7 @@ async function startComprehensiveAsk() {
   const history = normalizeMessageHistory()
   comprehensiveLoading.value = true
   comprehensiveMessages.value.push({ role: 'user', content: question })
+  comprehensiveQuestion.value = ''
   const aiIndex = comprehensiveMessages.value.length
   comprehensiveMessages.value.push({ role: 'assistant', content: '', stage: '正在连接综合解读服务' })
   startComprehensiveProgressTimer(aiIndex)
@@ -1814,12 +1878,13 @@ async function startComprehensiveAsk() {
         if (!line) return
         const data = JSON.parse(line.slice(6))
         if (data.error) {
+          flushComprehensiveAssistantUpdate()
           updateComprehensiveAssistant(aiIndex, { stage: '', content: data.error })
           stopComprehensiveProgressTimer()
           stopComprehensiveTypeTimer()
         }
         if (data.message) {
-          updateComprehensiveAssistant(aiIndex, { stage: data.message, _lastServerStageAt: Date.now() })
+          scheduleComprehensiveAssistantUpdate(aiIndex, { stage: data.message, _lastServerStageAt: Date.now() })
         }
         if (data.stage === 'tool_analysis_start' && data.tool_key) {
           revealArtifact(aiIndex, data.tool_key)
@@ -1857,7 +1922,9 @@ async function startComprehensiveAsk() {
         if (data.used_credit === 'daily_light') dailyLightAvailable.value = false
         if (data.done) {
           flushPendingArtifactAnalyses()
+          flushComprehensiveTypewriter(aiIndex, typeState)
           typeState.done = true
+          flushComprehensiveAssistantUpdate()
           setActiveArtifact(aiIndex, '__summary__')
           stopComprehensiveProgressTimer()
           try { window.__sidebarCache = null } catch(_) {}
@@ -1865,14 +1932,16 @@ async function startComprehensiveAsk() {
       })
     }
     typeState.done = true
+    flushComprehensiveTypewriter(aiIndex, typeState)
     if (!typeState.queue.length) stopComprehensiveTypeTimer()
-    comprehensiveQuestion.value = ''
   } catch (e) {
     stopPendingArtifactAnalysisTimers()
     stopComprehensiveTypeTimer()
+    flushComprehensiveAssistantUpdate()
     updateComprehensiveAssistant(aiIndex, { stage: '', content: '生成失败，请稍后重试' })
   } finally {
     flushPendingArtifactAnalyses()
+    flushComprehensiveAssistantUpdate()
     comprehensiveLoading.value = false
     stopComprehensiveProgressTimer()
   }
@@ -1952,14 +2021,14 @@ function onHomeChatScroll() {
 function scrollComprehensiveChatToBottom(behavior, force) {
   if (!force && !shouldAutoFollowChat.value) return
   // #ifdef H5
-  if (comprehensiveScrollTimer) clearTimeout(comprehensiveScrollTimer)
-  comprehensiveScrollTimer = setTimeout(function() {
+  if (comprehensiveScrollTimer) cancelAnimationFrame(comprehensiveScrollTimer)
+  comprehensiveScrollTimer = requestAnimationFrame(function() {
     comprehensiveScrollTimer = null
     try {
       const el = document.querySelector('.home-ai-chat')
-      if (el) el.scrollTo({ top: el.scrollHeight, behavior: behavior || 'smooth' })
+      if (el) el.scrollTo({ top: el.scrollHeight, behavior: behavior || 'auto' })
     } catch(_) {}
-  }, 120)
+  })
   // #endif
 }
 
@@ -1974,6 +2043,7 @@ function startNewComprehensiveConversation() {
   stopComprehensiveProgressTimer()
   stopComprehensiveTypeTimer()
   stopPendingArtifactAnalysisTimers()
+  stopComprehensiveAssistantUpdateQueue()
   comprehensiveQuestion.value = ''
   comprehensiveMessages.value = []
   selectedProfiles.value = []
@@ -2106,8 +2176,9 @@ onBeforeUnmount(() => {
   stopComprehensiveProgressTimer()
   stopComprehensiveTypeTimer()
   stopPendingArtifactAnalysisTimers()
-  if (comprehensiveScrollTimer) clearTimeout(comprehensiveScrollTimer)
+  stopComprehensiveAssistantUpdateQueue()
   // #ifdef H5
+  if (comprehensiveScrollTimer) cancelAnimationFrame(comprehensiveScrollTimer)
   if (window._xc_restoreComprehensive === restoreComprehensiveFromSidebar) window._xc_restoreComprehensive = null
   if (window._xc_newComprehensive === startNewComprehensiveConversation) window._xc_newComprehensive = null
   window.removeEventListener('keydown', onHomeKeydown)
@@ -2286,7 +2357,7 @@ onBeforeUnmount(() => {
 .home-ai-chat-sub { color: var(--text-3); font-size: 0.72rem; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: min(680px, 62vw); }
 .home-ai-new-chat { flex-shrink: 0; height: 30px; padding: 0 12px; border-radius: 999px; display: flex; align-items: center; justify-content: center; color: var(--accent); border: 1px solid rgba(178,149,93,0.22); background: var(--accent-glow); font-size: 0.74rem; cursor: pointer; box-sizing: border-box; }
 .home-ai-new-chat:hover { border-color: rgba(178,149,93,0.48); }
-.home-ai-message { padding: 14px 16px; border-radius: 14px; margin-bottom: 12px; border: 1px solid rgba(178,149,93,0.14); }
+.home-ai-message { padding: 14px 16px; border-radius: 14px; margin-bottom: 12px; border: 1px solid rgba(178,149,93,0.14); contain: layout; overflow-anchor: none; }
 .home-ai-message.user { margin-left: 72px; background: rgba(178,149,93,0.13); border-color: rgba(178,149,93,0.26); }
 .home-ai-message.assistant { margin-right: 72px; background: rgba(255,255,255,0.045); }
 .home-ai-role { display: block; font-size: 0.68rem; color: var(--text-3); margin-bottom: 6px; }
@@ -2312,8 +2383,8 @@ onBeforeUnmount(() => {
 @keyframes progress-sweep { 0% { transform: translateX(-110%); } 100% { transform: translateX(280%); } }
 .home-ai-content { display: block; white-space: pre-wrap; font-size: 0.9rem; color: var(--text-2); line-height: 1.86; letter-spacing: 0; word-break: break-word; }
 .home-tool-cards { display: grid; gap: 10px; margin: 10px 0 12px; }
-.home-tool-card { min-height: 92px; border: 1px solid rgba(178,149,93,0.18); border-radius: 12px; background: rgba(178,149,93,0.055); overflow: hidden; }
-.home-artifact-switcher { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 8px; overflow: visible; padding: 2px 0 10px; margin-bottom: 10px; }
+.home-tool-card { min-height: 92px; border: 1px solid rgba(178,149,93,0.18); border-radius: 12px; background: rgba(178,149,93,0.055); overflow: hidden; contain: layout; }
+.home-artifact-switcher { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 8px; overflow: visible; padding: 2px 0 10px; margin-bottom: 10px; contain: layout; }
 .home-artifact-switcher::-webkit-scrollbar { display: none; }
 .home-artifact-tab { min-width: 0; padding: 8px 9px; border-radius: 12px; border: 1px solid rgba(178,149,93,.14); background: rgba(255,255,255,.04); cursor: pointer; box-sizing: border-box; }
 .home-artifact-tab.active { border-color: rgba(178,149,93,.48); background: rgba(178,149,93,.12); box-shadow: inset 0 1px 0 rgba(255,255,255,.08); }
@@ -2325,11 +2396,11 @@ onBeforeUnmount(() => {
 .home-tool-card-sub { display: block; margin-top: 3px; color: var(--text-3); font-size: 0.68rem; line-height: 1.35; }
 .home-tool-card-toggle { display: none; }
 .home-tool-card-body { min-width: 0; padding: 0 12px 12px; display: grid; gap: 12px; overflow: visible; }
-.home-artifact-render { width: 100%; min-height: 0; overflow-x: visible; overflow-y: visible; border-radius: 12px; }
+.home-artifact-render { width: 100%; min-height: 0; overflow-x: visible; overflow-y: visible; border-radius: 12px; contain: layout; }
 .home-artifact-analysis { margin-top: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(178,149,93,.16); background: rgba(178,149,93,.055); color: var(--text-2); line-height: 1.8; white-space: pre-wrap; font-size: .84rem; }
 .home-artifact-analysis-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .home-artifact-analysis-title { color: var(--accent); font-weight: 800; font-size: .72rem; letter-spacing: .5px; line-height: 1.2; }
-.home-ai-summary-panel { margin-top: 10px; padding: 14px 16px; border-radius: 14px; border: 1px solid rgba(178,149,93,.16); background: rgba(255,255,255,.045); }
+.home-ai-summary-panel { margin-top: 10px; padding: 14px 16px; border-radius: 14px; border: 1px solid rgba(178,149,93,.16); background: rgba(255,255,255,.045); contain: layout; }
 .home-artifact-render :deep(.artifact-panel) { display: grid; gap: 10px; color: var(--text-2); font-size: 0.74rem; }
 .home-artifact-render :deep(.artifact-grid) { display: grid; gap: 8px; }
 .home-artifact-render :deep(.artifact-grid-4) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
