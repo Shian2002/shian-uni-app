@@ -191,6 +191,62 @@ def test_qimen_meihua_and_liuyao_fixed_samples(client):
     assert [idx + 1 for idx, yao in enumerate(liuyao["六爻"]) if yao["is_moving"]] == [1, 4]
 
 
+def test_meihua_ask_stream_uses_split_route_and_creates_record(app_module, user_factory, monkeypatch):
+    member = user_factory("meihua-stream-user")
+    with app_module.app.app_context():
+        app_module.add_points(member.id, "admin_add", 20, "测试积分")
+
+    monkeypatch.setattr(app_module, "deepseek_available", lambda: True)
+    monkeypatch.setattr(app_module, "get_reading_stream", lambda messages: iter([("梅花解读正文", None)]))
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(member.id)
+        sess["_fresh"] = True
+
+    response = client.post("/api/meihua/ask/stream", json={
+        "question": "这件事能成吗",
+        "method": "number",
+        "num1": 7,
+        "num2": 12,
+    })
+
+    assert response.status_code == 200
+    payloads = _sse_payloads(response)
+    assert {"content": "梅花解读正文"} in payloads
+    assert any(item.get("length") == len("梅花解读正文") for item in payloads)
+
+    with app_module.app.app_context():
+        record = app_module.Record.query.filter_by(user_id=member.id, app_type="meihua").one()
+        assert record.question == "这件事能成吗"
+        assert record.result_html == "梅花解读正文"
+
+
+def test_liuyao_ask_stream_sends_paipan_from_split_route(app_module, user_factory, monkeypatch):
+    member = user_factory("liuyao-stream-user")
+    with app_module.app.app_context():
+        app_module.add_points(member.id, "admin_add", 20, "测试积分")
+
+    monkeypatch.setattr(app_module, "deepseek_available", lambda: True)
+    monkeypatch.setattr(app_module, "get_reading_stream", lambda messages: iter([("六爻解读正文", None)]))
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(member.id)
+        sess["_fresh"] = True
+
+    response = client.post("/api/liuyao/ask/stream", json={
+        "question": "合作能成吗",
+        "mode": "manual",
+        "tosses": [[2, 2, 2], [2, 2, 3], [2, 3, 3], [3, 3, 3], [2, 3, 2], [3, 2, 3]],
+    })
+
+    assert response.status_code == 200
+    payloads = _sse_payloads(response)
+    assert any(item.get("本卦") == "泽水困" and item.get("变卦") == "水泽节" for item in payloads)
+    assert {"content": "六爻解读正文"} in payloads
+
+
 def test_tarot_huangli_zeji_and_calendar_fixed_samples(client):
     tarot_verify = client.get("/api/tarot/verify")
     assert tarot_verify.status_code == 200
