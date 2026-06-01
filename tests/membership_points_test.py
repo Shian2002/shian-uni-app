@@ -681,6 +681,37 @@ def test_admin_actions_write_and_expose_audit_logs(app_module, user_factory):
     assert data[0]["detail"]["hidden"] is True
 
 
+def test_admin_can_add_points_by_username_identifier(app_module, user_factory):
+    admin = user_factory("ops-admin", is_admin=True)
+    member = user_factory("19195566287")
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(admin.id)
+        sess["_fresh"] = True
+
+    resp = client.post(
+        "/api/admin/confirm-recharge",
+        json={
+            "action": "add",
+            "user_identifier": "19195566287",
+            "points": 1000,
+            "remark": "后台按用户名加积分",
+        },
+    )
+
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["ok"] is True
+    assert body["user_id"] == member.id
+    assert body["points"] == 1000
+
+    with app_module.app.app_context():
+        log = app_module.PointLog.query.filter_by(user_id=member.id, action="admin_add").one()
+        assert log.points == 1000
+        assert "后台按用户名加积分" in log.description
+
+
 def test_admin_change_password_requires_admin_current_password_and_audits(app_module, user_factory):
     admin = user_factory("ops-admin", is_admin=True)
     member = user_factory("member")

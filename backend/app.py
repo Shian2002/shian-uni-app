@@ -10760,19 +10760,37 @@ def api_admin_confirm_recharge():
     if action == 'add':
         # 直接给用户加积分（用于手动到账）
         target_uid = data.get('user_id', 0)
+        user_identifier = (data.get('user_identifier') or '').strip()
         points = data.get('points', 0)
         remark = (data.get('remark') or '').strip()
-        if not target_uid or not points:
+        target_user = None
+        if target_uid:
+            target_user = db.session.get(User, int(target_uid))
+        elif user_identifier:
+            target_user = User.query.filter(or_(
+                User.username == user_identifier,
+                User.email == user_identifier,
+                User.phone == user_identifier,
+            )).first()
+            if not target_user and user_identifier.isdigit():
+                target_user = db.session.get(User, int(user_identifier))
+        if not target_user or not points:
             return jsonify({'error': '参数不完整'}), 400
+        target_uid = target_user.id
         new_total = add_points(target_uid, 'admin_add', int(points), remark or '管理员加积分', commit=False)
         record_admin_audit(
             'points_add',
             'user',
             int(target_uid),
-            {'points': int(points), 'remark': remark or '管理员加积分', 'new_total': new_total},
+            {
+                'points': int(points),
+                'remark': remark or '管理员加积分',
+                'new_total': new_total,
+                'username': target_user.username,
+            },
         )
         db.session.commit()
-        return jsonify({'ok': True, 'user_id': target_uid, 'points': new_total, 'added': points})
+        return jsonify({'ok': True, 'user_id': target_uid, 'username': target_user.username, 'points': new_total, 'added': points})
 
     # 确认订单到账
     result = confirm_recharge_order_once(order_id)

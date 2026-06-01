@@ -131,16 +131,17 @@
             </view>
           </view>
           <view class="manual-box">
-            <input class="admin-input compact" v-model="manualUserId" placeholder="用户ID" />
+            <input class="admin-input user-key-input" v-model="manualUserId" placeholder="用户名/邮箱/手机号/ID" />
             <input class="admin-input compact" v-model="manualPoints" placeholder="加积分" />
             <input class="admin-input" v-model="manualRemark" placeholder="备注" />
             <button class="admin-primary" @click="addManualPoints">确认加分</button>
           </view>
+          <view class="manual-hint">可直接输入用户名、邮箱、手机号或 ID；也可以点击下方用户行自动选择。</view>
           <view class="table-list">
             <view class="table-row user-row table-head">
               <text>ID</text><text>用户名</text><text>积分</text><text>等级</text><text>权限</text><text>注册时间</text>
             </view>
-            <view class="table-row user-row" v-for="u in users" :key="u.id">
+            <view class="table-row user-row clickable" v-for="u in users" :key="u.id" @click="selectUserForPoints(u)">
               <text>#{{ u.id }}</text>
               <text>{{ u.username }}</text>
               <text>{{ u.points }}</text>
@@ -392,21 +393,25 @@ async function loadUsers() {
 }
 
 async function addManualPoints() {
-  const uid = parseInt(manualUserId.value, 10)
+  const userKey = String(manualUserId.value || '').trim()
   const points = parseInt(manualPoints.value, 10)
-  if (!uid || !points) { toast('请填写用户ID和积分'); return }
+  if (!userKey || !points) { toast('请填写用户和积分'); return }
   const data = await request('/api/admin/confirm-recharge', {
     method: 'POST',
-    data: { action: 'add', user_id: uid, points: points, remark: manualRemark.value || '后台手动加积分' }
+    data: { action: 'add', user_identifier: userKey, points: points, remark: manualRemark.value || '后台手动加积分' }
   })
   if (data.ok) {
-    toast('已加积分', 'success')
+    toast('已给 ' + (data.username || userKey) + ' 加积分', 'success')
     manualPoints.value = ''
     await loadUsers()
     await loadSummary()
   } else {
     toast(data.error || '操作失败')
   }
+}
+
+function selectUserForPoints(user) {
+  manualUserId.value = user.username || String(user.id)
 }
 
 async function loadRechargeOrders() {
@@ -690,11 +695,21 @@ onMounted(async function() {
   width: 104px;
 }
 
+.admin-input.user-key-input {
+  width: 220px;
+}
+
 .manual-box {
-  margin-bottom: 14px;
+  margin-bottom: 6px;
   padding: 10px;
   border: 1px dashed var(--card-border);
   border-radius: 8px;
+}
+
+.manual-hint {
+  color: var(--text-3);
+  font-size: 0.76rem;
+  margin: 0 0 14px 2px;
 }
 
 .security-panel {
@@ -741,6 +756,14 @@ onMounted(async function() {
 .table-row.user-row {
   grid-template-columns: 0.5fr 1.4fr 0.8fr 0.8fr 0.8fr 1.1fr;
   min-width: 800px;
+}
+
+.table-row.user-row.clickable {
+  cursor: pointer;
+}
+
+.table-row.user-row.clickable:hover {
+  background: rgba(178, 149, 93, 0.08);
 }
 
 .table-row.order-row {
