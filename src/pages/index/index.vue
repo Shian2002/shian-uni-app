@@ -318,6 +318,11 @@ const shouldAutoFollowChat = ref(true)
 let pendingComprehensiveId = ''
 let comprehensiveProgressTimer = null
 let comprehensiveTypeTimer = null
+let comprehensiveScrollTimer = null
+let comprehensiveArtifactAnalysisTimers = {}
+const COMPREHENSIVE_TYPE_FRAME_MS = 80
+const COMPREHENSIVE_ARTIFACT_FLUSH_MS = 120
+const HOME_AI_NEAR_BOTTOM_PX = 140
 
 const selectedLlmModel = computed(() => llmModels.value[llmModelIdx.value] || llmModels.value[0] || {})
 const llmModelNames = computed(() => llmModels.value.map(m => m.name + ' · ' + (m.strength || '基础')))
@@ -651,18 +656,61 @@ function revealArtifact(aiIndex, artifactKey) {
   updateComprehensiveAssistant(aiIndex, { artifacts }, { shouldFollow: isComprehensiveChatNearBottom() })
 }
 
-function appendArtifactAnalysis(aiIndex, artifactKey, content) {
-  const current = comprehensiveMessages.value[aiIndex]
-  if (!current || !artifactKey || !content) return
+function artifactAnalysisQueueKey(aiIndex, artifactKey) {
+  return String(aiIndex) + ':' + String(artifactKey)
+}
+
+function flushArtifactAnalysis(aiIndex, artifactKey) {
   const shouldFollow = isComprehensiveChatNearBottom()
+  const current = comprehensiveMessages.value[aiIndex]
+  const queueKey = artifactAnalysisQueueKey(aiIndex, artifactKey)
+  const state = comprehensiveArtifactAnalysisTimers[queueKey]
+  if (!state) return
+  if (state.timer) clearTimeout(state.timer)
+  delete comprehensiveArtifactAnalysisTimers[queueKey]
+  if (!current || !artifactKey || !state.queue) return
   const artifacts = (current.artifacts || []).map(function(artifact) {
     if (artifact.key !== artifactKey) return artifact
     return Object.assign({}, artifact, {
       visible: true,
-      analysis: stripComprehensiveMarkdown((artifact.analysis || '') + content)
+      analysis: stripComprehensiveMarkdown((artifact.analysis || '') + state.queue)
     })
   })
   updateComprehensiveAssistant(aiIndex, { artifacts }, { shouldFollow })
+}
+
+function flushPendingArtifactAnalyses() {
+  Object.keys(comprehensiveArtifactAnalysisTimers).forEach(function(key) {
+    const state = comprehensiveArtifactAnalysisTimers[key]
+    if (state) flushArtifactAnalysis(state.aiIndex, state.artifactKey)
+  })
+}
+
+function stopPendingArtifactAnalysisTimers() {
+  Object.keys(comprehensiveArtifactAnalysisTimers).forEach(function(key) {
+    const state = comprehensiveArtifactAnalysisTimers[key]
+    if (state && state.timer) clearTimeout(state.timer)
+  })
+  comprehensiveArtifactAnalysisTimers = {}
+}
+
+function appendArtifactAnalysis(aiIndex, artifactKey, content) {
+  const current = comprehensiveMessages.value[aiIndex]
+  if (!current || !artifactKey || !content) return
+  const queueKey = artifactAnalysisQueueKey(aiIndex, artifactKey)
+  const state = comprehensiveArtifactAnalysisTimers[queueKey] || {
+    aiIndex,
+    artifactKey,
+    queue: '',
+    timer: null,
+  }
+  state.queue += content
+  if (!state.timer) {
+    state.timer = setTimeout(function() {
+      flushArtifactAnalysis(aiIndex, artifactKey)
+    }, COMPREHENSIVE_ARTIFACT_FLUSH_MS)
+  }
+  comprehensiveArtifactAnalysisTimers[queueKey] = state
 }
 
 function artifactTitle(key, tool) {
@@ -720,6 +768,126 @@ function verticalGzHtml(gz) {
   }).join('')
 }
 
+function homeYunGz(item) {
+  if (!item) return ''
+  if (typeof item === 'string') return item
+  return item.gan_zhi || item.gz || item.name || item.stem_branch || [item.gan, item.zhi].filter(Boolean).join('')
+}
+
+function homeYunLabel(item) {
+  if (!item) return ''
+  if (item.month_name) return item.month_name
+  if (item.month_num) return item.month_num + '月'
+  if (item.month) return item.month
+  if (item.start_age && item.end_age) return item.start_age + '-' + item.end_age + '岁'
+  return item.age_range || item.range || item.start_age || item.age || item.year || ''
+}
+
+function homeYunSub(item) {
+  if (!item) return ''
+  return item.gan_shishen_abbrev || item.shi_shen_gan || item.shi_shen || item.ss_full || item.tgSs || item.nayin || ''
+}
+
+function homeYunYear(item) {
+  if (!item) return ''
+  return item.start_year || item.year || item.jieqi || ''
+}
+
+function parseHomeYear(value) {
+  const n = parseInt(value, 10)
+  return Number.isFinite(n) ? n : 0
+}
+
+function homeYunInDayun(item, dy) {
+  if (!dy) return true
+  const year = parseHomeYear(item && item.year)
+  if (!year) return true
+  const startYear = parseHomeYear(dy.start_year || dy.year)
+  const endYear = parseHomeYear(dy.end_year || (startYear ? startYear + 9 : 0))
+  if (!startYear || !endYear) return true
+  return year >= startYear && year <= endYear
+}
+
+function homeShiShen(dayMaster, gan) {
+  if (!dayMaster || !gan) return ''
+  const TG = '甲乙丙丁戊己庚辛壬癸'
+  const idxD = TG.indexOf(dayMaster)
+  const idxG = TG.indexOf(gan)
+  if (idxD < 0 || idxG < 0) return ''
+  const diff = (idxG - idxD + 10) % 10
+  return ['比肩', '劫财', '食神', '伤官', '偏财', '正财', '七杀', '正官', '偏印', '正印'][diff] || ''
+}
+
+function computeHomeLiuYueList(year, liunianList, data) {
+  const TG = '甲乙丙丁戊己庚辛壬癸'
+  const ly = parseHomeYear(year)
+  const selectedLn = (liunianList || []).find(function(item) {
+    return parseHomeYear(item && item.year) === ly
+  }) || {}
+  const yearGan = selectedLn.gan || String(homeYunGz(selectedLn)).slice(0, 1)
+  const yearGanIdx = yearGan ? TG.indexOf(yearGan) : -1
+  const monthGanStart = yearGanIdx >= 0 ? [2, 4, 6, 8, 0][yearGanIdx % 5] : 0
+  const monthZhis = ['寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥', '子', '丑']
+  const jieNames = ['立春', '惊蛰', '清明', '立夏', '芒种', '小暑', '立秋', '白露', '寒露', '立冬', '大雪', '小寒']
+  const monthNames = ['正月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '冬月', '腊月']
+  const dayMaster = data?.four_pillars?.day?.gan || data?.day_master || ''
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth() + 1
+  const currentDay = now.getDate()
+  let currentLiuyueIdx = -1
+  if (ly === currentYear) {
+    const jieMonthDays = [[2, 4], [3, 5], [4, 5], [5, 5], [6, 5], [7, 7], [8, 7], [9, 7], [10, 8], [11, 7], [12, 7], [1, 5]]
+    if (currentMonth === 1 && currentDay >= 5) {
+      currentLiuyueIdx = 11
+    } else {
+      for (let j = 0; j < jieMonthDays.length - 1; j++) {
+        const jm = jieMonthDays[j][0]
+        const jd = jieMonthDays[j][1]
+        if (currentMonth > jm || (currentMonth === jm && currentDay >= jd)) currentLiuyueIdx = j
+      }
+      if (currentLiuyueIdx < 0) currentLiuyueIdx = 11
+    }
+  }
+  return monthZhis.map(function(zhi, idx) {
+    const gan = TG[(monthGanStart + idx) % 10]
+    return {
+      year: ly,
+      jieqi: jieNames[idx],
+      month_name: monthNames[idx],
+      month_num: idx + 1,
+      gan,
+      zhi,
+      gan_zhi: gan + zhi,
+      tgSs: homeShiShen(dayMaster, gan),
+      current: idx === currentLiuyueIdx,
+    }
+  })
+}
+
+function renderHomeYunItem(item, kind, index, options) {
+  const opts = options || {}
+  const label = homeYunLabel(item)
+  const value = homeYunGz(item)
+  const sub = homeYunSub(item)
+  const year = homeYunYear(item)
+  const yearNum = kind === 'dayun' ? (item.start_year || item.year || '') : (item.year || '')
+  const monthNum = item.month_num || ''
+  const classes = [
+    'bz-yun-item',
+    opts.active ? 'is-active' : '',
+    opts.highlight ? 'is-analysis-highlight' : '',
+    item && item.current ? 'is-current' : '',
+  ].filter(Boolean).join(' ')
+  const hiddenStyle = opts.hidden ? ' style="display:none"' : ''
+  return '<div class="' + classes + '" role="button" tabindex="0" data-yun-kind="' + htmlEscape(kind) + '" data-yun-index="' + htmlEscape(index) + '" data-year="' + htmlEscape(yearNum) + '" data-start-year="' + htmlEscape(item.start_year || '') + '" data-end-year="' + htmlEscape(item.end_year || '') + '" data-gan="' + htmlEscape(item.gan || String(value).slice(0, 1) || '') + '" data-zhi="' + htmlEscape(item.zhi || String(value).slice(1, 2) || '') + '" data-month-num="' + htmlEscape(monthNum) + '"' + hiddenStyle + '>' +
+    '<span class="bz-yun-year">' + htmlEscape(year) + '</span>' +
+    '<span class="bz-yun-age">' + htmlEscape(label) + '</span>' +
+    '<strong class="bz-yun-gz bz-yun-gz-vertical">' + verticalGzHtml(value) + '</strong>' +
+    '<em>' + htmlEscape(sub) + '</em>' +
+    '</div>'
+}
+
 function renderBaziBasicArtifact(data) {
   const fp = data.four_pillars || {}
   const rows = [
@@ -753,42 +921,175 @@ function renderBaziBasicArtifact(data) {
 }
 
 function renderBaziYunArtifact(data, analysisText) {
-  const dayun = data.dayun || data.da_yun || data.luck_pillars || []
+  const dayun = data.da_yun || data.dayun || data.luck_pillars || []
   const liunian = data.liu_nian || data.liunians || []
   const highlights = extractAnalysisHighlights(analysisText)
-  const itemGz = function(item) {
-    if (!item) return ''
-    return item.gan_zhi || item.gz || item.name || item.stem_branch || [item.gan, item.zhi].filter(Boolean).join('')
-  }
-  const itemLabel = function(item) {
-    if (!item) return ''
-    if (item.month_num) return item.month_num + '月'
-    if (item.month) return item.month
-    if (item.start_age && item.end_age) return item.start_age + '-' + item.end_age + '岁'
-    return item.age_range || item.range || item.start_age || item.age || item.year || ''
-  }
   const itemHighlighted = function(item) {
     const year = String(item.start_year || item.year || '')
     const month = String(item.month_num || '').replace(/[^\d]/g, '')
-    const label = String(itemLabel(item) || '')
+    const label = String(homeYunLabel(item) || '')
     return (year && highlights.years.has(year)) || (month && highlights.months.has(month)) || (!!label && highlights.raw.indexOf(label) >= 0)
   }
-  const renderRow = function(title, list) {
-    const items = (Array.isArray(list) ? list : []).slice(0, 12).map(function(item) {
-      const label = itemLabel(item)
-      const value = itemGz(item)
-      const sub = item.gan_shishen_abbrev || item.shi_shen_gan || item.shi_shen || item.ss_full || item.tgSs || item.nayin || ''
-      const year = item.start_year || item.year || ''
-      const classes = 'bz-yun-item' + (itemHighlighted(item) ? ' is-analysis-highlight' : '')
-      return '<div class="' + classes + '"><span class="bz-yun-year">' + htmlEscape(year) + '</span><span class="bz-yun-age">' + htmlEscape(label) + '</span><strong class="bz-yun-gz bz-yun-gz-vertical">' + verticalGzHtml(value) + '</strong><em>' + htmlEscape(sub) + '</em></div>'
+  const nowYear = new Date().getFullYear()
+  let activeDayunIdx = Math.max(0, dayun.findIndex(function(item) {
+    return item.current || homeYunInDayun({ year: nowYear }, item)
+  }))
+  if (!dayun.length) activeDayunIdx = -1
+  const activeDayun = activeDayunIdx >= 0 ? dayun[activeDayunIdx] : null
+  const visibleLiunian = (Array.isArray(liunian) ? liunian : []).filter(function(item) {
+    return homeYunInDayun(item, activeDayun)
+  })
+  let activeLiuNianIdx = liunian.findIndex(function(item) {
+    return visibleLiunian.indexOf(item) >= 0 && (item.current || parseHomeYear(item.year) === nowYear)
+  })
+  if (activeLiuNianIdx < 0 && visibleLiunian.length) activeLiuNianIdx = liunian.indexOf(visibleLiunian[0])
+  const activeYear = activeLiuNianIdx >= 0 ? parseHomeYear(liunian[activeLiuNianIdx].year) : nowYear
+  const liuyue = computeHomeLiuYueList(activeYear, liunian, data)
+  const activeLiuYueIdx = Math.max(0, liuyue.findIndex(function(item) { return item.current }))
+  const renderRow = function(title, list, kind, activeIdx, filterDayun) {
+    const sourceList = Array.isArray(list) ? list : []
+    const items = sourceList.map(function(item, idx) {
+      return renderHomeYunItem(item, kind, idx, {
+        active: idx === activeIdx,
+        hidden: kind === 'liunian' && !homeYunInDayun(item, filterDayun),
+        highlight: itemHighlighted(item),
+      })
     }).join('')
     return '<div class="bz-yun-section"><div class="bz-yun-title">' + htmlEscape(title) + '</div><div class="bz-yun-scroll">' + (items || '<span class="artifact-empty">暂无数据</span>') + '</div></div>'
   }
-  return '<div class="bz-yun-panel">' +
-    renderRow('大运', dayun) +
-    renderRow('流年', liunian) +
-    renderRow('流月', data.liu_yue || data.liu_month || []) +
+  return '<div class="bz-yun-panel" data-day-master="' + htmlEscape(data?.four_pillars?.day?.gan || data?.day_master || '') + '">' +
+    renderRow('大运', dayun, 'dayun', activeDayunIdx) +
+    renderRow('流年', liunian, 'liunian', activeLiuNianIdx, activeDayun) +
+    renderRow('流月', liuyue, 'liuyue', activeLiuYueIdx) +
     '</div>'
+}
+
+function createHomeYunDomItem(item, kind, index, active) {
+  const node = document.createElement('div')
+  node.className = 'bz-yun-item' + (active ? ' is-active' : '') + (item.current ? ' is-current' : '')
+  node.setAttribute('role', 'button')
+  node.setAttribute('tabindex', '0')
+  node.setAttribute('data-yun-kind', kind)
+  node.setAttribute('data-yun-index', String(index))
+  node.setAttribute('data-year', String(kind === 'liuyue' ? (item.year || '') : (item.year || item.start_year || '')))
+  node.setAttribute('data-start-year', String(item.start_year || ''))
+  node.setAttribute('data-end-year', String(item.end_year || ''))
+  node.setAttribute('data-gan', String(item.gan || '').slice(0, 1))
+  node.setAttribute('data-zhi', String(item.zhi || '').slice(0, 1))
+  node.setAttribute('data-month-num', String(item.month_num || ''))
+
+  const yearEl = document.createElement('span')
+  yearEl.className = 'bz-yun-year'
+  yearEl.textContent = homeYunYear(item)
+  node.appendChild(yearEl)
+
+  const ageEl = document.createElement('span')
+  ageEl.className = 'bz-yun-age'
+  ageEl.textContent = homeYunLabel(item)
+  node.appendChild(ageEl)
+
+  const gzEl = document.createElement('strong')
+  gzEl.className = 'bz-yun-gz bz-yun-gz-vertical'
+  String(homeYunGz(item) || '').split('').forEach(function(ch) {
+    const b = document.createElement('b')
+    const wx = ganWuxing(ch) || zhiWuxing(ch)
+    b.className = 'wx-text-' + wxClass(wx)
+    b.textContent = ch
+    gzEl.appendChild(b)
+  })
+  if (!gzEl.childNodes.length) {
+    const b = document.createElement('b')
+    b.textContent = '-'
+    gzEl.appendChild(b)
+  }
+  node.appendChild(gzEl)
+
+  const subEl = document.createElement('em')
+  subEl.textContent = homeYunSub(item)
+  node.appendChild(subEl)
+  return node
+}
+
+function findHomeBaziYunItem(event) {
+  let el = event && event.target
+  while (el && el !== document.body) {
+    if (el.getAttribute && el.getAttribute('data-yun-kind') && el.classList && el.classList.contains('bz-yun-item')) return el
+    el = el.parentElement
+  }
+  return null
+}
+
+function setHomeYunActive(item) {
+  const row = item && item.parentElement
+  if (!row) return
+  row.querySelectorAll('.bz-yun-item').forEach(function(node) {
+    node.classList.toggle('is-active', node === item)
+  })
+}
+
+function getHomeVisibleLiuNianItems(panel) {
+  return Array.from(panel.querySelectorAll('.bz-yun-item[data-yun-kind="liunian"]')).filter(function(item) {
+    return item.style.display !== 'none'
+  })
+}
+
+function updateHomeLiuYueRow(panel, liunianItem) {
+  if (!panel || !liunianItem) return
+  const year = parseHomeYear(liunianItem.getAttribute('data-year'))
+  if (!year) return
+  const dayMaster = panel.getAttribute('data-day-master') || ''
+  const lnGan = liunianItem.getAttribute('data-gan') || ''
+  const liuyueList = computeHomeLiuYueList(year, [{ year, gan: lnGan }], { day_master: dayMaster })
+  const liuyueItems = panel.querySelectorAll('.bz-yun-item[data-yun-kind="liuyue"]')
+  const liuyueRow = liuyueItems.length ? liuyueItems[0].parentElement : null
+  if (!liuyueRow) return
+  liuyueRow.innerHTML = ''
+  const activeIdx = Math.max(0, liuyueList.findIndex(function(item) { return item.current }))
+  liuyueList.forEach(function(item, idx) {
+    liuyueRow.appendChild(createHomeYunDomItem(item, 'liuyue', idx, idx === activeIdx))
+  })
+}
+
+function onHomeBaziYunClick(event) {
+  // #ifdef H5
+  const item = findHomeBaziYunItem(event)
+  if (!item) return
+  const panel = item.closest && item.closest('.bz-yun-panel')
+  if (!panel) return
+  const kind = item.getAttribute('data-yun-kind')
+  if (kind === 'dayun') {
+    setHomeYunActive(item)
+    const startYear = parseHomeYear(item.getAttribute('data-start-year') || item.getAttribute('data-year'))
+    const endYear = parseHomeYear(item.getAttribute('data-end-year') || (startYear ? startYear + 9 : 0))
+    const liunianItems = Array.from(panel.querySelectorAll('.bz-yun-item[data-yun-kind="liunian"]'))
+    liunianItems.forEach(function(lnItem) {
+      const year = parseHomeYear(lnItem.getAttribute('data-year'))
+      const visible = !year || !startYear || !endYear || (year >= startYear && year <= endYear)
+      lnItem.style.display = visible ? '' : 'none'
+      if (!visible) lnItem.classList.remove('is-active')
+    })
+    const visibleLiunianItems = getHomeVisibleLiuNianItems(panel)
+    if (visibleLiunianItems.length) {
+      const nowYear = new Date().getFullYear()
+      const nextLiuNian = visibleLiunianItems.find(function(lnItem) {
+        return parseHomeYear(lnItem.getAttribute('data-year')) === nowYear || lnItem.classList.contains('is-current')
+      }) || visibleLiunianItems[0]
+      setHomeYunActive(nextLiuNian)
+      updateHomeLiuYueRow(panel, nextLiuNian)
+      nextLiuNian.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+    }
+    return
+  }
+  if (kind === 'liunian') {
+    if (item.style.display === 'none') return
+    setHomeYunActive(item)
+    updateHomeLiuYueRow(panel, item)
+    return
+  }
+  if (kind === 'liuyue') {
+    setHomeYunActive(item)
+  }
+  // #endif
 }
 
 function ganWuxing(gan) {
@@ -1039,7 +1340,7 @@ function renderQimenArtifact(data) {
     const bagua = baguaSimple[p.bagua] || p.bagua || ''
     const isMa = !!(p.isMa || p.is_ma || (fallbackMaGong && fallbackMaGong === gongNum))
     html += '<div class="qm-palace">'
-    html += '<div class="qm-palace-line"><span class="qm-shen">' + htmlEscape(shen) + (p.isKong ? '<em>○</em>' : '') + '</span><span class="qm-gan">' + coloredGzInline(tianGan) + (isMa ? '<i class="qm-horse">🐎</i>' : '') + '</span></div>'
+    html += '<div class="qm-palace-line"><span class="qm-shen">' + htmlEscape(shen) + (p.isKong ? '<em>○</em>' : '') + '</span><span class="qm-gan">' + (isMa ? '<i class="qm-horse">🐎</i>' : '') + coloredGzInline(tianGan) + '</span></div>'
     html += '<div class="qm-palace-line"><span class="qm-xing' + (xing === d.zhiFuStar ? ' highlight' : '') + '">' + htmlEscape(xing) + '</span><span class="qm-gan di">' + coloredGzInline(diGan) + '</span></div>'
     html += '<div class="qm-palace-line"><span class="qm-men' + (men === d.zhiShiMen ? ' highlight' : '') + (p.isMenPo ? ' menpo' : '') + '">' + htmlEscape(men) + '</span><span class="qm-yingan">' + htmlEscape(yinGan) + '</span></div>'
     html += '<div class="qm-gong-label">' + htmlEscape(gongNum + '·' + bagua) + '</div>'
@@ -1260,14 +1561,14 @@ function startComprehensiveTypewriter(aiIndex, state) {
       if (state.done) stopComprehensiveTypeTimer()
       return
     }
-    const take = state.queue.length > 3 ? 2 : 1
+    const take = state.queue.length > 120 ? 24 : (state.queue.length > 40 ? 12 : 4)
     state.displayed += state.queue.slice(0, take)
     state.queue = state.queue.slice(take)
     updateComprehensiveAssistant(aiIndex, {
       stage: '',
       content: stripComprehensiveMarkdown(state.displayed)
     })
-  }, 35)
+  }, COMPREHENSIVE_TYPE_FRAME_MS)
 }
 
 function updateComprehensiveAssistant(aiIndex, patch, options) {
@@ -1427,6 +1728,7 @@ async function startComprehensiveAsk() {
         if (typeof data.ai_combo_credits === 'number') aiComboCredits.value = data.ai_combo_credits
         if (data.used_credit === 'daily_light') dailyLightAvailable.value = false
         if (data.done) {
+          flushPendingArtifactAnalyses()
           typeState.done = true
           stopComprehensiveProgressTimer()
           try { window.__sidebarCache = null } catch(_) {}
@@ -1437,9 +1739,11 @@ async function startComprehensiveAsk() {
     if (!typeState.queue.length) stopComprehensiveTypeTimer()
     comprehensiveQuestion.value = ''
   } catch (e) {
+    stopPendingArtifactAnalysisTimers()
     stopComprehensiveTypeTimer()
     updateComprehensiveAssistant(aiIndex, { stage: '', content: '生成失败，请稍后重试' })
   } finally {
+    flushPendingArtifactAnalyses()
     comprehensiveLoading.value = false
     stopComprehensiveProgressTimer()
   }
@@ -1500,7 +1804,7 @@ function isComprehensiveChatNearBottom() {
   try {
     const el = document.querySelector('.home-ai-chat')
     if (!el) return true
-    return el.scrollHeight - el.scrollTop - el.clientHeight < 96
+    return el.scrollHeight - el.scrollTop - el.clientHeight < HOME_AI_NEAR_BOTTOM_PX
   } catch(_) {
     return true
   }
@@ -1515,7 +1819,9 @@ function onHomeChatScroll() {
 function scrollComprehensiveChatToBottom(behavior, force) {
   if (!force && !shouldAutoFollowChat.value) return
   // #ifdef H5
-  setTimeout(function() {
+  if (comprehensiveScrollTimer) clearTimeout(comprehensiveScrollTimer)
+  comprehensiveScrollTimer = setTimeout(function() {
+    comprehensiveScrollTimer = null
     try {
       const el = document.querySelector('.home-ai-chat')
       if (el) el.scrollTo({ top: el.scrollHeight, behavior: behavior || 'smooth' })
@@ -1534,6 +1840,7 @@ function restoreComprehensiveFromSidebar(id) {
 function startNewComprehensiveConversation() {
   stopComprehensiveProgressTimer()
   stopComprehensiveTypeTimer()
+  stopPendingArtifactAnalysisTimers()
   comprehensiveQuestion.value = ''
   comprehensiveMessages.value = []
   selectedProfiles.value = []
@@ -1641,6 +1948,7 @@ onMounted(() => {
   window._xc_restoreComprehensive = restoreComprehensiveFromSidebar
   window._xc_newComprehensive = startNewComprehensiveConversation
   window.addEventListener('keydown', onHomeKeydown)
+  document.addEventListener('click', onHomeBaziYunClick)
   // 视频加载超时处理：3秒后如果视频还没准备好，显示fallback背景
   setTimeout(() => {
     const v = document.getElementById('heroVideo')
@@ -1663,10 +1971,13 @@ onMounted(() => {
 onBeforeUnmount(() => {
   stopComprehensiveProgressTimer()
   stopComprehensiveTypeTimer()
+  stopPendingArtifactAnalysisTimers()
+  if (comprehensiveScrollTimer) clearTimeout(comprehensiveScrollTimer)
   // #ifdef H5
   if (window._xc_restoreComprehensive === restoreComprehensiveFromSidebar) window._xc_restoreComprehensive = null
   if (window._xc_newComprehensive === startNewComprehensiveConversation) window._xc_newComprehensive = null
   window.removeEventListener('keydown', onHomeKeydown)
+  document.removeEventListener('click', onHomeBaziYunClick)
   setHomeFixedPage(false)
   // #endif
 })
@@ -1722,7 +2033,7 @@ onBeforeUnmount(() => {
 :global(body.home-fixed-page uni-page-wrapper),
 :global(body.home-fixed-page .uni-page-body) { height: 100dvh !important; overflow: hidden !important; }
 
-.page-root { height: 100dvh; min-height: 0; overflow: hidden !important; width: 100% !important; max-width: 100vw !important; box-sizing: border-box; }
+.page-root { --home-ai-dock-space: 116px; --home-ai-chat-bottom-buffer: 126px; height: 100dvh; min-height: 0; overflow: hidden !important; width: 100% !important; max-width: 100vw !important; box-sizing: border-box; }
 .bg-layer { position: fixed; inset: 0; z-index: 0; transition: background 0.8s var(--ease); pointer-events: none; overflow: hidden; }
 [data-theme="dark"] .bg-layer {
   background: radial-gradient(ellipse 80% 60% at 18% 8%, rgba(45,50,90,0.30) 0%, transparent 72%),
@@ -1769,9 +2080,9 @@ onBeforeUnmount(() => {
 .hero-home.chat-active { padding: 14px 32px 176px; justify-content: flex-start; }
 .hero-home.chat-active .hero-home-content { justify-content: flex-start; }
 .hero-home.chat-active .hero-brand { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 12px; }
-.hero-home.chat-active.reading-active { padding-top: 10px; padding-bottom: 130px; }
+.hero-home.chat-active.reading-active { padding: 0 32px var(--home-ai-dock-space); }
 .hero-home.chat-active.reading-active .hero-brand { display: none; }
-.hero-home.chat-active.reading-active .home-ai-console.has-chat { flex: 1 1 auto; height: 100%; }
+.hero-home.chat-active.reading-active .home-ai-console.has-chat { flex: 0 0 auto; height: calc(100dvh - 60px - var(--home-ai-dock-space)); }
 .hero-brand-icon-wrap { position: relative; display: flex; align-items: center; justify-content: center; width: 120px; height: 120px; margin: 0 auto 16px; animation: float 6s ease-in-out infinite; }
 .hero-brand-icon-wrap::before { content: ''; position: absolute; left: 50%; top: 50%; width: 100%; height: 100%; transform: translate(-50%, -50%); border-radius: 50%; background: var(--hero-logo-backdrop); box-shadow: var(--hero-logo-backdrop-shadow); z-index: 0; }
 .hero-brand-icon { width: 100px; height: 100px; object-fit: cover; object-position: center center; position: relative; z-index: 1; display: block; transform: translateY(4px); }
@@ -1808,7 +2119,7 @@ onBeforeUnmount(() => {
 .home-ai-main:focus-within { border-color: rgba(178,149,93,0.50); box-shadow: 0 18px 52px rgba(0,0,0,0.24), 0 0 0 3px rgba(178,149,93,0.10), inset 0 1px 0 rgba(255,255,255,0.12); }
 [data-theme="light"] .home-ai-main { background: rgba(255,253,248,0.80); box-shadow: 0 12px 34px rgba(60,40,15,0.10), inset 0 1px 0 rgba(255,255,255,0.75); }
 [data-theme="light"] .home-ai-main:focus-within { box-shadow: 0 14px 42px rgba(60,40,15,0.13), 0 0 0 3px rgba(150,103,20,0.10), inset 0 1px 0 rgba(255,255,255,0.82); }
-.home-ai-input { width: 100%; min-height: 52px; max-height: 96px; padding: 6px 4px 0; color: var(--text-1); font-size: 0.92rem; line-height: 1.45; background: transparent; border: none; outline: none; box-sizing: border-box; }
+.home-ai-input { width: 100%; min-height: 42px; max-height: 64px; padding: 5px 4px 0; color: var(--text-1); font-size: 0.9rem; line-height: 1.38; background: transparent; border: none; outline: none; box-sizing: border-box; }
 .home-ai-input::placeholder { color: rgba(120,108,86,0.68); }
 .home-ai-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; flex-wrap: nowrap !important; overflow-x: hidden; box-sizing: border-box; width: 100%; }
 .home-ai-toolbar-left { display: flex; align-items: center; gap: 6px; flex-shrink: 1; min-width: 0; }
@@ -1832,8 +2143,8 @@ onBeforeUnmount(() => {
 .home-ai-send.disabled { opacity: 0.55; pointer-events: none; }
 .home-ai-chat { border: 1px solid rgba(178,149,93,0.16); border-radius: 18px; background: rgba(255,255,255,0.045); backdrop-filter: blur(18px); padding: 16px; max-height: 420px; overflow-y: auto; overscroll-behavior: contain; box-shadow: inset 0 1px 0 rgba(255,255,255,0.06); }
 [data-theme="light"] .home-ai-chat { background: rgba(255,253,248,0.66); }
-.home-ai-console.has-chat .home-ai-chat { flex: 1 1 0; min-height: 0; max-height: none; height: 100%; box-sizing: border-box; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-y; scroll-padding-bottom: 132px; }
-.home-ai-console.has-chat .home-ai-input { min-height: 48px; max-height: 82px; }
+.home-ai-console.has-chat .home-ai-chat { flex: 1 1 0; min-height: 0; max-height: none; height: 100%; box-sizing: border-box; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-y; padding-bottom: var(--home-ai-chat-bottom-buffer); scroll-padding-bottom: var(--home-ai-chat-bottom-buffer); }
+.home-ai-console.has-chat .home-ai-input { min-height: 38px; max-height: 58px; }
 .home-ai-chat-head { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; margin: 0 0 12px; border: 1px solid rgba(178,149,93,0.16); border-radius: 14px; background: rgba(34,31,25,0.62); backdrop-filter: blur(18px) saturate(145%); box-shadow: 0 10px 28px rgba(0,0,0,0.12); }
 [data-theme="light"] .home-ai-chat-head { background: rgba(255,251,242,0.86); box-shadow: 0 10px 28px rgba(80,55,18,0.08); }
 .home-ai-chat-head-main { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
@@ -1941,8 +2252,9 @@ onBeforeUnmount(() => {
 .home-artifact-render :deep(.bz-yun-title) { padding: 8px 12px; color: var(--accent); font-size: .74rem; font-weight: 800; background: var(--accent-glow); border-bottom: 1px solid var(--card-border); }
 .home-artifact-render :deep(.bz-yun-scroll) { display: flex; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .home-artifact-render :deep(.bz-yun-scroll::-webkit-scrollbar) { display: none; }
-.home-artifact-render :deep(.bz-yun-item) { flex: 0 0 auto; min-width: 58px; min-height: 72px; padding: 8px 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-right: 1px solid rgba(178,149,93,.10); box-sizing: border-box; }
-.home-artifact-render :deep(.bz-yun-item:nth-child(3)) { background: rgba(178,149,93,.10); }
+.home-artifact-render :deep(.bz-yun-item) { flex: 0 0 auto; min-width: 58px; min-height: 72px; padding: 8px 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-right: 1px solid rgba(178,149,93,.10); box-sizing: border-box; cursor: pointer; transition: background .18s ease, box-shadow .18s ease; }
+.home-artifact-render :deep(.bz-yun-item.is-current) { background: rgba(178,149,93,.08); }
+.home-artifact-render :deep(.bz-yun-item.is-active) { background: var(--dayun-active); box-shadow: inset 0 0 0 1px rgba(178,149,93,.35); }
 .home-artifact-render :deep(.bz-yun-year) { color: var(--text-3); font-size: .62rem; }
 .home-artifact-render :deep(.bz-yun-age) { color: var(--text-3); font-size: .54rem; }
 .home-artifact-render :deep(.bz-yun-gz) { display: flex; gap: 2px; font-family: var(--font-serif); font-size: .88rem; line-height: 1.1; }
@@ -2044,7 +2356,7 @@ onBeforeUnmount(() => {
 .home-artifact-render :deep(.qm-yingan) { display: inline-flex; align-items: baseline; color: #555; gap: 0; }
 .home-artifact-render :deep(.qm-gan i) { margin-left: 2px; color: #D4A017; font-size: .55rem; font-style: normal; }
 .home-artifact-render :deep(.qm-horse) { color: #D4A017; font-style: normal; font-size: .72rem; line-height: 1; display: inline-flex; align-items: center; margin-right: 2px; }
-.home-artifact-render :deep(.qm-gan .qm-horse) { margin-left: 2px; margin-right: 0; font-size: .62rem; }
+.home-artifact-render :deep(.qm-gan .qm-horse) { margin-left: 0; margin-right: 2px; font-size: .62rem; }
 .home-artifact-render :deep(.qm-gong-label) { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #d0d0d0; font-size: .45rem; pointer-events: none; }
 .home-artifact-render :deep(.qm-legend) { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin-top: 10px; color: var(--text-3); font-size: .65rem; }
 .home-artifact-render :deep(.qm-legend b) { font-weight: 800; }
@@ -2226,6 +2538,7 @@ onBeforeUnmount(() => {
   .footer-grid { grid-template-columns: 1fr; gap: 24px; }
 }
 @media (min-width: 769px) and (max-height: 720px) {
+  .page-root { --home-ai-dock-space: 104px; --home-ai-chat-bottom-buffer: 116px; }
   .hero-home { padding: 20px 32px 132px; }
   .hero-brand { margin-bottom: 16px; }
   .hero-brand-icon-wrap { width: 96px; height: 96px; margin-bottom: 10px; }
@@ -2237,16 +2550,17 @@ onBeforeUnmount(() => {
   .home-scan-panel { margin-bottom: 12px; }
   .home-scan-status-item, .home-scan-action { padding-top: 8px; padding-bottom: 8px; }
   .home-scan-action-sub { display: none; }
-  .home-ai-input { min-height: 48px; max-height: 86px; }
+  .home-ai-input { min-height: 40px; max-height: 60px; }
   .home-ai-main { bottom: 12px; }
   .hero-home.chat-active { padding: 10px 32px 158px; }
-  .hero-home.chat-active.reading-active { padding-top: 8px; padding-bottom: 118px; }
+  .hero-home.chat-active.reading-active { padding: 0 32px var(--home-ai-dock-space); }
   .hero-home.chat-active .hero-brand { margin-bottom: 10px; }
   .hero-home.chat-active .hero-brand-icon-wrap { width: 50px; height: 50px; }
   .hero-home.chat-active .hero-brand-icon { width: 42px; height: 42px; transform: translateY(2px); }
   .hero-home.chat-active .hero-brand-name { font-size: 1.14rem; letter-spacing: 4px; text-indent: 4px; }
 }
 @media (min-width: 769px) and (max-height: 620px) {
+  .page-root { --home-ai-dock-space: 96px; --home-ai-chat-bottom-buffer: 106px; }
   .hero-home { padding: 14px 32px 120px; }
   .hero-brand { margin-bottom: 10px; }
   .hero-brand-icon-wrap { width: 78px; height: 78px; margin-bottom: 8px; }
@@ -2260,22 +2574,23 @@ onBeforeUnmount(() => {
   .home-scan-action-mark { width: 22px; height: 22px; border-radius: 7px; font-size: 0.7rem; }
   .home-scan-action-main { font-size: 0.72rem; }
   .home-scan-action-sub { display: none; }
-  .home-ai-input { min-height: 44px; max-height: 72px; font-size: 0.88rem; }
+  .home-ai-input { min-height: 38px; max-height: 56px; font-size: 0.88rem; }
   .home-ai-main { padding: 8px 10px; gap: 5px; bottom: 8px; }
   .home-ai-toolbar { min-height: 34px; }
   .profile-picker, .tool-picker, .reading-mode-picker, .llm-picker, .home-ai-send { min-height: 32px; }
   .home-ai-send { width: 32px; height: 32px; }
   .hero-home.chat-active { padding: 8px 32px 156px; }
-  .hero-home.chat-active.reading-active { padding-top: 6px; padding-bottom: 108px; }
+  .hero-home.chat-active.reading-active { padding: 0 32px var(--home-ai-dock-space); }
   .hero-home.chat-active .hero-brand { margin-bottom: 8px; }
   .hero-home.chat-active .hero-brand-icon-wrap { width: 42px; height: 42px; }
   .hero-home.chat-active .hero-brand-icon { width: 34px; height: 34px; transform: translateY(1px); }
   .hero-home.chat-active .hero-brand-name { font-size: 1rem; letter-spacing: 3px; text-indent: 3px; }
 }
 @media (max-width: 768px) {
+  .page-root { --home-ai-dock-space: 124px; --home-ai-chat-bottom-buffer: 136px; }
   .hero-home { height: calc(100dvh - 60px); min-height: 0; padding: 34px 16px 126px; }
   .hero-home.chat-active { height: calc(100dvh - 60px); min-height: 0; padding: 10px 16px 162px; }
-  .hero-home.chat-active.reading-active { padding: 8px 16px 122px; }
+  .hero-home.chat-active.reading-active { padding: 0 16px var(--home-ai-dock-space); }
   .hero-brand { margin-bottom: 38px; }
   .hero-home.chat-active .hero-brand { gap: 8px; margin-bottom: 10px; }
   .hero-home.chat-active .hero-brand-icon-wrap { width: 48px; height: 48px; margin: 0; }
@@ -2295,11 +2610,11 @@ onBeforeUnmount(() => {
   .home-scan-action-sub { display: none; }
   .home-ai-console { margin-top: 0; padding-bottom: 0; }
   .home-ai-console.has-chat { width: calc(100vw - 32px); padding: 0; margin-top: 0; }
-  .home-ai-console.has-chat .home-ai-chat { flex: 1 1 0; height: 100%; min-height: 0; max-height: none; padding-bottom: 124px; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-y; scroll-padding-bottom: 142px; }
+  .home-ai-console.has-chat .home-ai-chat { flex: 1 1 0; height: 100%; min-height: 0; max-height: none; padding-bottom: var(--home-ai-chat-bottom-buffer); overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-y; scroll-padding-bottom: var(--home-ai-chat-bottom-buffer); }
   .home-ai-main { bottom: 8px; width: calc(100vw - 18px); border-radius: 16px; }
   .home-ai-main { padding: 9px 10px; gap: 6px; }
-  .home-ai-input { min-height: 48px; max-height: 84px; font-size: 0.88rem; }
-  .home-ai-console.has-chat .home-ai-input { min-height: 42px; max-height: 74px; }
+  .home-ai-input { min-height: 40px; max-height: 58px; font-size: 0.88rem; }
+  .home-ai-console.has-chat .home-ai-input { min-height: 36px; max-height: 54px; }
   .home-ai-toolbar { gap: 4px; flex-wrap: nowrap !important; overflow-x: hidden; box-sizing: border-box; }
   .home-ai-toolbar-left, .home-ai-toolbar-right { gap: 4px; }
   .home-ai-toolbar-right { gap: 3px; overflow-x: hidden; box-sizing: border-box; }
@@ -2369,9 +2684,10 @@ onBeforeUnmount(() => {
   .section-desc { font-size: 0.8125rem; }
 }
 @media (max-width: 480px) {
+  .page-root { --home-ai-dock-space: 120px; --home-ai-chat-bottom-buffer: 132px; }
   .hero-home { padding: 54px 16px 120px; }
   .hero-home.chat-active { height: calc(100dvh - 60px); min-height: 0; padding: 10px 16px 156px; }
-  .hero-home.chat-active.reading-active { padding: 8px 16px 116px; }
+  .hero-home.chat-active.reading-active { padding: 0 16px var(--home-ai-dock-space); }
   .hero-brand-icon-wrap { width: 120px; height: 120px; }
   .hero-brand-icon { width: 90px; height: 90px; transform: translateY(3px); }
   .hero-brand-name { font-size: 1.6rem; letter-spacing: 4px; }
@@ -2380,9 +2696,9 @@ onBeforeUnmount(() => {
   .home-scan-panel { display: none; }
   .hero-home.chat-active .hero-brand-slogan { display: none; }
   .home-ai-console.has-chat { width: calc(100vw - 32px); padding-top: 0; }
-  .home-ai-console.has-chat .home-ai-chat { flex: 1 1 0; height: 100%; min-height: 0; max-height: none; padding: 10px 10px 130px; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-y; scroll-padding-bottom: 148px; }
-  .home-ai-main { padding: 8px 9px; gap: 5px; border-radius: 15px; }
-  .home-ai-input { min-height: 42px; max-height: 72px; font-size: 0.84rem; padding: 5px 4px 0; }
+  .home-ai-console.has-chat .home-ai-chat { flex: 1 1 0; height: 100%; min-height: 0; max-height: none; padding: 10px 10px var(--home-ai-chat-bottom-buffer); overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-y; scroll-padding-bottom: var(--home-ai-chat-bottom-buffer); }
+  .home-ai-main { padding: 7px 9px; gap: 4px; border-radius: 15px; }
+  .home-ai-input { min-height: 34px; max-height: 50px; font-size: 0.84rem; padding: 3px 4px 0; }
   .home-ai-toolbar { gap: 3px; flex-wrap: nowrap !important; overflow-x: hidden; box-sizing: border-box; }
   .home-ai-toolbar-left, .home-ai-toolbar-right { gap: 3px; }
   .home-ai-toolbar-right { overflow-x: hidden; box-sizing: border-box; }

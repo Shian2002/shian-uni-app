@@ -1,6 +1,50 @@
 import secrets
 import datetime
 
+TAROT_IMAGE_BASE_URL = "/static/tarot/rws/"
+
+MAJOR_IMAGE_FILES = {idx: f"m{idx:02d}.jpg" for idx in range(22)}
+
+MINOR_SUIT_META = {
+    "权杖": {"name_en": "Wands", "prefix": "w"},
+    "圣杯": {"name_en": "Cups", "prefix": "c"},
+    "宝剑": {"name_en": "Swords", "prefix": "s"},
+    "星币": {"name_en": "Pentacles", "prefix": "p"},
+}
+
+MINOR_NUMBER_META = {
+    "Ace": {"name_en": "Ace", "image_index": 1},
+    "2": {"name_en": "Two", "image_index": 2},
+    "3": {"name_en": "Three", "image_index": 3},
+    "4": {"name_en": "Four", "image_index": 4},
+    "5": {"name_en": "Five", "image_index": 5},
+    "6": {"name_en": "Six", "image_index": 6},
+    "7": {"name_en": "Seven", "image_index": 7},
+    "8": {"name_en": "Eight", "image_index": 8},
+    "9": {"name_en": "Nine", "image_index": 9},
+    "10": {"name_en": "Ten", "image_index": 10},
+    "Page": {"name_en": "Page", "image_index": 11},
+    "Knight": {"name_en": "Knight", "image_index": 12},
+    "Queen": {"name_en": "Queen", "image_index": 13},
+    "King": {"name_en": "King", "image_index": 14},
+}
+
+
+def _image_url(image_key):
+    return TAROT_IMAGE_BASE_URL + image_key
+
+
+def _minor_name_en(number, suit_name):
+    number_meta = MINOR_NUMBER_META[number]
+    suit_meta = MINOR_SUIT_META[suit_name]
+    return f"{number_meta['name_en']} of {suit_meta['name_en']}"
+
+
+def _minor_image_key(number, suit_name):
+    number_meta = MINOR_NUMBER_META[number]
+    suit_meta = MINOR_SUIT_META[suit_name]
+    return f"{suit_meta['prefix']}{number_meta['image_index']:02d}.jpg"
+
 MAJOR_ARCANA = [
     {"id": 0, "name": "愚者", "name_en": "The Fool", "keyword": "新的开始，冒险，天真", "keyword_reversed": "鲁莽，愚蠢，冒险"},
     {"id": 1, "name": "魔术师", "name_en": "The Magician", "keyword": "创造力，技能，自信", "keyword_reversed": "欺骗，浪费才能，失败"},
@@ -165,10 +209,13 @@ def _build_full_deck():
     deck = []
     card_id = 0
     for m in MAJOR_ARCANA:
+        image_key = MAJOR_IMAGE_FILES[m["id"]]
         deck.append({
             "id": m["id"],
             "name": m["name"],
             "name_en": m["name_en"],
+            "image_key": image_key,
+            "image_url": _image_url(image_key),
             "type": "major",
             "suit": None,
             "number": None,
@@ -179,10 +226,13 @@ def _build_full_deck():
         card_id += 1
     for suit_name, suit_data in MINOR_ARCANA.items():
         for c in suit_data["cards"]:
+            image_key = _minor_image_key(c["number"], suit_name)
             deck.append({
                 "id": card_id,
                 "name": c["name"],
-                "name_en": "",
+                "name_en": _minor_name_en(c["number"], suit_name),
+                "image_key": image_key,
+                "image_url": _image_url(image_key),
                 "type": "minor",
                 "suit": suit_name,
                 "number": c["number"],
@@ -219,6 +269,8 @@ def draw_cards(spread_name="three", enable_reversed=True):
             "id": card["id"],
             "name": card["name"],
             "name_en": card["name_en"],
+            "image_key": card["image_key"],
+            "image_url": card["image_url"],
             "type": card["type"],
             "suit": card["suit"],
             "number": card["number"],

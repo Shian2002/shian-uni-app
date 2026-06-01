@@ -160,14 +160,12 @@ let _drawResult = null
 let _cardsConfirmed = false
 let _isDrawing = false
 
-// ═══ 大阿卡纳图标映射 ═══
-const MAJOR_ICONS = {
-  0: '🃏', 1: '🎩', 2: '🌙', 3: '👑', 4: '🏛️', 5: '⛪',
-  6: '💕', 7: '⚔️', 8: '🦁', 9: '🏔️', 10: '🎡', 11: '⚖️',
-  12: '🔄', 13: '🦋', 14: '🏺', 15: '⛓️', 16: '⚡', 17: '⭐',
-  18: '🌕', 19: '☀️', 20: '📯', 21: '🌍'
+const TAROT_IMAGE_BASE_URL = '/static/tarot/rws/'
+const MINOR_SUIT_PREFIX = { '权杖': 'w', '圣杯': 'c', '宝剑': 's', '星币': 'p' }
+const MINOR_NUMBER_IMAGE_INDEX = {
+  Ace: 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
+  '8': 8, '9': 9, '10': 10, Page: 11, Knight: 12, Queen: 13, King: 14
 }
-const SUIT_ICONS = { '权杖': '🔥', '圣杯': '💧', '宝剑': '🗡️', '星币': '🪙' }
 
 // ═══ 星星动画 ═══
 const stars = reactive([])
@@ -225,10 +223,41 @@ function toggleReversed() {
   if (toggle) { enableReversed.value ? toggle.classList.add('on') : toggle.classList.remove('on') }
 }
 
-// ═══ 卡牌图标 ═══
-function getCardIcon(card) {
-  if (card.type === 'major') return MAJOR_ICONS[card.id] || '🃏'
-  return SUIT_ICONS[card.suit] || '🃏'
+function _escTarotText(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function getCardImage(card) {
+  if (card.image_url) return card.image_url
+  if (card.image_key) return TAROT_IMAGE_BASE_URL + card.image_key
+  if (card.type === 'major' && typeof card.id === 'number') return TAROT_IMAGE_BASE_URL + 'm' + String(card.id).padStart(2, '0') + '.jpg'
+  var prefix = MINOR_SUIT_PREFIX[card.suit]
+  var index = MINOR_NUMBER_IMAGE_INDEX[card.number]
+  if (prefix && index) return TAROT_IMAGE_BASE_URL + prefix + String(index).padStart(2, '0') + '.jpg'
+  return ''
+}
+
+function getCardImageKey(card) {
+  if (card.image_key) return card.image_key
+  var image = getCardImage(card)
+  return image ? image.split('/').pop() : ''
+}
+
+function getCardAlt(card) {
+  var name = card.name || ''
+  var en = card.name_en ? ' / ' + card.name_en : ''
+  return name + en + ' ' + (card.orientation || '')
+}
+
+function showTarotCardFallback(img) {
+  var front = img && img.closest ? img.closest('.tarot-card-front') : null
+  if (!front) return
+  front.classList.add('image-failed')
 }
 
 // ═══ 翻牌（DOM直操作） ═══
@@ -308,13 +337,18 @@ function _showResultDOM() {
     if (display && _drawResult.cards && _drawResult.cards.length) {
       display.setAttribute('data-count', String(_drawResult.cards.length))
       display.innerHTML = _drawResult.cards.map(function(card, i) {
-      const icon = card.type === 'major'
-        ? (MAJOR_ICONS[card.id] || '🃏')
-        : (SUIT_ICONS[card.suit] || '🃏')
       const orientationClass = card.is_reversed ? 'reversed' : 'upright'
       const keyword = card.is_reversed && card.keyword_reversed
         ? card.keyword_reversed
         : card.keyword
+      const imageUrl = getCardImage(card)
+      const imageKey = getCardImageKey(card)
+      const imageClass = 'tarot-card-img' + (card.is_reversed ? ' tarot-card-img-reversed' : '')
+      const cardNum = card.type === 'major' ? card.id : (card.number || '')
+      const cardName = _escTarotText(card.name)
+      const cardNameEn = _escTarotText(card.name_en)
+      const cardAlt = _escTarotText(getCardAlt(card))
+      const cardKeyword = _escTarotText(keyword)
 
       return '<div class="tarot-card-slot" style="animation: tarotCardAppear 0.5s ' + (i * 0.15) + 's both">' +
         '<div class="tarot-card-flipper" id="cardFlipper' + i + '" onclick="event.preventDefault();window.__tarotFlip(' + i + ', event)">' +
@@ -323,17 +357,24 @@ function _showResultDOM() {
             '<span class="tarot-card-back-symbol">✦</span>' +
           '</div>' +
           '<div class="tarot-card-front">' +
-            '<div class="tarot-card-num">' + (card.type === 'major' ? (card.id + 1) : card.number) + '</div>' +
-            '<div class="tarot-card-icon">' + icon + '</div>' +
-            '<div class="tarot-card-name">' + card.name + '</div>' +
-            '<div class="tarot-card-name-en">' + card.name_en + '</div>' +
+            '<div class="tarot-card-art-wrap">' +
+              '<img class="' + imageClass + '" src="' + _escTarotText(imageUrl) + '" alt="' + cardAlt + '" loading="lazy" data-image-key="' + _escTarotText(imageKey) + '" onerror="window.__tarotImageFallback(this)">' +
+              '<div class="tarot-card-fallback">' +
+                '<div class="tarot-card-num">' + _escTarotText(cardNum) + '</div>' +
+                '<div class="tarot-card-name">' + cardName + '</div>' +
+                '<div class="tarot-card-name-en">' + cardNameEn + '</div>' +
+                '<div class="tarot-card-keyword">' + cardKeyword + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="tarot-card-name tarot-card-name-below">' + cardName + '</div>' +
+            '<div class="tarot-card-name-en">' + cardNameEn + '</div>' +
             '<div class="tarot-card-orientation ' + orientationClass + '">' + card.orientation + '</div>' +
-            '<div class="tarot-card-keyword">' + keyword + '</div>' +
+            '<div class="tarot-card-keyword tarot-card-keyword-below">' + cardKeyword + '</div>' +
           '</div>' +
         '</div>' +
         '<div class="tarot-card-position">' +
-          '<div class="tarot-card-position-name">' + card.position_name + '</div>' +
-          '<div class="tarot-card-position-meaning">' + card.position_meaning + '</div>' +
+          '<div class="tarot-card-position-name">' + _escTarotText(card.position_name) + '</div>' +
+          '<div class="tarot-card-position-meaning">' + _escTarotText(card.position_meaning) + '</div>' +
           (card.is_reversed ? '<div class="tarot-card-reversed-hint">逆位</div>' : '') +
         '</div>' +
       '</div>'
@@ -342,6 +383,7 @@ function _showResultDOM() {
 
   // 注册全局翻牌函数
   window.__tarotFlip = flipCard
+  window.__tarotImageFallback = showTarotCardFallback
 
   // 自动翻牌
   _drawResult.cards.forEach(function(_, i) {
@@ -1391,26 +1433,28 @@ function _checkTarotRestore() {
 .tarot-cards-display {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  gap: 18px;
   margin-bottom: 32px;
   justify-items: center;
 }
-.tarot-cards-display[data-count="1"] { grid-template-columns: 1fr; max-width: 200px; margin-left: auto; margin-right: auto; }
-.tarot-cards-display[data-count="3"] { grid-template-columns: repeat(3, 1fr); max-width: 560px; margin-left: auto; margin-right: auto; }
-.tarot-cards-display[data-count="5"] { grid-template-columns: repeat(3, 1fr); max-width: 560px; margin-left: auto; margin-right: auto; }
-.tarot-cards-display[data-count="6"] { grid-template-columns: repeat(3, 1fr); max-width: 560px; margin-left: auto; margin-right: auto; }
-.tarot-cards-display[data-count="7"] { grid-template-columns: repeat(4, 1fr); max-width: 720px; margin-left: auto; margin-right: auto; }
-.tarot-cards-display[data-count="10"] { grid-template-columns: repeat(5, 1fr); max-width: 880px; margin-left: auto; margin-right: auto; }
+.tarot-cards-display[data-count="1"] { grid-template-columns: 1fr; max-width: 220px; margin-left: auto; margin-right: auto; }
+.tarot-cards-display[data-count="3"] { grid-template-columns: repeat(3, 1fr); max-width: 680px; margin-left: auto; margin-right: auto; }
+.tarot-cards-display[data-count="5"] { grid-template-columns: repeat(3, 1fr); max-width: 680px; margin-left: auto; margin-right: auto; }
+.tarot-cards-display[data-count="6"] { grid-template-columns: repeat(3, 1fr); max-width: 680px; margin-left: auto; margin-right: auto; }
+.tarot-cards-display[data-count="7"] { grid-template-columns: repeat(4, 1fr); max-width: 880px; margin-left: auto; margin-right: auto; }
+.tarot-cards-display[data-count="10"] { grid-template-columns: repeat(5, 1fr); max-width: 1060px; margin-left: auto; margin-right: auto; }
 .tarot-card-slot {
   width: 100%;
-  max-width: 160px;
+  max-width: 190px;
   perspective: 600px;
   overflow-anchor: none;
 }
 .tarot-card-flipper {
   position: relative;
   width: 100%;
-  height: 260px;
+  aspect-ratio: 7 / 12;
+  height: auto;
+  min-height: 300px;
   transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
   transform-style: preserve-3d;
   cursor: pointer;
@@ -1445,43 +1489,89 @@ function _checkTarotRestore() {
 }
 .tarot-card-front {
   transform: rotateY(180deg);
-  background: var(--bg-2);
-  border: 2px solid var(--accent);
+  background: #f8f2e4;
+  border: 1px solid rgba(126, 91, 38, 0.42);
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 16px 10px;
+  padding: 6px;
+  box-shadow: inset 0 0 0 4px rgba(255,255,255,0.56);
 }
 .tarot-card-num {
   font-size: 0.6875rem;
   color: var(--text-4);
   margin-bottom: 4px;
 }
-.tarot-card-icon {
-  font-size: 2.2rem;
-  margin-bottom: 6px;
-  line-height: 1;
+.tarot-card-art-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 7 / 12;
+  min-height: 0;
+  border-radius: 7px;
+  overflow: hidden;
+  background: rgba(90,65,35,0.08);
+  border: 1px solid rgba(126,91,38,0.24);
+  flex: 1 1 auto;
+}
+.tarot-card-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform-origin: center;
+}
+.tarot-card-img-reversed {
+  transform: rotate(180deg);
+}
+.tarot-card-fallback {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 10px;
+  text-align: center;
+  background: linear-gradient(180deg, #fbf4e4, #ead9b9);
+}
+.tarot-card-front.image-failed .tarot-card-img {
+  display: none;
+}
+.tarot-card-front.image-failed .tarot-card-fallback {
+  display: flex;
 }
 .tarot-card-name {
   font-weight: 700;
-  font-size: 0.9375rem;
-  color: var(--text-1);
+  font-size: 0.875rem;
+  color: #2c2418;
   text-align: center;
-  margin-bottom: 2px;
-  letter-spacing: 1px;
+  margin: 5px 0 1px;
+  letter-spacing: 0;
+}
+.tarot-card-name-below {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .tarot-card-name-en {
-  font-size: 0.625rem;
-  color: var(--text-4);
+  font-size: 0.6rem;
+  color: rgba(44,36,24,0.64);
   text-align: center;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .tarot-card-orientation {
   font-size: 0.75rem;
-  padding: 2px 8px;
+  padding: 1px 7px;
   border-radius: 8px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   font-weight: 600;
+  flex: 0 0 auto;
 }
 .tarot-card-orientation.upright {
   color: #5b8c5a;
@@ -1494,10 +1584,17 @@ function _checkTarotRestore() {
   border: 1px solid rgba(192,57,43,0.3);
 }
 .tarot-card-keyword {
-  font-size: 0.6875rem;
-  color: var(--text-3);
+  font-size: 0.625rem;
+  color: rgba(44,36,24,0.66);
   text-align: center;
-  line-height: 1.5;
+  line-height: 1.35;
+}
+.tarot-card-keyword-below {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 32px;
 }
 .tarot-card-position {
   text-align: center;
@@ -1678,8 +1775,8 @@ function _checkTarotRestore() {
 @media (max-width: 768px) {
   .tarot-hero-title { font-size: 1.6rem; }
   .spread-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
-  .tarot-card-slot { max-width: 130px; }
-  .tarot-card-flipper { height: 220px; }
+  .tarot-card-slot { max-width: 138px; }
+  .tarot-card-flipper { min-height: 236px; }
   .tarot-cards-display { gap: 12px; }
   .tarot-cards-display[data-count="6"] { grid-template-columns: repeat(3, 1fr); max-width: 420px; }
   .tarot-cards-display[data-count="7"] { grid-template-columns: repeat(4, 1fr); max-width: 560px; }
@@ -1687,9 +1784,11 @@ function _checkTarotRestore() {
   .tarot-settings { flex-direction: column; align-items: stretch; }
 }
 @media (max-width: 480px) {
-  .tarot-card-slot { max-width: 110px; }
-  .tarot-card-flipper { height: 200px; }
-  .tarot-card-name { font-size: 0.8125rem; }
+  .tarot-card-slot { max-width: 116px; }
+  .tarot-card-flipper { min-height: 214px; }
+  .tarot-card-name { font-size: 0.75rem; }
+  .tarot-card-name-en { font-size: 0.55rem; }
+  .tarot-card-keyword-below { display: none; }
   .tarot-cards-display[data-count="6"] { grid-template-columns: repeat(2, 1fr); max-width: 240px; }
   .tarot-cards-display[data-count="7"] { grid-template-columns: repeat(3, 1fr); max-width: 360px; }
   .tarot-cards-display[data-count="10"] { grid-template-columns: repeat(4, 1fr); max-width: 480px; }

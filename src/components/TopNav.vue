@@ -205,6 +205,7 @@ function ensureGlobalSidebar() {
 
   document.body.appendChild(overlay)
   document.body.appendChild(sidebar)
+  _bindSidebarListInteractions(sidebar)
   _restoreSidebarView()
   applySidebarAvatar(uni.getStorageSync('xc_avatar') || DEFAULT_AVATAR_URL, false)
 }
@@ -597,8 +598,8 @@ function _renderSidebarGroups(groups, listEl) {
 function _renderNewConversationItem(type, label) {
   var text = '＋ 新对话'
   if (label) text += ' · ' + _escHtml(label)
-  var action = 'window._xc_startNewConversation(\'' + type + '\')'
-  return '<div class="sidebar-item sidebar-new-item" onclick="' + action + '" ontouchend="event.preventDefault();event.stopPropagation();' + action + '">'
+  var actionId = _registerSidebarAction(function() { window._xc_startNewConversation(type) })
+  return '<div class="sidebar-item sidebar-new-item" data-click-action="' + actionId + '">'
     + '<div class="sidebar-item-body">'
     + '<span class="sidebar-item-text">' + text + '</span>'
     + '<span class="sidebar-item-time">开始新的提问</span>'
@@ -610,41 +611,115 @@ function _renderSidebarItem(r) {
   var text = _escHtml(r.question || '(无问题)')
   var realId = r._comprehensiveConvId || r._tarotConvId || r._lyConvId || r._mhConvId || r._qaiConvId || r._baziConvId || r._zwConvId || r.id
   var appType = r.app_type || ''
-  var deleteConfirm = 'event.stopPropagation();if(confirm(\'确定要删除这条记录吗？\'))window._xc_deleteHistoryItem(\'' + appType + '\',\'' + realId + '\',this)'
-  var clickAction = r._comprehensiveConvId
-    ? 'window._showComprehensiveConv(' + r._comprehensiveConvId + ')'
-    : r._tarotConvId
-    ? 'window._showTarotConv(' + r._tarotConvId + ')'
-    : r.app_type === 'tarot'
-    ? 'window._showTarotRecordDetail(' + r.id + ')'
-    : r._lyConvId
-    ? 'window._showLyConvDetail(' + r._lyConvId + ')'
-    : r._mhConvId
-    ? 'window._showMhConvDetail(' + r._mhConvId + ')'
-    : r._qaiConvId
-    ? 'window._showQiConvDetail(' + r._qaiConvId + ')'
-    : r._baziConvId
-    ? 'window._showBaziConvDetail(' + r._baziConvId + ')'
-    : r._zwConvId
-    ? 'window._showZwConvDetail(' + r._zwConvId + ')'
-    : r.app_type === 'comprehensive'
-    ? 'window._showComprehensiveConv(' + realId + ')'
-    : r.app_type === 'liuyao'
-    ? 'window._showLyRecordDetail(' + r.id + ')'
-    : r.app_type === 'qimen'
-    ? 'window._showQiRecordDetail(' + r.id + ')'
-    : r.app_type === 'bazi'
-    ? 'window._showBaziRecordDetail(' + r.id + ')'
-    : r.app_type === 'ziwei'
-    ? 'window._showHistoryDetail(' + r.id + ')'
-    : 'window._showHistoryDetail(' + r.id + ')'
-  return '<div class="sidebar-item" onclick="' + clickAction + '" ontouchend="event.preventDefault();event.stopPropagation();' + clickAction + '">'
+  var clickAction = function() {
+    if (r._comprehensiveConvId) window._showComprehensiveConv(r._comprehensiveConvId)
+    else if (r._tarotConvId) window._showTarotConv(r._tarotConvId)
+    else if (r.app_type === 'tarot') window._showTarotRecordDetail(r.id)
+    else if (r._lyConvId) window._showLyConvDetail(r._lyConvId)
+    else if (r._mhConvId) window._showMhConvDetail(r._mhConvId)
+    else if (r._qaiConvId) window._showQiConvDetail(r._qaiConvId)
+    else if (r._baziConvId) window._showBaziConvDetail(r._baziConvId)
+    else if (r._zwConvId) window._showZwConvDetail(r._zwConvId)
+    else if (r.app_type === 'comprehensive') window._showComprehensiveConv(realId)
+    else if (r.app_type === 'liuyao') window._showLyRecordDetail(r.id)
+    else if (r.app_type === 'qimen') window._showQiRecordDetail(r.id)
+    else if (r.app_type === 'bazi') window._showBaziRecordDetail(r.id)
+    else window._showHistoryDetail(r.id)
+  }
+  var clickActionId = _registerSidebarAction(clickAction)
+  var deleteActionId = _registerSidebarAction(function(el) {
+    if (confirm('确定要删除这条记录吗？')) window._xc_deleteHistoryItem(appType, realId, el)
+  })
+  return '<div class="sidebar-item" data-click-action="' + clickActionId + '">'
     + '<div class="sidebar-item-body">'
     + '<span class="sidebar-item-text">' + text + '</span>'
     + '<span class="sidebar-item-time">' + time + '</span>'
     + '</div>'
-    + '<span class="sidebar-item-del" onclick="' + deleteConfirm + '" ontouchend="event.preventDefault();' + deleteConfirm + '" title="删除">✕</span>'
+    + '<span class="sidebar-item-del" data-delete-action="' + deleteActionId + '" title="删除">✕</span>'
     + '</div>'
+}
+
+function _registerSidebarAction(fn) {
+  if (!window.__sidebarActionMap) window.__sidebarActionMap = {}
+  if (!window.__sidebarActionSeq) window.__sidebarActionSeq = 1
+  var id = 'a' + (window.__sidebarActionSeq++)
+  window.__sidebarActionMap[id] = fn
+  return id
+}
+
+function _runSidebarAction(id, el) {
+  var map = window.__sidebarActionMap || {}
+  if (id && typeof map[id] === 'function') map[id](el)
+}
+
+function _bindSidebarListInteractions(sidebar) {
+  var list = sidebar && sidebar.querySelector ? sidebar.querySelector('#sidebarListGlobal') : null
+  if (!list || list.__sidebarTouchBound) return
+  list.__sidebarTouchBound = true
+  var touchState = null
+
+  list.addEventListener('touchstart', function(e) {
+    var t = e.touches && e.touches[0]
+    if (!t) return
+    touchState = { x: t.clientX, y: t.clientY, time: Date.now(), moving: false }
+    list.classList.remove('sidebar-touch-moving')
+  }, { passive: true })
+
+  list.addEventListener('touchmove', function(e) {
+    if (!touchState) return
+    var t = e.touches && e.touches[0]
+    if (!t) return
+    var dx = Math.abs(t.clientX - touchState.x)
+    var dy = Math.abs(t.clientY - touchState.y)
+    if (dx > 8 || dy > 8) {
+      touchState.moving = true
+      list.classList.add('sidebar-touch-moving')
+    }
+  }, { passive: true })
+
+  list.addEventListener('touchend', _handleSidebarTouchEnd, { passive: false })
+
+  list.addEventListener('click', function(e) {
+    if (list.classList.contains('sidebar-touch-moving')) {
+      e.preventDefault()
+      e.stopPropagation()
+      list.classList.remove('sidebar-touch-moving')
+      return
+    }
+    _handleSidebarActionEvent(e)
+  })
+
+  function _handleSidebarTouchEnd(e) {
+    if (!touchState) return
+    var wasMoving = touchState.moving || (Date.now() - touchState.time > 700)
+    touchState = null
+    if (wasMoving) {
+      list.classList.add('sidebar-touch-moving')
+      setTimeout(function() { list.classList.remove('sidebar-touch-moving') }, 120)
+      return
+    }
+    e.preventDefault()
+    _handleSidebarActionEvent(e)
+  }
+
+  window._handleSidebarTouchEnd = _handleSidebarTouchEnd
+}
+
+function _handleSidebarActionEvent(e) {
+  var target = e.target
+  var del = target && target.closest ? target.closest('[data-delete-action]') : null
+  if (del) {
+    e.preventDefault()
+    e.stopPropagation()
+    _runSidebarAction(del.getAttribute('data-delete-action'), del)
+    return
+  }
+  var item = target && target.closest ? target.closest('.sidebar-item[data-click-action]') : null
+  if (item) {
+    e.preventDefault()
+    e.stopPropagation()
+    _runSidebarAction(item.getAttribute('data-click-action'), item)
+  }
 }
 
 // 返回侧边栏列表
