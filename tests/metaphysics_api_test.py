@@ -369,6 +369,55 @@ def test_comprehensive_new_conversation_returns_full_bazi_artifact(app_module, u
     assert "bazi.basic" in done["artifacts"]
 
 
+def test_comprehensive_multi_profile_unwraps_artifacts_and_yun(app_module, user_factory, monkeypatch):
+    user = user_factory("artifact-multi-user")
+    monkeypatch.setattr(app_module, "get_reading_stream", lambda messages: iter([("今年运势要结合盘面看。", None)]))
+
+    def fake_build_one_tool(tool, profile, question):
+        if tool == "qimen":
+            return tool, {"ju": "阳遁一局", "solar_date": "2026-06-01", "profile": profile["name"]}
+        if tool == "bazi":
+            return tool, {
+                "birth_time": profile["birth_time"],
+                "four_pillars": {
+                    "year": {"gan_zhi": "己丑", "gan": "己", "zhi": "丑"},
+                    "month": {"gan_zhi": "丙寅", "gan": "丙", "zhi": "寅"},
+                    "day": {"gan_zhi": "乙巳", "gan": "乙", "zhi": "巳"},
+                    "hour": {"gan_zhi": "庚辰", "gan": "庚", "zhi": "辰"},
+                },
+                "dayun": [{"start_year": 2024, "start_age": 16, "end_age": 25, "gan_zhi": "戊辰"}],
+                "liu_nian": [{"year": 2026, "gan_zhi": "丙午"}],
+            }
+        return tool, {}
+
+    monkeypatch.setattr(app_module, "_build_one_tool", fake_build_one_tool)
+    with app_module.app.app_context():
+        app_module.add_points(user.id, "admin_add", 100, "测试积分")
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+      sess["_user_id"] = str(user.id)
+      sess["_fresh"] = True
+
+    response = client.post("/api/comprehensive/ask/stream", json={
+        "question": "我想知道我今年的运势怎么样",
+        "reading_mode": "deep",
+        "profiles": [
+            {"name": "丑牛示例命盘", "gender": "女", "calType": "公历", "birthTime": "200903010800"},
+            {"name": "卯兔示例命盘", "gender": "女", "calType": "公历", "birthTime": "201103010800"},
+        ],
+        "tool_models": ["qimen", "bazi"],
+        "paipan": {"paipan": {}, "artifacts": {}},
+    })
+
+    assert response.status_code == 200
+    paipan_done = next(p for p in _sse_payloads(response) if p.get("stage") == "paipan_done")
+    assert paipan_done["artifact_actions"]["added"] == ["qimen.pan", "bazi.basic", "bazi.yun"]
+    assert paipan_done["artifacts"]["qimen.pan"]["data"]["ju"] == "阳遁一局"
+    assert paipan_done["artifacts"]["bazi.basic"]["data"]["birth_time"] == "200903010800"
+    assert paipan_done["artifacts"]["bazi.yun"]["data"]["dayun"][0]["gan_zhi"] == "戊辰"
+
+
 def test_comprehensive_followup_reuses_existing_artifact_and_adds_yun_when_needed(app_module, user_factory, monkeypatch):
     user = user_factory("artifact-follow-user")
     monkeypatch.setattr(app_module, "get_reading_stream", lambda messages: iter([("继续分析。", None)]))

@@ -4245,7 +4245,7 @@ def _artifact_title_for_key(key):
 
 def _question_needs_yun(question):
     text = str(question or '')
-    return any(k in text for k in ['发财', '正缘', '结婚', '婚期', '哪年', '什么时候', '流年', '流月', '大运', '应期', '机会'])
+    return any(k in text for k in ['发财', '正缘', '结婚', '婚期', '哪年', '什么时候', '今年', '明年', '运势', '年运', '流年', '流月', '大运', '应期', '机会'])
 
 
 def _question_force_refresh(question, force_refresh=False):
@@ -4266,6 +4266,27 @@ def _bazi_yun_data(bazi_context):
         'xiao_yun': bazi_context.get('xiao_yun') or [],
         'four_pillars': bazi_context.get('four_pillars') or {},
     }
+
+
+def _tool_data_from_paipan_context(paipan_context, tool, profile_index=0):
+    if not isinstance(paipan_context, dict) or not tool:
+        return {}
+    direct = paipan_context.get(tool)
+    if isinstance(direct, dict):
+        return direct
+    profiles = paipan_context.get('profiles')
+    if isinstance(profiles, list) and profiles:
+        idx = profile_index if isinstance(profile_index, int) and profile_index >= 0 else 0
+        item = profiles[min(idx, len(profiles) - 1)]
+        if isinstance(item, dict):
+            paipan = item.get('paipan') or {}
+            if isinstance(paipan, dict) and isinstance(paipan.get(tool), dict):
+                return paipan.get(tool)
+    return {}
+
+
+def _paipan_context_has_tool(paipan_context, tool):
+    return bool(_tool_data_from_paipan_context(paipan_context, tool))
 
 
 def _artifact_from_context(key, tool, data, reading_mode='standard', collapsed=None):
@@ -4290,7 +4311,7 @@ def _select_artifacts_for_context(paipan_context, tool_models, question, existin
     refresh = _question_force_refresh(question, force_refresh)
     for tool in tool_models or []:
         key = _artifact_key_for_tool(tool)
-        tool_data = (paipan_context or {}).get(tool)
+        tool_data = _tool_data_from_paipan_context(paipan_context, tool)
         if key in existing and is_followup and not refresh:
             actions['reused'].append(key)
         elif tool_data:
@@ -4299,7 +4320,7 @@ def _select_artifacts_for_context(paipan_context, tool_models, question, existin
         else:
             actions['skipped'].append(key)
 
-    bazi_data = (paipan_context or {}).get('bazi') or {}
+    bazi_data = _tool_data_from_paipan_context(paipan_context, 'bazi')
     if needs_yun and ('bazi' in (tool_models or []) or 'bazi.basic' in artifacts):
         key = 'bazi.yun'
         if key in existing and is_followup and not refresh:
@@ -4479,7 +4500,7 @@ def api_comprehensive_ask_stream():
             paipan_context, existing_artifacts = _unwrap_comprehensive_paipan(data.get('paipan') or {})
             need_yun = _question_needs_yun(question)
             refresh = _question_force_refresh(question, force_refresh)
-            needs_paipan = (not is_followup) or refresh or not paipan_context or (need_yun and 'bazi' not in paipan_context)
+            needs_paipan = (not is_followup) or refresh or not paipan_context or (need_yun and not _paipan_context_has_tool(paipan_context, 'bazi'))
             if needs_paipan:
                 if profile_count == 1:
                     p = profiles[0]
@@ -4545,7 +4566,7 @@ def api_comprehensive_ask_stream():
             tool_analyses = {}
             ordered_tools = sorted(tool_models or [], key=lambda x: TOOL_DISPLAY_ORDER.index(x) if x in TOOL_DISPLAY_ORDER else 99)
             for tool in ordered_tools:
-                tool_data = (paipan_context or {}).get(tool) or {}
+                tool_data = _tool_data_from_paipan_context(paipan_context, tool)
                 key = _artifact_key_for_tool(tool)
                 tool_name = _TOOL_DISPLAY.get(tool, tool)
                 yield _event({
