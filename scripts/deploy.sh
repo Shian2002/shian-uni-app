@@ -11,6 +11,7 @@ FLASK_PORT=5199               # Flask 端口
 FLASK_USER="lighthouse"       # 运行 Flask 的系统用户
 LIVE_DB="/home/lighthouse/tianji/flask-source/backend/tianji.db"
 DATABASE_URL="sqlite:////home/lighthouse/tianji/flask-source/backend/tianji.db"  # 线上生产库，部署脚本禁止覆盖
+DB_BACKUP_DIR="/home/lighthouse/backups/xuan-cet/db"
 NGINX_CONF="/etc/nginx/sites-available/xuan-cet"
 NGINX_ENABLED="/etc/nginx/sites-enabled/xuan-cet"
 SERVER_IP="119.29.128.18"
@@ -62,10 +63,13 @@ sudo chown -R $FLASK_USER:$FLASK_USER "$H5_DIR/static/uploads"
 
 # 后端启动会执行 create_all/轻量迁移；重启前先备份生产库，便于回滚。
 if [ -f "$LIVE_DB" ]; then
-  DB_BACKUP="$LIVE_DB.bak-deploy-$(date +%Y%m%d-%H%M%S)"
+  sudo mkdir -p "$DB_BACKUP_DIR"
+  DB_BACKUP="$DB_BACKUP_DIR/tianji-deploy-$(date -u +%Y%m%d-%H%M%S).db"
   sudo cp "$LIVE_DB" "$DB_BACKUP"
   sudo chown $FLASK_USER:$FLASK_USER "$DB_BACKUP"
-  echo "  已备份生产数据库: $DB_BACKUP"
+  sudo chmod 600 "$DB_BACKUP"
+  sudo find "$DB_BACKUP_DIR" -name 'tianji-deploy-*.db' -type f -printf '%T@ %p\n' | sort -rn | tail -n +31 | awk '{print $2}' | xargs -r sudo rm -f
+  echo "  已备份生产数据库到专用目录: $DB_BACKUP"
 else
   echo "  [ERROR] 未找到 $LIVE_DB；为避免静默创建空库，部署已停止。"
   exit 1

@@ -4,6 +4,8 @@ from pathlib import Path
 
 INDEX_VUE = Path(__file__).resolve().parents[1] / "src" / "pages" / "index" / "index.vue"
 QIMEN_VUE = Path(__file__).resolve().parents[1] / "src" / "pages" / "qimen" / "index.vue"
+HOME_AI_UTILS = Path(__file__).resolve().parents[1] / "src" / "pages" / "index" / "homeAiUtils.js"
+HOME_AI_DRAFT = Path(__file__).resolve().parents[1] / "src" / "pages" / "index" / "useHomeAiDraft.js"
 
 
 def _source():
@@ -12,6 +14,14 @@ def _source():
 
 def _qimen_source():
     return QIMEN_VUE.read_text(encoding="utf-8")
+
+
+def _home_ai_utils_source():
+    return HOME_AI_UTILS.read_text(encoding="utf-8")
+
+
+def _home_ai_draft_source():
+    return HOME_AI_DRAFT.read_text(encoding="utf-8")
 
 
 def test_comprehensive_stream_rendering_is_batched():
@@ -95,14 +105,16 @@ def test_comprehensive_chat_scroll_is_coalesced():
 
 def test_comprehensive_home_draft_survives_refresh_during_stream():
     source = _source()
+    draft_source = _home_ai_draft_source()
 
     assert "const comprehensiveDraftStorageKey = 'xc_home_comprehensive_draft_v1'" in source
     assert "const COMPREHENSIVE_DRAFT_SAVE_MS = 320" in source
+    assert "createHomeAiDraftStorage" in source
     assert "function saveComprehensiveDraftNow()" in source
     assert "function scheduleComprehensiveDraftSave()" in source
     assert "function restoreComprehensiveDraft()" in source
-    assert "localStorage.setItem(comprehensiveDraftStorageKey" in source
-    assert "localStorage.getItem(comprehensiveDraftStorageKey)" in source
+    assert "localStorage.setItem(storageKey" in draft_source
+    assert "localStorage.getItem(storageKey)" in draft_source
     assert "scheduleComprehensiveDraftSave()" in source
     assert "saveComprehensiveDraftNow()" in source
     assert "restoreComprehensiveDraft()" in source
@@ -145,11 +157,12 @@ def test_home_ai_does_not_lock_page_scroll_while_generating():
 
 def test_home_artifacts_are_normalized_for_old_history_display():
     source = _source()
+    utils_source = _home_ai_utils_source()
 
     assert "function normalizeHomeArtifactForDisplay" in source
     assert "normalizeHomeArtifactForDisplay(artifact" in source
     assert "sanitizeArtifactAnalysisText" in source
-    assert "'zhi_liu_chong': '地支六冲'" in source
+    assert "zhi_liu_chong: '地支六冲'" in utils_source
     assert "artifact.analysis || previous.analysis || ''" not in source
 
 

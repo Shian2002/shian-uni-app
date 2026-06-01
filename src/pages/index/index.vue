@@ -246,6 +246,14 @@
 import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { onLoad, onShow, onHide } from '@dcloudio/uni-app'
 import TopNav from '@/components/TopNav.vue'
+import { createHomeAiDraftStorage } from './useHomeAiDraft.js'
+import {
+  htmlEscape,
+  pillarText,
+  readStorageJson,
+  sanitizeArtifactAnalysisText,
+  writeStorageJson,
+} from './homeAiUtils.js'
 
 // ── 主题 ──
 const theme = ref(uni.getStorageSync('xc_theme') || 'dark')
@@ -352,7 +360,6 @@ let comprehensiveRenderFrame = null
 let comprehensiveTypeFrame = null
 let comprehensivePendingAssistantUpdate = null
 let comprehensiveArtifactAnalysisTimers = {}
-let comprehensiveDraftTimer = null
 const COMPREHENSIVE_TYPE_FRAME_MS = 16
 const COMPREHENSIVE_TYPE_BASE_CPS = 88
 const COMPREHENSIVE_TYPE_MAX_CPS = 180
@@ -460,23 +467,6 @@ function openToolPicker() {
 
 function profileKey(p) {
   return (p.source || 'profile') + ':' + String(p.recordId || p.id || '')
-}
-
-function readStorageJson(key, fallback) {
-  try {
-    const raw = uni.getStorageSync(key)
-    if (!raw) return fallback
-    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
-    return parsed
-  } catch (_) {
-    return fallback
-  }
-}
-
-function writeStorageJson(key, value) {
-  try {
-    uni.setStorageSync(key, JSON.stringify(value))
-  } catch (_) {}
 }
 
 function saveSelectedProfiles() {
@@ -592,42 +582,6 @@ function comprehensiveProfilePayload(p) {
 function getToolName(id) {
   const tool = toolModels.value.find(t => t.id === id)
   return tool ? tool.name : id
-}
-
-function htmlEscape(value) {
-  return String(value == null ? '' : value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
-
-const BAZI_RELATION_LABELS = {
-  'gan_he': '天干合',
-  'gan_chong': '天干冲',
-  'zhi_san_he': '地支三合',
-  'zhi_liu_he': '地支六合',
-  'zhi_ban_he': '地支半合',
-  'zhi_an_he': '地支暗合',
-  'zhi_liu_chong': '地支六冲',
-  'zhi_liu_hai': '地支六害',
-  'zhi_liu_po': '地支相破',
-  'zhi_san_xing': '地支三刑',
-  'zhi_san_hui': '地支三会',
-}
-
-function sanitizeArtifactAnalysisText(text) {
-  let result = String(text || '')
-  Object.keys(BAZI_RELATION_LABELS).forEach(function(key) {
-    result = result.replace(new RegExp(key, 'g'), BAZI_RELATION_LABELS[key])
-  })
-  return result
-}
-
-function pillarText(pillar) {
-  if (!pillar) return ''
-  return pillar.gan_zhi || ((pillar.gan || '') + (pillar.zhi || '')) || String(pillar)
 }
 
 function normalizeHomeArtifactForDisplay(artifact, key, previous, options) {
@@ -1664,50 +1618,7 @@ function comprehensiveDraftPayload() {
   }
 }
 
-function saveComprehensiveDraftNow() {
-  if (comprehensiveDraftTimer) {
-    clearTimeout(comprehensiveDraftTimer)
-    comprehensiveDraftTimer = null
-  }
-  try {
-    if (!comprehensiveMessages.value.length) {
-      localStorage.removeItem(comprehensiveDraftStorageKey)
-      return
-    }
-    localStorage.setItem(comprehensiveDraftStorageKey, JSON.stringify(comprehensiveDraftPayload()))
-  } catch(_) {}
-}
-
-function scheduleComprehensiveDraftSave() {
-  // #ifdef H5
-  if (comprehensiveDraftTimer) return
-  comprehensiveDraftTimer = setTimeout(saveComprehensiveDraftNow, COMPREHENSIVE_DRAFT_SAVE_MS)
-  // #endif
-}
-
-function clearComprehensiveDraft() {
-  if (comprehensiveDraftTimer) {
-    clearTimeout(comprehensiveDraftTimer)
-    comprehensiveDraftTimer = null
-  }
-  try { localStorage.removeItem(comprehensiveDraftStorageKey) } catch(_) {}
-}
-
-function restoreComprehensiveDraft() {
-  // #ifdef H5
-  try {
-    if (pendingComprehensiveId || comprehensiveMessages.value.length) return false
-    const raw = localStorage.getItem(comprehensiveDraftStorageKey)
-    if (!raw) return false
-    const draft = JSON.parse(raw)
-    if (!draft || !Array.isArray(draft.messages) || !draft.messages.length) {
-      clearComprehensiveDraft()
-      return false
-    }
-    if (draft.updatedAt && Date.now() - Number(draft.updatedAt) > COMPREHENSIVE_DRAFT_MAX_AGE_MS) {
-      clearComprehensiveDraft()
-      return false
-    }
+function applyComprehensiveDraft(draft) {
     currentComprehensiveConvId.value = draft.conversationId || null
     currentPaipanContext.value = draft.paipan || {}
     currentArtifacts.value = draft.artifacts || {}
@@ -1740,9 +1651,36 @@ function restoreComprehensiveDraft() {
     shouldAutoFollowChat.value = true
     scrollComprehensiveChatToBottom('auto', true)
     return true
-  } catch(_) {
-    return false
-  }
+}
+
+const comprehensiveDraftStorage = createHomeAiDraftStorage({
+  storageKey: comprehensiveDraftStorageKey,
+  saveDelayMs: COMPREHENSIVE_DRAFT_SAVE_MS,
+  maxAgeMs: COMPREHENSIVE_DRAFT_MAX_AGE_MS,
+  getPayload: comprehensiveDraftPayload,
+  canRestore: function() {
+    return !pendingComprehensiveId && !comprehensiveMessages.value.length
+  },
+  applyDraft: applyComprehensiveDraft,
+})
+
+function saveComprehensiveDraftNow() {
+  comprehensiveDraftStorage.saveNow()
+}
+
+function scheduleComprehensiveDraftSave() {
+  // #ifdef H5
+  comprehensiveDraftStorage.scheduleSave()
+  // #endif
+}
+
+function clearComprehensiveDraft() {
+  comprehensiveDraftStorage.clearDraft()
+}
+
+function restoreComprehensiveDraft() {
+  // #ifdef H5
+  return comprehensiveDraftStorage.restoreDraft()
   // #endif
   return false
 }
