@@ -247,6 +247,68 @@ def test_liuyao_ask_stream_sends_paipan_from_split_route(app_module, user_factor
     assert {"content": "六爻解读正文"} in payloads
 
 
+def test_qimen_ask_stream_uses_split_route_and_creates_record(app_module, user_factory, monkeypatch):
+    member = user_factory("qimen-stream-user")
+    monkeypatch.setattr(app_module, "deepseek_available", lambda: True)
+    monkeypatch.setattr(app_module, "get_reading_stream", lambda messages: iter([("奇门解读正文", None)]))
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(member.id)
+        sess["_fresh"] = True
+
+    response = client.post("/api/qimen/ask/stream", json={
+        "question": "合作能成吗",
+        "year": 2024,
+        "month": 2,
+        "day": 4,
+        "hour": 16,
+        "minute": 30,
+        "panType": 1,
+    })
+
+    assert response.status_code == 200
+    payloads = _sse_payloads(response)
+    assert {"content": "奇门解读正文"} in payloads
+    assert any(item.get("length") == len("奇门解读正文") for item in payloads)
+
+    with app_module.app.app_context():
+        record = app_module.Record.query.filter_by(user_id=member.id, app_type="qimen").one()
+        assert record.question == "合作能成吗"
+        assert record.result_html == "奇门解读正文"
+
+
+def test_qimen_ask_background_status_from_split_route(app_module, monkeypatch):
+    def fake_reading(prompt, question, is_deep=False, system_prompt=None):
+        return {"content": "后台奇门解读", "reasoning": "后台推理"}
+
+    monkeypatch.setattr("deepseek_service.get_qimen_reading", fake_reading)
+
+    client = app_module.app.test_client()
+    response = client.post("/api/qimen/ask", json={
+        "question": "什么时候推进",
+        "year": 2024,
+        "month": 2,
+        "day": 4,
+        "hour": 16,
+        "minute": 30,
+        "panType": 1,
+    })
+
+    assert response.status_code == 200
+    run_id = response.get_json()["run_id"]
+    for _ in range(20):
+        status = client.get(f"/api/qimen/ask/status?run_id={run_id}")
+        body = status.get_json()
+        if body.get("phase") == "done":
+            break
+    else:
+        raise AssertionError(f"奇门后台任务未完成: {body}")
+
+    assert body["result"] == "后台奇门解读"
+    assert body["reasoning"] == "后台推理"
+
+
 def test_tarot_huangli_zeji_and_calendar_fixed_samples(client):
     tarot_verify = client.get("/api/tarot/verify")
     assert tarot_verify.status_code == 200

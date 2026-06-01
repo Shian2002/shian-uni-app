@@ -1835,241 +1835,6 @@ def _qimen_paipan(year, month, day, hour, minute=0, pan_type=1):
 
 
 
-# ═══════════════════════════════════════════════════════════════
-# 奇门AI问策 — 一键起局 + 豆包AI解盘
-def _build_qimen_ask_prompt(question, qimen):
-    """根据奇门排盘数据和用户问题构建 Prompt"""
-    fp = qimen.get('fourPillars', {})
-    palaces = qimen.get('palaces', [])
-
-    prompt = f'''## 奇门排盘数据
-
-**起局时间**：{qimen.get('solarDate', '')}
-**局数**：{qimen.get('ju', '')}
-**节气**：{qimen.get('solarTerm', '')}
-
-**四柱**：{fp.get('year', '')}年 {fp.get('month', '')}月 {fp.get('day', '')}日 {fp.get('hour', '')}时
-
-**值符**：{qimen.get('zhiFu', '')}
-**值使**：{qimen.get('zhiShi', '')}
-
-**九宫详情**：
-'''
-    for p in palaces:
-        g = p.get('gong', p.get('position', '?'))
-        men = p.get('men', p.get('gate', ''))
-        xing = p.get('xing', '')
-        if isinstance(xing, list):
-            xing = '/'.join(xing)
-        shen = p.get('shen', p.get('deity', ''))
-        tian = p.get('tianGan', '')
-        if isinstance(tian, list):
-            tian = '/'.join(tian)
-        di = p.get('diGan', '')
-        if isinstance(di, list):
-            di = '/'.join(di)
-        prompt += f'- {g}宫：门={men} 星={xing} 神={shen} 天={tian} 地={di}\n'
-
-    prompt += f'''
-
-## 用户问题
-
-{question}
-
-## 分析要求
-
-请根据以上奇门排盘数据，对用户的问题进行专业分析。'''
-    return prompt
-
-
-
-
-# ═══════════════════════════════════════════════════════════════
-
-_qimen_ask_current_run = 0
-_qimen_ask_lock = threading.Lock()
-
-@app.route('/api/qimen/ask', methods=['POST'])
-@csrf.exempt
-def api_qimen_ask():
-    """一键起局+AI解盘：接收用户问题+时间参数，异步起局并调用豆包API"""
-    global _qimen_ask_current_run
-    data = request.get_json(silent=True) or {}
-    question = (data.get('question') or '').strip()
-    if not question:
-        return jsonify({'error': '请输入您的问题'}), 400
-
-    # 获取时间参数（未传则用当前时间）
-    now = datetime.now()
-    year = data.get('year', now.year)
-    month = data.get('month', now.month)
-    day = data.get('day', now.day)
-    hour = data.get('hour', now.hour)
-    minute = data.get('minute', 0)
-    pan_type = data.get('panType', 3)
-
-    # 起局排盘
-    try:
-        result = _qimen_paipan(int(year), int(month), int(day), int(hour), int(minute), int(pan_type))
-    except Exception as e:
-        return jsonify({'error': f'起局失败: {str(e)}'}), 500
-    if 'error' in result:
-        return jsonify({'error': result['error']}), 500
-
-    # 生成 run_id
-    with _qimen_ask_lock:
-        _qimen_ask_current_run += 1
-        run_id = _qimen_ask_current_run
-
-    run_dir = get_run_dir(run_id)
-
-    # 保存排盘数据和问题
-    with open(os.path.join(run_dir, 'qimen.json'), 'w', encoding='utf-8') as f:
-        json.dump(result, f, ensure_ascii=False)
-    with open(os.path.join(run_dir, 'question.txt'), 'w', encoding='utf-8') as f:
-        f.write(question)
-    # 保存深度分析模式
-    is_deep = data.get('deep_analysis', False)
-    with open(os.path.join(run_dir, 'deep_mode.txt'), 'w') as f:
-        f.write('1' if is_deep else '0')
-
-    write_run_status(run_id, {'phase': 'calculating', 'message': '起局中...', 'progress': 10, 'run_id': run_id})
-
-    # 启动后台线程
-    t = threading.Thread(target=_qimen_ask_task, args=(run_id,), daemon=True)
-    t.start()
-
-    return jsonify({'status': 'started', 'run_id': run_id})
-
-
-@app.route('/api/qimen/ask/status')
-def api_qimen_ask_status():
-    """查询奇门AI问策任务状态"""
-    run_id = request.args.get('run_id', type=int, default=0)
-    if run_id <= 0:
-        return jsonify({'phase': 'idle', 'message': '等待开始', 'progress': 0})
-
-    s = read_run_status(run_id)
-    s['run_id'] = run_id
-
-    # 完成时附带完整结果
-    if s.get('phase') == 'done':
-        run_dir = get_run_dir(run_id)
-        result = None
-        for fn in ['result.md', 'result.txt']:
-            try:
-                with open(os.path.join(run_dir, fn), 'r', encoding='utf-8') as f:
-                    result = f.read().strip()
-                if result:
-                    break
-            except:
-                continue
-        if result:
-            s['result'] = result
-        # 附加思考过程（R1深度分析）
-        try:
-            with open(os.path.join(run_dir, 'reasoning.md'), 'r', encoding='utf-8') as f:
-                reasoning = f.read().strip()
-            if reasoning:
-                s['reasoning'] = reasoning
-        except:
-            pass
-    elif s.get('phase') == 'error':
-        pass  # 错误信息已在 status 中
-
-    return jsonify(s)
-
-
-# qimen SSE direct streaming endpoint
-@app.route('/api/qimen/ask/stream', methods=['POST'])
-@login_required
-def api_qimen_ask_stream():
-    """奇门遁甲 SSE 流式 AI 解读"""
-    if not deepseek_available():
-        def eg():
-            yield "event: error\ndata: {\"message\": \"AI 服务未配置\"}\n\n"
-        return Response(eg(), mimetype='text/event-stream')
-
-    data = request.get_json(silent=True) or {}
-    question = (data.get('question') or '').strip()
-    if not question:
-        def eg2():
-            yield "event: error\ndata: {\"message\": \"请输入您的问题\"}\n\n"
-        return Response(eg2(), mimetype='text/event-stream')
-
-    now = datetime.now()
-    year = data.get('year', now.year)
-    month = data.get('month', now.month)
-    day = data.get('day', now.day)
-    hour = data.get('hour', now.hour)
-    minute = data.get('minute', 0)
-    pan_type = data.get('panType', 3)
-    is_followup = bool(data.get('history') or [])
-    try:
-        result = _qimen_paipan(int(year), int(month), int(day), int(hour), int(minute), int(pan_type))
-    except Exception as ex:
-        def eg3():
-            yield f"event: error\ndata: {{\"message\": \"起局失败: {ex}\"}}\n\n"
-        return Response(eg3(), mimetype='text/event-stream')
-    if 'error' in result:
-        def eg4():
-            yield f"event: error\ndata: {{\"message\": \"{result['error']}\"}}\n\n"
-        return Response(eg4(), mimetype='text/event-stream')
-
-    QIMEN_SP = """你是一位精通奇门遁甲的资深命理专家，擅长根据奇门遁甲盘面分析问题。
-请根据用户提供的奇门排盘数据和问题，给出专业的奇门遁甲分析解读。
-
-你的回答应该包括以下结构（markdown格式）：
-1. **盘面概要**：说明当前的时辰、局数、值符值使
-2. **用神分析**：根据用户问题选择对应的用神宫位，分析天盘地盘关系
-3. **吉凶判断**：分析八门、九星、八神、天干等吉凶格局和组合
-4. **建议指导**：给出针对性的建议和注意事项
-
-要求：
-- 语言通俗易懂，专业但不晦涩
-- 用 markdown 标题和列表组织内容
-- 避免笼统的套话，要结合具体盘面数据
-- 字数控制在 800-1500 字"""
-
-    def generate():
-        yield "event: progress\ndata: {\"stage\": \"connecting\"}\n\n"
-        try:
-            prompt = _build_qimen_ask_prompt(question, result)
-            if is_followup:
-                history = data.get('history') or []
-                messages = [{"role": "system", "content": QIMEN_SP}]
-                for h in history:
-                    messages.append({"role": h.get("role", "user"), "content": h.get("content", "")})
-                messages.append({"role": "user", "content": question})
-            else:
-                messages = [
-                    {"role": "system", "content": QIMEN_SP},
-                    {"role": "user", "content": prompt}
-                ]
-            yield "event: progress\ndata: {\"stage\": \"analyzing\"}\n\n"
-            yield "event: progress\ndata: {\"stage\": \"generating\"}\n\n"
-            full_text = ""
-            for chunk, error in get_reading_stream(messages):
-                if error:
-                    yield f"event: error\ndata: {{\"message\": \"{error}\"}}\n\n"
-                    return
-                if chunk:
-                    full_text += chunk
-                    yield f"event: chunk\ndata: {{\"content\": {json.dumps(chunk)}}}\n\n"
-            yield f"event: done\ndata: {{\"length\": {len(full_text)}}}\n\n"
-            if not is_followup:
-                try:
-                    rec = Record(user_id=current_user.id, app_type='qimen', question=question, result_html=full_text)
-                    db.session.add(rec)
-                    db.session.commit()
-                except Exception:
-                    pass
-        except Exception as ex2:
-            logger.error(f"奇闪 AI 解读异帎: {ex2}")
-            yield "event: error\ndata: {\"message\": \"AI 服务暂时不可用\"}\n\n"
-
-    return Response(stream_with_context(generate()), mimetype='text/event-stream',
-                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 # 梅花易数排盘引擎 & API
 # ═══════════════════════════════════════════════════════════════
 
@@ -4604,6 +4369,7 @@ from ops_routes import register_ops_routes
 from paid_content_routes import register_paid_content_routes
 from points_routes import register_points_routes
 from profile_routes import register_profile_routes, sync_bazi_record_to_profile
+from qimen_ask_routes import register_qimen_ask_routes
 from recharge_routes import (
     RECHARGE_PACKAGES,
     _payment_text_matches_receiver,
@@ -4700,6 +4466,15 @@ register_metaphysics_ask_routes(app, db, {
     'use_points': use_points,
     'get_run_dir': get_run_dir,
     'write_run_status': write_run_status,
+    'logger': logger,
+})
+register_qimen_ask_routes(app, db, {
+    'qimen_paipan': _qimen_paipan,
+    'deepseek_available': lambda: deepseek_available(),
+    'get_reading_stream': lambda messages: get_reading_stream(messages),
+    'get_run_dir': get_run_dir,
+    'write_run_status': write_run_status,
+    'read_run_status': read_run_status,
     'logger': logger,
 })
 register_admin_routes(app, db, {
