@@ -83,7 +83,46 @@ FOLLOW=1 bash scripts/production_monitor.sh
 FAIL_ON_ERRORS=1 bash scripts/production_monitor.sh
 ```
 
-## 4. 标准上线流程
+安装自动告警：
+
+```bash
+ALERT_EMAIL_TO=你的邮箱 bash scripts/install_production_alert.sh
+```
+
+默认每 10 分钟检查一次：
+
+- `/api/health`
+- 后端 `xuan-cet-flask` 服务状态
+- 根分区磁盘使用率
+- 最新自动备份是否过旧、是否完整
+- 最近后端关键错误日志
+
+告警渠道：
+
+- 邮箱：复用 `/opt/xuan-cet/backend/.env` 里的 `SMTP_USER` / `SMTP_PASS`，收件人由 `ALERT_EMAIL_TO` 设置。
+- 微信机器人：个人微信号不能直接变成机器人；拿到企业微信或群机器人的 webhook 后，在服务器 `/etc/xuan-cet-alert.env` 加：
+
+```bash
+ALERT_WECHAT_WEBHOOK=https://...
+```
+
+发送一条正常测试通知：
+
+```bash
+ssh -i ~/.ssh/deploy_key lighthouse@119.29.128.18 "sudo systemctl start xuan-cet-alert-check.service && sudo journalctl -u xuan-cet-alert-check.service -n 80 --no-pager"
+```
+
+## 4. 备份恢复演练
+
+恢复演练只操作临时目录，不碰生产库：
+
+```bash
+bash scripts/production_restore_drill.sh
+```
+
+它会取最新 `tianji-*.db` 自动备份，复制到 `/tmp/xuan-cet-restore-drill`，执行 SQLite `integrity_check`，确认 `user`、`record`、`membership` 等关键表存在，然后清理临时文件。
+
+## 5. 标准上线流程
 
 前端小改：
 
@@ -101,6 +140,7 @@ bash scripts/preflight_release.sh
 bash deploy-to-server.sh
 RUN_PROD_SMOKE=1 bash scripts/preflight_release.sh
 bash scripts/production_monitor.sh
+bash scripts/production_restore_drill.sh
 ```
 
 轻量部署优先使用仓库根目录脚本：
@@ -124,7 +164,7 @@ bash deploy-to-server.sh
 bash scripts/deploy.sh
 ```
 
-## 5. 数据库原则
+## 6. 数据库原则
 
 - 线上数据库是正式用户资产。
 - 本地数据库只是测试用。
@@ -145,7 +185,7 @@ ssh -i "$HOME/.ssh/deploy_key" lighthouse@119.29.128.18 '
 '
 ```
 
-## 6. 后台管理
+## 7. 后台管理
 
 后台地址：
 
@@ -167,7 +207,7 @@ http://119.29.128.18/#/pages/admin/index
 
 管理员写操作会记录到 `admin_audit_log` 表，包含管理员、动作、目标对象、详情、来源 IP 和时间。
 
-## 7. 手动日志与重启
+## 8. 手动日志与重启
 
 查看服务状态：
 
@@ -201,7 +241,7 @@ ssh -i "$HOME/.ssh/deploy_key" lighthouse@119.29.128.18 'sudo systemctl show xua
 
 `ExecStart` 应指向 `/opt/xuan-cet/backend/venv/bin/gunicorn`，`DATABASE_URL` 应指向 `/home/lighthouse/tianji/flask-source/backend/tianji.db`，不应再有 `/opt/xuan-cet/backend/app.py` 的 Flask dev server 进程。
 
-## 8. 配置注意事项
+## 9. 配置注意事项
 
 - 生产库路径由 `DATABASE_URL=sqlite:////home/lighthouse/tianji/flask-source/backend/tianji.db` 指定。当前线上真实用户和社区数据在这个旧路径库中，不要误切到 `/opt/xuan-cet/backend/tianji.db`。
 - 上传目录由 `UPLOAD_FOLDER=/var/www/xuan-cet/static/uploads` 指定。
