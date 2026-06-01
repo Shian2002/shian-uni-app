@@ -151,6 +151,10 @@
             </view>
             <view class="empty-line" v-if="!users.length">暂无用户</view>
           </view>
+          <view class="pager-line" v-if="hasMoreUsers">
+            <button class="mini-btn" @click="loadMoreUsers">加载更多用户</button>
+            <text class="pager-copy">已显示 {{ users.length }} / {{ userTotal }} 个</text>
+          </view>
         </section>
 
         <section class="admin-panel" v-if="activeTab === 'recharge'">
@@ -252,6 +256,9 @@ const posts = ref([])
 const postStatus = ref('all')
 const postQuery = ref('')
 const users = ref([])
+const userPage = ref(1)
+const userTotal = ref(0)
+const hasMoreUsers = ref(false)
 const userQuery = ref('')
 const rechargeOrders = ref([])
 const rechargeStatus = ref('pending')
@@ -388,8 +395,20 @@ async function togglePostHidden(post) {
 }
 
 async function loadUsers() {
-  const data = await request('/api/admin/users?q=' + encodeURIComponent(userQuery.value || ''))
+  userPage.value = 1
+  const data = await request('/api/admin/users?q=' + encodeURIComponent(userQuery.value || '') + '&page=' + userPage.value)
   users.value = data.users || []
+  userTotal.value = data.total || users.value.length
+  hasMoreUsers.value = !!data.has_next
+}
+
+async function loadMoreUsers() {
+  if (!hasMoreUsers.value) return
+  userPage.value += 1
+  const data = await request('/api/admin/users?q=' + encodeURIComponent(userQuery.value || '') + '&page=' + userPage.value)
+  users.value = users.value.concat(data.users || [])
+  userTotal.value = data.total || users.value.length
+  hasMoreUsers.value = !!data.has_next
 }
 
 async function addManualPoints() {
@@ -792,6 +811,19 @@ onMounted(async function() {
   padding: 26px 8px;
   color: var(--text-3);
   text-align: center;
+}
+
+.pager-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  color: var(--text-3);
+  font-size: 0.78rem;
+}
+
+.pager-copy {
+  color: var(--text-3);
 }
 
 @media (max-width: 760px) {
