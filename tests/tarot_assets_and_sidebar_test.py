@@ -1,5 +1,6 @@
 import importlib
 import os
+import re
 import sys
 
 
@@ -42,6 +43,26 @@ def test_tarot_page_renders_real_card_images_with_fallback():
     assert "tarot-card-fallback" in source
     assert "MAJOR_ICONS" not in source
     assert "SUIT_ICONS" not in source
+
+
+def test_tarot_page_card_images_and_text_are_not_cropped():
+    page_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "src", "pages", "tarot", "index.vue")
+    )
+    source = open(page_path, encoding="utf-8").read()
+    name_block = re.search(r"\.tarot-card-name-below \{(?P<body>.*?)\n\}", source, re.S)
+    english_block = re.search(r"\.tarot-card-name-en \{(?P<body>.*?)\n\}", source, re.S)
+    mobile_block = re.search(r"@media \(max-width: 480px\) \{(?P<body>.*?)\n\}", source, re.S)
+
+    assert "object-fit: contain;" in source
+    assert "object-fit: cover;" not in source
+    assert ".tarot-card-front, .tarot-card-back" in source
+    assert "overflow: visible;" in source
+    assert name_block and "white-space: nowrap;" not in name_block.group("body")
+    assert english_block and "white-space: nowrap;" not in english_block.group("body")
+    assert ".tarot-card-keyword-below" in source
+    assert ".tarot-card-keyword-below { display: none; }" not in source
+    assert mobile_block and ".tarot-card-keyword-below { display: none; }" not in mobile_block.group("body")
 
 
 def test_sidebar_history_touch_does_not_navigate_on_scroll_end():

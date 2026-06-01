@@ -1445,16 +1445,16 @@ function _checkTarotRestore() {
 .tarot-cards-display[data-count="10"] { grid-template-columns: repeat(5, 1fr); max-width: 1060px; margin-left: auto; margin-right: auto; }
 .tarot-card-slot {
   width: 100%;
-  max-width: 190px;
+  max-width: 204px;
   perspective: 600px;
   overflow-anchor: none;
 }
 .tarot-card-flipper {
   position: relative;
   width: 100%;
-  aspect-ratio: 7 / 12;
+  aspect-ratio: 7 / 13.8;
   height: auto;
-  min-height: 300px;
+  min-height: 360px;
   transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
   transform-style: preserve-3d;
   cursor: pointer;
@@ -1466,7 +1466,7 @@ function _checkTarotRestore() {
   inset: 0;
   border-radius: 12px;
   backface-visibility: hidden;
-  overflow: hidden;
+  overflow: visible;
 }
 .tarot-card-back {
   background: linear-gradient(135deg, var(--bg-2), var(--bg-1));
@@ -1508,20 +1508,20 @@ function _checkTarotRestore() {
   aspect-ratio: 7 / 12;
   min-height: 0;
   border-radius: 7px;
-  overflow: hidden;
+  overflow: visible;
   background: rgba(90,65,35,0.08);
   border: 1px solid rgba(126,91,38,0.24);
-  flex: 1 1 auto;
+  flex: 0 0 auto;
 }
 .tarot-card-img {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   transform-origin: center;
 }
 .tarot-card-img-reversed {
-  transform: rotate(180deg);
+  transform: rotate(180deg) scale(0.985);
 }
 .tarot-card-fallback {
   position: absolute;
@@ -1553,7 +1553,10 @@ function _checkTarotRestore() {
   width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.25;
 }
 .tarot-card-name-en {
   font-size: 0.6rem;
@@ -1563,7 +1566,10 @@ function _checkTarotRestore() {
   width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.25;
 }
 .tarot-card-orientation {
   font-size: 0.75rem;
@@ -1594,7 +1600,8 @@ function _checkTarotRestore() {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  min-height: 32px;
+  min-height: 30px;
+  padding: 0 3px;
 }
 .tarot-card-position {
   text-align: center;
@@ -1775,8 +1782,8 @@ function _checkTarotRestore() {
 @media (max-width: 768px) {
   .tarot-hero-title { font-size: 1.6rem; }
   .spread-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
-  .tarot-card-slot { max-width: 138px; }
-  .tarot-card-flipper { min-height: 236px; }
+  .tarot-card-slot { max-width: 146px; }
+  .tarot-card-flipper { min-height: 282px; }
   .tarot-cards-display { gap: 12px; }
   .tarot-cards-display[data-count="6"] { grid-template-columns: repeat(3, 1fr); max-width: 420px; }
   .tarot-cards-display[data-count="7"] { grid-template-columns: repeat(4, 1fr); max-width: 560px; }
@@ -1784,11 +1791,12 @@ function _checkTarotRestore() {
   .tarot-settings { flex-direction: column; align-items: stretch; }
 }
 @media (max-width: 480px) {
-  .tarot-card-slot { max-width: 116px; }
-  .tarot-card-flipper { min-height: 214px; }
+  .tarot-card-slot { max-width: 126px; }
+  .tarot-card-flipper { min-height: 258px; }
   .tarot-card-name { font-size: 0.75rem; }
   .tarot-card-name-en { font-size: 0.55rem; }
-  .tarot-card-keyword-below { display: none; }
+  .tarot-card-keyword { font-size: 0.56rem; line-height: 1.3; }
+  .tarot-card-keyword-below { -webkit-line-clamp: 2; min-height: 28px; }
   .tarot-cards-display[data-count="6"] { grid-template-columns: repeat(2, 1fr); max-width: 240px; }
   .tarot-cards-display[data-count="7"] { grid-template-columns: repeat(3, 1fr); max-width: 360px; }
   .tarot-cards-display[data-count="10"] { grid-template-columns: repeat(4, 1fr); max-width: 480px; }
