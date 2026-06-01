@@ -1255,4 +1255,332 @@ body:not(.home-fixed-page) .history-markdown{
 }
 .dp-list{border:1px solid var(--card-border);border-radius:12px;overflow:hidden}.dp-item{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--card-border);transition:background .12s}.dp-item:last-child{border-bottom:none}.dp-item:hover{background:var(--accent-glow)}.dp-left{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}.dp-desc{font-size:.85rem;color:var(--text-1);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dp-date{font-size:.7rem;color:var(--text-3)}.dp-points{font-size:1rem;font-weight:700;flex-shrink:0;min-width:60px;text-align:right}.dp-plus{color:var(--accent)}.dp-minus{color:var(--danger)}
 .dp-tabs{display:flex;gap:8px;margin-bottom:12px}.dp-tab{padding:6px 18px;border-radius:18px;font-size:.8rem;color:var(--text-3);background:var(--card-bg);border:1px solid var(--card-border);cursor:pointer;transition:all .15s}.dp-tab.active{background:var(--accent-glow);color:var(--accent);border-color:var(--accent)}.dp-tab:hover{background:var(--accent-glow)}.dp-pager{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px}.dp-page-btn{padding:4px 12px;border-radius:8px;font-size:.85rem;color:var(--accent);cursor:pointer;background:var(--card-bg);border:1px solid var(--card-border);transition:all .12s}.dp-page-btn:hover{background:var(--accent-glow)}.dp-page-num{padding:4px 10px;border-radius:6px;font-size:.78rem;color:var(--text-3);cursor:pointer;transition:all .12s;min-width:28px;text-align:center}.dp-page-num:hover{background:var(--accent-glow)}.dp-page-cur{background:var(--accent-glow);color:var(--accent);font-weight:600}.dp-page-ellipsis{padding:4px 8px;font-size:.78rem;color:var(--text-3);cursor:default}
+
+/* 第八批全站设计系统：东方术数工作台骨架 */
+:root{
+  --xc-paper: rgba(255,253,247,.72);
+  --xc-paper-strong: rgba(255,253,247,.88);
+  --xc-ink-line: rgba(93,73,39,.11);
+  --xc-red: #c95b61;
+  --xc-green: #4c9a72;
+}
+[data-theme="dark"]{
+  --xc-paper: rgba(45,50,73,.72);
+  --xc-paper-strong: rgba(50,56,82,.9);
+  --xc-ink-line: rgba(255,255,255,.09);
+  --xc-red: #d87578;
+  --xc-green: #78c89e;
+}
+body:not(.home-fixed-page) .page-root{
+  background:
+    linear-gradient(90deg,rgba(178,149,93,.045) 1px,transparent 1px),
+    linear-gradient(180deg,rgba(178,149,93,.035) 1px,transparent 1px),
+    radial-gradient(circle at 14% 12%,rgba(178,149,93,.12),transparent 28%),
+    radial-gradient(circle at 86% 82%,rgba(178,149,93,.10),transparent 26%),
+    var(--bg)!important;
+  background-size:42px 42px,42px 42px,auto,auto,auto!important;
+}
+body:not(.home-fixed-page) .page-wrap,
+body:not(.home-fixed-page) .page{
+  max-width:min(1180px,calc(100vw - 32px))!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+  box-sizing:border-box!important;
+}
+body:not(.home-fixed-page) .tool-hero,
+body:not(.home-fixed-page) .tarot-hero,
+body:not(.home-fixed-page) .about-hero,
+body:not(.home-fixed-page) .calendar-hero{
+  position:relative!important;
+  width:min(1180px,calc(100vw - 32px))!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+  text-align:left!important;
+  padding:34px 0 18px!important;
+}
+body:not(.home-fixed-page) .tool-hero::before,
+body:not(.home-fixed-page) .tarot-hero::before,
+body:not(.home-fixed-page) .about-hero::before,
+body:not(.home-fixed-page) .calendar-hero::before{
+  content:''!important;
+  position:absolute!important;
+  left:0!important;
+  top:36px!important;
+  width:3px!important;
+  height:38px!important;
+  border-radius:999px!important;
+  background:linear-gradient(180deg,var(--xc-red),var(--accent))!important;
+}
+body:not(.home-fixed-page) .tool-hero-content,
+body:not(.home-fixed-page) .tarot-hero-content,
+body:not(.home-fixed-page) .about-hero-content,
+body:not(.home-fixed-page) .calendar-hero-content{
+  padding-left:18px!important;
+  max-width:780px!important;
+  margin:0!important;
+}
+body:not(.home-fixed-page) .section-tag{
+  display:inline-flex!important;
+  align-items:center!important;
+  min-height:24px!important;
+  padding:3px 10px!important;
+  border:1px solid rgba(178,149,93,.22)!important;
+  border-radius:999px!important;
+  background:rgba(178,149,93,.08)!important;
+  color:var(--accent)!important;
+  letter-spacing:1.8px!important;
+}
+body:not(.home-fixed-page) .tool-hero-title,
+body:not(.home-fixed-page) .tarot-hero-title,
+body:not(.home-fixed-page) .about-hero-title,
+body:not(.home-fixed-page) .calendar-hero-title{
+  max-width:860px!important;
+  margin-left:0!important;
+  margin-right:0!important;
+  letter-spacing:0!important;
+  text-indent:0!important;
+  line-height:1.16!important;
+}
+body:not(.home-fixed-page) .tool-hero-desc,
+body:not(.home-fixed-page) .tarot-hero-desc,
+body:not(.home-fixed-page) .about-hero-desc,
+body:not(.home-fixed-page) .calendar-hero-desc{
+  margin-left:0!important;
+  margin-right:0!important;
+  max-width:720px!important;
+  line-height:1.75!important;
+}
+body:not(.home-fixed-page) .tool-container,
+body:not(.home-fixed-page) .tarot-section,
+body:not(.home-fixed-page) .calendar-card,
+body:not(.home-fixed-page) .settings-list,
+body:not(.home-fixed-page) .community-post-card,
+body:not(.home-fixed-page) .admin-panel,
+body:not(.home-fixed-page) .admin-section,
+body:not(.home-fixed-page) .profile-card,
+body:not(.home-fixed-page) .points-card,
+body:not(.home-fixed-page) .hero-card{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.62),rgba(255,255,255,.20)),
+    var(--xc-paper)!important;
+  border:1px solid rgba(178,149,93,.18)!important;
+  border-radius:18px!important;
+  box-shadow:0 18px 54px rgba(74,54,24,.10),inset 0 1px 0 rgba(255,255,255,.36)!important;
+}
+[data-theme="dark"] body:not(.home-fixed-page) .tool-container,
+[data-theme="dark"] body:not(.home-fixed-page) .tarot-section,
+[data-theme="dark"] body:not(.home-fixed-page) .calendar-card,
+[data-theme="dark"] body:not(.home-fixed-page) .settings-list,
+[data-theme="dark"] body:not(.home-fixed-page) .community-post-card,
+[data-theme="dark"] body:not(.home-fixed-page) .admin-panel,
+[data-theme="dark"] body:not(.home-fixed-page) .admin-section,
+[data-theme="dark"] body:not(.home-fixed-page) .profile-card,
+[data-theme="dark"] body:not(.home-fixed-page) .points-card,
+[data-theme="dark"] body:not(.home-fixed-page) .hero-card{
+  background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.025)),var(--xc-paper)!important;
+  box-shadow:0 18px 54px rgba(0,0,0,.26),inset 0 1px 0 rgba(255,255,255,.08)!important;
+}
+body:not(.home-fixed-page) .tool-container,
+body:not(.home-fixed-page) .tarot-section{
+  padding:22px!important;
+}
+body:not(.home-fixed-page) .tool-tabs,
+body:not(.home-fixed-page) .record-tabs,
+body:not(.home-fixed-page) .method-switch,
+body:not(.home-fixed-page) .dp-tabs,
+body:not(.home-fixed-page) .case-tabs,
+body:not(.home-fixed-page) .category-tab,
+body:not(.home-fixed-page) .sort-tab{
+  padding:4px!important;
+  border:1px solid rgba(178,149,93,.18)!important;
+  border-radius:999px!important;
+  background:rgba(178,149,93,.055)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.20)!important;
+}
+body:not(.home-fixed-page) .tool-tab,
+body:not(.home-fixed-page) .record-tab,
+body:not(.home-fixed-page) .method-switch-btn,
+body:not(.home-fixed-page) .dp-tab,
+body:not(.home-fixed-page) .case-tab,
+body:not(.home-fixed-page) .ctab,
+body:not(.home-fixed-page) .stab{
+  border-radius:999px!important;
+  border:0!important;
+  background:transparent!important;
+  color:var(--text-2)!important;
+  box-shadow:none!important;
+}
+body:not(.home-fixed-page) .tool-tab.active,
+body:not(.home-fixed-page) .record-tab.active,
+body:not(.home-fixed-page) .method-switch-btn.active,
+body:not(.home-fixed-page) .dp-tab.active,
+body:not(.home-fixed-page) .case-tab.active,
+body:not(.home-fixed-page) .ctab.active,
+body:not(.home-fixed-page) .stab.active{
+  background:var(--xc-paper-strong)!important;
+  color:var(--accent)!important;
+  box-shadow:0 6px 18px rgba(84,62,24,.11)!important;
+}
+body:not(.home-fixed-page) .qf-datetime-section,
+body:not(.home-fixed-page) .wz-advanced-box,
+body:not(.home-fixed-page) .tarot-settings,
+body:not(.home-fixed-page) .ly-auto-info,
+body:not(.home-fixed-page) .form-group,
+body:not(.home-fixed-page) .qf-options-row,
+body:not(.home-fixed-page) .profile-info-row,
+body:not(.home-fixed-page) .settings-item{
+  border-color:var(--xc-ink-line)!important;
+  background:rgba(255,255,255,.26)!important;
+  border-radius:14px!important;
+}
+body:not(.home-fixed-page) .qf-datetime-select,
+body:not(.home-fixed-page) .wz-datetime-select,
+body:not(.home-fixed-page) .form-select-picker,
+body:not(.home-fixed-page) .wz-form-input,
+body:not(.home-fixed-page) .dom-input-wrap .native-input,
+body:not(.home-fixed-page) input,
+body:not(.home-fixed-page) textarea,
+body:not(.home-fixed-page) select{
+  border:1px solid rgba(178,149,93,.20)!important;
+  border-radius:12px!important;
+  background:rgba(255,255,255,.45)!important;
+  color:var(--text-1)!important;
+}
+[data-theme="dark"] body:not(.home-fixed-page) .qf-datetime-select,
+[data-theme="dark"] body:not(.home-fixed-page) .wz-datetime-select,
+[data-theme="dark"] body:not(.home-fixed-page) .form-select-picker,
+[data-theme="dark"] body:not(.home-fixed-page) .wz-form-input,
+[data-theme="dark"] body:not(.home-fixed-page) .dom-input-wrap .native-input,
+[data-theme="dark"] body:not(.home-fixed-page) input,
+[data-theme="dark"] body:not(.home-fixed-page) textarea,
+[data-theme="dark"] body:not(.home-fixed-page) select{
+  background:rgba(23,28,44,.46)!important;
+}
+body:not(.home-fixed-page) .qf-result,
+body:not(.home-fixed-page) .ly-result,
+body:not(.home-fixed-page) .mh-result,
+body:not(.home-fixed-page) .zw-result,
+body:not(.home-fixed-page) .qai-stream-box,
+body:not(.home-fixed-page) .qai-result,
+body:not(.home-fixed-page) .ly-result-card,
+body:not(.home-fixed-page) .qf-result-card,
+body:not(.home-fixed-page) .tarot-reading-section{
+  border-radius:16px!important;
+  border:1px solid rgba(178,149,93,.16)!important;
+  background:linear-gradient(180deg,rgba(255,255,255,.38),rgba(255,255,255,.12)),rgba(255,255,255,.08)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.22)!important;
+}
+body:not(.home-fixed-page) .submit-btn,
+body:not(.home-fixed-page) .wz-submit-btn,
+body:not(.home-fixed-page) .tarot-draw-btn,
+body:not(.home-fixed-page) .tarot-btn-primary,
+body:not(.home-fixed-page) .zeji-submit,
+body:not(.home-fixed-page) .btn-primary{
+  background:linear-gradient(135deg,#7f6128,#c7a252 52%,#8b6827)!important;
+  border:1px solid rgba(255,255,255,.26)!important;
+  border-radius:13px!important;
+  color:#fff!important;
+  box-shadow:0 12px 26px rgba(120,86,28,.20)!important;
+}
+body:not(.home-fixed-page) .btn-ghost,
+body:not(.home-fixed-page) .tarot-btn-outline,
+body:not(.home-fixed-page) .btn-outline,
+body:not(.home-fixed-page) .qf-now-btn-sm{
+  border:1px solid rgba(178,149,93,.22)!important;
+  border-radius:12px!important;
+  background:rgba(178,149,93,.06)!important;
+  color:var(--text-2)!important;
+}
+body:not(.home-fixed-page) table,
+body:not(.home-fixed-page) .admin-table,
+body:not(.home-fixed-page) .detail-table{
+  border-collapse:separate!important;
+  border-spacing:0!important;
+  border:1px solid rgba(178,149,93,.15)!important;
+  border-radius:14px!important;
+  overflow:hidden!important;
+}
+body:not(.home-fixed-page) th,
+body:not(.home-fixed-page) td{
+  border-color:rgba(178,149,93,.11)!important;
+}
+body:not(.home-fixed-page) th{
+  background:rgba(178,149,93,.075)!important;
+  color:var(--text-2)!important;
+}
+body.home-fixed-page .home-ai-console.has-chat{
+  border:1px solid rgba(178,149,93,.18)!important;
+  border-radius:18px!important;
+  background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,.18)),var(--xc-paper)!important;
+  box-shadow:0 18px 54px rgba(74,54,24,.10),inset 0 1px 0 rgba(255,255,255,.36)!important;
+}
+[data-theme="dark"] body.home-fixed-page .home-ai-console.has-chat{
+  background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.025)),var(--xc-paper)!important;
+}
+body.home-fixed-page .home-ai-chat-head,
+body.home-fixed-page .home-tool-cards,
+body.home-fixed-page .home-tool-card,
+body.home-fixed-page .home-ai-agent-head{
+  border-color:rgba(178,149,93,.16)!important;
+}
+body.home-fixed-page .home-tool-card,
+body.home-fixed-page .home-tool-selector,
+body.home-fixed-page .home-summary-card{
+  border-radius:14px!important;
+  background:rgba(255,255,255,.24)!important;
+}
+body.home-fixed-page .home-ai-main{
+  border-top:1px solid rgba(178,149,93,.12)!important;
+  background:linear-gradient(180deg,rgba(247,242,234,.68),rgba(247,242,234,.92))!important;
+}
+@media(max-width:768px){
+  body:not(.home-fixed-page) .page-wrap,
+  body:not(.home-fixed-page) .page,
+  body:not(.home-fixed-page) .tool-hero,
+  body:not(.home-fixed-page) .tarot-hero,
+  body:not(.home-fixed-page) .about-hero,
+  body:not(.home-fixed-page) .calendar-hero{
+    width:min(100vw - 24px,560px)!important;
+    max-width:min(100vw - 24px,560px)!important;
+  }
+  body:not(.home-fixed-page) .tool-container,
+  body:not(.home-fixed-page) .tarot-section{
+    padding:14px!important;
+  }
+  body:not(.home-fixed-page) .tool-hero-content,
+  body:not(.home-fixed-page) .tarot-hero-content,
+  body:not(.home-fixed-page) .about-hero-content,
+  body:not(.home-fixed-page) .calendar-hero-content{
+    padding-left:14px!important;
+  }
+  body:not(.home-fixed-page) .tool-hero-title,
+  body:not(.home-fixed-page) .tarot-hero-title,
+  body:not(.home-fixed-page) .about-hero-title,
+  body:not(.home-fixed-page) .calendar-hero-title{
+    font-size:clamp(1.08rem,4.6vw,1.38rem)!important;
+    line-height:1.24!important;
+    white-space:normal!important;
+    overflow-wrap:anywhere!important;
+  }
+  body:not(.home-fixed-page) .tool-hero-desc,
+  body:not(.home-fixed-page) .tarot-hero-desc,
+  body:not(.home-fixed-page) .about-hero-desc,
+  body:not(.home-fixed-page) .calendar-hero-desc{
+    font-size:.8rem!important;
+    line-height:1.65!important;
+    white-space:normal!important;
+  }
+  body:not(.home-fixed-page) .spread-grid{
+    grid-template-columns:1fr!important;
+  }
+  body:not(.home-fixed-page) .spread-card{
+    min-height:72px!important;
+  }
+  body:not(.home-fixed-page) .spread-card-desc{
+    -webkit-line-clamp:2!important;
+  }
+  body.home-fixed-page .home-ai-console.has-chat{
+    border-radius:14px!important;
+  }
+}
 </style>

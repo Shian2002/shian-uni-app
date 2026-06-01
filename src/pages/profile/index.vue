@@ -171,7 +171,11 @@ window.addEventListener('xc-session-expired', function() { isLoggedIn.value = fa
 const hasPassword = ref(uni.getStorageSync('xc_has_password') === '1')
 const accordionOpen = ref('')
 const accordionInputsCreated = {}
-const DEFAULT_AVATAR_URL = '/static/images/logo.webp?v=2'
+function normalizeAvatarUrl(src) {
+  const value = String(src || '').trim()
+  if (!value || value.includes('/static/images/logo.') || value.includes('/logo.webp')) return ''
+  return value
+}
 function toggleAccordion(name) {
   accordionOpen.value = accordionOpen.value === name ? '' : name
   if (accordionOpen.value === name && !accordionInputsCreated[name]) {
@@ -314,17 +318,17 @@ async function changePassword() {
 const userInfo = reactive({
   username: uni.getStorageSync('xc_user') || '用户',
   regDate: '—',
-  avatar: uni.getStorageSync('xc_avatar') || DEFAULT_AVATAR_URL
+  avatar: normalizeAvatarUrl(uni.getStorageSync('xc_avatar'))
 })
 function setProfileAvatar(src, shouldCache) {
-  userInfo.avatar = src || DEFAULT_AVATAR_URL
-  if (shouldCache && src) uni.setStorageSync('xc_avatar', src)
+  const avatar = normalizeAvatarUrl(src)
+  userInfo.avatar = avatar
+  if (shouldCache && avatar) uni.setStorageSync('xc_avatar', avatar)
+  else if (!avatar) uni.removeStorageSync('xc_avatar')
 }
 function handleProfileAvatarError() {
-  if (userInfo.avatar && userInfo.avatar.indexOf(DEFAULT_AVATAR_URL) === -1) {
-    uni.removeStorageSync('xc_avatar')
-    userInfo.avatar = DEFAULT_AVATAR_URL
-  }
+  uni.removeStorageSync('xc_avatar')
+  userInfo.avatar = ''
 }
 
 function resetProfileSessionState() {
@@ -332,7 +336,7 @@ function resetProfileSessionState() {
   profiles.value = []
   userInfo.username = '用户'
   userInfo.regDate = '—'
-  userInfo.avatar = DEFAULT_AVATAR_URL
+  userInfo.avatar = ''
 }
 
 async function refreshProfileSessionState() {
@@ -361,7 +365,7 @@ async function refreshProfileSessionState() {
       window.__xc_hasPassword = hasPassword.value
       userInfo.username = d.username
       if (d.created_at) userInfo.regDate = new Date(d.created_at).toLocaleString('zh-CN')
-      setProfileAvatar(d.avatar || DEFAULT_AVATAR_URL, !!d.avatar)
+      setProfileAvatar(d.avatar, !!normalizeAvatarUrl(d.avatar))
       if (typeof window !== 'undefined' && window._xc_loadBindings) window._xc_loadBindings()
     }
   } catch (_) {}

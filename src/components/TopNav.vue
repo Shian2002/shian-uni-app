@@ -120,7 +120,11 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['toggle-theme', 'show-login'])
-const DEFAULT_AVATAR_URL = '/static/images/logo.webp?v=2'
+function normalizeAvatarUrl(src) {
+  var value = (src || '').trim()
+  if (!value || value.indexOf('/static/images/logo.') !== -1 || value.indexOf('/logo.webp') !== -1) return ''
+  return value
+}
 const localLoggedIn = ref(props.isLoggedIn || !!uni.getStorageSync('xc_token'))
 
 if (typeof window !== 'undefined') {
@@ -144,20 +148,31 @@ if (typeof window !== 'undefined') {
 function applySidebarAvatar(src, shouldCache) {
   var sideImg = document.getElementById('sidebarUserAvatar')
   var sideLetter = document.getElementById('sidebarUserLetter')
-  var avatarSrc = src || DEFAULT_AVATAR_URL
+  var avatarSrc = normalizeAvatarUrl(src)
   if (sideImg) {
     sideImg.onerror = function() {
-      if (this.src.indexOf(DEFAULT_AVATAR_URL) === -1) {
-        try { uni.removeStorageSync('xc_avatar') } catch(_) {}
-        this.src = DEFAULT_AVATAR_URL
-      }
+      try { uni.removeStorageSync('xc_avatar') } catch(_) {}
+      this.removeAttribute('src')
+      this.style.display = 'none'
+      if (sideLetter) sideLetter.style.display = 'flex'
     }
-    sideImg.src = avatarSrc
-    sideImg.style.display = 'block'
+    if (avatarSrc) {
+      sideImg.src = avatarSrc
+      sideImg.style.display = 'block'
+    } else {
+      sideImg.removeAttribute('src')
+      sideImg.style.display = 'none'
+    }
   }
-  if (sideLetter) sideLetter.style.display = 'none'
-  if (shouldCache && src) {
-    try { uni.setStorageSync('xc_avatar', src) } catch(_) {}
+  if (sideLetter) {
+    var nameEl = document.getElementById('sidebarUserName')
+    var name = (nameEl && nameEl.textContent) || avatarLetter.value || uni.getStorageSync('xc_user') || '用'
+    sideLetter.textContent = String(name).charAt(0).toUpperCase()
+    sideLetter.style.display = avatarSrc ? 'none' : 'flex'
+  }
+  if (shouldCache) {
+    if (avatarSrc) try { uni.setStorageSync('xc_avatar', avatarSrc) } catch(_) {}
+    else try { uni.removeStorageSync('xc_avatar') } catch(_) {}
   }
 }
 
@@ -207,7 +222,7 @@ function ensureGlobalSidebar() {
   document.body.appendChild(sidebar)
   _bindSidebarListInteractions(sidebar)
   _restoreSidebarView()
-  applySidebarAvatar(uni.getStorageSync('xc_avatar') || DEFAULT_AVATAR_URL, false)
+  applySidebarAvatar(uni.getStorageSync('xc_avatar'), false)
 }
 
 onMounted(function() {
@@ -455,7 +470,7 @@ function _loadSidebarUserPanel() {
       document.getElementById('sidebarUserName').textContent = d.username
       var letterEl = document.getElementById('sidebarUserLetter')
       if (letterEl) letterEl.textContent = d.username.charAt(0).toUpperCase()
-      applySidebarAvatar(d.avatar || DEFAULT_AVATAR_URL, !!d.avatar)
+      applySidebarAvatar(d.avatar, !!normalizeAvatarUrl(d.avatar))
     }
   }).catch(function() { guestEl.style.display = 'flex'; loggedEl.style.display = 'none' })
   uni.request({ url: '/api/membership', method: 'GET' }).then(function(res) {
@@ -1045,10 +1060,9 @@ var avatarUrl = ref('')
 var avatarLetter = ref('')
 var _avatarInstanceLoaded = false
 function onAvatarError() {
-  if (avatarUrl.value && avatarUrl.value.indexOf(DEFAULT_AVATAR_URL) === -1) {
-    uni.removeStorageSync('xc_avatar')
-    avatarUrl.value = DEFAULT_AVATAR_URL
-  }
+  uni.removeStorageSync('xc_avatar')
+  avatarUrl.value = ''
+  applySidebarAvatar('', false)
 }
 function loadAvatar() {
   if (!localLoggedIn.value) return
@@ -1061,8 +1075,10 @@ function loadAvatar() {
   } else if (cachedUser && typeof cachedUser === 'string') {
     avatarLetter.value = cachedUser.charAt(0).toUpperCase()
   }
-  var cachedAvatar = uni.getStorageSync('xc_avatar')
-  avatarUrl.value = cachedAvatar || DEFAULT_AVATAR_URL
+  var cachedAvatar = normalizeAvatarUrl(uni.getStorageSync('xc_avatar'))
+  if (!cachedAvatar) uni.removeStorageSync('xc_avatar')
+  avatarUrl.value = cachedAvatar
+  applySidebarAvatar(cachedAvatar, false)
   if (_avatarInstanceLoaded) return
   _avatarInstanceLoaded = true
   window.__avatarLoaded = true
@@ -1071,8 +1087,10 @@ function loadAvatar() {
     if (d && d.guest) {
     } else if (d && d.username) {
       avatarLetter.value = d.username.charAt(0).toUpperCase()
-      if (d.avatar) { avatarUrl.value = d.avatar; uni.setStorageSync('xc_avatar', d.avatar) }
-      else avatarUrl.value = DEFAULT_AVATAR_URL
+      var nextAvatar = normalizeAvatarUrl(d.avatar)
+      if (nextAvatar) { avatarUrl.value = nextAvatar; uni.setStorageSync('xc_avatar', nextAvatar) }
+      else { avatarUrl.value = ''; uni.removeStorageSync('xc_avatar') }
+      applySidebarAvatar(nextAvatar, !!nextAvatar)
       document.querySelectorAll('#avatarAdminEntry').forEach(function(el) {
         el.style.display = d.is_admin ? '' : 'none'
       })
