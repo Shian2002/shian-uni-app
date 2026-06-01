@@ -13,19 +13,19 @@
 - 增加 `scripts/db_backup.py` 与 `scripts/db_restore.py`，使用 SQLite backup API 做一致性备份，恢复前会自动保留安全副本。
 - 部署脚本的生产库备份已移动到 `/home/lighthouse/backups/xuan-cet/db/`，默认保留最近 30 份部署备份。
 - 增加 `scripts/production_smoke.py`，用于部署后检查健康接口、首页资源、普通用户后台拒绝和管理员后台访问。
-- 后端进一步拆出 `backend/ops_routes.py`、`backend/auth_routes.py`、`backend/bazi_history_routes.py`、`backend/points_routes.py`、`backend/profile_routes.py`、`backend/recharge_routes.py`、`backend/community_routes.py` 与 `backend/comprehensive_routes.py`，降低 `backend/app.py` 路由堆积。
+- 后端进一步拆出 `backend/ops_routes.py`、`backend/auth_routes.py`、`backend/bazi_history_routes.py`、`backend/points_routes.py`、`backend/profile_routes.py`、`backend/recharge_routes.py`、`backend/community_routes.py`、`backend/comprehensive_routes.py` 与 `backend/metaphysics_routes.py`，降低 `backend/app.py` 路由堆积。
 - 首页 AI 抽出 `homeAiUtils.js`、`useHomeAiDraft.js`、`useHomeAiStream.js`、`HomeAiComposer.vue` 与 `HomeArtifactTabs.vue`，把 HTML 转义、术语清理、本地草稿、逐字输出缓冲、输入栏和术数切换标签从主页面里剥离。
 
 ## 当前风险
 
 - `npm audit --omit=dev` 仍报告 `@dcloudio/uni-mp-weixin` 依赖链中的 `ws` 中危漏洞，npm 标记为 `No fix available`。当前 H5 线上部署不直接使用微信小程序运行时，但锁文件仍会被审计扫到。
 - DCloud 提示存在 `5.11 alpha` 更新。该更新属于整套 Uni/DCloud 平台链升级，风险高于单点安全覆盖，建议单独做小程序/H5 兼容验证后再切换。
-- `backend/app.py` 仍然过大，后台管理、基础账号、健康检查、八字历史、会员积分、命盘档案、充值、社区、首页综合 AI 已经拆出，但普通排盘 AI、第三方/验证码登录仍混在主文件里。
+- `backend/app.py` 仍然过大，后台管理、基础账号、健康检查、八字历史、会员积分、命盘档案、充值、社区、首页综合 AI、塔罗与单项历史对话已经拆出，但普通排盘 AI、第三方/验证码登录仍混在主文件里。
 - `src/pages/index/index.vue` 仍然承载首页 AI 对话编排和 artifact 渲染，后续还应继续拆 `useHomeArtifacts` 与综合 AI 请求流控制。
 
 ## 下一步建议
 
-1. 继续拆后端：`metaphysics_routes.py`、第三方/验证码登录路由。
+1. 继续拆后端：继续把 `backend/app.py` 里的八字、紫微、奇门、六爻、梅花、择吉排盘与单项 AI 路由迁入 `metaphysics_routes.py`，再拆第三方/验证码登录路由。
 2. 继续拆首页：`useHomeArtifacts`、综合 AI 请求流控制、artifact 渲染器分组。
 3. 单独评估 Uni/DCloud alpha 版本链，重点验证 H5、微信/支付宝/头条小程序构建与运行时兼容性。
 4. 服务器备份策略移到仓库外目录，例如 `/home/lighthouse/backups/xuan-cet/`，并定期校验恢复。
