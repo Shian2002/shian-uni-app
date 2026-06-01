@@ -1397,14 +1397,14 @@ function renderLiuyaoArtifact(data) {
     const ben = details[i] || {}
     const bian = bianDetails[i] || null
     html += '<div class="ly-paired-row ' + (ben.is_moving ? 'moving' : '') + (bian ? ' has-bian' : ' has-ben-only') + '">'
-    html += '<div class="ly-row-ben-side"><div class="ly-visual-side"><div class="ly-paired-ben">' + renderYaoGraphic(!!ben.is_yang) + '</div><div class="ly-paired-info">'
-    html += '<span class="ly-yao-pos">' + htmlEscape(ben.name || '') + '</span><span class="ly-tag ly-tag-liuqin">' + htmlEscape(ben.liuqin || ben.liu_qin || '') + '</span><span class="ly-tag ly-tag-liushen">' + htmlEscape(ben.liushen || ben.liu_shen || '') + '</span><span class="ly-tag ly-tag-naja">' + htmlEscape(ben.naja || ben.na_jia || '') + '</span></div></div><div class="ly-yao-tags-left">'
+    html += '<div class="ly-row-ben-side"><div class="ly-visual-side"><div class="ly-yao-tags-left">'
     if (ben.is_shi) html += '<span class="ly-tag ly-tag-shi">世</span>'
     if (ben.is_ying) html += '<span class="ly-tag ly-tag-ying">应</span>'
     if (ben.is_moving) html += '<span class="ly-tag ly-tag-moving">动</span>'
-    html += '</div></div>'
+    html += '</div><div class="ly-paired-ben">' + renderYaoGraphic(!!ben.is_yang) + '</div><div class="ly-paired-info">'
+    html += '<span class="ly-yao-pos">' + htmlEscape(ben.name || '') + '</span><span class="ly-tag ly-tag-liuqin">' + htmlEscape(ben.liuqin || ben.liu_qin || '') + '</span><span class="ly-tag ly-tag-liushen">' + htmlEscape(ben.liushen || ben.liu_shen || '') + '</span><span class="ly-tag ly-tag-naja">' + htmlEscape(ben.naja || ben.na_jia || '') + '</span></div></div></div>'
     if (bian) {
-      html += '<div class="ly-row-divider"></div><div class="ly-row-bian-side"><div class="ly-yao-tags-left">' + (bian.yao_type === '变' ? '<span class="ly-tag ly-tag-bian">变</span>' : '') + '</div><div class="ly-visual-side"><div class="ly-paired-bian">' + renderYaoGraphic(!!bian.is_yang) + '</div><div class="ly-paired-bian-info"><span class="ly-tag ly-tag-liuqin">' + htmlEscape(bian.liuqin || bian.liu_qin || '') + '</span><span class="ly-tag ly-tag-liushen">' + htmlEscape(bian.liushen || bian.liu_shen || '') + '</span><span class="ly-tag ly-tag-naja">' + htmlEscape(bian.naja || bian.na_jia || '') + '</span></div></div></div>'
+      html += '<div class="ly-row-divider"></div><div class="ly-row-bian-side"><div class="ly-visual-side"><div class="ly-yao-tags-left">' + (bian.yao_type === '变' ? '<span class="ly-tag ly-tag-bian">变</span>' : '') + '</div><div class="ly-paired-bian">' + renderYaoGraphic(!!bian.is_yang) + '</div><div class="ly-paired-bian-info"><span class="ly-yao-pos">' + htmlEscape(bian.name || ben.name || '') + '</span><span class="ly-tag ly-tag-liuqin">' + htmlEscape(bian.liuqin || bian.liu_qin || '') + '</span><span class="ly-tag ly-tag-liushen">' + htmlEscape(bian.liushen || bian.liu_shen || '') + '</span><span class="ly-tag ly-tag-naja">' + htmlEscape(bian.naja || bian.na_jia || '') + '</span></div></div></div>'
     }
     html += '</div>'
   }
@@ -2435,15 +2435,15 @@ onBeforeUnmount(() => {
 .home-artifact-render :deep(.ly-ben-bian-name-text) { margin-top: 4px; font-family: var(--font-serif); font-size: 1.1rem; font-weight: 800; color: var(--accent); letter-spacing: 2px; }
 .home-artifact-render :deep(.ly-ben-bian-trigrams) { width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 .home-artifact-render :deep(.ly-ben-bian-top-arrow) { color: var(--accent); font-size: 1.2rem; font-weight: 800; }
-.home-artifact-render :deep(.ly-ben-bian-body) { --ly-side-width: 250px; --ly-yao-width: 74px; --ly-yao-bar: 64px; --ly-tag-gutter: 42px; display: grid; gap: 7px; }
+.home-artifact-render :deep(.ly-ben-bian-body) { --ly-side-width: 250px; --ly-marker-width: 38px; --ly-yao-width: 74px; --ly-yao-bar: 64px; display: grid; gap: 7px; }
 .home-artifact-render :deep(.ly-paired-row) { display: grid; grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr); gap: 8px; align-items: center; width: 100%; padding: 8px; border-radius: 10px; background: rgba(255,255,255,.035); border: 1px solid rgba(178,149,93,.10); box-sizing: border-box; }
 .home-artifact-render :deep(.ly-paired-row.has-ben-only) { grid-template-columns: minmax(0, 1fr); }
 .home-artifact-render :deep(.ly-paired-row.moving) { background: rgba(215,125,110,.08); border-color: rgba(215,125,110,.22); }
 .home-artifact-render :deep(.ly-row-ben-side),
 .home-artifact-render :deep(.ly-row-bian-side) { position: relative; min-width: 0; display: flex; justify-content: center; box-sizing: border-box; }
-.home-artifact-render :deep(.ly-visual-side) { position: relative; display: grid; grid-template-columns: var(--ly-yao-width) minmax(0, 1fr); gap: 8px; align-items: center; width: min(var(--ly-side-width), 100%); min-width: 0; }
+.home-artifact-render :deep(.ly-visual-side) { position: relative; display: grid; grid-template-columns: var(--ly-marker-width) var(--ly-yao-width) minmax(0, 1fr); gap: 8px; align-items: center; width: min(var(--ly-side-width), 100%); min-width: 0; }
 .home-artifact-render :deep(.ly-row-divider) { width: 1px; align-self: stretch; background: rgba(178,149,93,.18); }
-.home-artifact-render :deep(.ly-yao-tags-left) { position: absolute; left: calc(-1 * var(--ly-tag-gutter)); top: 50%; width: calc(var(--ly-tag-gutter) - 6px); transform: translateY(-50%); display: flex; gap: 4px; justify-content: flex-start; flex-wrap: wrap; }
+.home-artifact-render :deep(.ly-yao-tags-left) { min-width: 0; display: flex; gap: 4px; justify-content: flex-start; flex-wrap: wrap; }
 .home-artifact-render :deep(.ly-tag) { display: inline-flex; align-items: center; justify-content: center; min-height: 20px; padding: 1px 6px; border-radius: 6px; font-size: .65rem; line-height: 1; background: rgba(178,149,93,.10); color: var(--text-2); white-space: nowrap; }
 .home-artifact-render :deep(.ly-tag-shi) { color: #fff; background: #8a6319; }
 .home-artifact-render :deep(.ly-tag-ying) { color: #fff; background: #7C93C3; }
@@ -2843,7 +2843,7 @@ onBeforeUnmount(() => {
   .home-artifact-render :deep(.ly-paired-row),
   .home-artifact-render :deep(.ly-paired-row.has-bian) { grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr); gap: 4px; padding: 6px 4px; }
   .home-artifact-render :deep(.ly-row-divider) { width: 1px; height: auto; }
-  .home-artifact-render :deep(.ly-ben-bian-body) { --ly-side-width: 142px; --ly-yao-width: 48px; --ly-yao-bar: 42px; --ly-tag-gutter: 26px; }
+  .home-artifact-render :deep(.ly-ben-bian-body) { --ly-side-width: 156px; --ly-marker-width: 24px; --ly-yao-width: 48px; --ly-yao-bar: 42px; }
   .home-artifact-render :deep(.ly-visual-side) { gap: 4px; }
   .home-artifact-render :deep(.tarot-cards-display),
   .home-artifact-render :deep(.tarot-cards-display[data-count="3"]),

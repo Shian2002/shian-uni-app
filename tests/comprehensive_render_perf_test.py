@@ -98,10 +98,14 @@ def test_home_liuyao_keeps_visual_center_on_mobile():
     assert "ly-visual-side" in source
     assert "--ly-yao-width" in source
     assert "--ly-side-width" in source
+    assert "--ly-marker-width" in source
     assert "justify-content: center" in source
+    assert "grid-template-columns: var(--ly-marker-width) var(--ly-yao-width) minmax(0, 1fr)" in source
     assert "width: min(var(--ly-side-width), 100%)" in source
     assert "grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr)" in source
     assert "ly-row-ben-side\"><div class=\"ly-yao-tags-left\"" not in source
+    assert "position: absolute; left: calc(-1 * var(--ly-tag-gutter))" not in source
+    assert "htmlEscape(bian.name || ben.name || '')" in source
     assert ".home-artifact-render :deep(.ly-paired-row.has-bian) { grid-template-columns: 1fr; }" not in source
     assert ".home-artifact-render :deep(.ly-row-divider) { width: 100%; height: 1px; }" not in source
 
