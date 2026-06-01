@@ -65,6 +65,20 @@ def test_tarot_page_card_images_and_text_are_not_cropped():
     assert mobile_block and ".tarot-card-keyword-below { display: none; }" not in mobile_block.group("body")
 
 
+def test_tarot_mobile_card_grid_does_not_overflow_viewport():
+    page_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "src", "pages", "tarot", "index.vue")
+    )
+    source = open(page_path, encoding="utf-8").read()
+    mobile_block = re.search(r"@media \(max-width: 480px\) \{(?P<body>.*?)\n\}", source, re.S)
+
+    assert mobile_block, "缺少塔罗移动端样式"
+    body = mobile_block.group("body")
+    assert '.tarot-cards-display[data-count="3"] { grid-template-columns: repeat(2, 1fr); max-width: 270px;' in body
+    assert '.tarot-cards-display[data-count="5"] { grid-template-columns: repeat(2, 1fr); max-width: 270px;' in body
+    assert '.tarot-cards-display[data-count="10"] { grid-template-columns: repeat(2, 1fr); max-width: 270px;' in body
+
+
 def test_sidebar_history_touch_does_not_navigate_on_scroll_end():
     nav_path = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "..", "src", "components", "TopNav.vue")

@@ -1797,9 +1797,11 @@ function _checkTarotRestore() {
   .tarot-card-name-en { font-size: 0.55rem; }
   .tarot-card-keyword { font-size: 0.56rem; line-height: 1.3; }
   .tarot-card-keyword-below { -webkit-line-clamp: 2; min-height: 28px; }
-  .tarot-cards-display[data-count="6"] { grid-template-columns: repeat(2, 1fr); max-width: 240px; }
-  .tarot-cards-display[data-count="7"] { grid-template-columns: repeat(3, 1fr); max-width: 360px; }
-  .tarot-cards-display[data-count="10"] { grid-template-columns: repeat(4, 1fr); max-width: 480px; }
+  .tarot-cards-display[data-count="3"] { grid-template-columns: repeat(2, 1fr); max-width: 270px; }
+  .tarot-cards-display[data-count="5"] { grid-template-columns: repeat(2, 1fr); max-width: 270px; }
+  .tarot-cards-display[data-count="6"] { grid-template-columns: repeat(2, 1fr); max-width: 270px; }
+  .tarot-cards-display[data-count="7"] { grid-template-columns: repeat(2, 1fr); max-width: 270px; }
+  .tarot-cards-display[data-count="10"] { grid-template-columns: repeat(2, 1fr); max-width: 270px; }
 }
 
 /* ═══ AI 进度区 ═══ */
