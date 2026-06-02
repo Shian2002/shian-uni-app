@@ -7,7 +7,7 @@
       <view class="marketing-nav">
         <view class="marketing-brand">
           <view class="marketing-logo-wrap">
-            <img class="marketing-logo" src="/static/images/logo.webp?v=2" alt="时安解忧屋" />
+            <img class="marketing-logo" src="/static/images/logo.webp?v=3" alt="时安解忧屋" />
           </view>
           <text>时安解忧屋</text>
         </view>
@@ -278,7 +278,7 @@
         <view class="hero-home-content">
           <!-- LOGO 和品牌 -->
           <view class="hero-brand">
-            <view class="hero-brand-icon-wrap"><img class="hero-brand-icon" src="/static/images/logo.webp?v=2" alt="时安解忧屋" /></view>
+            <view class="hero-brand-icon-wrap"><img class="hero-brand-icon" src="/static/images/logo.webp?v=3" alt="时安解忧屋" /></view>
             <view class="hero-brand-name">时安解忧屋</view>
             <view class="hero-brand-divider"></view>
             <view class="hero-brand-slogan">八字定终身格局 · 奇门断当下决策</view>
@@ -308,7 +308,7 @@
                   <img
                     class="home-ai-agent-logo"
                     :class="msg.stage ? 'spinning' : 'idle'"
-                    src="/static/images/logo.webp?v=2"
+                    src="/static/images/logo.webp?v=3"
                     alt="时安解忧屋"
                   />
                   <view class="home-ai-agent-texts">

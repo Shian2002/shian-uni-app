@@ -194,7 +194,7 @@ function ensureGlobalSidebar() {
   sidebar.className = 'tarot-sidebar'
   sidebar.id = 'tarotSidebarGlobal'
   sidebar.setAttribute('aria-hidden', 'true')
-  sidebar.innerHTML = '<div class="sidebar-brand"><span class="sidebar-brand-icon-wrap"><img class="sidebar-brand-icon" src="/static/images/logo.webp?v=2"></span><span class="sidebar-brand-name">时安解忧屋</span></div>'
+  sidebar.innerHTML = '<div class="sidebar-brand"><span class="sidebar-brand-icon-wrap"><img class="sidebar-brand-icon" src="/static/images/logo.webp?v=3"></span><span class="sidebar-brand-name">时安解忧屋</span></div>'
     + '<div class="sidebar-header"><span class="sidebar-title">对话历史</span><button class="sidebar-new-chat-btn" id="sidebarNewChatBtn" type="button" onclick="window._xc_startNewConversation(\'comprehensive\')">新对话</button></div>'
     + '<div class="sidebar-tabs"><span class="sidebar-tab active" id="sidebarTabFlat" onclick="window._xc_setSidebarView(\'flat\')">全部</span></div>'
     + '<div class="sidebar-content" id="sidebarListGlobal"><div class="sidebar-empty">加载中...</div></div>'

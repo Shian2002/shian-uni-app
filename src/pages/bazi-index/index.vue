@@ -968,7 +968,7 @@ async function baiAiAsk() {
 
   var bubbleId = 'baiBubble_' + Date.now()
   var bubbleHTML = '<div class="chat-bubble-ai" id="' + bubbleId + '">' +
-    '<div class="ai-stage" id="baiStage"><img class="ai-stage-logo" id="baiStageLogo" src="/static/images/logo.webp?v=2"><span id="baiStageText">排盘准备中</span></div>' +
+    '<div class="ai-stage" id="baiStage"><img class="ai-stage-logo" id="baiStageLogo" src="/static/images/logo.webp?v=3"><span id="baiStageText">排盘准备中</span></div>' +
     '<div class="ai-progress-bar"><div class="ai-progress-fill" id="baiProgressFill" style="width:8%"></div></div>' +
     '<div class="chat-bubble-content"></div></div>'
   if (chatContainer) chatContainer.innerHTML = bubbleHTML
@@ -1086,7 +1086,7 @@ async function baiSendFollowUp() {
   chatContainer.appendChild(userBubble)
   var bubbleId = 'baiFollow_' + Date.now()
   var aiBubble = document.createElement('div'); aiBubble.className = 'chat-bubble-ai'; aiBubble.id = bubbleId
-  aiBubble.innerHTML = '<div class="ai-stage"><img class="ai-stage-logo" src="/static/images/logo.webp?v=2"><span>AI思考中...</span></div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:10%"></div></div><div class="chat-bubble-content"></div>'
+  aiBubble.innerHTML = '<div class="ai-stage"><img class="ai-stage-logo" src="/static/images/logo.webp?v=3"><span>AI思考中...</span></div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:10%"></div></div><div class="chat-bubble-content"></div>'
   chatContainer.appendChild(aiBubble); chatContainer.scrollIntoView({ behavior: 'smooth', block: 'end' })
   var history = window._baiChatHistory || []; history.push({ role: 'user', content: question })
   var followProg = aiBubble.querySelector('.ai-progress-fill')

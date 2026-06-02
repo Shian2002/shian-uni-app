@@ -411,7 +411,7 @@ uni-tabbar, .uni-tabbar, .uni-tabbar-bottom {
 .tarot-detail-label { font-size:.7rem; color:var(--accent); margin-bottom:6px; letter-spacing:1px; }
 .tarot-detail-body { font-size:.82rem; color:var(--text-2); line-height:1.7; white-space:pre-wrap; word-break:break-word; }
 @media (max-width: 480px) { .tarot-sidebar { width:260px; } }
-.ai-stage-logo{display:inline-block;width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:3px;object-fit:cover;animation:ai-logo-spin 1s linear infinite}.ai-stage-logo-box{display:inline-block;width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:3px;background:url(/static/images/logo.webp?v=2) center/cover no-repeat;animation:ai-logo-spin 1s linear infinite}@keyframes ai-logo-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.ai-stage-logo{display:inline-block;width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:3px;object-fit:cover;animation:ai-logo-spin 1s linear infinite}.ai-stage-logo-box{display:inline-block;width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:3px;background:url(/static/images/logo.webp?v=3) center/cover no-repeat;animation:ai-logo-spin 1s linear infinite}@keyframes ai-logo-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
 .site-footer{margin-top:0!important;padding:16px 32px 12px!important}.site-footer .footer-disclaimer{margin-bottom:0!important}@media(max-width:768px){.site-footer{padding:12px 16px 10px!important}}
 uni-page-wrapper{min-height:0!important}
 .page-root{padding-top:60px!important}@media(max-width:768px){.page-root{padding-top:56px!important}}
