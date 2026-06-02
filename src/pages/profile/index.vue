@@ -167,7 +167,7 @@ function toggleTheme() {
 }
 
 const isLoggedIn = ref(!!uni.getStorageSync('xc_token'))
-window.addEventListener('xc-session-expired', function() { isLoggedIn.value = false })
+window.addEventListener('xc-session-expired', function() { resetProfileSessionState() })
 const hasPassword = ref(uni.getStorageSync('xc_has_password') === '1')
 const accordionOpen = ref('')
 const accordionInputsCreated = {}

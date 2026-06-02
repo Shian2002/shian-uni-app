@@ -239,7 +239,7 @@
 </template>
 
 <script setup>
-import { inject, onMounted, ref } from 'vue'
+import { inject, onMounted, onBeforeUnmount, ref } from 'vue'
 import TopNav from '../../components/TopNav.vue'
 
 const theme = inject('theme', ref('light'))
@@ -271,6 +271,39 @@ const manualUserId = ref('')
 const manualPoints = ref('')
 const manualRemark = ref('后台手动加积分')
 const manualOrderId = ref('')
+
+function resetAdminSessionState() {
+  isLoggedIn.value = false
+  isAdmin.value = false
+  authLoading.value = false
+  summary.value = { users: 0, posts: 0, hidden_posts: 0, pending_reports: 0, pending_recharge_orders: 0 }
+  reports.value = []
+  posts.value = []
+  users.value = []
+  userPage.value = 1
+  userTotal.value = 0
+  hasMoreUsers.value = false
+  rechargeOrders.value = []
+  auditLogs.value = []
+  oldPassword.value = ''
+  newPassword.value = ''
+  confirmPassword.value = ''
+  manualUserId.value = ''
+  manualPoints.value = ''
+  manualOrderId.value = ''
+}
+
+async function handleAdminAuthChanged(e) {
+  var detail = e && e.detail ? e.detail : {}
+  if (detail.type === 'logout' || detail.loggedIn === false) {
+    resetAdminSessionState()
+    return
+  }
+  if (detail.type === 'login' || detail.loggedIn === true) {
+    await checkAdmin()
+    await refreshAll()
+  }
+}
 
 const reportReasons = {
   spam: '广告垃圾',
@@ -509,8 +542,15 @@ async function refreshAll() {
 
 onMounted(async function() {
   try { isLoggedIn.value = !!(uni.getStorageSync('xc_token') || localStorage.getItem('xc_token')) } catch(_) {}
+  try { window.addEventListener('xc-auth-changed', handleAdminAuthChanged) } catch(_) {}
+  try { window.addEventListener('xc-session-expired', resetAdminSessionState) } catch(_) {}
   await checkAdmin()
   await refreshAll()
+})
+
+onBeforeUnmount(function() {
+  try { window.removeEventListener('xc-auth-changed', handleAdminAuthChanged) } catch(_) {}
+  try { window.removeEventListener('xc-session-expired', resetAdminSessionState) } catch(_) {}
 })
 </script>
 

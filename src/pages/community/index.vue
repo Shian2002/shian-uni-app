@@ -293,7 +293,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import TopNav from '@/components/TopNav.vue'
 
@@ -411,6 +411,47 @@ const reportError = ref('')
 const reportTarget = ref({ type: '', id: 0 })
 const showAdminPanel = ref(false)
 const adminReports = ref([])
+let notifTimer = null
+
+function resetCommunityAccountState() {
+  isLoggedIn.value = false
+  bookmarkedIds.value = new Set()
+  bookmarkMap.value = {}
+  notifPanelOpen.value = false
+  notifications.value = []
+  unreadCount.value = 0
+  isAdmin.value = false
+  showAdminPanel.value = false
+  adminReports.value = []
+  selectedReportReason.value = ''
+  reportError.value = ''
+  reportTarget.value = { type: '', id: 0 }
+  try {
+    if (notifTimer) {
+      clearInterval(notifTimer)
+      notifTimer = null
+    }
+    document.getElementById('comReportModal')?.classList.remove('open')
+    document.getElementById('comAdminModal')?.classList.remove('open')
+  } catch(_) {}
+}
+
+async function handleCommunityAuthChanged(e) {
+  var detail = e && e.detail ? e.detail : {}
+  if (detail.type === 'logout' || detail.loggedIn === false) {
+    resetCommunityAccountState()
+    return
+  }
+  if (detail.type === 'login' || detail.loggedIn === true) {
+    isLoggedIn.value = true
+    await loadBookmarks()
+    startNotifPolling()
+    try {
+      var profileRes = await uni.request({ url: '/api/me' })
+      isAdmin.value = !!(profileRes.data && profileRes.data.is_admin)
+    } catch(_) {}
+  }
+}
 const reportReasons = { spam: '垃圾广告', abuse: '辱骂/骚扰', misinformation: '虚假信息', illegal: '违法违规', other: '其他' }
 
 function _formatTime(iso) {
@@ -463,7 +504,11 @@ function loadMorePosts() {
 }
 
 async function loadBookmarks() {
-  if (!uni.getStorageSync('xc_token')) return
+  if (!uni.getStorageSync('xc_token')) {
+    bookmarkedIds.value = new Set()
+    bookmarkMap.value = {}
+    return
+  }
   try {
     var res = await uni.request({ url: '/api/collections?type=post' })
     var d = res.data
@@ -748,7 +793,11 @@ function toggleNotifPanel() {
 }
 
 async function loadNotifications() {
-  if (!uni.getStorageSync('xc_token')) return
+  if (!uni.getStorageSync('xc_token')) {
+    notifications.value = []
+    unreadCount.value = 0
+    return
+  }
   try {
     var res = await uni.request({ url: '/api/notifications' })
     var d = res.data
@@ -777,8 +826,9 @@ async function readNotifAndGo(n) {
 }
 
 function startNotifPolling() {
+  if (notifTimer) clearInterval(notifTimer)
   loadNotifications()
-  setInterval(function() { loadNotifications() }, 30000)
+  notifTimer = setInterval(function() { loadNotifications() }, 30000)
 }
 
 function showReportModal(type, id) {
@@ -970,6 +1020,8 @@ onMounted(async function() {
 
   loadPosts()
   loadBookmarks()
+  try { window.addEventListener('xc-auth-changed', handleCommunityAuthChanged) } catch(_) {}
+  try { window.addEventListener('xc-session-expired', resetCommunityAccountState) } catch(_) {}
 
   var token = uni.getStorageSync('xc_token')
   if (token) {
@@ -1009,6 +1061,17 @@ onMounted(async function() {
   window.__xc = window.__xc || {}
   window.__xc.switchCategory = function(cat) { switchComCategory(cat, null) }
   window.__xc.switchSort = function(key) { switchSort(key) }
+})
+
+onBeforeUnmount(function() {
+  try { window.removeEventListener('xc-auth-changed', handleCommunityAuthChanged) } catch(_) {}
+  try { window.removeEventListener('xc-session-expired', resetCommunityAccountState) } catch(_) {}
+  try {
+    if (notifTimer) {
+      clearInterval(notifTimer)
+      notifTimer = null
+    }
+  } catch(_) {}
 })
 
 watch(showAdminPanel, function(v) {

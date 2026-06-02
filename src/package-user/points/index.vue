@@ -149,7 +149,7 @@
 </template>
 
 <script>
-import { ref, inject, onMounted } from 'vue'
+import { ref, inject, onMounted, onBeforeUnmount } from 'vue'
 import TopNav from '../../components/TopNav.vue'
 
 export default {
@@ -181,6 +181,50 @@ export default {
     var paymentProofPath = ref('')
     var paymentProofName = ref('')
     var paymentChecking = ref(false)
+
+    function resetPointsSessionState() {
+      isLoggedIn.value = false
+      dpLogs = []
+      dpPage = 1
+      dpFilter = 'all'
+      currentPackage = null
+      currentOrderId.value = null
+      paymentProofPath.value = ''
+      paymentProofName.value = ''
+      paymentChecking.value = false
+      try {
+        var pointsEl = document.getElementById('pointsNumber')
+        var levelEl = document.getElementById('pointsLevel')
+        var logEl = document.getElementById('pointsLogList')
+        var pagerEl = document.getElementById('dpPager')
+        var signBtn = document.getElementById('signinBtn')
+        var signText = document.getElementById('signinText')
+        var modal = document.getElementById('rechargeModal')
+        if (pointsEl) pointsEl.textContent = '--'
+        if (levelEl) levelEl.textContent = ''
+        if (logEl) logEl.innerHTML = '<view class="log-empty">登录后查看积分账本</view>'
+        if (pagerEl) pagerEl.innerHTML = ''
+        if (signBtn) signBtn.classList.remove('signed')
+        if (signText) signText.textContent = '每日签到'
+        if (modal) modal.classList.remove('open')
+        document.querySelectorAll('.dp-tab').forEach(function(el) { el.classList.remove('active') })
+        var allTab = document.getElementById('dpTabAll')
+        if (allTab) allTab.classList.add('active')
+      } catch(_) {}
+    }
+
+    function handleAuthChanged(e) {
+      var detail = e && e.detail ? e.detail : {}
+      if (detail.type === 'logout' || detail.loggedIn === false) {
+        resetPointsSessionState()
+        return
+      }
+      if (detail.type === 'login' || detail.loggedIn === true) {
+        isLoggedIn.value = true
+        loadPoints()
+        loadLogs()
+      }
+    }
 
     function renderDpLogs() {
       var filtered = dpLogs
@@ -254,7 +298,10 @@ export default {
     }
 
     function loadLogs() {
-      if (!isLoggedIn.value) return
+      if (!isLoggedIn.value) {
+        resetPointsSessionState()
+        return
+      }
       uni.request({
         url: '/api/points/log?page=1&per_page=50', method: 'GET',
         success: function(res) {
@@ -272,7 +319,10 @@ export default {
     }
 
     function loadPoints() {
-      if (!isLoggedIn.value) return
+      if (!isLoggedIn.value) {
+        resetPointsSessionState()
+        return
+      }
       uni.request({
         url: '/api/membership', method: 'GET',
         success: function(res) {
@@ -320,6 +370,11 @@ export default {
     }
 
     function doSignin() {
+      if (!isLoggedIn.value) {
+        try { if (window._openLoginModal) window._openLoginModal() } catch(_) {}
+        uni.showToast({ title: '请先登录', icon: 'none' })
+        return
+      }
       var btn = document.getElementById('signinBtn')
       if (btn && btn.classList.contains('signed')) return
       uni.request({
@@ -346,6 +401,11 @@ export default {
     }
 
     function selectPackage(pkg) {
+      if (!isLoggedIn.value) {
+        try { if (window._openLoginModal) window._openLoginModal() } catch(_) {}
+        uni.showToast({ title: '请先登录', icon: 'none' })
+        return
+      }
       currentPackage = pkg
       currentOrderId.value = null
       paymentProofPath.value = ''
@@ -416,6 +476,11 @@ export default {
 
     function verifyAlipayPayment() {
       if (paymentChecking.value) return
+      if (!isLoggedIn.value) {
+        try { if (window._openLoginModal) window._openLoginModal() } catch(_) {}
+        uni.showToast({ title: '请先登录', icon: 'none' })
+        return
+      }
       if (!currentPackage) {
         uni.showToast({ title: '请选择充值套餐', icon: 'none' })
         return
@@ -475,8 +540,19 @@ export default {
     onMounted(function() {
       splitPackages(packages.value)
       loadPackages()
-      loadPoints()
-      loadLogs()
+      if (isLoggedIn.value) {
+        loadPoints()
+        loadLogs()
+      } else {
+        resetPointsSessionState()
+      }
+      try { window.addEventListener('xc-auth-changed', handleAuthChanged) } catch(_) {}
+      try { window.addEventListener('xc-session-expired', resetPointsSessionState) } catch(_) {}
+    })
+
+    onBeforeUnmount(function() {
+      try { window.removeEventListener('xc-auth-changed', handleAuthChanged) } catch(_) {}
+      try { window.removeEventListener('xc-session-expired', resetPointsSessionState) } catch(_) {}
     })
 
     return {

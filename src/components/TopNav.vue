@@ -1128,8 +1128,25 @@ function applyLogoutState() {
   avatarLetter.value = ''
   _avatarInstanceLoaded = false
   pointsLoaded = false
-  try { window.dispatchEvent(new CustomEvent('xc-auth-changed', { detail: { loggedIn: false } })) } catch(_) {}
-  try { uni.$emit('xc-auth-changed', { loggedIn: false }) } catch(_) {}
+  try {
+    uni.removeStorageSync('xc_avatar')
+    document.querySelectorAll('#avatarPointsBadge').forEach(function(el) { el.textContent = '...' })
+    document.querySelectorAll('#avatarAdminEntry').forEach(function(el) { el.style.display = 'none' })
+    applySidebarAvatar('', false)
+    var sideName = document.getElementById('sidebarUserName')
+    var sidePoints = document.getElementById('sidebarUserPoints')
+    var sideLogged = document.getElementById('sidebarUserLogged')
+    var sideGuest = document.getElementById('sidebarUserGuest')
+    var sideList = document.getElementById('sidebarHistoryList')
+    if (sideName) sideName.textContent = '用户'
+    if (sidePoints) sidePoints.textContent = '积分: --'
+    if (sideLogged) sideLogged.style.display = 'none'
+    if (sideGuest) sideGuest.style.display = 'flex'
+    if (sideList) sideList.innerHTML = '<div class="sidebar-empty">请登录后查看历史记录</div>'
+    window.__sidebarCache = null
+  } catch(_) {}
+  try { window.dispatchEvent(new CustomEvent('xc-auth-changed', { detail: { type: 'logout', loggedIn: false } })) } catch(_) {}
+  try { uni.$emit('xc-auth-changed', { type: 'logout', loggedIn: false }) } catch(_) {}
 }
 
 // 监听积分更新事件（签到/消费后实时刷新）
@@ -1151,10 +1168,10 @@ function openLoginFromNav() {
 
 function performLogout() {
   uni.request({ url: '/api/logout', method: 'POST' }).then(function() {
-    uni.removeStorageSync('xc_token'); uni.removeStorageSync('xc_user'); uni.removeStorageSync('xc_has_password')
+    uni.removeStorageSync('xc_token'); uni.removeStorageSync('xc_user'); uni.removeStorageSync('xc_has_password'); uni.removeStorageSync('xc_avatar')
     applyLogoutState()
   }).catch(function() {
-    uni.removeStorageSync('xc_token'); uni.removeStorageSync('xc_user'); uni.removeStorageSync('xc_has_password')
+    uni.removeStorageSync('xc_token'); uni.removeStorageSync('xc_user'); uni.removeStorageSync('xc_has_password'); uni.removeStorageSync('xc_avatar')
     applyLogoutState()
   })
 }

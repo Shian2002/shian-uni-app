@@ -65,7 +65,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import TopNav from '@/components/TopNav.vue'
 
 // ═══ 主题 ═══
@@ -83,7 +83,36 @@ function toggleTheme() {
 
 // ═══ 登录/注册 ═══
 const isLoggedIn = ref(!!uni.getStorageSync('xc_token'))
-window.addEventListener('xc-session-expired', function() { isLoggedIn.value = false })
+function resetHistorySessionState() {
+  isLoggedIn.value = false
+  records.value = []
+  loading.value = false
+  searchQuery.value = ''
+  filterType.value = ''
+  try {
+    var search = document.getElementById('histSearch')
+    if (search) search.value = ''
+    var ids = ['histFiltAll','histFiltComprehensive','histFiltBazi','histFiltQimen','histFiltLiuy','histFiltMei','histFiltZiwei','histFiltTaro']
+    ids.forEach(function(id) {
+      var el = document.getElementById(id)
+      if (el) el.classList.remove('active')
+    })
+    var all = document.getElementById('histFiltAll')
+    if (all) all.classList.add('active')
+  } catch(_) {}
+}
+function handleHistoryAuthChanged(e) {
+  var detail = e && e.detail ? e.detail : {}
+  if (detail.type === 'logout' || detail.loggedIn === false) {
+    resetHistorySessionState()
+    return
+  }
+  if (detail.type === 'login' || detail.loggedIn === true) {
+    isLoggedIn.value = true
+    loadHistory()
+  }
+}
+window.addEventListener('xc-session-expired', resetHistorySessionState)
 
 // ═══ 历史记录 ═══
 const records = ref([])
@@ -201,6 +230,10 @@ function clearHistory() {
 
 // 加载历史记录
 async function loadHistory() {
+  if (!isLoggedIn.value) {
+    resetHistorySessionState()
+    return
+  }
   loading.value = true
   try {
     const res = await uni.request({ url: '/api/bazi/history' })
@@ -232,7 +265,8 @@ async function loadHistory() {
 }
 
 onMounted(() => {
-  loadHistory()
+  if (isLoggedIn.value) loadHistory()
+  else resetHistorySessionState()
   // #ifdef H5
   var inp = createNativeInput('histSearch-wrap', 'text', '搜索姓名、四柱...')
   if (inp) {
@@ -240,7 +274,13 @@ onMounted(() => {
       searchQuery.value = inp.value
     })
   }
+  try { window.addEventListener('xc-auth-changed', handleHistoryAuthChanged) } catch(_) {}
   // #endif
+})
+
+onBeforeUnmount(() => {
+  try { window.removeEventListener('xc-auth-changed', handleHistoryAuthChanged) } catch(_) {}
+  try { window.removeEventListener('xc-session-expired', resetHistorySessionState) } catch(_) {}
 })
 </script>
 

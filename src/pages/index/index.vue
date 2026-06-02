@@ -553,7 +553,25 @@ function toggleSubmenu(key) { submenuOpen[key] = !submenuOpen[key] }
 
 // ── 登录状态 ──
 const isLoggedIn = ref(!!uni.getStorageSync('xc_token'))
-window.addEventListener('xc-session-expired', function() { isLoggedIn.value = false })
+function resetHomeAuthState() {
+  marketingPendingEnterAfterLogin = false
+  currentPoints.value = 0
+  profiles.value = []
+  selectedProfiles.value = []
+  startNewComprehensiveConversation()
+  marketingMode.value = true
+  syncMarketingPageClass()
+  // #ifdef H5
+  try {
+    if (window.location.hash !== '#/') window.history.replaceState({ marketing: 'home' }, '', '#/')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  } catch(_) {}
+  // #endif
+}
+window.addEventListener('xc-session-expired', function() {
+  isLoggedIn.value = false
+  resetHomeAuthState()
+})
 window.addEventListener('xc-auth-changed', function(e) {
   const loggedIn = !!(e && e.detail && e.detail.loggedIn)
   isLoggedIn.value = loggedIn
@@ -565,19 +583,7 @@ window.addEventListener('xc-auth-changed', function(e) {
       nextTick(function() { enterMarketingApp() })
     }
   } else {
-    marketingPendingEnterAfterLogin = false
-    currentPoints.value = 0
-    profiles.value = []
-    selectedProfiles.value = []
-    startNewComprehensiveConversation()
-    marketingMode.value = true
-    syncMarketingPageClass()
-    // #ifdef H5
-    try {
-      if (window.location.hash !== '#/') window.history.replaceState({ marketing: 'home' }, '', '#/')
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    } catch(_) {}
-    // #endif
+    resetHomeAuthState()
   }
 })
 
