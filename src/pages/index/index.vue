@@ -3390,10 +3390,9 @@ onBeforeUnmount(() => {
 }
 @media (max-width: 760px) {
   .marketing-nav {
-    top: 0;
-    height: calc(68px + env(safe-area-inset-top));
+    top: max(28px, calc(env(safe-area-inset-top) + 18px));
+    height: 62px;
     padding: 0 20px;
-    padding-top: env(safe-area-inset-top);
     box-sizing: border-box;
     background: linear-gradient(180deg, rgba(242,238,229,.96), rgba(242,238,229,.68) 72%, rgba(242,238,229,0));
     animation: none;
@@ -3405,7 +3404,7 @@ onBeforeUnmount(() => {
   .marketing-nav-links text { display: none; }
   .marketing-enter { min-height: 42px; padding: 10px 18px; font-size: 13px; }
   .marketing-hero {
-    padding: max(98px, calc(env(safe-area-inset-top) + 86px)) 24px max(30px, calc(env(safe-area-inset-bottom) + 24px));
+    padding: max(148px, calc(env(safe-area-inset-top) + 134px)) 24px max(30px, calc(env(safe-area-inset-bottom) + 24px));
     height: 100dvh;
     min-height: 100dvh;
     align-items: flex-start;
@@ -3428,10 +3427,10 @@ onBeforeUnmount(() => {
   .marketing-kicker { margin-bottom: 14px; font-size: 16px; }
   .marketing-title { font-size: clamp(42px, 12.4vw, 46px); line-height: 1.04; }
   .marketing-title-cn { margin-top: 14px; font-size: 29px; line-height: 1.14; }
-  .marketing-side { margin-top: 12px; }
+  .marketing-side { margin-top: 30px; }
   .marketing-side-title { margin-bottom: 12px; font-size: 22px; }
   .marketing-side-desc { font-size: 15px; line-height: 1.52; }
-  .marketing-cta-row { gap: 10px; flex-wrap: nowrap; margin-top: 28px; }
+  .marketing-cta-row { gap: 10px; flex-wrap: nowrap; margin-top: 34px; }
   .marketing-primary,
   .marketing-secondary {
     height: 50px;
@@ -3479,17 +3478,17 @@ onBeforeUnmount(() => {
 }
 @media (max-width: 760px) and (max-height: 700px) {
   .marketing-hero {
-    padding-top: max(88px, calc(env(safe-area-inset-top) + 76px));
+    padding-top: max(132px, calc(env(safe-area-inset-top) + 116px));
     padding-bottom: max(22px, calc(env(safe-area-inset-bottom) + 18px));
   }
   .marketing-copy { gap: 12px; }
   .marketing-kicker { margin-bottom: 10px; font-size: 15px; }
   .marketing-title { font-size: clamp(39px, 11.4vw, 44px); }
   .marketing-title-cn { margin-top: 10px; font-size: 27px; }
-  .marketing-side { margin-top: 8px; }
+  .marketing-side { margin-top: 20px; }
   .marketing-side-title { margin-bottom: 8px; font-size: 21px; }
   .marketing-side-desc { font-size: 14px; line-height: 1.45; }
-  .marketing-cta-row { margin-top: 22px; }
+  .marketing-cta-row { margin-top: 28px; }
   .marketing-primary,
   .marketing-secondary { height: 48px; }
   .marketing-critical {
