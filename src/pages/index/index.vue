@@ -383,6 +383,10 @@ function syncMarketingPageClass() {
     const active = !!marketingMode.value
     document.documentElement.classList.toggle('marketing-page', active)
     document.body.classList.toggle('marketing-page', active)
+    if (active) {
+      document.documentElement.classList.remove('home-fixed-page')
+      document.body.classList.remove('home-fixed-page')
+    }
   } catch(_) {}
   // #endif
 }

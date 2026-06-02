@@ -16,25 +16,36 @@ export default {
     } catch(_) {}
     document.documentElement.setAttribute('data-theme', saved)
     document.body.setAttribute('data-theme', saved)
+    function _hasAppHomeFlag() {
+      try {
+        var href = window.location.href || ''
+        var hash = window.location.hash || ''
+        var search = window.location.search || ''
+        return /(?:[?&])app=(?:1|true)(?:&|$)/.test(href) ||
+          /(?:[?&])app=(?:1|true)(?:&|$)/.test(hash) ||
+          /(?:[?&])app=(?:1|true)(?:&|$)/.test(search)
+      } catch(_) {}
+      return false
+    }
+    function _setPageClass(name, enabled) {
+      try {
+        document.documentElement.classList.toggle(name, !!enabled)
+        document.body.classList.toggle(name, !!enabled)
+      } catch(_) {}
+    }
     function _syncHomeFixedRoute() {
       try {
         var hash = window.location.hash || ''
-        var isHome = hash.indexOf('#/pages/index/index') === 0 || hash === '' || hash === '#/'
+        var isHome = hash.indexOf('#/pages/index/index') === 0 || hash === '' || hash === '#/' || hash.indexOf('#/?') === 0
         var isQimen = hash.indexOf('#/pages/qimen/index') === 0
-        if (isHome) {
-          document.documentElement.classList.add('home-fixed-page')
-          document.body.classList.add('home-fixed-page')
-        } else {
-          document.documentElement.classList.remove('home-fixed-page')
-          document.body.classList.remove('home-fixed-page')
-        }
-        if (isQimen) {
-          document.documentElement.classList.add('qimen-page-active')
-          document.body.classList.add('qimen-page-active')
-        } else {
-          document.documentElement.classList.remove('qimen-page-active')
-          document.body.classList.remove('qimen-page-active')
-        }
+        var isAppHome = isHome && _hasAppHomeFlag()
+        var hasChat = !!document.querySelector('.home-ai-console.has-chat')
+        var isMarketingHome = isHome && !isAppHome
+
+        // 营销页和普通页面都要允许页面自然滚动，不能被首页空态的单屏锁定规则拦住。
+        _setPageClass('home-fixed-page', isAppHome && hasChat && !isMarketingHome)
+        _setPageClass('qimen-page-active', isQimen)
+        if (!isHome || isMarketingHome) _setPageClass('marketing-page', isMarketingHome)
       } catch(_) {}
     }
     function _getActivePageScroller() {
@@ -51,7 +62,7 @@ export default {
     window.addEventListener('wheel', function(e) {
       try {
         var hash = window.location.hash || ''
-        var isHome = hash.indexOf('#/pages/index/index') === 0 || hash === '' || hash === '#/'
+        var isHome = hash.indexOf('#/pages/index/index') === 0 || hash === '' || hash === '#/' || hash.indexOf('#/?') === 0
         if (isHome || !e.deltaY) return
         var scroller = _getActivePageScroller()
         if (!scroller) return
