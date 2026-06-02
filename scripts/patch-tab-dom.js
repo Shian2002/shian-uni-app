@@ -1,9 +1,9 @@
 /**
- * Patch v24 - visited tab page rendering for H5 hash mode.
+ * Patch v25 - pre-render all tab pages for H5 hash mode.
  *
  * uni-app H5 的 tabBar 默认会把所有 tab 页面同时挂载。这个项目有顶部
- * 导航、登录弹窗和多个重型排盘页，如果首页一次性挂 13 个 tab 页面，
- * 桌面端切换时会明显卡顿。这里改为只渲染当前 tab 页面。
+ * 导航、登录弹窗和多个排盘页。为了避免 hash 已切换但目标 tab wrapper
+ * 尚未创建导致空白，这里显式预挂载所有 tab 页面，再用 display 控制显隐。
  */
 
 const fs = require('fs')
@@ -58,7 +58,7 @@ const createRouterViewVNode = `function createRouterViewVNode({
   isTabBar,
   routeCache: routeCache2
 }) {
-  // PATCHED v24: render visited tab pages instead of mounting every tab page.
+  // PATCHED v25: pre-render every tab page so tab switching never lands on an empty wrapper.
   if (isTabBar.value) {
     if (!window.__xcTabRenderVersionRef) window.__xcTabRenderVersionRef = ref(0);
     window.__xcTabRenderVersionRef.value;
@@ -80,11 +80,8 @@ const createRouterViewVNode = `function createRouterViewVNode({
       }
     }
     if (activeRoute) {
-      if (!window.__xcVisitedTabPaths) window.__xcVisitedTabPaths = ['/', '/pages/qimen/index', '/pages/bazi-index/index'];
-      if (window.__xcVisitedTabPaths.indexOf(activeRoute.path) < 0) window.__xcVisitedTabPaths.push(activeRoute.path);
-      var visited = window.__xcVisitedTabPaths;
       var tabChildren = routes.filter(function(r) {
-        return r.meta && r.meta.isTabBar && visited.indexOf(r.path) >= 0;
+        return r.meta && r.meta.isTabBar;
       }).map(function(route) {
         var pageKey = 'tabBar$$' + route.path;
         var isActive = route.path === activeRoute.path;
@@ -120,7 +117,7 @@ const nextContent = replaceFunction(content, 'createRouterViewVNode', createRout
 if (nextContent) {
   content = nextContent
   patchCount++
-  console.log('[OK] createRouterViewVNode patched (v24 visited tab render)')
+  console.log('[OK] createRouterViewVNode patched (v25 all tab render)')
 } else {
   failCount++
   console.log('[WARN] createRouterViewVNode not found')
@@ -161,21 +158,25 @@ const newReLaunchPatch = `// PATCHED v23: For reLaunch/redirectTo, always full p
         return resolve();
       }`
 
-if (content.indexOf('PATCHED v24: For reLaunch/redirectTo') >= 0) {
+if (content.indexOf('PATCHED v25: For reLaunch/redirectTo') >= 0) {
   patchCount++
-  console.log('[OK] reLaunch/redirectTo already patched (v24)')
+  console.log('[OK] reLaunch/redirectTo already patched (v25)')
+} else if (content.indexOf('PATCHED v24: For reLaunch/redirectTo') >= 0) {
+  content = content.replace('PATCHED v24: For reLaunch/redirectTo', 'PATCHED v25: For reLaunch/redirectTo')
+  patchCount++
+  console.log('[OK] reLaunch/redirectTo marker upgraded (v25)')
 } else if (content.indexOf('PATCHED v23: For reLaunch/redirectTo') >= 0) {
-  content = content.replace('PATCHED v23: For reLaunch/redirectTo', 'PATCHED v24: For reLaunch/redirectTo')
+  content = content.replace('PATCHED v23: For reLaunch/redirectTo', 'PATCHED v25: For reLaunch/redirectTo')
   patchCount++
-  console.log('[OK] reLaunch/redirectTo marker upgraded (v24)')
+  console.log('[OK] reLaunch/redirectTo marker upgraded (v25)')
 } else if (content.indexOf('PATCHED v20f: For reLaunch/redirectTo') >= 0) {
-  content = content.replace('PATCHED v20f: For reLaunch/redirectTo', 'PATCHED v24: For reLaunch/redirectTo')
+  content = content.replace('PATCHED v20f: For reLaunch/redirectTo', 'PATCHED v25: For reLaunch/redirectTo')
   patchCount++
-  console.log('[OK] reLaunch/redirectTo marker upgraded (v24)')
+  console.log('[OK] reLaunch/redirectTo marker upgraded (v25)')
 } else if (content.indexOf(oldReLaunchPatch) >= 0) {
   content = content.replace(oldReLaunchPatch, newReLaunchPatch)
   patchCount++
-  console.log('[OK] reLaunch/redirectTo patched (v24)')
+  console.log('[OK] reLaunch/redirectTo patched (v25)')
 } else {
   failCount++
   console.log('[WARN] reLaunch/redirectTo patch pattern not found')
@@ -195,7 +196,7 @@ if (content.indexOf(targetSwitchCall) >= 0) {
   console.log('[WARN] switchTab target path call pattern not found')
 }
 
-const switchTabPatch = `// PATCHED v24: __switchTabPageDom - active tab is rendered reactively.
+const switchTabPatch = `// PATCHED v25: __switchTabPageDom - all tab wrappers are pre-rendered.
     window.__xcRenderTabPath = function(path) {
       try {
         if (!path || path === '/pages/index/index') path = '/';
@@ -207,13 +208,11 @@ const switchTabPatch = `// PATCHED v24: __switchTabPageDom - active tab is rende
           document.documentElement.classList.toggle('qimen-page-active', isQimen);
           document.body.classList.toggle('qimen-page-active', isQimen);
         }
-        if (!window.__xcVisitedTabPaths) window.__xcVisitedTabPaths = ['/', '/pages/qimen/index', '/pages/bazi-index/index'];
-        if (window.__xcVisitedTabPaths.indexOf(path) < 0) window.__xcVisitedTabPaths.push(path);
         var currentHash = (location.hash.replace('#', '').split('?')[0] || '/');
         if (currentHash === '/pages/index/index') currentHash = '/';
         if (currentHash !== path) window.location.hash = path;
         if (window.__xcTabRenderVersionRef) window.__xcTabRenderVersionRef.value++;
-      } catch(e) { console.warn('[patch v24] __xcRenderTabPath error:', e); }
+      } catch(e) { console.warn('[patch v25] __xcRenderTabPath error:', e); }
     };
     window.__switchTabPageDom = function(path) {
       try {
@@ -245,19 +244,8 @@ const switchTabPatch = `// PATCHED v24: __switchTabPageDom - active tab is rende
           });
           return;
         }
-
         if (window.__xcRenderTabPath) window.__xcRenderTabPath(path);
-        setTimeout(function() {
-          try {
-            var ready = Array.prototype.slice.call(document.querySelectorAll('.tab-page-wrapper')).some(function(w) {
-              return w.getAttribute('data-tab-path') === path;
-            });
-            if (!ready) window.location.reload();
-          } catch(_e) {
-            window.location.reload();
-          }
-        }, 120);
-      } catch(e) { console.warn('[patch v24] __switchTabPageDom error:', e); }
+      } catch(e) { console.warn('[patch v25] __switchTabPageDom error:', e); }
     };`
 
 const switchMarker = 'window.__switchTabPageDom = function(path)'
@@ -268,7 +256,7 @@ if (switchStart >= 0) {
   if (commentStart >= 0 && end > switchStart) {
     content = content.substring(0, commentStart) + switchTabPatch + content.substring(end + '    };'.length)
     patchCount++
-    console.log('[OK] __switchTabPageDom patched (v24)')
+    console.log('[OK] __switchTabPageDom patched (v25)')
   } else {
     failCount++
     console.log('[WARN] __switchTabPageDom markers not found')
@@ -281,8 +269,8 @@ if (switchStart >= 0) {
 fs.writeFileSync(fp, content, 'utf8')
 
 if (failCount === 0) {
-  console.log('Patch v24 applied successfully! (' + patchCount + ' modifications)')
+  console.log('Patch v25 applied successfully! (' + patchCount + ' modifications)')
 } else {
-  console.log('Patch v24 partially applied with ' + failCount + ' warnings. (' + patchCount + ' OK)')
+  console.log('Patch v25 partially applied with ' + failCount + ' warnings. (' + patchCount + ' OK)')
   process.exitCode = 1
 }
