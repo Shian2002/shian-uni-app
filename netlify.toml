@@ -1,0 +1,14 @@
+[build]
+  command = "npm run build:h5"
+  publish = "dist/build/h5"
+
+[[redirects]]
+  from = "/api/*"
+  to = "http://119.29.128.18/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

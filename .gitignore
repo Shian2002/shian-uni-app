@@ -22,3 +22,6 @@ test-*.mjs
 *.pyc
 __pycache__/
 .gstack/
+
+# Local Netlify folder
+.netlify
