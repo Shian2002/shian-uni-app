@@ -1,6 +1,9 @@
 <template>
   <view class="page-root" :class="{ 'marketing-active': marketingMode }" :data-theme="theme">
     <view v-if="marketingMode" class="marketing-landing">
+      <view class="marketing-auth-host">
+        <TopNav :theme="theme" :is-logged-in="isLoggedIn" @toggle-theme="toggleTheme" />
+      </view>
       <view class="marketing-nav">
         <view class="marketing-brand">
           <view class="marketing-logo-wrap">
@@ -342,6 +345,7 @@ const topNavRef = ref(null)
 const marketingMode = ref(true)
 const marketingCriticalVisible = ref(false)
 let marketingObserver = null
+let marketingPendingEnterAfterLogin = false
 
 function shouldOpenToolHome(query) {
   if (query && (query.app === '1' || query.app === 'true')) return true
@@ -359,7 +363,19 @@ function shouldOpenToolHome(query) {
 }
 
 function refreshMarketingMode(query) {
-  marketingMode.value = !shouldOpenToolHome(query)
+  const wantsToolHome = shouldOpenToolHome(query)
+  if (wantsToolHome && !isLoggedIn.value) {
+    marketingPendingEnterAfterLogin = true
+    marketingMode.value = true
+    // #ifdef H5
+    try {
+      if (window.location.hash !== '#/') window.history.replaceState({ marketing: 'home' }, '', '#/')
+    } catch(_) {}
+    nextTick(openMarketingLogin)
+    // #endif
+  } else {
+    marketingMode.value = !wantsToolHome
+  }
   if (marketingMode.value) {
     marketingCriticalVisible.value = false
     nextTick(setupMarketingObserver)
@@ -369,16 +385,25 @@ function refreshMarketingMode(query) {
 }
 
 function enterMarketingApp() {
+  if (!isLoggedIn.value) {
+    marketingPendingEnterAfterLogin = true
+    openMarketingLogin()
+    return
+  }
   marketingMode.value = false
   disconnectMarketingObserver()
   // #ifdef H5
   try {
-    window.history.replaceState(null, '', '#/?app=1')
+    const targetHash = '#/?app=1'
+    if (window.location.hash !== targetHash) window.history.pushState({ app: 'home' }, '', targetHash)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   } catch(_) {}
   scheduleHomeVideoLoad()
-  if (!isLoggedIn.value) openLoginAfterEnteringApp()
   // #endif
+}
+
+function onMarketingRouteChange() {
+  refreshMarketingMode()
 }
 
 function scrollMarketingCritical() {
@@ -409,7 +434,7 @@ function scrollMarketingHero() {
   // #endif
 }
 
-function openLoginAfterEnteringApp() {
+function openMarketingLogin() {
   // #ifdef H5
   nextTick(function() {
     setTimeout(function() {
@@ -531,10 +556,23 @@ window.addEventListener('xc-auth-changed', function(e) {
   if (loggedIn) {
     loadComprehensiveOptions()
     loadProfiles()
+    if (marketingPendingEnterAfterLogin) {
+      marketingPendingEnterAfterLogin = false
+      nextTick(function() { enterMarketingApp() })
+    }
   } else {
+    marketingPendingEnterAfterLogin = false
     currentPoints.value = 0
     profiles.value = []
     selectedProfiles.value = []
+    startNewComprehensiveConversation()
+    marketingMode.value = true
+    // #ifdef H5
+    try {
+      if (window.location.hash !== '#/') window.history.replaceState({ marketing: 'home' }, '', '#/')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } catch(_) {}
+    // #endif
   }
 })
 
@@ -2574,6 +2612,8 @@ onMounted(() => {
   window._xc_newComprehensive = startNewComprehensiveConversation
   window.addEventListener('keydown', onHomeKeydown)
   window.addEventListener('scroll', onHomePageScroll, { passive: true })
+  window.addEventListener('popstate', onMarketingRouteChange)
+  window.addEventListener('hashchange', onMarketingRouteChange)
   window.addEventListener('beforeunload', saveComprehensiveDraftForUnload)
   document.addEventListener('visibilitychange', onHomeVisibilityChange)
   document.addEventListener('click', onHomeBaziYunClick)
@@ -2594,6 +2634,8 @@ onBeforeUnmount(() => {
   if (window._xc_newComprehensive === startNewComprehensiveConversation) window._xc_newComprehensive = null
   window.removeEventListener('keydown', onHomeKeydown)
   window.removeEventListener('scroll', onHomePageScroll)
+  window.removeEventListener('popstate', onMarketingRouteChange)
+  window.removeEventListener('hashchange', onMarketingRouteChange)
   window.removeEventListener('beforeunload', saveComprehensiveDraftForUnload)
   document.removeEventListener('visibilitychange', onHomeVisibilityChange)
   document.removeEventListener('click', onHomeBaziYunClick)
@@ -2696,6 +2738,14 @@ onBeforeUnmount(() => {
   color: var(--marketing-ink);
   font-family: ui-serif, "Songti SC", "STSong", "Times New Roman", serif;
 }
+.marketing-auth-host {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+}
+.marketing-auth-host :deep(.topnav) { display: none; }
+.marketing-auth-host :deep(.modal-overlay) { pointer-events: auto; }
 .marketing-nav {
   position: fixed;
   inset: 0 0 auto;
