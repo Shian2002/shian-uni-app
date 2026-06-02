@@ -40,7 +40,7 @@
         </view>
 
         <view class="marketing-copy">
-          <view>
+          <view class="marketing-main">
             <text class="marketing-kicker">The Oriental Insight Agent</text>
             <view class="marketing-title">
               <text>BaZi · QiMen · Ziwei</text>
@@ -2971,9 +2971,9 @@ onBeforeUnmount(() => {
   position: relative;
   min-height: 100dvh;
   overflow: hidden;
-  padding: 78px 50px 72px;
+  padding: 0 50px 80px;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   box-sizing: border-box;
 }
 .marketing-ambient {
@@ -3062,9 +3062,11 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 420px;
   gap: 60px;
-  align-items: center;
-  padding-bottom: 0;
-  transform: translateY(-38px);
+  align-items: end;
+  padding-bottom: 22px;
+}
+.marketing-main {
+  transform: translateY(-148px);
 }
 .marketing-kicker,
 .marketing-title,
@@ -3297,6 +3299,8 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
     gap: 24px;
     padding-bottom: 30px;
+  }
+  .marketing-main {
     transform: none;
   }
   .marketing-kicker { font-size: 17px; }
