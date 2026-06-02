@@ -3054,17 +3054,18 @@ onBeforeUnmount(() => {
 .marketing-orbit:nth-child(4) { width: 48rem; height: 16rem; --marketing-r: -27deg; --marketing-d: 80s; }
 .marketing-particle {
   position: absolute;
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  background: rgba(220,163,78,.72);
+  background: rgba(210,139,47,.86);
+  box-shadow: 0 0 14px rgba(197,122,36,.28);
   animation: marketingParticleRise 6s ease-in-out infinite;
 }
 .marketing-particle-soft {
-  width: 2px;
-  height: 2px;
-  background: rgba(197,122,36,.42);
-  box-shadow: 0 0 10px rgba(197,122,36,.16);
+  width: 3px;
+  height: 3px;
+  background: rgba(197,122,36,.64);
+  box-shadow: 0 0 12px rgba(197,122,36,.24);
   animation-duration: 9s;
 }
 .marketing-particle-1 { left: 18%; top: 28%; animation-delay: -.7s; }
@@ -3105,9 +3106,10 @@ onBeforeUnmount(() => {
   gap: 60px;
   align-items: end;
   padding-bottom: 22px;
+  transform: translateY(-130px);
 }
 .marketing-main {
-  transform: translateY(-220px);
+  transform: none;
 }
 .marketing-kicker,
 .marketing-title,
@@ -3340,6 +3342,7 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
     gap: 24px;
     padding-bottom: 30px;
+    transform: none;
   }
   .marketing-main {
     transform: none;
