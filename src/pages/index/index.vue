@@ -2554,7 +2554,8 @@ onBeforeUnmount(() => {
 .home-ai-main:focus-within { border-color: rgba(178,149,93,0.50); box-shadow: 0 18px 52px rgba(0,0,0,0.24), 0 0 0 3px rgba(178,149,93,0.10), inset 0 1px 0 rgba(255,255,255,0.12); }
 [data-theme="light"] .home-ai-main { background: rgba(255,253,248,0.80); box-shadow: 0 12px 34px rgba(60,40,15,0.10), inset 0 1px 0 rgba(255,255,255,0.75); }
 [data-theme="light"] .home-ai-main:focus-within { box-shadow: 0 14px 42px rgba(60,40,15,0.13), 0 0 0 3px rgba(150,103,20,0.10), inset 0 1px 0 rgba(255,255,255,0.82); }
-.home-ai-input { width: 100%; min-height: 42px; max-height: 64px; padding: 5px 4px 0; color: var(--text-1); font-size: 0.9rem; line-height: 1.38; background: transparent; border: none; outline: none; box-sizing: border-box; }
+.home-ai-input { width: 100%; min-height: 42px; max-height: 64px; padding: 5px 4px 0; color: var(--text-1); font-size: 0.9rem; line-height: 1.38; background: transparent !important; background-color: transparent !important; border: none; outline: none; box-sizing: border-box; appearance: none; -webkit-appearance: none; color-scheme: dark; }
+[data-theme="light"] .home-ai-input { color-scheme: light; }
 .home-ai-input::placeholder { color: rgba(120,108,86,0.68); }
 .home-ai-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; flex-wrap: nowrap !important; overflow-x: hidden; box-sizing: border-box; width: 100%; }
 .home-ai-toolbar-left { display: flex; align-items: center; gap: 6px; flex-shrink: 1; min-width: 0; }

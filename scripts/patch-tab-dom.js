@@ -199,6 +199,14 @@ const switchTabPatch = `// PATCHED v24: __switchTabPageDom - active tab is rende
     window.__xcRenderTabPath = function(path) {
       try {
         if (!path || path === '/pages/index/index') path = '/';
+        var isHome = path === '/';
+        var isQimen = path === '/pages/qimen/index';
+        if (document && document.documentElement && document.body) {
+          document.documentElement.classList.toggle('home-fixed-page', isHome);
+          document.body.classList.toggle('home-fixed-page', isHome);
+          document.documentElement.classList.toggle('qimen-page-active', isQimen);
+          document.body.classList.toggle('qimen-page-active', isQimen);
+        }
         if (!window.__xcVisitedTabPaths) window.__xcVisitedTabPaths = [];
         if (window.__xcVisitedTabPaths.indexOf(path) < 0) window.__xcVisitedTabPaths.push(path);
         var currentHash = (location.hash.replace('#', '').split('?')[0] || '/');

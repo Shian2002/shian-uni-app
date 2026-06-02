@@ -979,7 +979,7 @@ onBeforeUnmount(function() {
 .tool-container { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; backdrop-filter: blur(20px); box-shadow: var(--card-shadow); max-width: 560px; margin: 0 auto; }
 
 /* ═══ 头像卡片 ═══ */
-.profile-card { display: flex; align-items: center; gap: 16px; padding: 18px 4px 22px; margin-bottom: 24px; border-bottom: 1px solid var(--card-border); box-sizing: border-box; }
+.profile-card { display: flex; align-items: center; gap: 16px; padding: 18px 4px 22px 16px; margin-bottom: 24px; border-bottom: 1px solid var(--card-border); box-sizing: border-box; }
 .profile-card-avatar { position: relative; width: 72px; height: 72px; border-radius: 50%; background: rgba(255,255,255,0.06); overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; border: 2px solid var(--card-border); transition: border-color 0.2s, transform 0.2s; box-sizing: border-box; }
 .profile-card-avatar:active { transform: scale(1.05); }
 .profile-card-avatar:hover { border-color: var(--accent); }
@@ -1058,7 +1058,7 @@ onBeforeUnmount(function() {
 @media (max-width: 768px) {
   .section { padding: 48px 16px; }
   .tool-container { padding: 20px; }
-  .profile-card { gap: 14px; padding: 14px 2px 18px; }
+  .profile-card { gap: 14px; padding: 14px 2px 18px 12px; }
   .profile-card-avatar { width: 60px; height: 60px; }
 }
 </style>
