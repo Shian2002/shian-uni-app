@@ -27,7 +27,7 @@
         if(a)a.style.setProperty('visibility','visible','important');
       }
       var t = setInterval(function(){
-        var nav = document.querySelector('.topnav,.topnav-wrap');
+        var nav = document.querySelector('.topnav,.topnav-wrap,.marketing-nav');
         if(!nav)return;
         var btn = nav.querySelector('.nav-btn');
         var cssOk = !btn || parseFloat(getComputedStyle(btn).borderRadius) >= 7;

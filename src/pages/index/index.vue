@@ -102,7 +102,7 @@
             <text class="marketing-side-desc">把复杂命盘转成可读结论。先看局势，再看路径，最后给出可执行的时机建议。</text>
             <view class="marketing-cta-row">
               <button class="marketing-primary" @tap="enterMarketingApp">开始解读</button>
-              <button class="marketing-secondary" @tap="scrollMarketingCritical">查看方法</button>
+              <button class="marketing-secondary" @tap="scrollMarketingCritical">详细了解</button>
             </view>
           </view>
         </view>
@@ -114,28 +114,136 @@
         id="marketingCritical"
         :class="{ 'is-visible': marketingCriticalVisible }"
       >
-        <text class="marketing-section-label">Critical Moment</text>
-        <text class="marketing-critical-title">在关键时刻，看清你真正面对的局。</text>
+        <view class="marketing-section-head">
+          <text class="marketing-section-watermark">Critical Moment</text>
+          <text class="marketing-critical-title">这些问题，你可能反复想过</text>
+          <text class="marketing-section-sub">在关键时刻，看清真实处境</text>
+        </view>
         <view class="marketing-cards">
           <view class="marketing-card">
-            <text class="marketing-card-title">事业抉择</text>
-            <text class="marketing-card-desc">识别趋势、资源和阻力，判断是继续推进，还是换一条更稳的路径。</text>
+            <view class="marketing-card-visual marketing-card-visual-a">
+              <view class="marketing-visual-line"></view>
+              <view class="marketing-visual-dot"></view>
+            </view>
+            <text class="marketing-card-kicker">探索可能</text>
+            <text class="marketing-card-title">应该坚持，还是寻找新的旷野？</text>
+            <text class="marketing-card-desc">喧闹声很大，但你身上的光从未熄灭。看见那些被忽略的能量，让天赋与机遇对齐，走上属于你的上升轨迹。</text>
+            <text class="marketing-card-tags">潜能挖掘 · 趋势分析 · 时机推荐</text>
           </view>
           <view class="marketing-card">
-            <text class="marketing-card-title">关系洞察</text>
-            <text class="marketing-card-desc">不只给关系贴标签，而是拆解双方能量、沟通结构与阶段性变化。</text>
+            <view class="marketing-card-visual marketing-card-visual-b">
+              <view class="marketing-visual-ring"></view>
+              <view class="marketing-visual-ring"></view>
+            </view>
+            <text class="marketing-card-kicker">关系连结</text>
+            <text class="marketing-card-title">灵魂伴侣，还是命运的试炼？</text>
+            <text class="marketing-card-desc">超越单一的关系定义，解构能量场的交织与重塑。看见那些隐秘牵绊与豁然开朗的窗口。</text>
+            <text class="marketing-card-tags">能量匹配 · 羁绊深度 · 沟通窗口</text>
           </view>
           <view class="marketing-card">
-            <text class="marketing-card-title">择时行动</text>
-            <text class="marketing-card-desc">把“什么时候做”变成清晰的行动窗口，减少犹豫和反复。</text>
+            <view class="marketing-card-visual marketing-card-visual-c">
+              <view class="marketing-visual-alert"></view>
+              <view class="marketing-visual-planet"></view>
+            </view>
+            <text class="marketing-card-kicker">趋利避害</text>
+            <text class="marketing-card-title">避开暗礁，还是盲目驶向风暴？</text>
+            <text class="marketing-card-desc">命运从不许诺坦途，也不刻意设下陷阱。照见前路的光华与暗涌，在关键节点知道何时借势而起。</text>
+            <text class="marketing-card-tags">风险提示 · 机遇把握 · 运势周期</text>
           </view>
-          <view class="marketing-console">
-            <text class="marketing-console-title">Shian Console</text>
-            <view class="marketing-console-line"></view>
-            <view class="marketing-console-line"></view>
-            <view class="marketing-console-line"></view>
-            <view class="marketing-console-line"></view>
+        </view>
+      </view>
+
+      <!-- 第3页：产品推理 -->
+      <view class="marketing-tools">
+        <view class="marketing-product-copy">
+          <text class="marketing-section-watermark">Product</text>
+          <text class="marketing-product-title">像老师傅一样思考；像工程系统一样输出。</text>
+          <text class="marketing-product-sub">多模型驱动的 AI 分析系统</text>
+          <text class="marketing-product-lead">复刻老师傅级推演逻辑，结合现实处境与时间节律，根据你人生路上的每一次经历与选择，找到那个独一无二的你。多个专业模型各司其职，追求每一步推理的严谨透明。</text>
+        </view>
+        <view class="marketing-engine">
+          <view class="marketing-engine-browser">
+            <text></text>
+            <text></text>
+            <text></text>
           </view>
+          <view class="marketing-engine-ui">
+            <view class="marketing-engine-sidebar">
+              <text class="marketing-engine-brand">+ Shian Agent</text>
+              <text class="marketing-engine-item is-active">命盘分析</text>
+              <text class="marketing-engine-item">合参结论</text>
+              <text class="marketing-engine-item">追问历史</text>
+            </view>
+            <view class="marketing-engine-chat">
+              <text class="marketing-engine-bubble">我适合什么时候行动？</text>
+              <view class="marketing-engine-report">
+                <text class="marketing-engine-report-title">综合分析</text>
+                <text class="marketing-engine-report-line"></text>
+                <text class="marketing-engine-report-line"></text>
+                <text class="marketing-engine-report-line short"></text>
+              </view>
+            </view>
+            <view class="marketing-engine-chart">
+              <view class="marketing-engine-chart-grid"></view>
+              <text class="marketing-engine-chart-line l1"></text>
+              <text class="marketing-engine-chart-line l2"></text>
+              <text class="marketing-engine-chart-line l3"></text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 第4页：术数体系 -->
+      <view class="marketing-core">
+        <view class="marketing-system-head">
+          <text class="marketing-critical-title">三大术数体系，验证每一步推演</text>
+          <text class="marketing-section-sub">八字 · 奇门 · 多模型合参，覆盖核心推演环节。</text>
+          <view class="marketing-product-stats">
+            <view class="marketing-stat">
+              <text class="marketing-stat-number">3</text>
+              <text class="marketing-stat-label">主推演体系</text>
+            </view>
+            <view class="marketing-stat">
+              <text class="marketing-stat-number">6+</text>
+              <text class="marketing-stat-label">辅助模型</text>
+            </view>
+          </view>
+        </view>
+        <view class="marketing-system-body">
+          <view class="marketing-system-orbit">
+            <view class="marketing-system-node n1"></view>
+            <view class="marketing-system-node n2"></view>
+            <view class="marketing-system-node n3"></view>
+            <view class="marketing-system-node n4"></view>
+            <view class="marketing-system-node n5"></view>
+          </view>
+          <view class="marketing-system-copy">
+            <text class="marketing-system-title">八字命理 <text>Bazi</text></text>
+            <text class="marketing-system-desc">以出生时刻的干支结构为基础，观察格局、喜忌、大运与流年。适合判断长期趋势、性格底色与阶段变化。</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 第5页：底部CTA+Footer -->
+      <view class="marketing-final">
+        <view class="marketing-faq">
+          <text class="marketing-section-watermark">Q&A</text>
+          <text class="marketing-final-title">常见问题</text>
+          <text class="marketing-final-desc">关于时安解忧屋的使用方式、推演逻辑与数据安全</text>
+          <view class="marketing-faq-list">
+            <view class="marketing-faq-row"><text>如何正确看待命理分析的结果？</text><text>⌄</text></view>
+            <view class="marketing-faq-row"><text>和免费的模板占卜有什么区别？</text><text>⌄</text></view>
+            <view class="marketing-faq-row"><text>不懂术语，也能看懂报告吗？</text><text>⌄</text></view>
+            <view class="marketing-faq-row"><text>我的出生日期等隐私安全吗？</text><text>⌄</text></view>
+          </view>
+        </view>
+        <view class="marketing-final-content">
+          <text class="marketing-final-title">准备好探索你的命盘了吗？</text>
+          <text class="marketing-final-desc">开始一次真正有深度的命理对话</text>
+          <button class="marketing-primary" @tap="enterMarketingApp">进入应用</button>
+        </view>
+        <view class="marketing-footer">
+          <text class="marketing-footer-text">© 2026 时安解忧屋 · 保留所有权利</text>
         </view>
       </view>
     </view>
@@ -514,9 +622,12 @@ function scrollMarketingCritical() {
   try {
     const target = document.getElementById('marketingCritical')
     if (!target) return
-    const root = document.querySelector('.page-root.marketing-active') || document.querySelector('.page-root')
-    if (root && root.scrollHeight > root.clientHeight) {
-      root.scrollTo({ top: target.offsetTop, behavior: 'smooth' })
+    const scrollEl =
+      document.querySelector('.marketing-landing') ||
+      document.querySelector('.page-root.marketing-active') ||
+      document.querySelector('.page-root')
+    if (scrollEl && scrollEl.scrollHeight > scrollEl.clientHeight) {
+      scrollEl.scrollTo({ top: target.offsetTop, behavior: 'smooth' })
     } else {
       window.scrollTo({ top: target.offsetTop, behavior: 'smooth' })
     }
@@ -527,9 +638,12 @@ function scrollMarketingCritical() {
 function scrollMarketingHero() {
   // #ifdef H5
   try {
-    const root = document.querySelector('.page-root.marketing-active') || document.querySelector('.page-root')
-    if (root && root.scrollHeight > root.clientHeight) {
-      root.scrollTo({ top: 0, behavior: 'smooth' })
+    const scrollEl =
+      document.querySelector('.marketing-landing') ||
+      document.querySelector('.page-root.marketing-active') ||
+      document.querySelector('.page-root')
+    if (scrollEl && scrollEl.scrollHeight > scrollEl.clientHeight) {
+      scrollEl.scrollTo({ top: 0, behavior: 'smooth' })
     } else {
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
@@ -2644,7 +2758,7 @@ function onHomeKeydown(e) {
 function scrollMarketingRootBy(deltaY) {
   if (!marketingMode.value || !deltaY) return false
   try {
-    const root = document.querySelector('.page-root.marketing-active')
+    const root = document.querySelector('.marketing-landing') || document.querySelector('.page-root.marketing-active')
     if (!root || root.scrollHeight <= root.clientHeight) return false
     const before = root.scrollTop
     const maxTop = root.scrollHeight - root.clientHeight
@@ -3241,6 +3355,8 @@ onBeforeUnmount(() => {
 .marketing-secondary {
   height: 56px;
   min-width: 132px;
+  max-width: 280px;
+  width: auto;
   padding: 0 36px;
   display: inline-flex;
   align-items: center;
@@ -3276,84 +3392,607 @@ onBeforeUnmount(() => {
   position: relative;
   scroll-snap-align: start;
   scroll-snap-stop: always;
+  height: 100dvh;
   min-height: 100dvh;
-  padding: 110px 50px 130px;
+  overflow: hidden;
+  padding: 116px 50px 72px;
   background:
-    radial-gradient(circle at 86% 20%, rgba(197,122,36,.11), transparent 24rem),
+    radial-gradient(circle at 82% 20%, rgba(197,122,36,.12), transparent 25rem),
+    radial-gradient(circle at 18% 82%, rgba(49,95,85,.08), transparent 22rem),
     linear-gradient(180deg, #f2eee5, #faf7ef);
   box-sizing: border-box;
 }
+.marketing-critical::before {
+  content: "";
+  position: absolute;
+  inset: auto auto -26%;
+  left: -18%;
+  width: 52%;
+  height: 74%;
+  pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(20,17,14,.055), rgba(20,17,14,.02) 52%, transparent 72%);
+  opacity: .72;
+  transform: rotate(-12deg);
+}
+.marketing-section-head {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  min-height: 286px;
+}
+.marketing-section-watermark {
+  position: absolute;
+  left: 50%;
+  top: -34px;
+  transform: translateX(-50%);
+  z-index: -1;
+  color: rgba(23,21,18,.035);
+  font: 850 clamp(72px, 8vw, 126px)/1 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
+}
 .marketing-section-label {
   display: block;
-  font: 700 22px/1 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font: 760 20px/1 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.marketing-section-sub {
+  display: block;
+  margin-top: 18px;
+  color: rgba(23,21,18,.52);
+  font-size: 20px;
+  line-height: 1.6;
 }
 .marketing-critical-title {
   display: block;
-  margin: 10px 0 46px;
-  max-width: 760px;
-  font-size: 46px;
+  margin: 0 auto;
+  max-width: 980px;
+  font: 800 clamp(42px, 4.4vw, 64px)/1.14 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   line-height: 1.18;
   letter-spacing: 0;
-  font-weight: 700;
 }
 .marketing-cards {
+  position: relative;
+  z-index: 1;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) 310px;
-  gap: 28px;
-  align-items: start;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  width: min(100%, 1320px);
+  margin: 0 auto;
+  border: 0;
 }
-.marketing-card,
-.marketing-console {
-  opacity: 0;
-  transform: translateY(32px);
+.marketing-card {
+  opacity: 1;
+  transform: translateY(0);
   transition: opacity .7s ease, transform .7s cubic-bezier(.2,.8,.2,1);
 }
-.marketing-critical.is-visible .marketing-card,
-.marketing-critical.is-visible .marketing-console {
+.marketing-critical.is-visible .marketing-card {
   opacity: 1;
   transform: translateY(0);
 }
 .marketing-card {
-  min-height: 210px;
-  padding: 28px;
-  border-radius: 10px;
-  background: rgba(255,255,255,.64);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.72);
+  min-height: 410px;
+  padding: 64px 42px 30px;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+.marketing-card + .marketing-card {
+  border-left: 1px solid rgba(23,21,18,.1);
 }
 .marketing-card:nth-child(2) { transition-delay: .12s; }
 .marketing-card:nth-child(3) { transition-delay: .24s; }
+.marketing-card-kicker {
+  display: block;
+  margin-bottom: 22px;
+  color: rgba(197,122,36,.86);
+  font: 760 14px/1.2 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: .02em;
+}
 .marketing-card-title {
   display: block;
-  margin: 0 0 18px;
-  font-size: 24px;
+  margin: 0 0 26px;
+  max-width: 360px;
+  font-size: clamp(27px, 2.25vw, 36px);
+  line-height: 1.24;
   font-weight: 700;
 }
 .marketing-card-desc {
   display: block;
   color: rgba(23,21,18,.64);
-  line-height: 1.65;
+  line-height: 1.78;
+  font-size: 15px;
 }
-.marketing-console {
-  min-height: 310px;
-  border-radius: 14px;
-  padding: 30px;
-  background: rgba(20,17,14,.86);
+.marketing-card-tags {
+  display: block;
+  margin-top: auto;
+  padding-top: 30px;
+  color: rgba(23,21,18,.46);
+  font: 650 13px/1.4 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.marketing-card-visual {
+  position: absolute;
+  left: 42px;
+  right: 42px;
+  top: 16px;
+  height: 86px;
+  pointer-events: none;
+}
+.marketing-visual-line {
+  position: absolute;
+  left: 24%;
+  right: 12%;
+  top: 44px;
+  height: 1px;
+  background: rgba(23,21,18,.12);
+}
+.marketing-visual-line::before,
+.marketing-visual-line::after,
+.marketing-visual-dot {
+  content: "";
+  position: absolute;
+  top: -7px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(23,21,18,.18);
+}
+.marketing-visual-line::before { left: 10%; }
+.marketing-visual-line::after { right: 0; background: rgba(197,122,36,.72); }
+.marketing-visual-dot { left: 66%; top: 37px; }
+.marketing-card-visual-b {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.marketing-visual-ring {
+  width: 74px;
+  height: 74px;
+  border: 2px solid rgba(197,122,36,.28);
+  border-radius: 50%;
+}
+.marketing-visual-ring + .marketing-visual-ring {
+  margin-left: -18px;
+  border-color: rgba(108,70,140,.18);
+}
+.marketing-visual-alert {
+  position: absolute;
+  left: 46%;
+  top: 18px;
+  width: 54px;
+  height: 54px;
+  clip-path: polygon(50% 0, 100% 92%, 0 92%);
+  border: 0;
+  background: rgba(214,88,72,.18);
+}
+.marketing-visual-alert::after {
+  content: "!";
+  position: absolute;
+  inset: 12px 0 0;
+  text-align: center;
+  color: rgba(214,88,72,.72);
+  font: 800 34px/1 ui-sans-serif, system-ui, sans-serif;
+}
+.marketing-visual-planet {
+  position: absolute;
+  right: 8%;
+  top: 28px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(197,122,36,.62);
+}
+
+/* 第3页：产品推理 */
+.marketing-tools {
+  position: relative;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  height: 100dvh;
+  min-height: 100dvh;
+  overflow: hidden;
+  padding: 116px 72px 92px;
+  background:
+    radial-gradient(circle at 14% 70%, rgba(197,122,36,.1), transparent 22rem),
+    radial-gradient(circle at 82% 22%, rgba(49,95,85,.12), transparent 24rem),
+    linear-gradient(180deg, #faf7ef, #f2eee5);
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(360px, .72fr) minmax(520px, .92fr);
+  gap: 92px;
+  align-items: center;
+}
+.marketing-tools::before {
+  content: "";
+  position: absolute;
+  left: -10%;
+  top: 10%;
+  width: 44%;
+  height: 64%;
+  border: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(20,17,14,.045), transparent 68%);
+  transform: rotate(-18deg);
+  pointer-events: none;
+}
+.marketing-product-copy,
+.marketing-engine {
+  position: relative;
+  z-index: 1;
+}
+.marketing-product-title {
+  display: block;
+  margin: 20px 0 28px;
+  max-width: 620px;
+  font-size: clamp(42px, 4.3vw, 62px);
+  line-height: 1.14;
+  font-weight: 780;
+  letter-spacing: 0;
+}
+.marketing-product-sub {
+  display: block;
+  margin-bottom: 92px;
+  color: rgba(23,21,18,.44);
+  font: 600 24px/1.3 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.marketing-product-lead {
+  display: block;
+  max-width: 560px;
+  color: rgba(23,21,18,.62);
+  font-size: 18px;
+  line-height: 1.9;
+}
+.marketing-product-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  max-width: 560px;
+  margin-top: 54px;
+  border-top: 1px solid rgba(23,21,18,.12);
+  border-bottom: 1px solid rgba(23,21,18,.12);
+}
+.marketing-stat {
+  padding: 20px 22px;
+}
+.marketing-stat + .marketing-stat {
+  border-left: 1px solid rgba(23,21,18,.12);
+}
+.marketing-stat-number {
+  display: block;
+  font: 780 34px/1 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.marketing-stat-label {
+  display: block;
+  margin-top: 10px;
+  color: rgba(23,21,18,.5);
+  font-size: 14px;
+}
+.marketing-engine {
+  min-height: 470px;
+  border-radius: 22px;
+  padding: 34px;
+  background: linear-gradient(180deg, rgba(20,20,22,.5), rgba(20,17,14,.92) 72%);
   color: white;
-  transition-delay: .36s;
+  box-shadow: 0 36px 90px rgba(20,17,14,.24);
   box-sizing: border-box;
 }
-.marketing-console-title {
+.marketing-engine-browser {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.marketing-engine-browser text {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.18);
+}
+.marketing-engine-ui {
+  display: grid;
+  grid-template-columns: 128px minmax(0, 1fr) 210px;
+  gap: 18px;
+  min-height: 386px;
+}
+.marketing-engine-sidebar,
+.marketing-engine-chat,
+.marketing-engine-chart {
+  border-radius: 12px;
+  background: rgba(255,255,255,.06);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+}
+.marketing-engine-sidebar {
+  padding: 18px 14px;
+}
+.marketing-engine-brand,
+.marketing-engine-item,
+.marketing-engine-bubble,
+.marketing-engine-report-title,
+.marketing-engine-report-line {
   display: block;
+}
+.marketing-engine-brand {
+  margin-bottom: 24px;
+  color: rgba(255,255,255,.78);
+  font: 700 12px/1.2 ui-sans-serif, system-ui, sans-serif;
+}
+.marketing-engine-item {
+  margin-top: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  color: rgba(255,255,255,.52);
+  font: 600 12px/1 ui-sans-serif, system-ui, sans-serif;
+}
+.marketing-engine-item.is-active {
+  background: rgba(197,122,36,.72);
+  color: white;
+}
+.marketing-engine-chat {
+  padding: 26px;
+}
+.marketing-engine-bubble {
+  width: max-content;
+  max-width: 80%;
+  margin-left: auto;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.09);
+  color: rgba(255,255,255,.78);
+  font: 600 12px/1.2 ui-sans-serif, system-ui, sans-serif;
+}
+.marketing-engine-report {
+  margin-top: 44px;
+  padding: 22px;
+  border-radius: 14px;
+  background: rgba(0,0,0,.22);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+}
+.marketing-engine-report-title {
+  margin-bottom: 18px;
+  font: 700 15px/1.2 ui-sans-serif, system-ui, sans-serif;
+}
+.marketing-engine-report-line {
+  height: 10px;
+  margin-top: 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.12);
+}
+.marketing-engine-report-line.short { width: 62%; }
+.marketing-engine-chart {
+  position: relative;
+  overflow: hidden;
+}
+.marketing-engine-chart-grid {
+  position: absolute;
+  inset: 20px;
+  background:
+    linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px);
+  background-size: 42px 42px;
+}
+.marketing-engine-chart-line {
+  position: absolute;
+  display: block;
+  left: 24px;
+  right: 24px;
+  top: 48%;
+  height: 1px;
+  background: rgba(255,255,255,.28);
+  transform: rotate(36deg);
+}
+.marketing-engine-chart-line.l2 { transform: rotate(-48deg); top: 42%; }
+.marketing-engine-chart-line.l3 { transform: rotate(90deg); top: 50%; }
+
+/* 第4页：术数体系 */
+.marketing-core {
+  position: relative;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  height: 100dvh;
+  min-height: 100dvh;
+  overflow: hidden;
+  padding: 112px 72px 80px;
+  background:
+    radial-gradient(circle at 86% 30%, rgba(197,122,36,.08), transparent 26rem),
+    linear-gradient(180deg, #f2eee5, #faf7ef);
+  box-sizing: border-box;
+}
+.marketing-core::before {
+  content: "";
+  position: absolute;
+  right: -15%;
+  top: 6%;
+  width: 44%;
+  height: 92%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(20,17,14,.045), transparent 68%);
+  pointer-events: none;
+}
+.marketing-system-head {
+  position: relative;
+  z-index: 1;
+  max-width: 980px;
+  margin: 0 auto;
+  text-align: center;
+}
+.marketing-system-head .marketing-critical-title {
+  max-width: none;
+  font-size: clamp(38px, 4vw, 58px);
+}
+.marketing-system-head .marketing-section-sub {
+  margin-top: 12px;
+}
+.marketing-system-head .marketing-product-stats {
+  margin: 34px auto 0;
+  max-width: 360px;
+}
+.marketing-system-body {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(360px, .82fr) minmax(460px, .9fr);
+  gap: 96px;
+  align-items: center;
+  max-width: 1160px;
+  margin: 68px auto 0;
+}
+.marketing-system-orbit {
+  position: relative;
+  width: 430px;
+  height: 430px;
+  margin: 0 auto;
+  border: 1px solid rgba(23,21,18,.16);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at center, transparent 0 26%, rgba(23,21,18,.08) 26.2% 26.6%, transparent 27%),
+    radial-gradient(circle at center, transparent 0 54%, rgba(23,21,18,.08) 54.2% 54.6%, transparent 55%);
+}
+.marketing-system-orbit::before,
+.marketing-system-orbit::after {
+  content: "";
+  position: absolute;
+  inset: 64px;
+  border: 1px dashed rgba(23,21,18,.16);
+  border-radius: 50%;
+}
+.marketing-system-orbit::after {
+  inset: 146px;
+  border-style: solid;
+}
+.marketing-system-node {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(23,21,18,.38);
+  box-shadow: 0 0 0 8px rgba(23,21,18,.04);
+}
+.marketing-system-node.n1 { left: 47%; top: 7%; }
+.marketing-system-node.n2 { right: 12%; top: 35%; }
+.marketing-system-node.n3 { right: 28%; bottom: 11%; }
+.marketing-system-node.n4 { left: 22%; bottom: 18%; }
+.marketing-system-node.n5 { left: 16%; top: 33%; }
+.marketing-system-copy {
+  max-width: 560px;
+}
+.marketing-system-title {
+  display: block;
+  margin-bottom: 26px;
+  color: rgba(197,122,36,.78);
+  font-size: 24px;
+  font-weight: 760;
+}
+.marketing-system-title text {
+  margin-left: 14px;
+  color: rgba(23,21,18,.38);
+  font-style: italic;
+  font-weight: 520;
+}
+.marketing-system-desc {
+  display: block;
+  color: rgba(23,21,18,.56);
+  font-size: 21px;
+  line-height: 1.9;
+}
+
+/* 第5页：FAQ+Footer */
+.marketing-final {
+  position: relative;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  height: 100dvh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 112px 72px 44px;
+  background:
+    radial-gradient(circle at 86% 45%, rgba(23,21,18,.06), transparent 26rem),
+    linear-gradient(180deg, #faf7ef, #f2eee5);
+  color: var(--marketing-ink);
+  box-sizing: border-box;
+}
+.marketing-final::before {
+  content: "";
+  position: absolute;
+  right: -14%;
+  top: 12%;
+  width: 44%;
+  height: 84%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(20,17,14,.05), transparent 68%);
+  pointer-events: none;
+}
+.marketing-faq {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 1120px);
+  margin: 0 auto;
+}
+.marketing-final-content {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  max-width: 600px;
+  margin: 24px auto 0;
+}
+.marketing-final-title {
+  display: block;
+  font-size: clamp(36px, 3.8vw, 52px);
+  font-weight: 800;
+  margin-bottom: 18px;
+  line-height: 1.08;
+}
+.marketing-final-desc {
+  display: block;
+  font-size: 18px;
+  color: rgba(23,21,18,.48);
+  margin-bottom: 30px;
+  line-height: 1.6;
+}
+.marketing-faq .marketing-final-title,
+.marketing-faq .marketing-final-desc {
+  text-align: center;
+}
+.marketing-faq-list {
+  margin-top: 46px;
+}
+.marketing-faq-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  min-height: 68px;
+  border-top: 1px solid rgba(23,21,18,.1);
+  color: rgba(23,21,18,.78);
+  font-size: 19px;
   font-weight: 700;
 }
-.marketing-console-line {
-  height: 34px;
-  border-radius: 7px;
-  margin-top: 18px;
-  background: rgba(255,255,255,.13);
+.marketing-faq-row:last-child {
+  border-bottom: 1px solid rgba(23,21,18,.1);
 }
-.marketing-console-line:first-of-type { background: var(--marketing-copper); }
+.marketing-faq-row text:last-child {
+  color: rgba(23,21,18,.42);
+}
+.marketing-footer {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 1120px);
+  margin: 20px auto 0;
+  padding: 0;
+}
+.marketing-footer-text {
+  display: block;
+  padding-top: 18px;
+  border-top: 1px solid rgba(23,21,18,.1);
+  font-size: 14px;
+  color: rgba(23,21,18,.38);
+  text-align: center;
+}
+
 @keyframes marketingNavIn {
   from { opacity: 0; transform: translateY(-12px); }
   to { opacity: 1; transform: translateY(0); }
@@ -3473,8 +4112,10 @@ onBeforeUnmount(() => {
   .marketing-primary,
   .marketing-secondary {
     height: 50px;
-    min-width: 0;
-    flex: 1 1 0;
+    min-width: 100px;
+    max-width: 200px;
+    width: auto;
+    flex: none;
     padding: 0 18px;
     font-size: 14px;
   }
@@ -3487,33 +4128,257 @@ onBeforeUnmount(() => {
     display: flex;
     flex-direction: column;
   }
+  .marketing-critical::before { opacity: .28; }
+  .marketing-section-sub { margin-top: 10px; font-size: 13px; line-height: 1.45; }
   .marketing-section-label { font-size: 15px; }
-  .marketing-critical-title { margin: 8px 0 18px; font-size: 28px; line-height: 1.12; }
+  .marketing-critical-title { margin: 8px 0 16px; font-size: 27px; line-height: 1.12; }
   .marketing-cards {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    flex: 1 1 auto;
+    align-content: start;
+    border-top: 1px solid rgba(23,21,18,.12);
+    border-bottom: 1px solid rgba(23,21,18,.12);
+  }
+  .marketing-card {
+    min-height: 0;
+    padding: 12px 0 13px;
+    background: transparent;
+    display: block;
+  }
+  .marketing-card + .marketing-card {
+    border-left: 0;
+    border-top: 1px solid rgba(23,21,18,.1);
+  }
+  .marketing-card-kicker { margin-bottom: 8px; font-size: 10px; }
+  .marketing-card-title { margin-bottom: 8px; max-width: none; font-size: 18px; line-height: 1.22; }
+  .marketing-card-desc { font-size: 12px; line-height: 1.42; }
+  .marketing-card-tags { margin-top: 8px; padding-top: 0; font-size: 11px; }
+
+  /* 第3页：产品推理 移动端 */
+  .marketing-tools {
+    height: 100dvh;
+    min-height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+    padding: max(84px, calc(env(safe-area-inset-top) + 72px)) 22px max(26px, calc(env(safe-area-inset-bottom) + 22px));
+    grid-template-columns: 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+  .marketing-tools::before {
+    left: -80%;
+    top: 24%;
+    width: 150%;
+    height: 36%;
+  }
+  .marketing-product-title {
+    margin: 10px 0 12px;
+    max-width: 100%;
+    font-size: 28px;
+    line-height: 1.12;
+    overflow-wrap: break-word;
+  }
+  .marketing-product-sub {
+    margin-bottom: 18px;
+    font-size: 16px;
+  }
+  .marketing-product-lead {
+    max-width: 100%;
+    font-size: 13px;
+    line-height: 1.58;
+  }
+  .marketing-product-stats {
+    margin-top: 16px;
+  }
+  .marketing-stat {
+    padding: 12px 10px;
+  }
+  .marketing-stat-number {
+    font-size: 24px;
+  }
+  .marketing-stat-label {
+    margin-top: 6px;
+    font-size: 11px;
+  }
+  .marketing-engine {
+    min-height: 0;
+    padding: 16px;
+    border-radius: 10px;
+    box-shadow: 0 20px 52px rgba(20,17,14,.18);
+  }
+  .marketing-engine-browser {
+    margin-bottom: 12px;
+  }
+  .marketing-engine-ui {
+    grid-template-columns: 92px minmax(0, 1fr);
+    gap: 10px;
+    min-height: 230px;
+  }
+  .marketing-engine-sidebar,
+  .marketing-engine-chat {
+    border-radius: 10px;
+  }
+  .marketing-engine-sidebar {
+    padding: 13px 10px;
+  }
+  .marketing-engine-brand {
+    margin-bottom: 14px;
+    font-size: 10px;
+  }
+  .marketing-engine-item {
+    margin-top: 8px;
+    padding: 8px;
+    font-size: 10px;
+  }
+  .marketing-engine-chat {
+    padding: 14px;
+  }
+  .marketing-engine-bubble {
+    max-width: 92%;
+    padding: 8px 10px;
+    font-size: 10px;
+  }
+  .marketing-engine-report {
+    margin-top: 22px;
+    padding: 14px;
+    border-radius: 10px;
+  }
+  .marketing-engine-report-title {
+    margin-bottom: 12px;
+    font-size: 12px;
+  }
+  .marketing-engine-report-line {
+    height: 8px;
+    margin-top: 9px;
+  }
+  .marketing-engine-chart {
+    display: none;
+  }
+  .marketing-engine-top {
+    padding-bottom: 12px;
+  }
+  .marketing-engine-title {
+    font-size: 14px;
+  }
+  .marketing-engine-status {
+    min-height: 24px;
+    padding: 0 10px;
+    font-size: 10px;
+  }
+  .marketing-engine-step {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 10px;
+    padding: 12px 0;
+  }
+  .marketing-engine-index {
+    font-size: 15px;
+  }
+  .marketing-engine-name {
+    margin-bottom: 4px;
+    font-size: 15px;
+  }
+  .marketing-engine-desc {
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  /* 第4页：核心3点 移动端 */
+  .marketing-core {
+    height: 100dvh;
+    min-height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+    padding: max(84px, calc(env(safe-area-inset-top) + 72px)) 22px max(26px, calc(env(safe-area-inset-bottom) + 22px));
+    display: flex;
+    flex-direction: column;
+  }
+  .marketing-system-head {
+    max-width: 100%;
+  }
+  .marketing-system-head .marketing-critical-title {
+    font-size: 26px;
+    line-height: 1.16;
+  }
+  .marketing-system-head .marketing-product-stats {
+    margin-top: 18px;
+    max-width: 260px;
+  }
+  .marketing-system-body {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    margin-top: 24px;
+  }
+  .marketing-system-orbit {
+    width: min(72vw, 250px);
+    height: min(72vw, 250px);
+  }
+  .marketing-system-orbit::before {
+    inset: 38px;
+  }
+  .marketing-system-orbit::after {
+    inset: 86px;
+  }
+  .marketing-system-title {
+    margin-bottom: 10px;
+    font-size: 17px;
+  }
+  .marketing-system-desc {
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .marketing-core-cards {
     grid-template-columns: 1fr;
     gap: 10px;
     min-height: 0;
     flex: 1 1 auto;
     align-content: start;
   }
-  .marketing-card {
+  .marketing-core-card {
     min-height: 0;
-    padding: 14px 16px;
-    border-radius: 8px;
-  }
-  .marketing-card-title { margin-bottom: 6px; font-size: 18px; }
-  .marketing-card-desc { font-size: 13px; line-height: 1.42; }
-  .marketing-console {
-    min-height: 88px;
-    padding: 14px 16px;
+    padding: 18px 16px;
     border-radius: 10px;
   }
-  .marketing-console-title { font-size: 14px; }
-  .marketing-console-line {
-    height: 11px;
-    margin-top: 8px;
-    border-radius: 5px;
+  .marketing-core-number {
+    font-size: 24px;
+    margin-bottom: 10px;
   }
+  .marketing-core-title {
+    font-size: 19px;
+    margin-bottom: 8px;
+  }
+  .marketing-core-desc {
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  /* 第5页：底部CTA+Footer 移动端 */
+  .marketing-final {
+    height: 100dvh;
+    min-height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+    padding: max(84px, calc(env(safe-area-inset-top) + 72px)) 22px max(26px, calc(env(safe-area-inset-bottom) + 22px));
+  }
+  .marketing-faq-list {
+    margin-top: 22px;
+  }
+  .marketing-faq-row {
+    min-height: 48px;
+    font-size: 14px;
+  }
+  .marketing-final-title {
+    font-size: 34px;
+    margin-bottom: 14px;
+  }
+  .marketing-final-desc {
+    font-size: 15px;
+    margin-bottom: 32px;
+  }
+  .marketing-footer-text {
+    font-size: 13px;
+  }
+
   .page-root.marketing-android-active .marketing-nav {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
