@@ -2536,8 +2536,6 @@ function onHomeKeydown(e) {
   }
 }
 
-let marketingTouchY = 0
-
 function scrollMarketingRootBy(deltaY) {
   if (!marketingMode.value || !deltaY) return false
   try {
@@ -2558,27 +2556,6 @@ function onMarketingWheel(e) {
     const target = e.target
     if (target && target.closest && target.closest('.modal-overlay')) return
     if (scrollMarketingRootBy(e.deltaY)) e.preventDefault()
-  } catch(_) {}
-  // #endif
-}
-
-function onMarketingTouchStart(e) {
-  // #ifdef H5
-  if (!marketingMode.value || !e || !e.touches || !e.touches.length) return
-  marketingTouchY = e.touches[0].clientY
-  // #endif
-}
-
-function onMarketingTouchMove(e) {
-  // #ifdef H5
-  if (!marketingMode.value || !e || !e.touches || !e.touches.length) return
-  try {
-    const target = e.target
-    if (target && target.closest && target.closest('.modal-overlay')) return
-    const currentY = e.touches[0].clientY
-    const deltaY = marketingTouchY - currentY
-    marketingTouchY = currentY
-    if (scrollMarketingRootBy(deltaY)) e.preventDefault()
   } catch(_) {}
   // #endif
 }
@@ -2664,8 +2641,6 @@ onMounted(() => {
   window._xc_newComprehensive = startNewComprehensiveConversation
   window.addEventListener('keydown', onHomeKeydown)
   window.addEventListener('wheel', onMarketingWheel, { passive: false, capture: true })
-  window.addEventListener('touchstart', onMarketingTouchStart, { passive: true, capture: true })
-  window.addEventListener('touchmove', onMarketingTouchMove, { passive: false, capture: true })
   window.addEventListener('scroll', onHomePageScroll, { passive: true })
   window.addEventListener('popstate', onMarketingRouteChange)
   window.addEventListener('hashchange', onMarketingRouteChange)
@@ -2689,8 +2664,6 @@ onBeforeUnmount(() => {
   if (window._xc_newComprehensive === startNewComprehensiveConversation) window._xc_newComprehensive = null
   window.removeEventListener('keydown', onHomeKeydown)
   window.removeEventListener('wheel', onMarketingWheel, true)
-  window.removeEventListener('touchstart', onMarketingTouchStart, true)
-  window.removeEventListener('touchmove', onMarketingTouchMove, true)
   window.removeEventListener('scroll', onHomePageScroll)
   window.removeEventListener('popstate', onMarketingRouteChange)
   window.removeEventListener('hashchange', onMarketingRouteChange)
@@ -2790,6 +2763,7 @@ onBeforeUnmount(() => {
   overflow-x: hidden !important;
   overflow-y: hidden !important;
   overscroll-behavior: none !important;
+  touch-action: auto !important;
 }
 :global(body.marketing-page uni-page-body),
 :global(body.marketing-page uni-page-wrapper),
@@ -2798,6 +2772,7 @@ onBeforeUnmount(() => {
   min-height: 100dvh !important;
   max-height: 100dvh !important;
   overflow: hidden !important;
+  touch-action: auto !important;
 }
 
 .page-root { --home-ai-dock-space: 116px; --home-ai-chat-bottom-buffer: 126px; min-height: 100dvh; overflow-x: hidden; overflow-y: auto; width: 100% !important; max-width: 100vw !important; box-sizing: border-box; }
@@ -2813,6 +2788,7 @@ onBeforeUnmount(() => {
   overscroll-behavior-y: auto;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
+  touch-action: auto;
 }
 :global(body.home-fixed-page:not(:has(.home-ai-console.has-chat))) .page-root {
   height: 100dvh;
@@ -2828,6 +2804,7 @@ onBeforeUnmount(() => {
   overflow-y: auto !important;
   overscroll-behavior-y: auto !important;
   -webkit-overflow-scrolling: touch;
+  touch-action: auto !important;
 }
 .tool-home-shell { min-height: 100dvh; }
 
@@ -2840,6 +2817,7 @@ onBeforeUnmount(() => {
   position: relative;
   min-height: 100dvh;
   overflow-x: hidden;
+  touch-action: auto;
   color: var(--marketing-ink);
   font-family: ui-serif, "Songti SC", "STSong", "Times New Roman", serif;
 }
