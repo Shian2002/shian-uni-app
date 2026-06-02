@@ -1295,29 +1295,24 @@ body:not(.home-fixed-page) .calendar-hero{
   width:min(1180px,calc(100vw - 32px))!important;
   margin-left:auto!important;
   margin-right:auto!important;
-  text-align:left!important;
+  text-align:center!important;
   padding:34px 0 18px!important;
 }
 body:not(.home-fixed-page) .tool-hero::before,
 body:not(.home-fixed-page) .tarot-hero::before,
 body:not(.home-fixed-page) .about-hero::before,
 body:not(.home-fixed-page) .calendar-hero::before{
-  content:''!important;
-  position:absolute!important;
-  left:0!important;
-  top:36px!important;
-  width:3px!important;
-  height:38px!important;
-  border-radius:999px!important;
-  background:linear-gradient(180deg,var(--xc-red),var(--accent))!important;
+  display:none!important;
+  content:none!important;
 }
 body:not(.home-fixed-page) .tool-hero-content,
 body:not(.home-fixed-page) .tarot-hero-content,
 body:not(.home-fixed-page) .about-hero-content,
 body:not(.home-fixed-page) .calendar-hero-content{
-  padding-left:18px!important;
+  padding-left:0!important;
   max-width:780px!important;
-  margin:0!important;
+  margin:0 auto!important;
+  text-align:center!important;
 }
 body:not(.home-fixed-page) .section-tag{
   display:inline-flex!important;
@@ -1335,8 +1330,8 @@ body:not(.home-fixed-page) .tarot-hero-title,
 body:not(.home-fixed-page) .about-hero-title,
 body:not(.home-fixed-page) .calendar-hero-title{
   max-width:860px!important;
-  margin-left:0!important;
-  margin-right:0!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
   letter-spacing:0!important;
   text-indent:0!important;
   line-height:1.16!important;
@@ -1345,8 +1340,8 @@ body:not(.home-fixed-page) .tool-hero-desc,
 body:not(.home-fixed-page) .tarot-hero-desc,
 body:not(.home-fixed-page) .about-hero-desc,
 body:not(.home-fixed-page) .calendar-hero-desc{
-  margin-left:0!important;
-  margin-right:0!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
   max-width:720px!important;
   line-height:1.75!important;
 }
@@ -1383,6 +1378,9 @@ body:not(.home-fixed-page) .hero-card{
 body:not(.home-fixed-page) .tool-container,
 body:not(.home-fixed-page) .tarot-section{
   padding:22px!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+  box-sizing:border-box!important;
 }
 body:not(.home-fixed-page) .tool-tabs,
 body:not(.home-fixed-page) .record-tabs,
@@ -1532,6 +1530,7 @@ body.home-fixed-page .home-summary-card{
 body.home-fixed-page .home-ai-main{
   border-top:1px solid rgba(178,149,93,.12)!important;
   background:linear-gradient(180deg,rgba(247,242,234,.68),rgba(247,242,234,.92))!important;
+  bottom:max(12px,calc(env(safe-area-inset-bottom) + 8px))!important;
 }
 @media(max-width:768px){
   body:not(.home-fixed-page) .page-wrap,
@@ -1551,7 +1550,7 @@ body.home-fixed-page .home-ai-main{
   body:not(.home-fixed-page) .tarot-hero-content,
   body:not(.home-fixed-page) .about-hero-content,
   body:not(.home-fixed-page) .calendar-hero-content{
-    padding-left:14px!important;
+    padding-left:0!important;
   }
   body:not(.home-fixed-page) .tool-hero-title,
   body:not(.home-fixed-page) .tarot-hero-title,
@@ -1579,8 +1578,96 @@ body.home-fixed-page .home-ai-main{
   body:not(.home-fixed-page) .spread-card-desc{
     -webkit-line-clamp:2!important;
   }
+  body:not(.home-fixed-page) .section{
+    width:min(100vw - 24px,560px)!important;
+    max-width:min(100vw - 24px,560px)!important;
+    margin-left:auto!important;
+    margin-right:auto!important;
+    box-sizing:border-box!important;
+  }
+  body:not(.home-fixed-page) .tool-container,
+  body:not(.home-fixed-page) .tarot-section,
+  body:not(.home-fixed-page) .calendar-card,
+  body:not(.home-fixed-page) .settings-list,
+  body:not(.home-fixed-page) .community-post-card,
+  body:not(.home-fixed-page) .points-card,
+  body:not(.home-fixed-page) .hero-card{
+    width:100%!important;
+    max-width:100%!important;
+    margin-left:auto!important;
+    margin-right:auto!important;
+    box-sizing:border-box!important;
+  }
+  body:not(.home-fixed-page) .submit-btn,
+  body:not(.home-fixed-page) .wz-submit-btn,
+  body:not(.home-fixed-page) .tarot-draw-btn,
+  body:not(.home-fixed-page) .tarot-btn-primary,
+  body:not(.home-fixed-page) .zeji-submit{
+    position:sticky!important;
+    bottom:max(14px,calc(env(safe-area-inset-bottom) + 8px))!important;
+    z-index:30!important;
+  }
+  body:not(.home-fixed-page) .search-row{
+    display:grid!important;
+    grid-template-columns:1fr auto!important;
+    align-items:center!important;
+    gap:10px!important;
+  }
+  body:not(.home-fixed-page) .search-box{
+    min-width:0!important;
+  }
+  body:not(.home-fixed-page) .search-row .btn,
+  body:not(.home-fixed-page) .btn-accent{
+    min-height:42px!important;
+    padding:0 18px!important;
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    white-space:nowrap!important;
+  }
+  body:not(.home-fixed-page) .notif-bell{
+    display:none!important;
+  }
   body.home-fixed-page .home-ai-console.has-chat{
     border-radius:14px!important;
+  }
+}
+
+/* 第九批全站居中与移动端手感修正 */
+body.home-fixed-page .hero-brand,
+body.home-fixed-page .hero-brand-icon-wrap,
+body.home-fixed-page .hero-brand-icon{
+  outline:none!important;
+  border:0!important;
+  -webkit-tap-highlight-color:transparent!important;
+}
+body.home-fixed-page .hero-brand::before,
+body.home-fixed-page .hero-brand::after,
+body.home-fixed-page .hero-brand-icon-wrap::after,
+body.home-fixed-page .hero-brand-icon::before,
+body.home-fixed-page .hero-brand-icon::after{
+  display:none!important;
+  content:none!important;
+}
+body.home-fixed-page .home-ai-main{
+  bottom:max(12px,calc(env(safe-area-inset-bottom) + 10px))!important;
+}
+body.home-fixed-page .home-ai-toolbar{
+  overflow:visible!important;
+}
+body:not(.home-fixed-page) .notif-bell{
+  display:none!important;
+}
+body:not(.home-fixed-page) .header-icons{
+  margin-left:0!important;
+}
+@media(max-width:768px){
+  body.home-fixed-page .hero-home{
+    padding-bottom:calc(var(--home-ai-dock-space) + env(safe-area-inset-bottom) + 16px)!important;
+  }
+  body.home-fixed-page .home-ai-main{
+    width:calc(100vw - 20px)!important;
+    bottom:max(12px,calc(env(safe-area-inset-bottom) + 10px))!important;
   }
 }
 </style>

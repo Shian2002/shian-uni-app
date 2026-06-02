@@ -318,6 +318,7 @@ function createNativeInput(wrapId, type, placeholder) {
   inp.id = wrapId.replace('-wrap', '')
   if (placeholder) inp.placeholder = placeholder
   inp.style.cssText = 'width:100%;padding:10px 14px;border-radius:10px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--text-1);font-size:0.875rem;outline:none;box-sizing:border-box;transition:border-color 0.2s,box-shadow 0.2s'
+  if (wrapId === 'comSearchQuery-wrap') inp.style.paddingLeft = '40px'
   inp.onfocus = function() { this.style.borderColor = 'var(--accent)'; this.style.boxShadow = '0 0 0 2px var(--accent-glow)' }
   inp.onblur = function() { this.style.borderColor = 'var(--input-border)'; this.style.boxShadow = 'none' }
   if (type === 'text') inp.setAttribute('maxlength', '100')
@@ -1048,8 +1049,10 @@ onShow(function() {
 
 .compliance-notice { background: var(--accent-glow); border: 1px solid var(--card-border); border-radius: var(--radius-md); padding: 12px 18px; margin-bottom: 24px; font-size: 0.8125rem; color: var(--text-2); text-align: center; letter-spacing: 1px; }
 .search-row { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
-.search-box { flex: 1; padding: 0; display: flex; align-items: center; position: relative; }
-.search-icon { position: absolute; left: 12px; font-size: 0.875rem; }
+.search-box { flex: 1; padding: 0; display: flex; align-items: center; position: relative; min-width: 0; }
+.search-icon { position: absolute; left: 14px; z-index: 2; font-size: 0.875rem; line-height: 1; pointer-events: none; }
+.search-box .dom-input-wrap { width: 100%; min-width: 0; }
+.search-box .dom-input-wrap input { padding-left: 40px !important; }
 .form-input { width: 100%; padding: 9px 14px 9px 32px; border-radius: 8px; background: var(--card-bg); border: 1.5px solid var(--card-border); color: var(--text-1); font-size: 0.85rem; outline: none; box-sizing: border-box; }
 .category-tab { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
 .ctab { padding: 6px 16px; border-radius: 20px; font-size: 0.8125rem; cursor: pointer; background: transparent; color: var(--text-3); border: 1px solid var(--card-border); }
