@@ -3421,11 +3421,35 @@ onBeforeUnmount(() => {
     min-height: 100dvh;
     align-items: flex-start;
   }
+  .marketing-ambient::before,
+  .marketing-ambient::after {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+    border: 1px solid rgba(49,44,34,.16);
+    border-radius: 50%;
+    box-shadow: 0 0 28px rgba(197,122,36,.045);
+  }
+  .marketing-ambient::before {
+    left: -42%;
+    top: 19%;
+    width: 168%;
+    height: 48%;
+    transform: rotate(-14deg);
+  }
+  .marketing-ambient::after {
+    right: -48%;
+    top: 31%;
+    width: 158%;
+    height: 54%;
+    transform: rotate(24deg);
+  }
   .marketing-orbits {
-    left: 5%;
-    top: 12%;
-    width: 38rem;
-    height: 26rem;
+    left: -26%;
+    top: 4%;
+    width: 58rem;
+    height: 44rem;
+    opacity: .36;
   }
   .marketing-copy {
     grid-template-columns: 1fr;
@@ -3439,7 +3463,7 @@ onBeforeUnmount(() => {
   .marketing-kicker { margin-bottom: 14px; font-size: 16px; }
   .marketing-title { font-size: clamp(42px, 12.4vw, 46px); line-height: 1.04; }
   .marketing-title-cn { margin-top: 14px; font-size: 29px; line-height: 1.14; }
-  .marketing-side { margin-top: 30px; }
+  .marketing-side { margin-top: 52px; }
   .marketing-side-title { margin-bottom: 12px; font-size: 22px; }
   .marketing-side-desc { font-size: 15px; line-height: 1.52; }
   .marketing-cta-row { gap: 10px; flex-wrap: nowrap; margin-top: 34px; }
@@ -3552,6 +3576,9 @@ onBeforeUnmount(() => {
   .page-root.marketing-android-active .marketing-cta-row {
     animation: none;
   }
+  .page-root.marketing-android-active .marketing-title {
+    opacity: 1;
+  }
 }
 @media (max-width: 760px) and (max-height: 700px) {
   .marketing-hero {
@@ -3562,7 +3589,7 @@ onBeforeUnmount(() => {
   .marketing-kicker { margin-bottom: 10px; font-size: 15px; }
   .marketing-title { font-size: clamp(39px, 11.4vw, 44px); }
   .marketing-title-cn { margin-top: 10px; font-size: 27px; }
-  .marketing-side { margin-top: 20px; }
+  .marketing-side { margin-top: 40px; }
   .marketing-side-title { margin-bottom: 8px; font-size: 21px; }
   .marketing-side-desc { font-size: 14px; line-height: 1.45; }
   .marketing-cta-row { margin-top: 28px; }
