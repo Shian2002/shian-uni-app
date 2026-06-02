@@ -45,6 +45,14 @@
           <view class="marketing-particle marketing-particle-soft marketing-particle-12"></view>
           <view class="marketing-particle marketing-particle-soft marketing-particle-13"></view>
           <view class="marketing-particle marketing-particle-soft marketing-particle-14"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-15"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-16"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-17"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-18"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-19"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-20"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-21"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-22"></view>
           <view class="marketing-bottom-blur"></view>
         </view>
 
@@ -3073,6 +3081,14 @@ onBeforeUnmount(() => {
 .marketing-particle-12 { left: 91%; top: 46%; animation-delay: -2.6s; }
 .marketing-particle-13 { left: 44%; top: 78%; animation-delay: -8.3s; }
 .marketing-particle-14 { left: 82%; top: 74%; animation-delay: -6.8s; }
+.marketing-particle-15 { left: 7%; top: 36%; animation-delay: -3.4s; }
+.marketing-particle-16 { left: 21%; top: 76%; animation-delay: -7.8s; }
+.marketing-particle-17 { left: 39%; top: 31%; animation-delay: -5.9s; }
+.marketing-particle-18 { left: 53%; top: 14%; animation-delay: -9.1s; }
+.marketing-particle-19 { left: 63%; top: 42%; animation-delay: -1.2s; }
+.marketing-particle-20 { left: 72%; top: 82%; animation-delay: -8.7s; }
+.marketing-particle-21 { left: 88%; top: 26%; animation-delay: -4.2s; }
+.marketing-particle-22 { left: 96%; top: 68%; animation-delay: -6.4s; }
 .marketing-bottom-blur {
   position: absolute;
   inset: auto 0 0;
@@ -3091,7 +3107,7 @@ onBeforeUnmount(() => {
   padding-bottom: 22px;
 }
 .marketing-main {
-  transform: translateY(-190px);
+  transform: translateY(-220px);
 }
 .marketing-kicker,
 .marketing-title,
