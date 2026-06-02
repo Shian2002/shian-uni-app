@@ -2536,6 +2536,22 @@ function onHomeKeydown(e) {
   }
 }
 
+function onMarketingWheel(e) {
+  // #ifdef H5
+  if (!marketingMode.value || !e) return
+  try {
+    const target = e.target
+    if (target && target.closest && target.closest('.modal-overlay')) return
+    const root = document.querySelector('.page-root.marketing-active')
+    if (!root || root.scrollHeight <= root.clientHeight) return
+    const before = root.scrollTop
+    const maxTop = root.scrollHeight - root.clientHeight
+    root.scrollTop = Math.max(0, Math.min(maxTop, before + e.deltaY))
+    if (root.scrollTop !== before) e.preventDefault()
+  } catch(_) {}
+  // #endif
+}
+
 // ── 页脚 ──
 function showFooterInfo(type) {
   const infoMap = {
@@ -2616,6 +2632,7 @@ onMounted(() => {
   window._xc_restoreComprehensive = restoreComprehensiveFromSidebar
   window._xc_newComprehensive = startNewComprehensiveConversation
   window.addEventListener('keydown', onHomeKeydown)
+  window.addEventListener('wheel', onMarketingWheel, { passive: false, capture: true })
   window.addEventListener('scroll', onHomePageScroll, { passive: true })
   window.addEventListener('popstate', onMarketingRouteChange)
   window.addEventListener('hashchange', onMarketingRouteChange)
@@ -2638,6 +2655,7 @@ onBeforeUnmount(() => {
   if (window._xc_restoreComprehensive === restoreComprehensiveFromSidebar) window._xc_restoreComprehensive = null
   if (window._xc_newComprehensive === startNewComprehensiveConversation) window._xc_newComprehensive = null
   window.removeEventListener('keydown', onHomeKeydown)
+  window.removeEventListener('wheel', onMarketingWheel, true)
   window.removeEventListener('scroll', onHomePageScroll)
   window.removeEventListener('popstate', onMarketingRouteChange)
   window.removeEventListener('hashchange', onMarketingRouteChange)
