@@ -3390,12 +3390,11 @@ onBeforeUnmount(() => {
 }
 @media (max-width: 760px) {
   .marketing-nav {
-    position: sticky;
-    top: 0;
+    position: absolute;
+    top: 18px;
     z-index: 120;
-    height: 96px;
-    margin-bottom: -96px;
-    padding: 26px 20px 14px;
+    height: 70px;
+    padding: 10px 20px;
     box-sizing: border-box;
     overflow: visible;
     background: linear-gradient(180deg, rgba(242,238,229,.96), rgba(242,238,229,.68) 72%, rgba(242,238,229,0));
@@ -3408,7 +3407,7 @@ onBeforeUnmount(() => {
   .marketing-nav-links text { display: none; }
   .marketing-enter { min-height: 42px; padding: 10px 18px; font-size: 13px; }
   .marketing-hero {
-    padding: max(148px, calc(env(safe-area-inset-top) + 134px)) 24px max(30px, calc(env(safe-area-inset-bottom) + 24px));
+    padding: max(118px, calc(env(safe-area-inset-top) + 104px)) 24px max(30px, calc(env(safe-area-inset-bottom) + 24px));
     height: 100dvh;
     min-height: 100dvh;
     align-items: flex-start;
@@ -3482,7 +3481,7 @@ onBeforeUnmount(() => {
 }
 @media (max-width: 760px) and (max-height: 700px) {
   .marketing-hero {
-    padding-top: max(132px, calc(env(safe-area-inset-top) + 116px));
+    padding-top: max(108px, calc(env(safe-area-inset-top) + 94px));
     padding-bottom: max(22px, calc(env(safe-area-inset-bottom) + 18px));
   }
   .marketing-copy { gap: 12px; }
