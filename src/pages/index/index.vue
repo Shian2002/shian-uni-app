@@ -22,10 +22,6 @@
 
       <view class="marketing-hero">
         <view class="marketing-ambient" aria-hidden="true">
-          <view class="marketing-star-map"></view>
-          <view class="marketing-lunar-halo"></view>
-          <view class="marketing-light-beam marketing-light-beam-a"></view>
-          <view class="marketing-light-beam marketing-light-beam-b"></view>
           <view class="marketing-mist marketing-mist-a"></view>
           <view class="marketing-mist marketing-mist-b"></view>
           <view class="marketing-mist marketing-mist-c"></view>
@@ -40,9 +36,6 @@
           <view class="marketing-particle marketing-particle-3"></view>
           <view class="marketing-particle marketing-particle-4"></view>
           <view class="marketing-particle marketing-particle-5"></view>
-          <view class="marketing-particle marketing-particle-6"></view>
-          <view class="marketing-particle marketing-particle-7"></view>
-          <view class="marketing-particle marketing-particle-8"></view>
           <view class="marketing-bottom-blur"></view>
         </view>
 
@@ -2989,55 +2982,6 @@ onBeforeUnmount(() => {
   pointer-events: none;
   overflow: hidden;
 }
-.marketing-star-map {
-  position: absolute;
-  inset: 6rem 4rem 3rem;
-  opacity: .32;
-  background:
-    radial-gradient(circle at 14% 28%, rgba(197,122,36,.58) 0 2px, transparent 3px),
-    radial-gradient(circle at 28% 68%, rgba(49,95,85,.32) 0 1px, transparent 2px),
-    radial-gradient(circle at 46% 18%, rgba(197,122,36,.44) 0 2px, transparent 3px),
-    radial-gradient(circle at 72% 36%, rgba(197,122,36,.52) 0 2px, transparent 3px),
-    radial-gradient(circle at 88% 72%, rgba(49,95,85,.34) 0 1px, transparent 2px),
-    linear-gradient(112deg, transparent 13%, rgba(49,44,34,.08) 13.3%, transparent 13.8% 47%, rgba(49,44,34,.075) 47.2%, transparent 47.8%),
-    linear-gradient(28deg, transparent 22%, rgba(49,44,34,.075) 22.3%, transparent 22.8% 64%, rgba(197,122,36,.08) 64.2%, transparent 64.7%);
-  mask-image: radial-gradient(ellipse at 56% 45%, #000 0 54%, transparent 78%);
-  animation: marketingStarBreath 10s ease-in-out infinite;
-}
-.marketing-lunar-halo {
-  position: absolute;
-  right: 8%;
-  top: 20%;
-  width: 26rem;
-  height: 26rem;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle, rgba(255,255,255,.12) 0 28%, transparent 29%),
-    conic-gradient(from 20deg, rgba(197,122,36,0), rgba(197,122,36,.16), rgba(49,95,85,.1), rgba(197,122,36,0));
-  opacity: .36;
-  filter: blur(.5px);
-  animation: marketingHaloTurn 36s linear infinite;
-}
-.marketing-light-beam {
-  position: absolute;
-  width: 34rem;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(197,122,36,.28), rgba(49,95,85,.16), transparent);
-  transform-origin: center;
-  opacity: .42;
-  animation: marketingBeamDrift 12s ease-in-out infinite;
-}
-.marketing-light-beam-a {
-  right: 7%;
-  top: 32%;
-  transform: rotate(-18deg);
-}
-.marketing-light-beam-b {
-  right: 17%;
-  top: 54%;
-  transform: rotate(16deg);
-  animation-delay: -5s;
-}
 .marketing-mist {
   position: absolute;
   border-radius: 999px;
@@ -3104,9 +3048,6 @@ onBeforeUnmount(() => {
 .marketing-particle-3 { left: 74%; top: 34%; animation-delay: -1.4s; }
 .marketing-particle-4 { left: 86%; top: 62%; animation-delay: -3.2s; }
 .marketing-particle-5 { left: 34%; top: 70%; animation-delay: -4s; }
-.marketing-particle-6 { left: 56%; top: 48%; animation-delay: -2.8s; }
-.marketing-particle-7 { left: 68%; top: 18%; animation-delay: -4.6s; }
-.marketing-particle-8 { left: 91%; top: 44%; animation-delay: -1.9s; }
 .marketing-bottom-blur {
   position: absolute;
   inset: auto 0 0;
@@ -3313,18 +3254,6 @@ onBeforeUnmount(() => {
   from { transform: translate(-50%, -50%) rotate(var(--marketing-r)); }
   to { transform: translate(-50%, -50%) rotate(calc(var(--marketing-r) + 360deg)); }
 }
-@keyframes marketingStarBreath {
-  0%, 100% { opacity: .24; transform: translate3d(0,0,0) scale(1); }
-  50% { opacity: .42; transform: translate3d(10px,-8px,0) scale(1.015); }
-}
-@keyframes marketingHaloTurn {
-  from { transform: rotate(0deg) scale(1); }
-  to { transform: rotate(360deg) scale(1); }
-}
-@keyframes marketingBeamDrift {
-  0%, 100% { opacity: .22; filter: blur(0); }
-  45% { opacity: .58; filter: blur(1px); }
-}
 @keyframes marketingParticleRise {
   0%, 100% { opacity: .18; transform: translateY(0) scale(.85); }
   45% { opacity: .8; transform: translateY(-22px) scale(1); }
@@ -3365,21 +3294,6 @@ onBeforeUnmount(() => {
     top: 12%;
     width: 38rem;
     height: 26rem;
-  }
-  .marketing-star-map {
-    inset: 5rem 1rem 2rem;
-    opacity: .22;
-  }
-  .marketing-lunar-halo {
-    right: -7rem;
-    top: 10rem;
-    width: 18rem;
-    height: 18rem;
-    opacity: .22;
-  }
-  .marketing-light-beam {
-    width: 22rem;
-    opacity: .24;
   }
   .marketing-copy {
     grid-template-columns: 1fr;
