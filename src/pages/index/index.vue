@@ -3282,7 +3282,7 @@ onBeforeUnmount(() => {
   .marketing-nav-links text { display: none; }
   .marketing-enter { padding: 10px 16px; font-size: 12px; }
   .marketing-hero {
-    padding: max(108px, calc(env(safe-area-inset-top) + 92px)) 24px 86px;
+    padding: max(88px, calc(env(safe-area-inset-top) + 76px)) 24px 70px;
     min-height: 100dvh;
     align-items: flex-start;
   }
@@ -3294,8 +3294,8 @@ onBeforeUnmount(() => {
   }
   .marketing-copy {
     grid-template-columns: 1fr;
-    gap: 30px;
-    padding-bottom: 44px;
+    gap: 24px;
+    padding-bottom: 30px;
   }
   .marketing-kicker { font-size: 17px; }
   .marketing-title { font-size: 48px; }
