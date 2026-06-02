@@ -2758,20 +2758,21 @@ onBeforeUnmount(() => {
 }
 :global(html.marketing-page),
 :global(body.marketing-page) {
-  height: 100dvh !important;
-  min-height: 100dvh !important;
+  height: auto !important;
+  min-height: 100% !important;
   overflow-x: hidden !important;
-  overflow-y: hidden !important;
-  overscroll-behavior: none !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: auto !important;
+  -webkit-overflow-scrolling: touch;
   touch-action: auto !important;
 }
 :global(body.marketing-page uni-page-body),
 :global(body.marketing-page uni-page-wrapper),
 :global(body.marketing-page .uni-page-body) {
-  height: 100dvh !important;
+  height: auto !important;
   min-height: 100dvh !important;
-  max-height: 100dvh !important;
-  overflow: hidden !important;
+  max-height: none !important;
+  overflow: visible !important;
   touch-action: auto !important;
 }
 
@@ -2781,10 +2782,10 @@ onBeforeUnmount(() => {
     radial-gradient(circle at 18% 78%, rgba(255,255,255,.58), transparent 28rem),
     radial-gradient(circle at 82% 52%, rgba(197,122,36,.13), transparent 24rem),
     linear-gradient(180deg, #eee9df 0%, #ded6ca 54%, #f8f4ec 100%);
-  height: 100dvh !important;
-  max-height: 100dvh !important;
+  height: auto !important;
+  max-height: none !important;
   overflow-x: hidden !important;
-  overflow-y: auto !important;
+  overflow-y: visible !important;
   overscroll-behavior-y: auto;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
@@ -2797,11 +2798,11 @@ onBeforeUnmount(() => {
   overflow: hidden !important;
 }
 :global(body.marketing-page) .page-root.marketing-active {
-  height: 100dvh !important;
+  height: auto !important;
   min-height: 100dvh !important;
-  max-height: 100dvh !important;
+  max-height: none !important;
   overflow-x: hidden !important;
-  overflow-y: auto !important;
+  overflow-y: visible !important;
   overscroll-behavior-y: auto !important;
   -webkit-overflow-scrolling: touch;
   touch-action: auto !important;
