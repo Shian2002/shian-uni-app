@@ -1316,6 +1316,13 @@ function go(hash) {
   }
 
   if (isTab) {
+    var coreTabPaths = ['/', '/pages/qimen/index', '/pages/bazi-index/index']
+    if (typeof window !== 'undefined' && coreTabPaths.indexOf(pathOnly) < 0) {
+      var targetHash = '#' + pathOnly + queryStr
+      if (window.location.hash !== targetHash) window.location.hash = targetHash
+      window.location.reload()
+      return
+    }
     var renderTargetTab = function() {
       try {
         if (window.__xcRenderTabPath) window.__xcRenderTabPath(pathOnly)

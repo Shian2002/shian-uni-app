@@ -80,7 +80,7 @@ const createRouterViewVNode = `function createRouterViewVNode({
       }
     }
     if (activeRoute) {
-      if (!window.__xcVisitedTabPaths) window.__xcVisitedTabPaths = [];
+      if (!window.__xcVisitedTabPaths) window.__xcVisitedTabPaths = ['/', '/pages/qimen/index', '/pages/bazi-index/index'];
       if (window.__xcVisitedTabPaths.indexOf(activeRoute.path) < 0) window.__xcVisitedTabPaths.push(activeRoute.path);
       var visited = window.__xcVisitedTabPaths;
       var tabChildren = routes.filter(function(r) {
@@ -207,7 +207,7 @@ const switchTabPatch = `// PATCHED v24: __switchTabPageDom - active tab is rende
           document.documentElement.classList.toggle('qimen-page-active', isQimen);
           document.body.classList.toggle('qimen-page-active', isQimen);
         }
-        if (!window.__xcVisitedTabPaths) window.__xcVisitedTabPaths = [];
+        if (!window.__xcVisitedTabPaths) window.__xcVisitedTabPaths = ['/', '/pages/qimen/index', '/pages/bazi-index/index'];
         if (window.__xcVisitedTabPaths.indexOf(path) < 0) window.__xcVisitedTabPaths.push(path);
         var currentHash = (location.hash.replace('#', '').split('?')[0] || '/');
         if (currentHash === '/pages/index/index') currentHash = '/';
@@ -247,6 +247,16 @@ const switchTabPatch = `// PATCHED v24: __switchTabPageDom - active tab is rende
         }
 
         if (window.__xcRenderTabPath) window.__xcRenderTabPath(path);
+        setTimeout(function() {
+          try {
+            var ready = Array.prototype.slice.call(document.querySelectorAll('.tab-page-wrapper')).some(function(w) {
+              return w.getAttribute('data-tab-path') === path;
+            });
+            if (!ready) window.location.reload();
+          } catch(_e) {
+            window.location.reload();
+          }
+        }, 120);
       } catch(e) { console.warn('[patch v24] __switchTabPageDom error:', e); }
     };`
 
