@@ -66,6 +66,10 @@
         :class="{ 'is-visible': marketingCriticalVisible }"
       >
         <text class="marketing-section-label">Critical Moment</text>
+        <view class="marketing-method-toolbar">
+          <button class="marketing-method-back" @tap="scrollMarketingHero">返回首屏</button>
+          <button class="marketing-method-enter" @tap="enterMarketingApp">进入应用</button>
+        </view>
         <text class="marketing-critical-title">在关键时刻，看清你真正面对的局。</text>
         <view class="marketing-cards">
           <view class="marketing-card">
@@ -87,6 +91,10 @@
             <view class="marketing-console-line"></view>
             <view class="marketing-console-line"></view>
           </view>
+        </view>
+        <view class="marketing-method-actions">
+          <button class="marketing-secondary marketing-method-action" @tap="scrollMarketingHero">返回首屏</button>
+          <button class="marketing-primary marketing-method-action" @tap="enterMarketingApp">进入应用</button>
         </view>
       </view>
     </view>
@@ -369,6 +377,7 @@ function enterMarketingApp() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   } catch(_) {}
   scheduleHomeVideoLoad()
+  if (!isLoggedIn.value) openLoginAfterEnteringApp()
   // #endif
 }
 
@@ -376,8 +385,43 @@ function scrollMarketingCritical() {
   // #ifdef H5
   try {
     const target = document.getElementById('marketingCritical')
-    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (!target) return
+    const root = document.querySelector('.page-root')
+    if (root && root.scrollHeight > root.clientHeight) {
+      root.scrollTo({ top: target.offsetTop, behavior: 'smooth' })
+    } else {
+      window.scrollTo({ top: target.offsetTop, behavior: 'smooth' })
+    }
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
   } catch(_) {}
+  // #endif
+}
+
+function scrollMarketingHero() {
+  // #ifdef H5
+  try {
+    const root = document.querySelector('.page-root')
+    if (root && root.scrollHeight > root.clientHeight) {
+      root.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  } catch(_) {}
+  // #endif
+}
+
+function openLoginAfterEnteringApp() {
+  // #ifdef H5
+  nextTick(function() {
+    setTimeout(function() {
+      try {
+        if (window._openLoginModal) {
+          window._openLoginModal()
+        } else {
+          uni.showToast({ title: '请先登录或注册', icon: 'none' })
+        }
+      } catch(_) {}
+    }, 180)
+  })
   // #endif
 }
 
@@ -2906,6 +2950,7 @@ onBeforeUnmount(() => {
   animation: marketingHintPulse 1.8s ease-in-out infinite;
 }
 .marketing-critical {
+  position: relative;
   min-height: 760px;
   padding: 110px 50px 130px;
   background:
@@ -2916,6 +2961,43 @@ onBeforeUnmount(() => {
 .marketing-section-label {
   display: block;
   font: 700 22px/1 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.marketing-method-toolbar {
+  position: sticky;
+  top: 84px;
+  z-index: 4;
+  float: right;
+  display: flex;
+  gap: 10px;
+  margin-top: -14px;
+  margin-left: 24px;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(255,250,241,.72);
+  border: 1px solid rgba(255,255,255,.74);
+  box-shadow: 0 16px 42px rgba(70,52,24,.08);
+  backdrop-filter: blur(12px);
+}
+.marketing-method-back,
+.marketing-method-enter {
+  height: 38px;
+  margin: 0;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  font: 700 13px/1 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.marketing-method-back::after,
+.marketing-method-enter::after,
+.marketing-method-action::after { border: 0; }
+.marketing-method-back {
+  color: rgba(23,21,18,.72);
+  background: rgba(255,255,255,.54);
+}
+.marketing-method-enter {
+  color: #fff;
+  background: var(--marketing-copper);
+  box-shadow: 0 12px 28px rgba(197,122,36,.18);
 }
 .marketing-critical-title {
   display: block;
@@ -2984,6 +3066,13 @@ onBeforeUnmount(() => {
   background: rgba(255,255,255,.13);
 }
 .marketing-console-line:first-of-type { background: var(--marketing-copper); }
+.marketing-method-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 52px;
+}
+.marketing-method-action { min-width: 132px; }
 @keyframes marketingNavIn {
   from { opacity: 0; transform: translateY(-12px); }
   to { opacity: 1; transform: translateY(0); }
@@ -3065,8 +3154,26 @@ onBeforeUnmount(() => {
     padding: 80px 24px;
     min-height: 720px;
   }
+  .marketing-method-toolbar {
+    top: 72px;
+    float: none;
+    width: fit-content;
+    max-width: 100%;
+    margin: -18px 0 28px;
+  }
+  .marketing-method-back,
+  .marketing-method-enter {
+    height: 34px;
+    padding: 0 13px;
+    font-size: 12px;
+  }
   .marketing-critical-title { font-size: 32px; }
   .marketing-cards { grid-template-columns: 1fr; }
+  .marketing-method-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    margin-top: 34px;
+  }
 }
 .bg-layer { position: fixed; inset: 0; z-index: 0; transition: background 0.8s var(--ease); pointer-events: none; overflow: hidden; }
 [data-theme="dark"] .bg-layer {
