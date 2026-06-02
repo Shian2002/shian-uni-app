@@ -53,6 +53,34 @@
           <view class="marketing-particle marketing-particle-soft marketing-particle-20"></view>
           <view class="marketing-particle marketing-particle-soft marketing-particle-21"></view>
           <view class="marketing-particle marketing-particle-soft marketing-particle-22"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-23"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-24"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-25"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-26"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-27"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-28"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-29"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-30"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-31"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-32"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-33"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-34"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-35"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-36"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-37"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-38"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-39"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-40"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-41"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-42"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-43"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-44"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-45"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-46"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-47"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-48"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-49"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-50"></view>
           <view class="marketing-bottom-blur"></view>
         </view>
 
@@ -3090,6 +3118,34 @@ onBeforeUnmount(() => {
 .marketing-particle-20 { left: 72%; top: 82%; animation-delay: -8.7s; }
 .marketing-particle-21 { left: 88%; top: 26%; animation-delay: -4.2s; }
 .marketing-particle-22 { left: 96%; top: 68%; animation-delay: -6.4s; }
+.marketing-particle-23 { left: 4%; top: 22%; animation-delay: -8.9s; }
+.marketing-particle-24 { left: 9%; top: 84%; animation-delay: -2.9s; }
+.marketing-particle-25 { left: 15%; top: 48%; animation-delay: -6.9s; }
+.marketing-particle-26 { left: 24%; top: 16%; animation-delay: -10.4s; }
+.marketing-particle-27 { left: 29%; top: 63%; animation-delay: -4.6s; }
+.marketing-particle-28 { left: 36%; top: 88%; animation-delay: -9.7s; }
+.marketing-particle-29 { left: 46%; top: 38%; animation-delay: -3.1s; }
+.marketing-particle-30 { left: 49%; top: 86%; animation-delay: -7.3s; }
+.marketing-particle-31 { left: 55%; top: 69%; animation-delay: -1.9s; }
+.marketing-particle-32 { left: 58%; top: 9%; animation-delay: -11.2s; }
+.marketing-particle-33 { left: 64%; top: 57%; animation-delay: -5.2s; }
+.marketing-particle-34 { left: 69%; top: 29%; animation-delay: -8.1s; }
+.marketing-particle-35 { left: 73%; top: 12%; animation-delay: -2.4s; }
+.marketing-particle-36 { left: 77%; top: 49%; animation-delay: -10.9s; }
+.marketing-particle-37 { left: 81%; top: 86%; animation-delay: -6.1s; }
+.marketing-particle-38 { left: 85%; top: 39%; animation-delay: -12.1s; }
+.marketing-particle-39 { left: 90%; top: 11%; animation-delay: -7.6s; }
+.marketing-particle-40 { left: 94%; top: 33%; animation-delay: -4.4s; }
+.marketing-particle-41 { left: 98%; top: 52%; animation-delay: -9.4s; }
+.marketing-particle-42 { left: 2%; top: 63%; animation-delay: -5.8s; }
+.marketing-particle-43 { left: 12%; top: 11%; animation-delay: -12.6s; }
+.marketing-particle-44 { left: 19%; top: 90%; animation-delay: -3.9s; }
+.marketing-particle-45 { left: 31%; top: 24%; animation-delay: -8.5s; }
+.marketing-particle-46 { left: 41%; top: 58%; animation-delay: -11.7s; }
+.marketing-particle-47 { left: 52%; top: 33%; animation-delay: -4.8s; }
+.marketing-particle-48 { left: 61%; top: 78%; animation-delay: -10.1s; }
+.marketing-particle-49 { left: 70%; top: 93%; animation-delay: -6.7s; }
+.marketing-particle-50 { left: 93%; top: 79%; animation-delay: -13.2s; }
 .marketing-bottom-blur {
   position: absolute;
   inset: auto 0 0;
@@ -3109,7 +3165,7 @@ onBeforeUnmount(() => {
   transform: translateY(-130px);
 }
 .marketing-main {
-  transform: translateY(-96px);
+  transform: translateY(-126px);
 }
 .marketing-kicker,
 .marketing-title,
