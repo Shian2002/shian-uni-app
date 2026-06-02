@@ -41,12 +41,7 @@
       ]
     }
   ],
-  "preloadRule": {
-    "pages/index/index": {
-      "network": "all",
-      "packages": ["package-tools", "package-user"]
-    }
-  },
+  "preloadRule": {},
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "时安解忧屋",

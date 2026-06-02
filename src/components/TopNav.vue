@@ -1316,17 +1316,25 @@ function go(hash) {
   }
 
   if (isTab) {
+    var renderTargetTab = function() {
+      try {
+        if (window.__xcRenderTabPath) window.__xcRenderTabPath(pathOnly)
+      } catch(_) {}
+    }
     uni.switchTab({
       url: uniPath,
       success: function() {
+        renderTargetTab()
         // 切换 tab 后立即同步导航高亮+溢出检测，不依赖 300ms setInterval 轮询
         syncNavHighlight()
         updateNavOverflow()
         if (queryStr) {
           setTimeout(function() { try { uni.$emit('nav-query', queryStr) } catch(_) {} }, 200)
         }
-      }
+      },
+      fail: renderTargetTab
     })
+    setTimeout(renderTargetTab, 60)
   } else {
     uni.navigateTo({ url: fullPath })
   }

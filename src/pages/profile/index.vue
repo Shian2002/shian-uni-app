@@ -979,11 +979,11 @@ onBeforeUnmount(function() {
 .tool-container { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; backdrop-filter: blur(20px); box-shadow: var(--card-shadow); max-width: 560px; margin: 0 auto; }
 
 /* ═══ 头像卡片 ═══ */
-.profile-card { display: flex; align-items: center; gap: 18px; padding: 8px 0 28px; margin-bottom: 24px; border-bottom: 1px solid var(--card-border); }
-.profile-card-avatar { position: relative; width: 72px; height: 72px; border-radius: 50%; background: rgba(255,255,255,0.06); overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; border: 2px solid var(--card-border); transition: border-color 0.2s, transform 0.2s; }
+.profile-card { display: flex; align-items: center; gap: 16px; padding: 18px 4px 22px; margin-bottom: 24px; border-bottom: 1px solid var(--card-border); box-sizing: border-box; }
+.profile-card-avatar { position: relative; width: 72px; height: 72px; border-radius: 50%; background: rgba(255,255,255,0.06); overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; border: 2px solid var(--card-border); transition: border-color 0.2s, transform 0.2s; box-sizing: border-box; }
 .profile-card-avatar:active { transform: scale(1.05); }
 .profile-card-avatar:hover { border-color: var(--accent); }
-.profile-card-avatar-img { width: 100%; height: 100%; border-radius: 50%; }
+.profile-card-avatar-img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; object-position: center; }
 .profile-card-avatar-text { font-size: 1.8rem; font-weight: 600; color: var(--text-3); }
 .profile-card-avatar-badge { position: absolute; bottom: 0; right: 0; width: 22px; height: 22px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.55rem; }
 .profile-card-info { flex: 1; min-width: 0; }
@@ -1058,6 +1058,7 @@ onBeforeUnmount(function() {
 @media (max-width: 768px) {
   .section { padding: 48px 16px; }
   .tool-container { padding: 20px; }
+  .profile-card { gap: 14px; padding: 14px 2px 18px; }
   .profile-card-avatar { width: 60px; height: 60px; }
 }
 </style>

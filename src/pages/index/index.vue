@@ -2,7 +2,7 @@
   <view class="page-root" :data-theme="theme">
     <!-- 视频背景层（H5 only） -->
     <!-- #ifdef H5 -->
-    <view class="video-bg" :class="{ 'video-fallback': videoFallback, 'video-visible': videoVisible }" id="videoBg">
+    <view v-if="videoEnabled" class="video-bg" :class="{ 'video-fallback': videoFallback, 'video-visible': videoVisible }" id="videoBg">
       <video
         class="video-bg-video"
         id="heroVideo"
@@ -252,6 +252,9 @@ function toggleTheme() {
 // ── 视频背景（H5 only）──
 const videoFallback = ref(false)
 const videoVisible = ref(false)
+const videoEnabled = ref(false)
+let homeVideoFallbackTimer = null
+let homeVideoRevealTimer = null
 function setHomeFixedPage(enabled) {
   // #ifdef H5
   try {
@@ -266,6 +269,30 @@ function onVideoError() {
 }
 function onVideoReady() {
   videoVisible.value = true
+}
+
+function scheduleHomeVideoLoad() {
+  // 首屏视频是装饰资源，延后挂载，避免首页跳转时抢占网络和主线程。
+  const enable = function() {
+    videoEnabled.value = true
+    homeVideoFallbackTimer = setTimeout(() => {
+      const v = document.getElementById('heroVideo')
+      if (v && v.readyState < 2) {
+        videoFallback.value = true
+        videoVisible.value = true
+        v.style.display = 'none'
+      }
+    }, 3000)
+    homeVideoRevealTimer = setTimeout(() => {
+      if (!videoVisible.value) videoVisible.value = true
+    }, 1000)
+  }
+  try {
+    if (window.requestIdleCallback) window.requestIdleCallback(enable, { timeout: 1800 })
+    else setTimeout(enable, 1200)
+  } catch(_) {
+    setTimeout(enable, 1200)
+  }
 }
 
 // ── 移动端菜单 ──
@@ -2327,22 +2354,7 @@ onMounted(() => {
   window.addEventListener('beforeunload', saveComprehensiveDraftForUnload)
   document.addEventListener('visibilitychange', onHomeVisibilityChange)
   document.addEventListener('click', onHomeBaziYunClick)
-  // 视频加载超时处理：3秒后如果视频还没准备好，显示fallback背景
-  setTimeout(() => {
-    const v = document.getElementById('heroVideo')
-    if (v && v.readyState < 2) {
-      videoFallback.value = true
-      videoVisible.value = true
-      v.style.display = 'none'
-    }
-  }, 3000)
-  
-  // 即使视频还没加载好，也在页面渲染完成后1秒显示视频背景层（避免刷新时的闪烁）
-  setTimeout(() => {
-    if (!videoVisible.value) {
-      videoVisible.value = true
-    }
-  }, 1000)
+  scheduleHomeVideoLoad()
   // #endif
 })
 
@@ -2361,6 +2373,8 @@ onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', saveComprehensiveDraftForUnload)
   document.removeEventListener('visibilitychange', onHomeVisibilityChange)
   document.removeEventListener('click', onHomeBaziYunClick)
+  if (homeVideoFallbackTimer) clearTimeout(homeVideoFallbackTimer)
+  if (homeVideoRevealTimer) clearTimeout(homeVideoRevealTimer)
   setHomeFixedPage(false)
   // #endif
 })
