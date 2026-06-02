@@ -2971,9 +2971,9 @@ onBeforeUnmount(() => {
   position: relative;
   min-height: 100dvh;
   overflow: hidden;
-  padding: 0 50px 80px;
+  padding: 78px 50px 72px;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   box-sizing: border-box;
 }
 .marketing-ambient {
@@ -3062,8 +3062,9 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 420px;
   gap: 60px;
-  align-items: end;
-  padding-bottom: 22px;
+  align-items: center;
+  padding-bottom: 0;
+  transform: translateY(-38px);
 }
 .marketing-kicker,
 .marketing-title,
@@ -3296,6 +3297,7 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
     gap: 24px;
     padding-bottom: 30px;
+    transform: none;
   }
   .marketing-kicker { font-size: 17px; }
   .marketing-title { font-size: 48px; }
