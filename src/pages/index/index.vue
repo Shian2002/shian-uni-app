@@ -88,12 +88,12 @@
           <view class="marketing-main">
             <text class="marketing-kicker">The Oriental Insight Agent</text>
             <view class="marketing-title">
-              <text>BaZi · QiMen · Ziwei</text>
+              <text>BaZi · QiMen · Multi-model</text>
               <text>All in Shian</text>
             </view>
             <view class="marketing-title-cn">
-              <text>八字 · 奇门 · 紫微</text>
-              <text>一处推演</text>
+              <text>八字 · 奇门 · 多模型</text>
+              <text>共同推演</text>
             </view>
           </view>
           <view class="marketing-side">
@@ -3390,15 +3390,22 @@ onBeforeUnmount(() => {
 }
 @media (max-width: 760px) {
   .marketing-nav {
-    height: 64px;
+    top: 0;
+    height: calc(68px + env(safe-area-inset-top));
     padding: 0 20px;
+    padding-top: env(safe-area-inset-top);
+    box-sizing: border-box;
+    background: linear-gradient(180deg, rgba(242,238,229,.96), rgba(242,238,229,.68) 72%, rgba(242,238,229,0));
+    animation: none;
   }
-  .marketing-brand { gap: 10px; }
+  .marketing-brand { gap: 10px; font-size: 16px; }
+  .marketing-logo-wrap { width: 40px; height: 40px; }
+  .marketing-logo { width: 30px; height: 30px; }
   .marketing-nav-links { gap: 12px; }
   .marketing-nav-links text { display: none; }
-  .marketing-enter { padding: 10px 16px; font-size: 12px; }
+  .marketing-enter { min-height: 42px; padding: 10px 18px; font-size: 13px; }
   .marketing-hero {
-    padding: max(84px, calc(env(safe-area-inset-top) + 72px)) 24px max(30px, calc(env(safe-area-inset-bottom) + 24px));
+    padding: max(98px, calc(env(safe-area-inset-top) + 86px)) 24px max(30px, calc(env(safe-area-inset-bottom) + 24px));
     height: 100dvh;
     min-height: 100dvh;
     align-items: flex-start;
@@ -3411,7 +3418,7 @@ onBeforeUnmount(() => {
   }
   .marketing-copy {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 18px;
     padding-bottom: 0;
     transform: none;
   }
@@ -3421,9 +3428,10 @@ onBeforeUnmount(() => {
   .marketing-kicker { margin-bottom: 14px; font-size: 16px; }
   .marketing-title { font-size: clamp(42px, 12.4vw, 46px); line-height: 1.04; }
   .marketing-title-cn { margin-top: 14px; font-size: 29px; line-height: 1.14; }
+  .marketing-side { margin-top: 12px; }
   .marketing-side-title { margin-bottom: 12px; font-size: 22px; }
   .marketing-side-desc { font-size: 15px; line-height: 1.52; }
-  .marketing-cta-row { gap: 10px; flex-wrap: nowrap; margin-top: 24px; }
+  .marketing-cta-row { gap: 10px; flex-wrap: nowrap; margin-top: 28px; }
   .marketing-primary,
   .marketing-secondary {
     height: 50px;
@@ -3471,16 +3479,17 @@ onBeforeUnmount(() => {
 }
 @media (max-width: 760px) and (max-height: 700px) {
   .marketing-hero {
-    padding-top: max(78px, calc(env(safe-area-inset-top) + 66px));
+    padding-top: max(88px, calc(env(safe-area-inset-top) + 76px));
     padding-bottom: max(22px, calc(env(safe-area-inset-bottom) + 18px));
   }
   .marketing-copy { gap: 12px; }
   .marketing-kicker { margin-bottom: 10px; font-size: 15px; }
   .marketing-title { font-size: clamp(39px, 11.4vw, 44px); }
   .marketing-title-cn { margin-top: 10px; font-size: 27px; }
+  .marketing-side { margin-top: 8px; }
   .marketing-side-title { margin-bottom: 8px; font-size: 21px; }
   .marketing-side-desc { font-size: 14px; line-height: 1.45; }
-  .marketing-cta-row { margin-top: 18px; }
+  .marketing-cta-row { margin-top: 22px; }
   .marketing-primary,
   .marketing-secondary { height: 48px; }
   .marketing-critical {
