@@ -3066,7 +3066,7 @@ onBeforeUnmount(() => {
   padding-bottom: 22px;
 }
 .marketing-main {
-  transform: translateY(-148px);
+  transform: translateY(-190px);
 }
 .marketing-kicker,
 .marketing-title,
