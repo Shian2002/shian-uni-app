@@ -451,7 +451,9 @@ function resetMarketingScrollTop() {
     const reset = function() {
       try {
         const root = document.querySelector('.page-root.marketing-active')
+        const landing = document.querySelector('.marketing-landing')
         const wrap = root && root.closest ? root.closest('uni-page-wrapper') : null
+        if (landing) landing.scrollTop = 0
         if (root) root.scrollTop = 0
         if (wrap) wrap.scrollTop = 0
         window.scrollTo(0, 0)
@@ -2856,21 +2858,20 @@ onBeforeUnmount(() => {
 }
 :global(html.marketing-page),
 :global(body.marketing-page) {
-  height: auto !important;
+  height: 100% !important;
   min-height: 100% !important;
   overflow-x: hidden !important;
-  overflow-y: auto !important;
-  overscroll-behavior-y: auto !important;
-  -webkit-overflow-scrolling: touch;
+  overflow-y: hidden !important;
+  overscroll-behavior-y: none !important;
   touch-action: auto !important;
 }
 :global(body.marketing-page uni-page-body),
 :global(body.marketing-page uni-page-wrapper),
 :global(body.marketing-page .uni-page-body) {
-  height: auto !important;
+  height: 100dvh !important;
   min-height: 100dvh !important;
-  max-height: none !important;
-  overflow: visible !important;
+  max-height: 100dvh !important;
+  overflow: hidden !important;
   touch-action: auto !important;
 }
 
@@ -2880,11 +2881,11 @@ onBeforeUnmount(() => {
     radial-gradient(circle at 18% 78%, rgba(255,255,255,.58), transparent 28rem),
     radial-gradient(circle at 82% 52%, rgba(197,122,36,.13), transparent 24rem),
     linear-gradient(180deg, #eee9df 0%, #ded6ca 54%, #f8f4ec 100%);
-  height: auto !important;
-  max-height: none !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
   overflow-x: hidden !important;
-  overflow-y: visible !important;
-  overscroll-behavior-y: auto;
+  overflow-y: hidden !important;
+  overscroll-behavior-y: none;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
   touch-action: auto;
@@ -2896,12 +2897,12 @@ onBeforeUnmount(() => {
   overflow: hidden !important;
 }
 :global(body.marketing-page) .page-root.marketing-active {
-  height: auto !important;
+  height: 100dvh !important;
   min-height: 100dvh !important;
-  max-height: none !important;
+  max-height: 100dvh !important;
   overflow-x: hidden !important;
-  overflow-y: visible !important;
-  overscroll-behavior-y: auto !important;
+  overflow-y: hidden !important;
+  overscroll-behavior-y: none !important;
   -webkit-overflow-scrolling: touch;
   touch-action: auto !important;
 }
@@ -2914,11 +2915,19 @@ onBeforeUnmount(() => {
   --marketing-copper: #c57a24;
   --marketing-jade: #315f55;
   position: relative;
+  height: 100dvh;
   min-height: 100dvh;
+  max-height: 100dvh;
   overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
   touch-action: auto;
   color: var(--marketing-ink);
   font-family: ui-serif, "Songti SC", "STSong", "Times New Roman", serif;
+  box-sizing: border-box;
 }
 .marketing-auth-host {
   position: fixed;
@@ -3014,6 +3023,9 @@ onBeforeUnmount(() => {
 }
 .marketing-hero {
   position: relative;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  height: 100dvh;
   min-height: 100dvh;
   overflow: hidden;
   padding: 0 50px 80px;
@@ -3255,7 +3267,9 @@ onBeforeUnmount(() => {
 }
 .marketing-critical {
   position: relative;
-  min-height: 760px;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  min-height: 100dvh;
   padding: 110px 50px 130px;
   background:
     radial-gradient(circle at 86% 20%, rgba(197,122,36,.11), transparent 24rem),
@@ -3385,6 +3399,7 @@ onBeforeUnmount(() => {
   .marketing-enter { padding: 10px 16px; font-size: 12px; }
   .marketing-hero {
     padding: max(88px, calc(env(safe-area-inset-top) + 76px)) 24px 70px;
+    height: 100dvh;
     min-height: 100dvh;
     align-items: flex-start;
   }
@@ -3417,7 +3432,7 @@ onBeforeUnmount(() => {
   }
   .marketing-critical {
     padding: 80px 24px;
-    min-height: 720px;
+    min-height: 100dvh;
   }
   .marketing-critical-title { font-size: 32px; }
   .marketing-cards { grid-template-columns: 1fr; }
