@@ -374,6 +374,17 @@ function refreshMarketingMode(query) {
   } else {
     disconnectMarketingObserver()
   }
+  syncMarketingPageClass()
+}
+
+function syncMarketingPageClass() {
+  // #ifdef H5
+  try {
+    const active = !!marketingMode.value
+    document.documentElement.classList.toggle('marketing-page', active)
+    document.body.classList.toggle('marketing-page', active)
+  } catch(_) {}
+  // #endif
 }
 
 function enterMarketingApp() {
@@ -383,6 +394,7 @@ function enterMarketingApp() {
     return
   }
   marketingMode.value = false
+  syncMarketingPageClass()
   disconnectMarketingObserver()
   // #ifdef H5
   try {
@@ -559,6 +571,7 @@ window.addEventListener('xc-auth-changed', function(e) {
     selectedProfiles.value = []
     startNewComprehensiveConversation()
     marketingMode.value = true
+    syncMarketingPageClass()
     // #ifdef H5
     try {
       if (window.location.hash !== '#/') window.history.replaceState({ marketing: 'home' }, '', '#/')
@@ -2702,6 +2715,37 @@ onBeforeUnmount(() => {
   max-height: 100dvh;
   overflow: hidden !important;
 }
+:global(html.home-fixed-page:has(.marketing-active)),
+:global(body.home-fixed-page:has(.marketing-active)) {
+  height: auto;
+  min-height: 100%;
+  overflow-y: auto !important;
+  overscroll-behavior: auto;
+}
+:global(body.home-fixed-page:has(.marketing-active) uni-page-body),
+:global(body.home-fixed-page:has(.marketing-active) uni-page-wrapper),
+:global(body.home-fixed-page:has(.marketing-active) .uni-page-body) {
+  height: auto;
+  min-height: 100dvh;
+  max-height: none;
+  overflow-y: auto !important;
+}
+:global(html.marketing-page),
+:global(body.marketing-page) {
+  height: auto !important;
+  min-height: 100% !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: auto !important;
+}
+:global(body.marketing-page uni-page-body),
+:global(body.marketing-page uni-page-wrapper),
+:global(body.marketing-page .uni-page-body) {
+  height: auto !important;
+  min-height: 100dvh !important;
+  max-height: none !important;
+  overflow-y: visible !important;
+}
 
 .page-root { --home-ai-dock-space: 116px; --home-ai-chat-bottom-buffer: 126px; min-height: 100dvh; overflow-x: hidden; overflow-y: auto; width: 100% !important; max-width: 100vw !important; box-sizing: border-box; }
 .page-root.marketing-active {
@@ -2709,12 +2753,22 @@ onBeforeUnmount(() => {
     radial-gradient(circle at 18% 78%, rgba(255,255,255,.58), transparent 28rem),
     radial-gradient(circle at 82% 52%, rgba(197,122,36,.13), transparent 24rem),
     linear-gradient(180deg, #eee9df 0%, #ded6ca 54%, #f8f4ec 100%);
+  height: auto !important;
+  max-height: none !important;
+  overflow-y: visible !important;
 }
 :global(body.home-fixed-page:not(:has(.home-ai-console.has-chat))) .page-root {
   height: 100dvh;
   min-height: 100dvh;
   max-height: 100dvh;
   overflow: hidden !important;
+}
+:global(body.marketing-page) .page-root.marketing-active {
+  height: auto !important;
+  min-height: 100dvh !important;
+  max-height: none !important;
+  overflow-x: hidden !important;
+  overflow-y: visible !important;
 }
 .tool-home-shell { min-height: 100dvh; }
 
