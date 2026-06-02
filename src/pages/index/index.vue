@@ -36,6 +36,15 @@
           <view class="marketing-particle marketing-particle-3"></view>
           <view class="marketing-particle marketing-particle-4"></view>
           <view class="marketing-particle marketing-particle-5"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-6"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-7"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-8"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-9"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-10"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-11"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-12"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-13"></view>
+          <view class="marketing-particle marketing-particle-soft marketing-particle-14"></view>
           <view class="marketing-bottom-blur"></view>
         </view>
 
@@ -3043,11 +3052,27 @@ onBeforeUnmount(() => {
   background: rgba(220,163,78,.72);
   animation: marketingParticleRise 6s ease-in-out infinite;
 }
+.marketing-particle-soft {
+  width: 2px;
+  height: 2px;
+  background: rgba(197,122,36,.42);
+  box-shadow: 0 0 10px rgba(197,122,36,.16);
+  animation-duration: 9s;
+}
 .marketing-particle-1 { left: 18%; top: 28%; animation-delay: -.7s; }
 .marketing-particle-2 { left: 42%; top: 20%; animation-delay: -2.1s; }
 .marketing-particle-3 { left: 74%; top: 34%; animation-delay: -1.4s; }
 .marketing-particle-4 { left: 86%; top: 62%; animation-delay: -3.2s; }
 .marketing-particle-5 { left: 34%; top: 70%; animation-delay: -4s; }
+.marketing-particle-6 { left: 11%; top: 58%; animation-delay: -5.4s; }
+.marketing-particle-7 { left: 26%; top: 40%; animation-delay: -1.8s; }
+.marketing-particle-8 { left: 51%; top: 52%; animation-delay: -6.2s; }
+.marketing-particle-9 { left: 59%; top: 24%; animation-delay: -3.7s; }
+.marketing-particle-10 { left: 67%; top: 66%; animation-delay: -7.1s; }
+.marketing-particle-11 { left: 78%; top: 18%; animation-delay: -4.9s; }
+.marketing-particle-12 { left: 91%; top: 46%; animation-delay: -2.6s; }
+.marketing-particle-13 { left: 44%; top: 78%; animation-delay: -8.3s; }
+.marketing-particle-14 { left: 82%; top: 74%; animation-delay: -6.8s; }
 .marketing-bottom-blur {
   position: absolute;
   inset: auto 0 0;
@@ -3255,8 +3280,8 @@ onBeforeUnmount(() => {
   to { transform: translate(-50%, -50%) rotate(calc(var(--marketing-r) + 360deg)); }
 }
 @keyframes marketingParticleRise {
-  0%, 100% { opacity: .18; transform: translateY(0) scale(.85); }
-  45% { opacity: .8; transform: translateY(-22px) scale(1); }
+  0%, 100% { opacity: .16; transform: translateY(0) scale(.85); }
+  45% { opacity: .72; transform: translateY(-24px) scale(1); }
 }
 @keyframes marketingHeroRise {
   from { opacity: 0; transform: translateY(28px); }
