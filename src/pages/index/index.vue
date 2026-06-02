@@ -338,6 +338,8 @@ const marketingMode = ref(true)
 const marketingCriticalVisible = ref(false)
 let marketingObserver = null
 let marketingPendingEnterAfterLogin = false
+let marketingScrollRestoration = ''
+let marketingTopResetTimer = null
 
 function shouldOpenToolHome(query) {
   if (query && (query.app === '1' || query.app === 'true')) return true
@@ -370,9 +372,11 @@ function refreshMarketingMode(query) {
   }
   if (marketingMode.value) {
     marketingCriticalVisible.value = false
+    resetMarketingScrollTop()
     nextTick(setupMarketingObserver)
   } else {
     disconnectMarketingObserver()
+    restoreMarketingScrollRestoration()
   }
   syncMarketingPageClass()
 }
@@ -386,6 +390,44 @@ function syncMarketingPageClass() {
     if (active) {
       document.documentElement.classList.remove('home-fixed-page')
       document.body.classList.remove('home-fixed-page')
+    }
+  } catch(_) {}
+  // #endif
+}
+
+function resetMarketingScrollTop() {
+  // #ifdef H5
+  try {
+    if (marketingTopResetTimer) clearTimeout(marketingTopResetTimer)
+    if ('scrollRestoration' in window.history) {
+      if (!marketingScrollRestoration) marketingScrollRestoration = window.history.scrollRestoration || 'auto'
+      window.history.scrollRestoration = 'manual'
+    }
+    const reset = function() {
+      try {
+        const root = document.querySelector('.page-root.marketing-active')
+        const wrap = root && root.closest ? root.closest('uni-page-wrapper') : null
+        if (root) root.scrollTop = 0
+        if (wrap) wrap.scrollTop = 0
+        window.scrollTo(0, 0)
+      } catch(_) {}
+    }
+    reset()
+    marketingTopResetTimer = setTimeout(reset, 120)
+  } catch(_) {}
+  // #endif
+}
+
+function restoreMarketingScrollRestoration() {
+  // #ifdef H5
+  try {
+    if (marketingTopResetTimer) {
+      clearTimeout(marketingTopResetTimer)
+      marketingTopResetTimer = null
+    }
+    if (marketingScrollRestoration && 'scrollRestoration' in window.history) {
+      window.history.scrollRestoration = marketingScrollRestoration
+      marketingScrollRestoration = ''
     }
   } catch(_) {}
   // #endif
@@ -2663,6 +2705,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   disconnectMarketingObserver()
+  restoreMarketingScrollRestoration()
   saveComprehensiveDraftForUnload()
   stopComprehensiveProgressTimer()
   stopComprehensiveTypeTimer()
@@ -3239,8 +3282,9 @@ onBeforeUnmount(() => {
   .marketing-nav-links text { display: none; }
   .marketing-enter { padding: 10px 16px; font-size: 12px; }
   .marketing-hero {
-    padding: 0 24px 76px;
+    padding: max(108px, calc(env(safe-area-inset-top) + 92px)) 24px 86px;
     min-height: 100dvh;
+    align-items: flex-start;
   }
   .marketing-orbits {
     left: 5%;
@@ -3250,8 +3294,8 @@ onBeforeUnmount(() => {
   }
   .marketing-copy {
     grid-template-columns: 1fr;
-    gap: 36px;
-    padding-bottom: 58px;
+    gap: 30px;
+    padding-bottom: 44px;
   }
   .marketing-kicker { font-size: 17px; }
   .marketing-title { font-size: 48px; }
