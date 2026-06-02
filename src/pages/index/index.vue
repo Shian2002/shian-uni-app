@@ -2536,18 +2536,49 @@ function onHomeKeydown(e) {
   }
 }
 
+let marketingTouchY = 0
+
+function scrollMarketingRootBy(deltaY) {
+  if (!marketingMode.value || !deltaY) return false
+  try {
+    const root = document.querySelector('.page-root.marketing-active')
+    if (!root || root.scrollHeight <= root.clientHeight) return false
+    const before = root.scrollTop
+    const maxTop = root.scrollHeight - root.clientHeight
+    root.scrollTop = Math.max(0, Math.min(maxTop, before + deltaY))
+    return root.scrollTop !== before
+  } catch(_) {}
+  return false
+}
+
 function onMarketingWheel(e) {
   // #ifdef H5
   if (!marketingMode.value || !e) return
   try {
     const target = e.target
     if (target && target.closest && target.closest('.modal-overlay')) return
-    const root = document.querySelector('.page-root.marketing-active')
-    if (!root || root.scrollHeight <= root.clientHeight) return
-    const before = root.scrollTop
-    const maxTop = root.scrollHeight - root.clientHeight
-    root.scrollTop = Math.max(0, Math.min(maxTop, before + e.deltaY))
-    if (root.scrollTop !== before) e.preventDefault()
+    if (scrollMarketingRootBy(e.deltaY)) e.preventDefault()
+  } catch(_) {}
+  // #endif
+}
+
+function onMarketingTouchStart(e) {
+  // #ifdef H5
+  if (!marketingMode.value || !e || !e.touches || !e.touches.length) return
+  marketingTouchY = e.touches[0].clientY
+  // #endif
+}
+
+function onMarketingTouchMove(e) {
+  // #ifdef H5
+  if (!marketingMode.value || !e || !e.touches || !e.touches.length) return
+  try {
+    const target = e.target
+    if (target && target.closest && target.closest('.modal-overlay')) return
+    const currentY = e.touches[0].clientY
+    const deltaY = marketingTouchY - currentY
+    marketingTouchY = currentY
+    if (scrollMarketingRootBy(deltaY)) e.preventDefault()
   } catch(_) {}
   // #endif
 }
@@ -2633,6 +2664,8 @@ onMounted(() => {
   window._xc_newComprehensive = startNewComprehensiveConversation
   window.addEventListener('keydown', onHomeKeydown)
   window.addEventListener('wheel', onMarketingWheel, { passive: false, capture: true })
+  window.addEventListener('touchstart', onMarketingTouchStart, { passive: true, capture: true })
+  window.addEventListener('touchmove', onMarketingTouchMove, { passive: false, capture: true })
   window.addEventListener('scroll', onHomePageScroll, { passive: true })
   window.addEventListener('popstate', onMarketingRouteChange)
   window.addEventListener('hashchange', onMarketingRouteChange)
@@ -2656,6 +2689,8 @@ onBeforeUnmount(() => {
   if (window._xc_newComprehensive === startNewComprehensiveConversation) window._xc_newComprehensive = null
   window.removeEventListener('keydown', onHomeKeydown)
   window.removeEventListener('wheel', onMarketingWheel, true)
+  window.removeEventListener('touchstart', onMarketingTouchStart, true)
+  window.removeEventListener('touchmove', onMarketingTouchMove, true)
   window.removeEventListener('scroll', onHomePageScroll)
   window.removeEventListener('popstate', onMarketingRouteChange)
   window.removeEventListener('hashchange', onMarketingRouteChange)
