@@ -3398,7 +3398,7 @@ onBeforeUnmount(() => {
   .marketing-nav-links text { display: none; }
   .marketing-enter { padding: 10px 16px; font-size: 12px; }
   .marketing-hero {
-    padding: max(88px, calc(env(safe-area-inset-top) + 76px)) 24px 70px;
+    padding: max(84px, calc(env(safe-area-inset-top) + 72px)) 24px max(30px, calc(env(safe-area-inset-bottom) + 24px));
     height: 100dvh;
     min-height: 100dvh;
     align-items: flex-start;
@@ -3411,31 +3411,89 @@ onBeforeUnmount(() => {
   }
   .marketing-copy {
     grid-template-columns: 1fr;
-    gap: 24px;
-    padding-bottom: 30px;
+    gap: 16px;
+    padding-bottom: 0;
     transform: none;
   }
   .marketing-main {
     transform: none;
   }
-  .marketing-kicker { font-size: 17px; }
-  .marketing-title { font-size: 48px; }
-  .marketing-title-cn { font-size: 32px; }
-  .marketing-side-title { font-size: 24px; }
-  .marketing-side-desc { font-size: 16px; }
-  .marketing-cta-row { gap: 12px; flex-wrap: wrap; }
+  .marketing-kicker { margin-bottom: 14px; font-size: 16px; }
+  .marketing-title { font-size: clamp(42px, 12.4vw, 46px); line-height: 1.04; }
+  .marketing-title-cn { margin-top: 14px; font-size: 29px; line-height: 1.14; }
+  .marketing-side-title { margin-bottom: 12px; font-size: 22px; }
+  .marketing-side-desc { font-size: 15px; line-height: 1.52; }
+  .marketing-cta-row { gap: 10px; flex-wrap: nowrap; margin-top: 24px; }
   .marketing-primary,
   .marketing-secondary {
     height: 50px;
-    padding: 0 24px;
+    min-width: 0;
+    flex: 1 1 0;
+    padding: 0 18px;
     font-size: 14px;
   }
   .marketing-critical {
-    padding: 80px 24px;
+    height: 100dvh;
     min-height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+    padding: max(84px, calc(env(safe-area-inset-top) + 72px)) 22px max(26px, calc(env(safe-area-inset-bottom) + 22px));
+    display: flex;
+    flex-direction: column;
   }
-  .marketing-critical-title { font-size: 32px; }
-  .marketing-cards { grid-template-columns: 1fr; }
+  .marketing-section-label { font-size: 15px; }
+  .marketing-critical-title { margin: 8px 0 18px; font-size: 28px; line-height: 1.12; }
+  .marketing-cards {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    min-height: 0;
+    flex: 1 1 auto;
+    align-content: start;
+  }
+  .marketing-card {
+    min-height: 0;
+    padding: 14px 16px;
+    border-radius: 8px;
+  }
+  .marketing-card-title { margin-bottom: 6px; font-size: 18px; }
+  .marketing-card-desc { font-size: 13px; line-height: 1.42; }
+  .marketing-console {
+    min-height: 88px;
+    padding: 14px 16px;
+    border-radius: 10px;
+  }
+  .marketing-console-title { font-size: 14px; }
+  .marketing-console-line {
+    height: 11px;
+    margin-top: 8px;
+    border-radius: 5px;
+  }
+}
+@media (max-width: 760px) and (max-height: 700px) {
+  .marketing-hero {
+    padding-top: max(78px, calc(env(safe-area-inset-top) + 66px));
+    padding-bottom: max(22px, calc(env(safe-area-inset-bottom) + 18px));
+  }
+  .marketing-copy { gap: 12px; }
+  .marketing-kicker { margin-bottom: 10px; font-size: 15px; }
+  .marketing-title { font-size: clamp(39px, 11.4vw, 44px); }
+  .marketing-title-cn { margin-top: 10px; font-size: 27px; }
+  .marketing-side-title { margin-bottom: 8px; font-size: 21px; }
+  .marketing-side-desc { font-size: 14px; line-height: 1.45; }
+  .marketing-cta-row { margin-top: 18px; }
+  .marketing-primary,
+  .marketing-secondary { height: 48px; }
+  .marketing-critical {
+    padding-top: max(78px, calc(env(safe-area-inset-top) + 66px));
+    padding-bottom: max(20px, calc(env(safe-area-inset-bottom) + 16px));
+  }
+  .marketing-critical-title { margin-bottom: 14px; font-size: 25px; }
+  .marketing-cards { gap: 8px; }
+  .marketing-card { padding: 12px 14px; }
+  .marketing-card-title { font-size: 17px; }
+  .marketing-card-desc { font-size: 12px; line-height: 1.35; }
+  .marketing-console { min-height: 72px; padding: 12px 14px; }
+  .marketing-console-line { height: 9px; margin-top: 7px; }
 }
 .bg-layer { position: fixed; inset: 0; z-index: 0; transition: background 0.8s var(--ease); pointer-events: none; overflow: hidden; }
 [data-theme="dark"] .bg-layer {
