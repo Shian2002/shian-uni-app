@@ -69,10 +69,6 @@
         :class="{ 'is-visible': marketingCriticalVisible }"
       >
         <text class="marketing-section-label">Critical Moment</text>
-        <view class="marketing-method-toolbar">
-          <button class="marketing-method-back" @tap="scrollMarketingHero">返回首屏</button>
-          <button class="marketing-method-enter" @tap="enterMarketingApp">进入应用</button>
-        </view>
         <text class="marketing-critical-title">在关键时刻，看清你真正面对的局。</text>
         <view class="marketing-cards">
           <view class="marketing-card">
@@ -94,10 +90,6 @@
             <view class="marketing-console-line"></view>
             <view class="marketing-console-line"></view>
           </view>
-        </view>
-        <view class="marketing-method-actions">
-          <button class="marketing-secondary marketing-method-action" @tap="scrollMarketingHero">返回首屏</button>
-          <button class="marketing-primary marketing-method-action" @tap="enterMarketingApp">进入应用</button>
         </view>
       </view>
     </view>
@@ -2750,26 +2742,27 @@ onBeforeUnmount(() => {
   position: fixed;
   inset: 0 0 auto;
   z-index: 10;
-  height: 72px;
+  height: 78px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 48px;
+  padding: 0 50px;
   background: linear-gradient(180deg, rgba(242,238,229,.88), rgba(242,238,229,0));
   backdrop-filter: blur(8px);
   animation: marketingNavIn .42s ease-out both;
 }
 .marketing-brand {
   display: flex;
-  gap: 12px;
+  gap: 14px;
   align-items: center;
   font-weight: 700;
+  font-size: 17px;
   letter-spacing: .02em;
 }
 .marketing-logo-wrap {
   position: relative;
-  width: 30px;
-  height: 30px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -2779,7 +2772,7 @@ onBeforeUnmount(() => {
 .marketing-logo-wrap::before {
   content: "";
   position: absolute;
-  inset: -5px;
+  inset: -6px;
   border-radius: inherit;
   border: 1px solid rgba(49,95,85,.18);
   border-top-color: rgba(197,122,36,.52);
@@ -2788,19 +2781,20 @@ onBeforeUnmount(() => {
   animation: marketingSlowSpin 14s linear infinite;
 }
 .marketing-logo {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   object-fit: contain;
   transform-origin: center;
   animation: marketingSlowSpin 24s linear infinite reverse;
 }
 .marketing-nav-links {
   display: flex;
-  gap: 34px;
+  gap: 36px;
   align-items: center;
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 13px;
-  color: rgba(23,21,18,.68);
+  font-size: 14px;
+  font-weight: 650;
+  color: rgba(23,21,18,.72);
 }
 .marketing-enter,
 .marketing-primary,
@@ -2817,11 +2811,16 @@ onBeforeUnmount(() => {
 .marketing-primary::after,
 .marketing-secondary::after { border: 0; }
 .marketing-enter {
-  padding: 11px 22px;
+  min-height: 40px;
+  padding: 0 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--marketing-ink);
   background: rgba(255,255,255,.66);
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.7);
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1;
 }
 .marketing-hero {
   position: relative;
@@ -2874,15 +2873,16 @@ onBeforeUnmount(() => {
   top: 5%;
   width: 55rem;
   height: 32rem;
-  opacity: .28;
+  opacity: .42;
   animation: marketingOrbitFloat 22s ease-in-out infinite;
 }
 .marketing-orbit {
   position: absolute;
   left: 50%;
   top: 50%;
-  border: 1px solid rgba(23,21,18,.14);
+  border: 1px solid rgba(49,44,34,.22);
   border-radius: 50%;
+  box-shadow: 0 0 18px rgba(197,122,36,.045);
   transform: translate(-50%, -50%) rotate(var(--marketing-r));
   animation: marketingOrbitRotate var(--marketing-d) linear infinite;
 }
@@ -2967,15 +2967,22 @@ onBeforeUnmount(() => {
 .marketing-cta-row {
   display: flex;
   gap: 18px;
-  margin-top: 34px;
+  margin-top: 44px;
   align-items: center;
   animation-delay: .9s;
 }
 .marketing-primary,
 .marketing-secondary {
   height: 56px;
+  min-width: 132px;
   padding: 0 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 15px;
+  line-height: 1;
+  box-sizing: border-box;
+  text-align: center;
 }
 .marketing-primary {
   color: white;
@@ -3011,43 +3018,6 @@ onBeforeUnmount(() => {
 .marketing-section-label {
   display: block;
   font: 700 22px/1 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
-.marketing-method-toolbar {
-  position: sticky;
-  top: 84px;
-  z-index: 4;
-  float: right;
-  display: flex;
-  gap: 10px;
-  margin-top: -14px;
-  margin-left: 24px;
-  padding: 6px;
-  border-radius: 999px;
-  background: rgba(255,250,241,.72);
-  border: 1px solid rgba(255,255,255,.74);
-  box-shadow: 0 16px 42px rgba(70,52,24,.08);
-  backdrop-filter: blur(12px);
-}
-.marketing-method-back,
-.marketing-method-enter {
-  height: 38px;
-  margin: 0;
-  padding: 0 18px;
-  border: 0;
-  border-radius: 999px;
-  font: 700 13px/1 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
-.marketing-method-back::after,
-.marketing-method-enter::after,
-.marketing-method-action::after { border: 0; }
-.marketing-method-back {
-  color: rgba(23,21,18,.72);
-  background: rgba(255,255,255,.54);
-}
-.marketing-method-enter {
-  color: #fff;
-  background: var(--marketing-copper);
-  box-shadow: 0 12px 28px rgba(197,122,36,.18);
 }
 .marketing-critical-title {
   display: block;
@@ -3116,13 +3086,6 @@ onBeforeUnmount(() => {
   background: rgba(255,255,255,.13);
 }
 .marketing-console-line:first-of-type { background: var(--marketing-copper); }
-.marketing-method-actions {
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-  margin-top: 52px;
-}
-.marketing-method-action { min-width: 132px; }
 @keyframes marketingNavIn {
   from { opacity: 0; transform: translateY(-12px); }
   to { opacity: 1; transform: translateY(0); }
@@ -3204,26 +3167,8 @@ onBeforeUnmount(() => {
     padding: 80px 24px;
     min-height: 720px;
   }
-  .marketing-method-toolbar {
-    top: 72px;
-    float: none;
-    width: fit-content;
-    max-width: 100%;
-    margin: -18px 0 28px;
-  }
-  .marketing-method-back,
-  .marketing-method-enter {
-    height: 34px;
-    padding: 0 13px;
-    font-size: 12px;
-  }
   .marketing-critical-title { font-size: 32px; }
   .marketing-cards { grid-template-columns: 1fr; }
-  .marketing-method-actions {
-    justify-content: flex-start;
-    flex-wrap: wrap;
-    margin-top: 34px;
-  }
 }
 .bg-layer { position: fixed; inset: 0; z-index: 0; transition: background 0.8s var(--ease); pointer-events: none; overflow: hidden; }
 [data-theme="dark"] .bg-layer {
