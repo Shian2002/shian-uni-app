@@ -1670,4 +1670,35 @@ body:not(.home-fixed-page) .header-icons{
     bottom:max(12px,calc(env(safe-area-inset-bottom) + 10px))!important;
   }
 }
+
+/* 第十批首页空态单屏锁定：避免下滑时底部 AI 输入栏被挤出视口 */
+html.home-fixed-page:not(:has(.home-ai-console.has-chat)),
+body.home-fixed-page:not(:has(.home-ai-console.has-chat)){
+  height:100dvh!important;
+  min-height:100dvh!important;
+  max-height:100dvh!important;
+  overflow:hidden!important;
+  overscroll-behavior:none!important;
+}
+body.home-fixed-page:not(:has(.home-ai-console.has-chat)) uni-page-body,
+body.home-fixed-page:not(:has(.home-ai-console.has-chat)) uni-page-wrapper,
+body.home-fixed-page:not(:has(.home-ai-console.has-chat)) .uni-page-body,
+body.home-fixed-page:not(:has(.home-ai-console.has-chat)) .page-root{
+  height:100dvh!important;
+  min-height:100dvh!important;
+  max-height:100dvh!important;
+  overflow:hidden!important;
+}
+body.home-fixed-page:not(:has(.home-ai-console.has-chat)) .page-wrap,
+body.home-fixed-page:not(:has(.home-ai-console.has-chat)) .hero-home{
+  height:calc(100dvh - 60px)!important;
+  min-height:calc(100dvh - 60px)!important;
+  max-height:calc(100dvh - 60px)!important;
+  overflow:hidden!important;
+}
+body.home-fixed-page:not(:has(.home-ai-console.has-chat)) .home-ai-main{
+  bottom:max(18px,calc(env(safe-area-inset-bottom) + 14px))!important;
+  max-height:min(128px,calc(100dvh - 120px))!important;
+  overflow:hidden!important;
+}
 </style>

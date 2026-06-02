@@ -2415,8 +2415,29 @@ onBeforeUnmount(() => {
 :global(body.home-fixed-page uni-page-body),
 :global(body.home-fixed-page uni-page-wrapper),
 :global(body.home-fixed-page .uni-page-body) { min-height: 100dvh; overflow-y: auto; }
+:global(html.home-fixed-page:not(:has(.home-ai-console.has-chat))),
+:global(body.home-fixed-page:not(:has(.home-ai-console.has-chat))) {
+  height: 100dvh;
+  min-height: 100dvh;
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+:global(body.home-fixed-page:not(:has(.home-ai-console.has-chat)) uni-page-body),
+:global(body.home-fixed-page:not(:has(.home-ai-console.has-chat)) uni-page-wrapper),
+:global(body.home-fixed-page:not(:has(.home-ai-console.has-chat)) .uni-page-body) {
+  height: 100dvh;
+  min-height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden !important;
+}
 
 .page-root { --home-ai-dock-space: 116px; --home-ai-chat-bottom-buffer: 126px; min-height: 100dvh; overflow-x: hidden; overflow-y: auto; width: 100% !important; max-width: 100vw !important; box-sizing: border-box; }
+:global(body.home-fixed-page:not(:has(.home-ai-console.has-chat))) .page-root {
+  height: 100dvh;
+  min-height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden !important;
+}
 .bg-layer { position: fixed; inset: 0; z-index: 0; transition: background 0.8s var(--ease); pointer-events: none; overflow: hidden; }
 [data-theme="dark"] .bg-layer {
   background: radial-gradient(ellipse 80% 60% at 18% 8%, rgba(45,50,90,0.30) 0%, transparent 72%),
@@ -2429,6 +2450,12 @@ onBeforeUnmount(() => {
               linear-gradient(155deg, var(--bg-grad-1), var(--bg-grad-2) 60%, var(--bg-grad-3));
 }
 .page-wrap { position: relative; z-index: 1; width: 100%; min-height: calc(100dvh - 60px); max-width: 100vw; overflow: visible; box-sizing: border-box; }
+:global(body.home-fixed-page:not(:has(.home-ai-console.has-chat))) .page-wrap {
+  height: calc(100dvh - 60px);
+  min-height: calc(100dvh - 60px);
+  max-height: calc(100dvh - 60px);
+  overflow: hidden !important;
+}
 
 @media (min-width: 769px) {
   :deep(.topnav) { padding-left: 16px; padding-right: 16px; }
@@ -2458,6 +2485,12 @@ onBeforeUnmount(() => {
 
 /* ═══ Hero ═══ */
 .hero-home { min-height: calc(100dvh - 60px); display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; padding: 36px 32px 154px; overflow: visible; box-sizing: border-box; }
+:global(body.home-fixed-page:not(:has(.home-ai-console.has-chat))) .hero-home {
+  height: calc(100dvh - 60px);
+  min-height: calc(100dvh - 60px);
+  max-height: calc(100dvh - 60px);
+  overflow: hidden;
+}
 .hero-home-content { max-width: var(--max-w); width: 100%; min-height: 0; margin: 0 auto; text-align: center; display: flex; flex-direction: column; justify-content: center; }
 .hero-brand { margin-bottom: 24px; flex: 0 0 auto; }
 .hero-home.chat-active { padding: 14px 32px 176px; justify-content: flex-start; }
@@ -2499,6 +2532,11 @@ onBeforeUnmount(() => {
 .home-ai-console { max-width: 920px; margin: 0 auto; padding-bottom: 0; text-align: left; display: flex; flex-direction: column; gap: 12px; width: 100%; min-height: 0; overflow: visible; box-sizing: border-box; }
 .home-ai-console.has-chat { width: min(1180px, calc(100vw - 48px)); max-width: none; flex: 1 1 auto; min-height: 0; margin: 0 auto; padding: 0; box-sizing: border-box; overflow: visible; }
 .home-ai-main { position: fixed; left: 50%; bottom: 14px; z-index: 260; transform: translateX(-50%); width: min(960px, calc(100vw - 36px)); box-sizing: border-box; display: flex; flex-direction: column; gap: 7px; padding: 10px 12px; border: 1px solid rgba(178,149,93,0.18); border-radius: 18px; background: rgba(34, 31, 25, 0.50); backdrop-filter: blur(30px) saturate(145%); box-shadow: 0 16px 48px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.08); overflow-x: hidden; transition: border-color .2s ease, box-shadow .2s ease, background .2s ease; }
+:global(body.home-fixed-page:not(:has(.home-ai-console.has-chat))) .home-ai-main {
+  bottom: max(18px, calc(env(safe-area-inset-bottom) + 14px));
+  max-height: min(128px, calc(100dvh - 120px));
+  overflow: hidden;
+}
 .home-ai-main:focus-within { border-color: rgba(178,149,93,0.50); box-shadow: 0 18px 52px rgba(0,0,0,0.24), 0 0 0 3px rgba(178,149,93,0.10), inset 0 1px 0 rgba(255,255,255,0.12); }
 [data-theme="light"] .home-ai-main { background: rgba(255,253,248,0.80); box-shadow: 0 12px 34px rgba(60,40,15,0.10), inset 0 1px 0 rgba(255,255,255,0.75); }
 [data-theme="light"] .home-ai-main:focus-within { box-shadow: 0 14px 42px rgba(60,40,15,0.13), 0 0 0 3px rgba(150,103,20,0.10), inset 0 1px 0 rgba(255,255,255,0.82); }
