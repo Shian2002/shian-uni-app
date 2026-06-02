@@ -3165,7 +3165,7 @@ onBeforeUnmount(() => {
   transform: translateY(-130px);
 }
 .marketing-main {
-  transform: translateY(-126px);
+  transform: translateY(-216px);
 }
 .marketing-kicker,
 .marketing-title,
