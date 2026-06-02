@@ -415,13 +415,12 @@ function scrollMarketingCritical() {
   try {
     const target = document.getElementById('marketingCritical')
     if (!target) return
-    const root = document.querySelector('.page-root')
+    const root = document.querySelector('.page-root.marketing-active') || document.querySelector('.page-root')
     if (root && root.scrollHeight > root.clientHeight) {
       root.scrollTo({ top: target.offsetTop, behavior: 'smooth' })
     } else {
       window.scrollTo({ top: target.offsetTop, behavior: 'smooth' })
     }
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
   } catch(_) {}
   // #endif
 }
@@ -429,11 +428,12 @@ function scrollMarketingCritical() {
 function scrollMarketingHero() {
   // #ifdef H5
   try {
-    const root = document.querySelector('.page-root')
+    const root = document.querySelector('.page-root.marketing-active') || document.querySelector('.page-root')
     if (root && root.scrollHeight > root.clientHeight) {
       root.scrollTo({ top: 0, behavior: 'smooth' })
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' })
   } catch(_) {}
   // #endif
 }
@@ -2732,19 +2732,19 @@ onBeforeUnmount(() => {
 }
 :global(html.marketing-page),
 :global(body.marketing-page) {
-  height: auto !important;
-  min-height: 100% !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
   overflow-x: hidden !important;
-  overflow-y: auto !important;
-  overscroll-behavior: auto !important;
+  overflow-y: hidden !important;
+  overscroll-behavior: none !important;
 }
 :global(body.marketing-page uni-page-body),
 :global(body.marketing-page uni-page-wrapper),
 :global(body.marketing-page .uni-page-body) {
-  height: auto !important;
+  height: 100dvh !important;
   min-height: 100dvh !important;
-  max-height: none !important;
-  overflow-y: visible !important;
+  max-height: 100dvh !important;
+  overflow: hidden !important;
 }
 
 .page-root { --home-ai-dock-space: 116px; --home-ai-chat-bottom-buffer: 126px; min-height: 100dvh; overflow-x: hidden; overflow-y: auto; width: 100% !important; max-width: 100vw !important; box-sizing: border-box; }
@@ -2753,9 +2753,13 @@ onBeforeUnmount(() => {
     radial-gradient(circle at 18% 78%, rgba(255,255,255,.58), transparent 28rem),
     radial-gradient(circle at 82% 52%, rgba(197,122,36,.13), transparent 24rem),
     linear-gradient(180deg, #eee9df 0%, #ded6ca 54%, #f8f4ec 100%);
-  height: auto !important;
-  max-height: none !important;
-  overflow-y: visible !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
 }
 :global(body.home-fixed-page:not(:has(.home-ai-console.has-chat))) .page-root {
   height: 100dvh;
@@ -2764,11 +2768,13 @@ onBeforeUnmount(() => {
   overflow: hidden !important;
 }
 :global(body.marketing-page) .page-root.marketing-active {
-  height: auto !important;
+  height: 100dvh !important;
   min-height: 100dvh !important;
-  max-height: none !important;
+  max-height: 100dvh !important;
   overflow-x: hidden !important;
-  overflow-y: visible !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: auto !important;
+  -webkit-overflow-scrolling: touch;
 }
 .tool-home-shell { min-height: 100dvh; }
 
