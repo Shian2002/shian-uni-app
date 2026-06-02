@@ -415,6 +415,7 @@ uni-tabbar, .uni-tabbar, .uni-tabbar-bottom {
 .site-footer{margin-top:0!important;padding:16px 32px 12px!important}.site-footer .footer-disclaimer{margin-bottom:0!important}@media(max-width:768px){.site-footer{padding:12px 16px 10px!important}}
 uni-page-wrapper{min-height:0!important}
 .page-root{padding-top:60px!important}@media(max-width:768px){.page-root{padding-top:56px!important}}
+body.marketing-page .page-root.marketing-active{padding-top:0!important}
 body:not(.home-fixed-page) .page-root{
   height:auto!important;
   min-height:calc(100dvh - 60px)!important;

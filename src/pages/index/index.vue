@@ -1,5 +1,5 @@
 <template>
-  <view class="page-root" :class="{ 'marketing-active': marketingMode }" :data-theme="theme">
+  <view class="page-root" :class="{ 'marketing-active': marketingMode, 'marketing-android-active': marketingAndroid }" :data-theme="theme">
     <view v-if="marketingMode" class="marketing-landing">
       <view class="marketing-auth-host">
         <TopNav :theme="theme" :is-logged-in="isLoggedIn" @toggle-theme="toggleTheme" />
@@ -88,7 +88,8 @@
           <view class="marketing-main">
             <text class="marketing-kicker">The Oriental Insight Agent</text>
             <view class="marketing-title">
-              <text>BaZi · QiMen · Multi-model</text>
+              <text>BaZi · QiMen</text>
+              <text>Multi-model</text>
               <text>All in Shian</text>
             </view>
             <view class="marketing-title-cn">
@@ -380,6 +381,7 @@ import {
 const theme = ref(uni.getStorageSync('xc_theme') || 'dark')
 const topNavRef = ref(null)
 const marketingMode = ref(true)
+const marketingAndroid = ref(false)
 const marketingCriticalVisible = ref(false)
 let marketingObserver = null
 let marketingPendingEnterAfterLogin = false
@@ -430,8 +432,12 @@ function syncMarketingPageClass() {
   // #ifdef H5
   try {
     const active = !!marketingMode.value
+    const isAndroid = /Android/i.test(window.navigator && window.navigator.userAgent ? window.navigator.userAgent : '')
+    marketingAndroid.value = active && isAndroid
     document.documentElement.classList.toggle('marketing-page', active)
     document.body.classList.toggle('marketing-page', active)
+    document.documentElement.classList.toggle('marketing-android', marketingAndroid.value)
+    document.body.classList.toggle('marketing-android', marketingAndroid.value)
     if (active) {
       document.documentElement.classList.remove('home-fixed-page')
       document.body.classList.remove('home-fixed-page')
@@ -2897,6 +2903,7 @@ onBeforeUnmount(() => {
   overflow: hidden !important;
 }
 :global(body.marketing-page) .page-root.marketing-active {
+  padding-top: 0 !important;
   height: 100dvh !important;
   min-height: 100dvh !important;
   max-height: 100dvh !important;
@@ -3390,8 +3397,10 @@ onBeforeUnmount(() => {
 }
 @media (max-width: 760px) {
   .marketing-nav {
-    position: absolute;
-    top: 0;
+    position: fixed;
+    top: env(safe-area-inset-top);
+    left: 0;
+    right: 0;
     z-index: 120;
     height: 76px;
     padding: 14px 20px 10px;
@@ -3477,6 +3486,71 @@ onBeforeUnmount(() => {
     height: 11px;
     margin-top: 8px;
     border-radius: 5px;
+  }
+  .page-root.marketing-android-active .marketing-nav {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: linear-gradient(180deg, rgba(242,238,229,.98), rgba(242,238,229,.72) 72%, rgba(242,238,229,0));
+    transform: translateZ(0);
+  }
+  .page-root.marketing-android-active .marketing-mist {
+    filter: none;
+    opacity: .28;
+    animation: none;
+  }
+  .page-root.marketing-android-active .marketing-bottom-blur {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .page-root.marketing-android-active .marketing-orbits {
+    opacity: .34;
+    animation: none;
+    transform: translateZ(0);
+  }
+  .page-root.marketing-android-active .marketing-orbit {
+    animation-duration: 120s;
+    will-change: transform;
+  }
+  .page-root.marketing-android-active .marketing-particle {
+    animation: none;
+    opacity: .42;
+    box-shadow: none;
+    will-change: auto;
+  }
+  .page-root.marketing-android-active .marketing-particle-26,
+  .page-root.marketing-android-active .marketing-particle-27,
+  .page-root.marketing-android-active .marketing-particle-28,
+  .page-root.marketing-android-active .marketing-particle-29,
+  .page-root.marketing-android-active .marketing-particle-30,
+  .page-root.marketing-android-active .marketing-particle-31,
+  .page-root.marketing-android-active .marketing-particle-32,
+  .page-root.marketing-android-active .marketing-particle-33,
+  .page-root.marketing-android-active .marketing-particle-34,
+  .page-root.marketing-android-active .marketing-particle-35,
+  .page-root.marketing-android-active .marketing-particle-36,
+  .page-root.marketing-android-active .marketing-particle-37,
+  .page-root.marketing-android-active .marketing-particle-38,
+  .page-root.marketing-android-active .marketing-particle-39,
+  .page-root.marketing-android-active .marketing-particle-40,
+  .page-root.marketing-android-active .marketing-particle-41,
+  .page-root.marketing-android-active .marketing-particle-42,
+  .page-root.marketing-android-active .marketing-particle-43,
+  .page-root.marketing-android-active .marketing-particle-44,
+  .page-root.marketing-android-active .marketing-particle-45,
+  .page-root.marketing-android-active .marketing-particle-46,
+  .page-root.marketing-android-active .marketing-particle-47,
+  .page-root.marketing-android-active .marketing-particle-48,
+  .page-root.marketing-android-active .marketing-particle-49,
+  .page-root.marketing-android-active .marketing-particle-50 {
+    display: none;
+  }
+  .page-root.marketing-android-active .marketing-kicker,
+  .page-root.marketing-android-active .marketing-title,
+  .page-root.marketing-android-active .marketing-title-cn,
+  .page-root.marketing-android-active .marketing-side-title,
+  .page-root.marketing-android-active .marketing-side-desc,
+  .page-root.marketing-android-active .marketing-cta-row {
+    animation: none;
   }
 }
 @media (max-width: 760px) and (max-height: 700px) {
