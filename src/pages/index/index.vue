@@ -1,5 +1,97 @@
 <template>
-  <view class="page-root" :data-theme="theme">
+  <view class="page-root" :class="{ 'marketing-active': marketingMode }" :data-theme="theme">
+    <view v-if="marketingMode" class="marketing-landing">
+      <view class="marketing-nav">
+        <view class="marketing-brand">
+          <view class="marketing-logo-wrap">
+            <img class="marketing-logo" src="/static/images/logo.webp?v=2" alt="时安解忧屋" />
+          </view>
+          <text>时安解忧屋</text>
+        </view>
+        <view class="marketing-nav-links">
+          <text>产品</text>
+          <text>术数模型</text>
+          <text>案例</text>
+          <text>定价</text>
+          <button class="marketing-enter" @tap="enterMarketingApp">进入应用</button>
+        </view>
+      </view>
+
+      <view class="marketing-hero">
+        <view class="marketing-ambient" aria-hidden="true">
+          <view class="marketing-mist marketing-mist-a"></view>
+          <view class="marketing-mist marketing-mist-b"></view>
+          <view class="marketing-mist marketing-mist-c"></view>
+          <view class="marketing-orbits">
+            <view class="marketing-orbit"></view>
+            <view class="marketing-orbit"></view>
+            <view class="marketing-orbit"></view>
+            <view class="marketing-orbit"></view>
+          </view>
+          <view class="marketing-particle marketing-particle-1"></view>
+          <view class="marketing-particle marketing-particle-2"></view>
+          <view class="marketing-particle marketing-particle-3"></view>
+          <view class="marketing-particle marketing-particle-4"></view>
+          <view class="marketing-particle marketing-particle-5"></view>
+          <view class="marketing-bottom-blur"></view>
+        </view>
+
+        <view class="marketing-copy">
+          <view>
+            <text class="marketing-kicker">The Oriental Insight Agent</text>
+            <view class="marketing-title">
+              <text>BaZi · QiMen · Ziwei</text>
+              <text>All in Shian</text>
+            </view>
+            <view class="marketing-title-cn">
+              <text>八字 · 奇门 · 紫微</text>
+              <text>一处推演</text>
+            </view>
+          </view>
+          <view class="marketing-side">
+            <text class="marketing-side-title">Chart. Reason. Decide.</text>
+            <text class="marketing-side-desc">把复杂命盘转成可读结论。先看局势，再看路径，最后给出可执行的时机建议。</text>
+            <view class="marketing-cta-row">
+              <button class="marketing-primary" @tap="enterMarketingApp">开始解读</button>
+              <button class="marketing-secondary" @tap="scrollMarketingCritical">查看方法</button>
+            </view>
+          </view>
+        </view>
+        <text class="marketing-scroll-hint">向下探索</text>
+      </view>
+
+      <view
+        class="marketing-critical"
+        id="marketingCritical"
+        :class="{ 'is-visible': marketingCriticalVisible }"
+      >
+        <text class="marketing-section-label">Critical Moment</text>
+        <text class="marketing-critical-title">在关键时刻，看清你真正面对的局。</text>
+        <view class="marketing-cards">
+          <view class="marketing-card">
+            <text class="marketing-card-title">事业抉择</text>
+            <text class="marketing-card-desc">识别趋势、资源和阻力，判断是继续推进，还是换一条更稳的路径。</text>
+          </view>
+          <view class="marketing-card">
+            <text class="marketing-card-title">关系洞察</text>
+            <text class="marketing-card-desc">不只给关系贴标签，而是拆解双方能量、沟通结构与阶段性变化。</text>
+          </view>
+          <view class="marketing-card">
+            <text class="marketing-card-title">择时行动</text>
+            <text class="marketing-card-desc">把“什么时候做”变成清晰的行动窗口，减少犹豫和反复。</text>
+          </view>
+          <view class="marketing-console">
+            <text class="marketing-console-title">Shian Console</text>
+            <view class="marketing-console-line"></view>
+            <view class="marketing-console-line"></view>
+            <view class="marketing-console-line"></view>
+            <view class="marketing-console-line"></view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view v-else class="tool-home-shell">
     <!-- 视频背景层（H5 only） -->
     <!-- #ifdef H5 -->
     <view v-if="videoEnabled" class="video-bg" :class="{ 'video-fallback': videoFallback, 'video-visible': videoVisible }" id="videoBg">
@@ -211,11 +303,12 @@
       </view>
     </view>
 
+    </view><!-- tool-home-shell -->
   </view>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { onLoad, onShow, onHide } from '@dcloudio/uni-app'
 import TopNav from '@/components/TopNav.vue'
 import HomeAiComposer from './components/HomeAiComposer.vue'
@@ -238,6 +331,89 @@ import {
 // ── 主题 ──
 const theme = ref(uni.getStorageSync('xc_theme') || 'dark')
 const topNavRef = ref(null)
+const marketingMode = ref(true)
+const marketingCriticalVisible = ref(false)
+let marketingObserver = null
+
+function shouldOpenToolHome(query) {
+  if (query && (query.app === '1' || query.app === 'true')) return true
+  // #ifdef H5
+  try {
+    const href = window.location.href || ''
+    const hash = window.location.hash || ''
+    const search = window.location.search || ''
+    return /(?:[?&])app=(?:1|true)(?:&|$)/.test(href) ||
+      /(?:[?&])app=(?:1|true)(?:&|$)/.test(hash) ||
+      /(?:[?&])app=(?:1|true)(?:&|$)/.test(search)
+  } catch(_) {}
+  // #endif
+  return false
+}
+
+function refreshMarketingMode(query) {
+  marketingMode.value = !shouldOpenToolHome(query)
+  if (marketingMode.value) {
+    marketingCriticalVisible.value = false
+    nextTick(setupMarketingObserver)
+  } else {
+    disconnectMarketingObserver()
+  }
+}
+
+function enterMarketingApp() {
+  marketingMode.value = false
+  disconnectMarketingObserver()
+  // #ifdef H5
+  try {
+    window.history.replaceState(null, '', '#/?app=1')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  } catch(_) {}
+  scheduleHomeVideoLoad()
+  // #endif
+}
+
+function scrollMarketingCritical() {
+  // #ifdef H5
+  try {
+    const target = document.getElementById('marketingCritical')
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  } catch(_) {}
+  // #endif
+}
+
+function disconnectMarketingObserver() {
+  // #ifdef H5
+  if (marketingObserver) {
+    marketingObserver.disconnect()
+    marketingObserver = null
+  }
+  // #endif
+}
+
+function setupMarketingObserver() {
+  // #ifdef H5
+  disconnectMarketingObserver()
+  if (!marketingMode.value) return
+  try {
+    const target = document.getElementById('marketingCritical')
+    if (!target || typeof IntersectionObserver === 'undefined') {
+      marketingCriticalVisible.value = true
+      return
+    }
+    marketingObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          marketingCriticalVisible.value = true
+          disconnectMarketingObserver()
+        }
+      })
+    }, { threshold: 0.24 })
+    marketingObserver.observe(target)
+  } catch(_) {
+    marketingCriticalVisible.value = true
+  }
+  // #endif
+}
 function toggleTheme() {
   theme.value = theme.value === 'dark' ? 'light' : 'dark'
   uni.setStorageSync('xc_theme', theme.value)
@@ -2302,10 +2478,12 @@ function clearAllData() {
 
 // ── Tab 切换回来时同步主题 ──
 onLoad((query) => {
+  refreshMarketingMode(query)
   pendingComprehensiveId = query && query.comprehensive_id ? String(query.comprehensive_id) : ''
 })
 
 onShow(() => {
+  refreshMarketingMode()
   setHomeFixedPage(false)
   var t = uni.getStorageSync('xc_theme')
   if (t && t !== theme.value) {
@@ -2343,6 +2521,7 @@ onHide(() => {
 
 // ── 视频加载超时处理（H5 only）──
 onMounted(() => {
+  refreshMarketingMode()
   loadComprehensiveOptions()
   loadProfiles()
   // #ifdef H5
@@ -2354,11 +2533,12 @@ onMounted(() => {
   window.addEventListener('beforeunload', saveComprehensiveDraftForUnload)
   document.addEventListener('visibilitychange', onHomeVisibilityChange)
   document.addEventListener('click', onHomeBaziYunClick)
-  scheduleHomeVideoLoad()
+  if (!marketingMode.value) scheduleHomeVideoLoad()
   // #endif
 })
 
 onBeforeUnmount(() => {
+  disconnectMarketingObserver()
   saveComprehensiveDraftForUnload()
   stopComprehensiveProgressTimer()
   stopComprehensiveTypeTimer()
@@ -2446,11 +2626,447 @@ onBeforeUnmount(() => {
 }
 
 .page-root { --home-ai-dock-space: 116px; --home-ai-chat-bottom-buffer: 126px; min-height: 100dvh; overflow-x: hidden; overflow-y: auto; width: 100% !important; max-width: 100vw !important; box-sizing: border-box; }
+.page-root.marketing-active {
+  background:
+    radial-gradient(circle at 18% 78%, rgba(255,255,255,.58), transparent 28rem),
+    radial-gradient(circle at 82% 52%, rgba(197,122,36,.13), transparent 24rem),
+    linear-gradient(180deg, #eee9df 0%, #ded6ca 54%, #f8f4ec 100%);
+}
 :global(body.home-fixed-page:not(:has(.home-ai-console.has-chat))) .page-root {
   height: 100dvh;
   min-height: 100dvh;
   max-height: 100dvh;
   overflow: hidden !important;
+}
+.tool-home-shell { min-height: 100dvh; }
+
+.marketing-landing {
+  --marketing-ink: #171512;
+  --marketing-ink-soft: rgba(23, 21, 18, .58);
+  --marketing-paper: #f2eee5;
+  --marketing-copper: #c57a24;
+  --marketing-jade: #315f55;
+  position: relative;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  color: var(--marketing-ink);
+  font-family: ui-serif, "Songti SC", "STSong", "Times New Roman", serif;
+}
+.marketing-nav {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 10;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 48px;
+  background: linear-gradient(180deg, rgba(242,238,229,.88), rgba(242,238,229,0));
+  backdrop-filter: blur(8px);
+  animation: marketingNavIn .42s ease-out both;
+}
+.marketing-brand {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+.marketing-logo-wrap {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255,255,255,.5);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.7), 0 8px 24px rgba(49,95,85,.12);
+}
+.marketing-logo-wrap::before {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: inherit;
+  border: 1px solid rgba(49,95,85,.18);
+  border-top-color: rgba(197,122,36,.52);
+  border-right-color: rgba(197,122,36,.24);
+  transform-origin: center;
+  animation: marketingSlowSpin 14s linear infinite;
+}
+.marketing-logo {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  transform-origin: center;
+  animation: marketingSlowSpin 24s linear infinite reverse;
+}
+.marketing-nav-links {
+  display: flex;
+  gap: 34px;
+  align-items: center;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 13px;
+  color: rgba(23,21,18,.68);
+}
+.marketing-enter,
+.marketing-primary,
+.marketing-secondary {
+  margin: 0;
+  border: 0;
+  border-radius: 999px;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 700;
+  line-height: 1;
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.marketing-enter::after,
+.marketing-primary::after,
+.marketing-secondary::after { border: 0; }
+.marketing-enter {
+  padding: 11px 22px;
+  color: var(--marketing-ink);
+  background: rgba(255,255,255,.66);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.7);
+  font-size: 13px;
+}
+.marketing-hero {
+  position: relative;
+  min-height: 100dvh;
+  overflow: hidden;
+  padding: 0 50px 80px;
+  display: flex;
+  align-items: flex-end;
+  box-sizing: border-box;
+}
+.marketing-ambient {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.marketing-mist {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(2px);
+  opacity: .54;
+  animation: marketingMistDrift 18s ease-in-out infinite;
+}
+.marketing-mist-a {
+  left: -14rem;
+  bottom: 8rem;
+  width: 48rem;
+  height: 28rem;
+  background: radial-gradient(circle, rgba(255,255,255,.7), rgba(255,255,255,0) 68%);
+}
+.marketing-mist-b {
+  right: -8rem;
+  top: 17rem;
+  width: 38rem;
+  height: 28rem;
+  background: radial-gradient(circle, rgba(197,122,36,.15), rgba(197,122,36,0) 68%);
+  animation-delay: -6s;
+}
+.marketing-mist-c {
+  right: 5rem;
+  top: 10rem;
+  width: 20rem;
+  height: 18rem;
+  background: radial-gradient(circle, rgba(49,95,85,.14), rgba(49,95,85,0) 68%);
+  animation-delay: -11s;
+}
+.marketing-orbits {
+  position: absolute;
+  left: 38%;
+  top: 5%;
+  width: 55rem;
+  height: 32rem;
+  opacity: .28;
+  animation: marketingOrbitFloat 22s ease-in-out infinite;
+}
+.marketing-orbit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border: 1px solid rgba(23,21,18,.14);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) rotate(var(--marketing-r));
+  animation: marketingOrbitRotate var(--marketing-d) linear infinite;
+}
+.marketing-orbit:nth-child(1) { width: 18rem; height: 6.2rem; --marketing-r: -12deg; --marketing-d: 38s; }
+.marketing-orbit:nth-child(2) { width: 28rem; height: 9.4rem; --marketing-r: 8deg; --marketing-d: 52s; }
+.marketing-orbit:nth-child(3) { width: 38rem; height: 12.8rem; --marketing-r: 23deg; --marketing-d: 68s; }
+.marketing-orbit:nth-child(4) { width: 48rem; height: 16rem; --marketing-r: -27deg; --marketing-d: 80s; }
+.marketing-particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(220,163,78,.72);
+  animation: marketingParticleRise 6s ease-in-out infinite;
+}
+.marketing-particle-1 { left: 18%; top: 28%; animation-delay: -.7s; }
+.marketing-particle-2 { left: 42%; top: 20%; animation-delay: -2.1s; }
+.marketing-particle-3 { left: 74%; top: 34%; animation-delay: -1.4s; }
+.marketing-particle-4 { left: 86%; top: 62%; animation-delay: -3.2s; }
+.marketing-particle-5 { left: 34%; top: 70%; animation-delay: -4s; }
+.marketing-bottom-blur {
+  position: absolute;
+  inset: auto 0 0;
+  height: 270px;
+  background: linear-gradient(180deg, rgba(242,238,229,0), rgba(242,238,229,.92) 72%);
+  backdrop-filter: blur(7px);
+}
+.marketing-copy {
+  position: relative;
+  z-index: 2;
+  width: min(100%, 1360px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  gap: 60px;
+  align-items: end;
+  padding-bottom: 22px;
+}
+.marketing-kicker,
+.marketing-title,
+.marketing-title-cn,
+.marketing-side-title,
+.marketing-side-desc,
+.marketing-cta-row {
+  display: block;
+  animation: marketingHeroRise .9s cubic-bezier(.2,.8,.2,1) both;
+}
+.marketing-kicker {
+  margin: 0 0 18px;
+  font: 650 22px/1.1 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: .01em;
+  animation-delay: .12s;
+}
+.marketing-title {
+  margin: 0;
+  font: 800 clamp(52px, 6.2vw, 82px)/1.08 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: 0;
+  opacity: .58;
+  animation-delay: .28s;
+}
+.marketing-title-cn {
+  margin: 18px 0 0;
+  font-size: clamp(34px, 3.6vw, 48px);
+  line-height: 1.18;
+  font-weight: 700;
+  color: rgba(23,21,18,.54);
+  animation-delay: .44s;
+}
+.marketing-title text,
+.marketing-title-cn text { display: block; }
+.marketing-side-title {
+  margin: 0 0 22px;
+  font: 750 28px/1.15 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  animation-delay: .62s;
+}
+.marketing-side-desc {
+  margin: 0;
+  color: rgba(23,21,18,.62);
+  font-size: 18px;
+  line-height: 1.65;
+  animation-delay: .74s;
+}
+.marketing-cta-row {
+  display: flex;
+  gap: 18px;
+  margin-top: 34px;
+  align-items: center;
+  animation-delay: .9s;
+}
+.marketing-primary,
+.marketing-secondary {
+  height: 56px;
+  padding: 0 36px;
+  font-size: 15px;
+}
+.marketing-primary {
+  color: white;
+  background: var(--marketing-copper);
+  box-shadow: 0 16px 40px rgba(197,122,36,.22);
+}
+.marketing-secondary {
+  color: var(--marketing-ink);
+  background: rgba(255,255,255,.48);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.78);
+}
+.marketing-primary:hover,
+.marketing-secondary:hover,
+.marketing-enter:hover { transform: translateY(-2px); }
+.marketing-scroll-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 44px;
+  transform: translateX(-50%);
+  color: rgba(23,21,18,.38);
+  font-size: 13px;
+  animation: marketingHintPulse 1.8s ease-in-out infinite;
+}
+.marketing-critical {
+  min-height: 760px;
+  padding: 110px 50px 130px;
+  background:
+    radial-gradient(circle at 86% 20%, rgba(197,122,36,.11), transparent 24rem),
+    linear-gradient(180deg, #f2eee5, #faf7ef);
+  box-sizing: border-box;
+}
+.marketing-section-label {
+  display: block;
+  font: 700 22px/1 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.marketing-critical-title {
+  display: block;
+  margin: 10px 0 46px;
+  max-width: 760px;
+  font-size: 46px;
+  line-height: 1.18;
+  letter-spacing: 0;
+  font-weight: 700;
+}
+.marketing-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) 310px;
+  gap: 28px;
+  align-items: start;
+}
+.marketing-card,
+.marketing-console {
+  opacity: 0;
+  transform: translateY(32px);
+  transition: opacity .7s ease, transform .7s cubic-bezier(.2,.8,.2,1);
+}
+.marketing-critical.is-visible .marketing-card,
+.marketing-critical.is-visible .marketing-console {
+  opacity: 1;
+  transform: translateY(0);
+}
+.marketing-card {
+  min-height: 210px;
+  padding: 28px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.64);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.72);
+  box-sizing: border-box;
+}
+.marketing-card:nth-child(2) { transition-delay: .12s; }
+.marketing-card:nth-child(3) { transition-delay: .24s; }
+.marketing-card-title {
+  display: block;
+  margin: 0 0 18px;
+  font-size: 24px;
+  font-weight: 700;
+}
+.marketing-card-desc {
+  display: block;
+  color: rgba(23,21,18,.64);
+  line-height: 1.65;
+}
+.marketing-console {
+  min-height: 310px;
+  border-radius: 14px;
+  padding: 30px;
+  background: rgba(20,17,14,.86);
+  color: white;
+  transition-delay: .36s;
+  box-sizing: border-box;
+}
+.marketing-console-title {
+  display: block;
+  font-weight: 700;
+}
+.marketing-console-line {
+  height: 34px;
+  border-radius: 7px;
+  margin-top: 18px;
+  background: rgba(255,255,255,.13);
+}
+.marketing-console-line:first-of-type { background: var(--marketing-copper); }
+@keyframes marketingNavIn {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes marketingSlowSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes marketingMistDrift {
+  0%, 100% { transform: translate3d(0,0,0) scale(1); }
+  50% { transform: translate3d(-28px,18px,0) scale(1.04); }
+}
+@keyframes marketingOrbitFloat {
+  0%, 100% { transform: translate3d(0,0,0); }
+  50% { transform: translate3d(-34px,14px,0); }
+}
+@keyframes marketingOrbitRotate {
+  from { transform: translate(-50%, -50%) rotate(var(--marketing-r)); }
+  to { transform: translate(-50%, -50%) rotate(calc(var(--marketing-r) + 360deg)); }
+}
+@keyframes marketingParticleRise {
+  0%, 100% { opacity: .18; transform: translateY(0) scale(.85); }
+  45% { opacity: .8; transform: translateY(-22px) scale(1); }
+}
+@keyframes marketingHeroRise {
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes marketingHintPulse {
+  0%, 100% { opacity: .26; transform: translate(-50%, 0); }
+  50% { opacity: .56; transform: translate(-50%, 8px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marketing-landing *,
+  .marketing-landing *::before,
+  .marketing-landing *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}
+@media (max-width: 760px) {
+  .marketing-nav {
+    height: 64px;
+    padding: 0 20px;
+  }
+  .marketing-brand { gap: 10px; }
+  .marketing-nav-links { gap: 12px; }
+  .marketing-nav-links text { display: none; }
+  .marketing-enter { padding: 10px 16px; font-size: 12px; }
+  .marketing-hero {
+    padding: 0 24px 76px;
+    min-height: 100dvh;
+  }
+  .marketing-orbits {
+    left: 5%;
+    top: 12%;
+    width: 38rem;
+    height: 26rem;
+  }
+  .marketing-copy {
+    grid-template-columns: 1fr;
+    gap: 36px;
+    padding-bottom: 58px;
+  }
+  .marketing-kicker { font-size: 17px; }
+  .marketing-title { font-size: 48px; }
+  .marketing-title-cn { font-size: 32px; }
+  .marketing-side-title { font-size: 24px; }
+  .marketing-side-desc { font-size: 16px; }
+  .marketing-cta-row { gap: 12px; flex-wrap: wrap; }
+  .marketing-primary,
+  .marketing-secondary {
+    height: 50px;
+    padding: 0 24px;
+    font-size: 14px;
+  }
+  .marketing-critical {
+    padding: 80px 24px;
+    min-height: 720px;
+  }
+  .marketing-critical-title { font-size: 32px; }
+  .marketing-cards { grid-template-columns: 1fr; }
 }
 .bg-layer { position: fixed; inset: 0; z-index: 0; transition: background 0.8s var(--ease); pointer-events: none; overflow: hidden; }
 [data-theme="dark"] .bg-layer {
