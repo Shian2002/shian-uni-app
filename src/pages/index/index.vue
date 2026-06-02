@@ -3391,10 +3391,10 @@ onBeforeUnmount(() => {
 @media (max-width: 760px) {
   .marketing-nav {
     position: absolute;
-    top: 18px;
+    top: 0;
     z-index: 120;
-    height: 70px;
-    padding: 10px 20px;
+    height: 76px;
+    padding: 14px 20px 10px;
     box-sizing: border-box;
     overflow: visible;
     background: linear-gradient(180deg, rgba(242,238,229,.96), rgba(242,238,229,.68) 72%, rgba(242,238,229,0));
