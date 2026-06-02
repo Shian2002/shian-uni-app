@@ -3181,10 +3181,10 @@ onBeforeUnmount(() => {
   gap: 60px;
   align-items: end;
   padding-bottom: 22px;
-  transform: translateY(-130px);
+  transform: translateY(-100px);
 }
 .marketing-main {
-  transform: translateY(-216px);
+  transform: translateY(-36px);
 }
 .marketing-kicker,
 .marketing-title,
