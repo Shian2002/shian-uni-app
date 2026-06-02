@@ -3451,6 +3451,9 @@ onBeforeUnmount(() => {
     height: 44rem;
     opacity: .36;
   }
+  .marketing-bottom-blur {
+    display: none;
+  }
   .marketing-copy {
     grid-template-columns: 1fr;
     gap: 18px;
