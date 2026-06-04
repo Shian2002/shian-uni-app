@@ -61,6 +61,42 @@ const createRouterViewVNode = `function createRouterViewVNode({
   // PATCHED v25: pre-render every tab page so tab switching never lands on an empty wrapper.
   if (isTabBar.value) {
     if (!window.__xcTabRenderVersionRef) window.__xcTabRenderVersionRef = ref(0);
+    if (!window.__xcRenderTabPath) {
+      window.__xcNormalizeTabPath = function(path) {
+        if (!path || path === '/pages/index/index') return '/';
+        return path.split('?')[0] || '/';
+      };
+      window.__xcRenderTabPath = function(path) {
+        try {
+          path = window.__xcNormalizeTabPath(path);
+          var isHome = path === '/';
+          var isQimen = path === '/pages/qimen/index';
+          if (document && document.documentElement && document.body) {
+            document.documentElement.classList.toggle('home-fixed-page', isHome);
+            document.body.classList.toggle('home-fixed-page', isHome);
+            document.documentElement.classList.toggle('qimen-page-active', isQimen);
+            document.body.classList.toggle('qimen-page-active', isQimen);
+          }
+          var tabContainer = document.querySelector('.tab-pages-container');
+          var wrappers = Array.prototype.slice.call(document.querySelectorAll('.tab-page-wrapper'));
+          var target = wrappers.find(function(w) { return w.getAttribute('data-tab-path') === path; });
+          if (tabContainer && target) tabContainer.style.display = '';
+          if (target) {
+            wrappers.forEach(function(w) { w.style.display = w === target ? '' : 'none'; });
+          }
+          if (window.__xcTabRenderVersionRef) window.__xcTabRenderVersionRef.value++;
+        } catch(e) { console.warn('[patch v25] __xcRenderTabPath error:', e); }
+      };
+      window.__switchTabPageDom = function(path) {
+        try {
+          var hashPath = window.__xcNormalizeTabPath((location.hash.replace('#', '').split('?')[0] || path));
+          window.__xcRenderTabPath(hashPath || path);
+        } catch(e) { console.warn('[patch v25] __switchTabPageDom error:', e); }
+      };
+      window.addEventListener('hashchange', function() {
+        window.__switchTabPageDom && window.__switchTabPageDom();
+      });
+    }
     window.__xcTabRenderVersionRef.value;
     var hashPath = (function() {
       try {
@@ -178,8 +214,7 @@ if (content.indexOf('PATCHED v25: For reLaunch/redirectTo') >= 0) {
   patchCount++
   console.log('[OK] reLaunch/redirectTo patched (v25)')
 } else {
-  failCount++
-  console.log('[WARN] reLaunch/redirectTo patch pattern not found')
+  console.log('[INFO] reLaunch/redirectTo legacy patch point not present; handled by hash renderer')
 }
 
 const staleSwitchCall = 'window.__switchTabPageDom && window.__switchTabPageDom(router.currentRoute.value.path);'
@@ -192,79 +227,10 @@ if (content.indexOf(targetSwitchCall) >= 0) {
   patchCount++
   console.log('[OK] switchTab target path call patched')
 } else {
-  failCount++
-  console.log('[WARN] switchTab target path call pattern not found')
+  console.log('[INFO] switchTab legacy call point not present; handled by hash renderer')
 }
 
-const switchTabPatch = `// PATCHED v25: __switchTabPageDom - all tab wrappers are pre-rendered.
-    window.__xcRenderTabPath = function(path) {
-      try {
-        if (!path || path === '/pages/index/index') path = '/';
-        var isHome = path === '/';
-        var isQimen = path === '/pages/qimen/index';
-        if (document && document.documentElement && document.body) {
-          document.documentElement.classList.toggle('home-fixed-page', isHome);
-          document.body.classList.toggle('home-fixed-page', isHome);
-          document.documentElement.classList.toggle('qimen-page-active', isQimen);
-          document.body.classList.toggle('qimen-page-active', isQimen);
-        }
-        var currentHash = (location.hash.replace('#', '').split('?')[0] || '/');
-        if (currentHash === '/pages/index/index') currentHash = '/';
-        if (currentHash !== path) window.location.hash = path;
-        if (window.__xcTabRenderVersionRef) window.__xcTabRenderVersionRef.value++;
-      } catch(e) { console.warn('[patch v25] __xcRenderTabPath error:', e); }
-    };
-    window.__switchTabPageDom = function(path) {
-      try {
-        var hashPath = (function() {
-          try {
-            var h = location.hash.replace('#', '').split('?')[0];
-            if (!h || h === '/' || h === '/pages/index/index') return '/';
-            return h;
-          } catch(_e) {
-            return path;
-          }
-        })();
-        if (hashPath) path = hashPath;
-        var tabPages = (__uniRoutes || []).filter(function(r) { return r.meta && r.meta.isTabBar; });
-        var isTab = tabPages.some(function(r) { return r.path === path; });
-        var tabContainer = document.querySelector('.tab-pages-container');
-
-        if (!isTab) {
-          if (tabContainer) tabContainer.style.display = 'none';
-          return;
-        }
-
-        if (tabContainer) tabContainer.style.display = '';
-        var wrappers = Array.prototype.slice.call(document.querySelectorAll('.tab-page-wrapper'));
-        var target = wrappers.find(function(w) { return w.getAttribute('data-tab-path') === path; });
-        if (target) {
-          wrappers.forEach(function(w) {
-            w.style.display = w === target ? '' : 'none';
-          });
-          return;
-        }
-        if (window.__xcRenderTabPath) window.__xcRenderTabPath(path);
-      } catch(e) { console.warn('[patch v25] __switchTabPageDom error:', e); }
-    };`
-
-const switchMarker = 'window.__switchTabPageDom = function(path)'
-const switchStart = content.indexOf(switchMarker)
-if (switchStart >= 0) {
-  const commentStart = content.lastIndexOf('// PATCHED', switchStart)
-  const end = content.indexOf('    };', switchStart)
-  if (commentStart >= 0 && end > switchStart) {
-    content = content.substring(0, commentStart) + switchTabPatch + content.substring(end + '    };'.length)
-    patchCount++
-    console.log('[OK] __switchTabPageDom patched (v25)')
-  } else {
-    failCount++
-    console.log('[WARN] __switchTabPageDom markers not found')
-  }
-} else {
-  failCount++
-  console.log('[WARN] __switchTabPageDom patch point not found')
-}
+console.log('[INFO] __switchTabPageDom handled inside createRouterViewVNode')
 
 fs.writeFileSync(fp, content, 'utf8')
 

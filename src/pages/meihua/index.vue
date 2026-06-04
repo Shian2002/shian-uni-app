@@ -425,7 +425,7 @@ function _mhDoStreamSSE(opts) {
             if (eventType === 'progress') {
               if (data.stage === 'connecting' && stageEl) stageEl.innerHTML = '🔗 正在连接...'
               else if (data.stage === 'analyzing' && stageEl) stageEl.innerHTML = '🧠 排盘分析中...'
-              else if (data.stage === 'generating' && stageEl) { stageEl.innerHTML = '<img class="ai-stage-logo" src="/static/images/logo.webp?v=3">正在生成解读...'; startTypewriter() }
+              else if (data.stage === 'generating' && stageEl) { stageEl.innerHTML = '<img class="ai-stage-logo" src="/static/images/logo.svg?v=7">正在生成解读...'; startTypewriter() }
               if (barEl) barEl.style.width = '60%'
             } else if (eventType === 'chunk') {
               if (!typeTimer) startTypewriter()
@@ -500,7 +500,7 @@ function mhSendFollowUp() {
     var aiBubble = document.createElement('view')
     aiBubble.className = 'chat-bubble-ai'
     aiBubble.id = bubbleId
-    aiBubble.innerHTML = '<div class="ai-stage"><img class="ai-stage-logo" src="/static/images/logo.webp?v=3">正在生成回复...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div><div class="chat-bubble-content"></div>'
+    aiBubble.innerHTML = '<div class="ai-stage"><img class="ai-stage-logo" src="/static/images/logo.svg?v=7">正在生成回复...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div><div class="chat-bubble-content"></div>'
     chatContainer.appendChild(aiBubble)
     _mhScrollToChat()
     var history = window._mhChatHistory || []

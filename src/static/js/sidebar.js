@@ -28,7 +28,7 @@
     var sidebar = document.createElement('div')
     sidebar.className = 'tarot-sidebar'
     sidebar.id = 'tarotSidebarGlobal'
-    sidebar.innerHTML = '<div class="sidebar-brand"><span class="sidebar-brand-icon-wrap"><img class="sidebar-brand-icon" src="/static/images/logo.png"></span><span class="sidebar-brand-name">时安解忧屋</span></div>'
+    sidebar.innerHTML = '<div class="sidebar-brand"><span class="sidebar-brand-icon-wrap"><img class="sidebar-brand-icon" src="/static/images/logo.svg?v=7"></span><span class="sidebar-brand-name">时安解忧屋</span></div>'
       + '<div class="sidebar-header"><span class="sidebar-title">对话历史</span><div class="sidebar-close" id="sidebarCloseGlobal">✕</div></div>'
       + '<div class="sidebar-content" id="sidebarListGlobal"><div class="sidebar-empty">加载中...</div></div>'
       + '<div class="sidebar-user-panel" id="sidebarUserPanel">'

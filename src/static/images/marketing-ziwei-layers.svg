@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 820 820" fill="none">
+  <style>
+    .hetu-diagram {
+      transform-origin: 410px 410px;
+      animation: hetuRotate 72s linear infinite;
+    }
+    .line {
+      stroke: #10100F;
+      stroke-width: 2.4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .black {
+      fill: #10100F;
+    }
+    .white {
+      fill: #F7F3EB;
+      stroke: #10100F;
+      stroke-width: 2.4;
+    }
+    @keyframes hetuRotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  </style>
+
+  <g class="hetu-diagram">
+    <path class="line" d="M230 120H590"/>
+    <circle class="white" cx="230" cy="120" r="10.5"/>
+    <circle class="white" cx="290" cy="120" r="10.5"/>
+    <circle class="white" cx="350" cy="120" r="10.5"/>
+    <circle class="white" cx="410" cy="120" r="10.5"/>
+    <circle class="white" cx="470" cy="120" r="10.5"/>
+    <circle class="white" cx="530" cy="120" r="10.5"/>
+    <circle class="white" cx="590" cy="120" r="10.5"/>
+
+    <path class="line" d="M350 188H470"/>
+    <circle class="black" cx="350" cy="188" r="11"/>
+    <circle class="black" cx="470" cy="188" r="11"/>
+
+    <path class="line" d="M105 228V572"/>
+    <circle class="black" cx="105" cy="228" r="11"/>
+    <circle class="black" cx="105" cy="277" r="11"/>
+    <circle class="black" cx="105" cy="326" r="11"/>
+    <circle class="black" cx="105" cy="375" r="11"/>
+    <circle class="black" cx="105" cy="424" r="11"/>
+    <circle class="black" cx="105" cy="473" r="11"/>
+    <circle class="black" cx="105" cy="522" r="11"/>
+    <circle class="black" cx="105" cy="572" r="11"/>
+
+    <path class="line" d="M205 314V456"/>
+    <circle class="white" cx="205" cy="314" r="10.5"/>
+    <circle class="white" cx="205" cy="385" r="10.5"/>
+    <circle class="white" cx="205" cy="456" r="10.5"/>
+
+    <path class="line" d="M270 286H550V526H270Z"/>
+    <path class="line" d="M270 286H550"/>
+    <path class="line" d="M270 526H550"/>
+    <circle class="black" cx="270" cy="286" r="11"/>
+    <circle class="black" cx="340" cy="286" r="11"/>
+    <circle class="black" cx="410" cy="286" r="11"/>
+    <circle class="black" cx="480" cy="286" r="11"/>
+    <circle class="black" cx="550" cy="286" r="11"/>
+    <circle class="black" cx="270" cy="526" r="11"/>
+    <circle class="black" cx="340" cy="526" r="11"/>
+    <circle class="black" cx="410" cy="526" r="11"/>
+    <circle class="black" cx="480" cy="526" r="11"/>
+    <circle class="black" cx="550" cy="526" r="11"/>
+
+    <path class="line" d="M410 350V470"/>
+    <path class="line" d="M350 410H470"/>
+    <circle class="white" cx="410" cy="350" r="10.5"/>
+    <circle class="white" cx="410" cy="410" r="10.5"/>
+    <circle class="white" cx="410" cy="470" r="10.5"/>
+    <circle class="white" cx="350" cy="410" r="10.5"/>
+    <circle class="white" cx="470" cy="410" r="10.5"/>
+
+    <circle class="white" cx="410" cy="610" r="10.5"/>
+
+    <path class="line" d="M615 326V506"/>
+    <circle class="black" cx="615" cy="326" r="11"/>
+    <circle class="black" cx="615" cy="386" r="11"/>
+    <circle class="black" cx="615" cy="446" r="11"/>
+    <circle class="black" cx="615" cy="506" r="11"/>
+
+    <path class="line" d="M715 228V572"/>
+    <circle class="white" cx="715" cy="228" r="10.5"/>
+    <circle class="white" cx="715" cy="271" r="10.5"/>
+    <circle class="white" cx="715" cy="314" r="10.5"/>
+    <circle class="white" cx="715" cy="357" r="10.5"/>
+    <circle class="white" cx="715" cy="400" r="10.5"/>
+    <circle class="white" cx="715" cy="443" r="10.5"/>
+    <circle class="white" cx="715" cy="486" r="10.5"/>
+    <circle class="white" cx="715" cy="529" r="10.5"/>
+    <circle class="white" cx="715" cy="572" r="10.5"/>
+
+    <path class="line" d="M235 700H585"/>
+    <circle class="black" cx="235" cy="700" r="11"/>
+    <circle class="black" cx="305" cy="700" r="11"/>
+    <circle class="black" cx="375" cy="700" r="11"/>
+    <circle class="black" cx="445" cy="700" r="11"/>
+    <circle class="black" cx="515" cy="700" r="11"/>
+    <circle class="black" cx="585" cy="700" r="11"/>
+  </g>
+</svg>

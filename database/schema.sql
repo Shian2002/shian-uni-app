@@ -25,6 +25,9 @@ CREATE INDEX IF NOT EXISTS ix_user_username ON user(username);
 CREATE INDEX IF NOT EXISTS ix_user_email ON user(email);
 CREATE INDEX IF NOT EXISTS ix_user_phone ON user(phone);
 CREATE INDEX IF NOT EXISTS ix_user_is_admin ON user(is_admin);
+CREATE INDEX IF NOT EXISTS ix_user_oauth_qq ON user(oauth_qq);
+CREATE INDEX IF NOT EXISTS ix_user_oauth_wechat ON user(oauth_wechat);
+CREATE INDEX IF NOT EXISTS ix_user_oauth_gitee ON user(oauth_gitee);
 
 -- 通用记录表
 CREATE TABLE IF NOT EXISTS record (
@@ -51,10 +54,14 @@ CREATE TABLE IF NOT EXISTS user_profile (
     birth_addr VARCHAR(100) DEFAULT '',
     is_default BOOLEAN DEFAULT 0,
     profile_type VARCHAR(10) DEFAULT 'self',
+    source VARCHAR(30) DEFAULT 'manual',
+    source_record_id INTEGER,
+    meta_json TEXT DEFAULT '',
     last_used_at DATETIME,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS ix_user_profile_user_id ON user_profile(user_id);
+CREATE INDEX IF NOT EXISTS ix_user_profile_source_record_id ON user_profile(source_record_id);
 
 -- 问事跟进
 CREATE TABLE IF NOT EXISTS follow_up (
@@ -176,12 +183,32 @@ CREATE TABLE IF NOT EXISTS report (
 CREATE INDEX IF NOT EXISTS ix_report_user_id ON report(user_id);
 CREATE INDEX IF NOT EXISTS ix_report_status ON report(status);
 
+-- 管理员审计日志
+CREATE TABLE IF NOT EXISTS admin_audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    admin_id INTEGER NOT NULL REFERENCES user(id),
+    action VARCHAR(50) NOT NULL,
+    target_type VARCHAR(50) NOT NULL,
+    target_id INTEGER,
+    detail TEXT DEFAULT '',
+    ip_address VARCHAR(64) DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS ix_admin_audit_log_admin_id ON admin_audit_log(admin_id);
+CREATE INDEX IF NOT EXISTS ix_admin_audit_log_action ON admin_audit_log(action);
+CREATE INDEX IF NOT EXISTS ix_admin_audit_log_target_type ON admin_audit_log(target_type);
+CREATE INDEX IF NOT EXISTS ix_admin_audit_log_target_id ON admin_audit_log(target_id);
+CREATE INDEX IF NOT EXISTS ix_admin_audit_log_created_at ON admin_audit_log(created_at);
+
 -- 会员表
 CREATE TABLE IF NOT EXISTS membership (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL UNIQUE REFERENCES user(id),
     level VARCHAR(20) DEFAULT 'free',
     points INTEGER DEFAULT 0,
+    ai_single_credits INTEGER DEFAULT 0,
+    ai_combo_credits INTEGER DEFAULT 0,
+    daily_ai_light_used_at VARCHAR(10) DEFAULT '',
     expire_at DATETIME,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -232,6 +259,9 @@ CREATE TABLE IF NOT EXISTS recharge_order (
     amount FLOAT NOT NULL,
     pay_method VARCHAR(50) DEFAULT 'transfer',
     status VARCHAR(20) DEFAULT 'pending',
+    payment_reference VARCHAR(120) DEFAULT '',
+    payment_proof TEXT DEFAULT '',
+    verified_at DATETIME,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -248,6 +278,7 @@ CREATE TABLE IF NOT EXISTS bazi_record (
     pillars VARCHAR(20) DEFAULT '',
     record_type VARCHAR(10) DEFAULT 'paipan',
     starred BOOLEAN DEFAULT 0,
+    pinned BOOLEAN DEFAULT 0,
     category VARCHAR(10) DEFAULT '全部',
     params_json TEXT DEFAULT '',
     hepan_json TEXT DEFAULT '',
@@ -310,7 +341,7 @@ CREATE INDEX IF NOT EXISTS ix_qimen_conversation_user_id ON qimen_conversation(u
 -- 八字AI对话历史
 CREATE TABLE IF NOT EXISTS bazi_conversation (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL REFERENCES user(id),
+    user_id INTEGER REFERENCES user(id),
     title VARCHAR(100),
     birth_data TEXT,
     messages_json TEXT,

@@ -6,6 +6,7 @@
       <view class="topnav-sidebar-btn" id="topnavSidebarBtn" @click="toggleSidebar" @tap="toggleSidebar" onclick="window._xc_toggleSidebar()">☰</view>
       <view class="nav-btn-bar" id="navBtnBar">
         <view class="nav-btn" data-href="#/" @click="go('#/')">首页</view>
+        <view class="nav-btn" data-href="#/?app=1" @click="go('#/?app=1')">时安 Agent</view>
 
         <view class="nav-btn" data-href="#/pages/qimen/index?tab=free" onclick="window.__topNavGo('#/pages/qimen/index?tab=free')">奇门遁甲</view>
 
@@ -62,7 +63,7 @@
     <view class="modal-box">
       <view class="modal-title">登录</view>
       <view class="login-tabs">
-        <view class="login-tab tn-tab-password active" data-tab="password" onclick="window._xc_switchTab(this)">密码</view>
+        <view class="login-tab tn-tab-password active" data-tab="password" onclick="window._xc_switchTab(this)">账号</view>
         <view class="login-tab tn-tab-phone" data-tab="phone" onclick="window._xc_switchTab(this)">手机</view>
         <view class="login-tab tn-tab-email" data-tab="email" onclick="window._xc_switchTab(this)">邮箱</view>
       </view>
@@ -194,7 +195,7 @@ function ensureGlobalSidebar() {
   sidebar.className = 'tarot-sidebar'
   sidebar.id = 'tarotSidebarGlobal'
   sidebar.setAttribute('aria-hidden', 'true')
-  sidebar.innerHTML = '<div class="sidebar-brand"><span class="sidebar-brand-icon-wrap"><img class="sidebar-brand-icon" src="/static/images/logo.webp?v=3"></span><span class="sidebar-brand-name">时安解忧屋</span></div>'
+  sidebar.innerHTML = '<div class="sidebar-brand"><span class="sidebar-brand-icon-wrap"><img class="sidebar-brand-icon" src="/static/images/logo.svg?v=7"></span><span class="sidebar-brand-name">时安解忧屋</span></div>'
     + '<div class="sidebar-header"><span class="sidebar-title">对话历史</span><button class="sidebar-new-chat-btn" id="sidebarNewChatBtn" type="button" onclick="window._xc_startNewConversation(\'comprehensive\')">新对话</button></div>'
     + '<div class="sidebar-tabs"><span class="sidebar-tab active" id="sidebarTabFlat" onclick="window._xc_setSidebarView(\'flat\')">全部</span></div>'
     + '<div class="sidebar-content" id="sidebarListGlobal"><div class="sidebar-empty">加载中...</div></div>'
@@ -312,6 +313,22 @@ onMounted(function() {
     }
     window._xc_doRegister = function() {
       var e = document.getElementById('tnLoginError')
+      if (e) e.textContent = ''
+      var modal = window._xc_getVisibleModal()
+      var uEl = (modal || document).querySelector('#tnLoginUser'); var pEl = (modal || document).querySelector('#tnLoginPass')
+      if (uEl) uEl.value = ''
+      if (pEl) pEl.value = ''
+      var titleEl = (modal || document).querySelector('.modal-title')
+      if (titleEl) titleEl.textContent = '注册'
+      var hintEl = (modal || document).querySelector('.modal-hint')
+      if (hintEl) hintEl.innerHTML = '已有账号？<text class="login-link" onclick="window._xc_switchToLogin()" style="color:var(--accent);cursor:pointer;text-decoration:underline;">立即登录</text>'
+      var loginBtn = (modal || document).querySelector('.modal-btns .btn-accent')
+      if (loginBtn) { loginBtn.textContent = '注册'; loginBtn.setAttribute('onclick', 'window._xc_doRegisterSubmit()') }
+      if (uEl) setTimeout(function() { uEl.focus() }, 100)
+      if (e) e.textContent = '请填写用户名和密码完成注册'
+    }
+    window._xc_doRegisterSubmit = function() {
+      var e = document.getElementById('tnLoginError')
       var modal = window._xc_getVisibleModal()
       if (modal) e = modal.querySelector('#tnLoginError') || e
       var uEl = (modal || document).querySelector('#tnLoginUser'); var pEl = (modal || document).querySelector('#tnLoginPass')
@@ -319,6 +336,7 @@ onMounted(function() {
       if (!u || !p) { if (e) e.textContent = '请填写完整'; return }
       if (u.length < 2) { if (e) e.textContent = '用户名至少2个字符'; return }
       if (p.length < 6) { if (e) e.textContent = '密码至少6个字符'; return }
+      if (e) e.textContent = '注册中...'
       uni.request({ url: '/api/register', method: 'POST', data: { username: u, password: p } }).then(function(res) {
         var d = res.data
         if (d.error) { if (e) e.textContent = d.error; return }
@@ -327,6 +345,20 @@ onMounted(function() {
         uni.showToast({ title: '注册成功', icon: 'success' })
         setTimeout(function() { applyLoginSuccess() }, 120)
       }).catch(function() { if (e) e.textContent = '网络错误' })
+    }
+    window._xc_switchToLogin = function() {
+      var e = document.getElementById('tnLoginError')
+      if (e) e.textContent = ''
+      var modal = window._xc_getVisibleModal()
+      var titleEl = (modal || document).querySelector('.modal-title')
+      if (titleEl) titleEl.textContent = '登录'
+      var hintEl = (modal || document).querySelector('.modal-hint')
+      if (hintEl) hintEl.innerHTML = '已有账号直接登录 · <text class="register-link" onclick="window._xc_doRegister()" style="color:var(--accent);cursor:pointer;text-decoration:underline;">没有账号？立即注册</text>'
+      var loginBtn = (modal || document).querySelector('.modal-btns .btn-accent')
+      if (loginBtn) { loginBtn.textContent = '登录'; loginBtn.setAttribute('onclick', 'window._xc_doLogin()') }
+      var uEl = (modal || document).querySelector('#tnLoginUser'); var pEl = (modal || document).querySelector('#tnLoginPass')
+      if (uEl) uEl.value = ''
+      if (pEl) pEl.value = ''
     }
     window._xc_doLogin = function() {
       var loginMethods = {

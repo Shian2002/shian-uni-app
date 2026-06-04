@@ -699,7 +699,7 @@ async function zwAiAsk() {
         const take = charQueue.length > 3 ? 2 : 1
         fullText += charQueue.substring(0, take)
         charQueue = charQueue.substring(take)
-        zwAiResult.value = '<div class="chat-bubble-ai"><div class="ai-stage"><img class="ai-stage-logo" src="/static/images/logo.webp?v=3">正在生成解读...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div><div class="chat-bubble-content">' + _stripMarkdown(fullText).replace(/\n/g, '<br>') + '</div></div>'
+        zwAiResult.value = '<div class="chat-bubble-ai"><div class="ai-stage"><img class="ai-stage-logo" src="/static/images/logo.svg?v=7">正在生成解读...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div><div class="chat-bubble-content">' + _stripMarkdown(fullText).replace(/\n/g, '<br>') + '</div></div>'
       }, 35)
     }
     
@@ -746,7 +746,7 @@ async function zwAiAsk() {
               } else if (data.stage === 'analyzing') {
                 zwAiResult.value = '<div class="chat-bubble-ai"><div class="ai-stage">🧠 排盘分析中...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:40%"></div></div><div class="chat-bubble-content"></div></div>'
               } else if (data.stage === 'generating') {
-                zwAiResult.value = '<div class="chat-bubble-ai"><div class="ai-stage"><img class="ai-stage-logo" src="/static/images/logo.webp?v=3">正在生成解读...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div><div class="chat-bubble-content"></div></div>'
+                zwAiResult.value = '<div class="chat-bubble-ai"><div class="ai-stage"><img class="ai-stage-logo" src="/static/images/logo.svg?v=7">正在生成解读...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div><div class="chat-bubble-content"></div></div>'
                 startTypewriter()
               }
             } else if (data.type === 'chunk' || data.type === 'delta') {
@@ -784,7 +784,7 @@ function zwSendFollowUp() {
   
   const userBubble = '<div class="chat-bubble-user">' + question + '</div>'
   const aiBubbleId = 'zwFollow_' + Date.now()
-  const aiBubble = '<div class="chat-bubble-ai" id="' + aiBubbleId + '"><div class="ai-stage"><img class="ai-stage-logo" src="/static/images/logo.webp?v=3">正在生成回复...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div><div class="chat-bubble-content"></div></div>'
+  const aiBubble = '<div class="chat-bubble-ai" id="' + aiBubbleId + '"><div class="ai-stage"><img class="ai-stage-logo" src="/static/images/logo.svg?v=7">正在生成回复...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:60%"></div></div><div class="chat-bubble-content"></div></div>'
   
   zwAiResult.value = zwAiResult.value + userBubble + aiBubble
   

@@ -3208,7 +3208,7 @@ onBeforeUnmount(() => {
 :global(body.home-fixed-page:not(:has(.home-ai-console.has-chat))) {
   height: 100dvh;
   min-height: 100dvh;
-  overflow: hidden !important;
+  overflow-y: auto !important;
   overscroll-behavior: none;
 }
 :global(body.home-fixed-page:not(:has(.home-ai-console.has-chat)) uni-page-body),
@@ -3217,7 +3217,7 @@ onBeforeUnmount(() => {
   height: 100dvh;
   min-height: 100dvh;
   max-height: 100dvh;
-  overflow: hidden !important;
+  overflow-y: auto !important;
 }
 :global(html.home-fixed-page:has(.marketing-active)),
 :global(body.home-fixed-page:has(.marketing-active)) {
@@ -3249,7 +3249,7 @@ onBeforeUnmount(() => {
   height: 100dvh !important;
   min-height: 100dvh !important;
   max-height: 100dvh !important;
-  overflow: hidden !important;
+  overflow-y: auto !important;
   touch-action: auto !important;
 }
 
@@ -3272,7 +3272,7 @@ onBeforeUnmount(() => {
   height: 100dvh;
   min-height: 100dvh;
   max-height: 100dvh;
-  overflow: hidden !important;
+  overflow-y: auto !important;
 }
 :global(body.marketing-page) .page-root.marketing-active {
   padding-top: 0 !important;
@@ -5391,7 +5391,7 @@ onBeforeUnmount(() => {
   height: calc(100dvh - 60px);
   min-height: calc(100dvh - 60px);
   max-height: calc(100dvh - 60px);
-  overflow: hidden !important;
+  overflow: visible;
 }
 
 @media (min-width: 769px) {

@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>时安解忧屋 - 高端营销页动画原型</title>
+  <style>
+    :root {
+      --ink: #171512;
+      --ink-soft: rgba(23, 21, 18, .58);
+      --paper: #f2eee5;
+      --paper-deep: #ddd5c8;
+      --ivory: #fffaf1;
+      --copper: #c57a24;
+      --jade: #315f55;
+      --line: rgba(23, 21, 18, .12);
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: ui-serif, "Songti SC", "STSong", "Times New Roman", serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      background:
+        radial-gradient(circle at 18% 78%, rgba(255,255,255,.58), transparent 28rem),
+        radial-gradient(circle at 82% 52%, rgba(197,122,36,.13), transparent 24rem),
+        linear-gradient(180deg, #eee9df 0%, #ded6ca 54%, #f8f4ec 100%);
+    }
+
+    .nav {
+      position: fixed;
+      inset: 0 0 auto;
+      z-index: 10;
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 48px;
+      background: linear-gradient(180deg, rgba(242,238,229,.88), rgba(242,238,229,0));
+      backdrop-filter: blur(8px);
+      animation: navIn .42s ease-out both;
+    }
+
+    .brand {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      font-weight: 700;
+      letter-spacing: .02em;
+    }
+
+    .brand-logo-wrap {
+      position: relative;
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .5);
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, .7),
+        0 8px 24px rgba(49, 95, 85, .12);
+    }
+
+    .brand-logo-wrap::before {
+      content: "";
+      position: absolute;
+      inset: -5px;
+      border-radius: inherit;
+      border: 1px solid rgba(49, 95, 85, .18);
+      border-top-color: rgba(197, 122, 36, .52);
+      border-right-color: rgba(197, 122, 36, .24);
+      transform-origin: center;
+      animation: slowSpin 14s linear infinite;
+    }
+
+    .brand-logo {
+      width: 22px;
+      height: 22px;
+      object-fit: contain;
+      transform-origin: center;
+      animation: slowSpin 24s linear infinite reverse;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 34px;
+      align-items: center;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 13px;
+      color: rgba(23, 21, 18, .68);
+    }
+
+    .enter {
+      border: 0;
+      border-radius: 999px;
+      padding: 11px 22px;
+      color: var(--ink);
+      background: rgba(255,255,255,.66);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.7);
+      font-weight: 650;
+    }
+
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      overflow: hidden;
+      padding: 0 50px 80px;
+      display: flex;
+      align-items: flex-end;
+    }
+
+    .ambient {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .mist {
+      position: absolute;
+      border-radius: 999px;
+      filter: blur(2px);
+      opacity: .54;
+      animation: mistDrift 18s ease-in-out infinite;
+    }
+
+    .mist.a {
+      left: -14rem;
+      bottom: 8rem;
+      width: 48rem;
+      height: 28rem;
+      background: radial-gradient(circle, rgba(255,255,255,.7), rgba(255,255,255,0) 68%);
+    }
+
+    .mist.b {
+      right: -8rem;
+      top: 17rem;
+      width: 38rem;
+      height: 28rem;
+      background: radial-gradient(circle, rgba(197,122,36,.15), rgba(197,122,36,0) 68%);
+      animation-delay: -6s;
+    }
+
+    .mist.c {
+      right: 5rem;
+      top: 10rem;
+      width: 20rem;
+      height: 18rem;
+      background: radial-gradient(circle, rgba(49,95,85,.14), rgba(49,95,85,0) 68%);
+      animation-delay: -11s;
+    }
+
+    .orbits {
+      position: absolute;
+      left: 38%;
+      top: 5%;
+      width: 55rem;
+      height: 32rem;
+      opacity: .28;
+      animation: orbitFloat 22s ease-in-out infinite;
+    }
+
+    .orbit {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      border: 1px solid rgba(23,21,18,.14);
+      border-radius: 50%;
+      transform: translate(-50%, -50%) rotate(var(--r));
+      animation: orbitRotate var(--d) linear infinite;
+    }
+
+    .orbit:nth-child(1) { width: 18rem; height: 6.2rem; --r: -12deg; --d: 38s; }
+    .orbit:nth-child(2) { width: 28rem; height: 9.4rem; --r: 8deg; --d: 52s; }
+    .orbit:nth-child(3) { width: 38rem; height: 12.8rem; --r: 23deg; --d: 68s; }
+    .orbit:nth-child(4) { width: 48rem; height: 16rem; --r: -27deg; --d: 80s; }
+
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: rgba(220,163,78,.72);
+      animation: particleRise 6s ease-in-out infinite;
+    }
+
+    .particle:nth-child(6) { left: 18%; top: 28%; animation-delay: -.7s; }
+    .particle:nth-child(7) { left: 42%; top: 20%; animation-delay: -2.1s; }
+    .particle:nth-child(8) { left: 74%; top: 34%; animation-delay: -1.4s; }
+    .particle:nth-child(9) { left: 86%; top: 62%; animation-delay: -3.2s; }
+    .particle:nth-child(10) { left: 34%; top: 70%; animation-delay: -4s; }
+
+    .bottom-blur {
+      position: absolute;
+      inset: auto 0 0;
+      height: 270px;
+      background: linear-gradient(180deg, rgba(242,238,229,0), rgba(242,238,229,.92) 72%);
+      backdrop-filter: blur(7px);
+    }
+
+    .copy {
+      position: relative;
+      z-index: 2;
+      width: min(100%, 1360px);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 420px;
+      gap: 80px;
+      align-items: end;
+      padding-bottom: 48px;
+    }
+
+    .kicker,
+    .title,
+    .title-cn,
+    .side h2,
+    .side p,
+    .cta-row {
+      animation: heroRise .9s cubic-bezier(.2,.8,.2,1) both;
+    }
+
+    .kicker {
+      margin: 0 0 18px;
+      font: 650 22px/1.1 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: .01em;
+      animation-delay: .12s;
+    }
+
+    .title {
+      margin: 0;
+      font: 800 clamp(56px, 7vw, 98px)/1.08 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+      opacity: .58;
+      animation-delay: .28s;
+    }
+
+    .title-cn {
+      margin: 18px 0 0;
+      font-size: clamp(38px, 4vw, 58px);
+      line-height: 1.18;
+      font-weight: 700;
+      color: rgba(23,21,18,.54);
+      animation-delay: .44s;
+    }
+
+    .side h2 {
+      margin: 0 0 22px;
+      font: 750 28px/1.15 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      animation-delay: .62s;
+    }
+
+    .side p {
+      margin: 0;
+      color: rgba(23,21,18,.62);
+      font-size: 18px;
+      line-height: 1.65;
+      animation-delay: .74s;
+    }
+
+    .cta-row {
+      display: flex;
+      gap: 18px;
+      margin-top: 34px;
+      align-items: center;
+      animation-delay: .9s;
+    }
+
+    .primary,
+    .secondary {
+      height: 56px;
+      border-radius: 999px;
+      border: 0;
+      padding: 0 36px;
+      font-weight: 700;
+      font-size: 15px;
+      transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+
+    .primary {
+      color: white;
+      background: var(--copper);
+      box-shadow: 0 16px 40px rgba(197,122,36,.22);
+    }
+
+    .secondary {
+      color: var(--ink);
+      background: rgba(255,255,255,.48);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.78);
+    }
+
+    .primary:hover,
+    .secondary:hover {
+      transform: translateY(-2px);
+    }
+
+    .scroll-hint {
+      position: absolute;
+      left: 50%;
+      bottom: 44px;
+      transform: translateX(-50%);
+      color: rgba(23,21,18,.38);
+      font-size: 13px;
+      animation: hintPulse 1.8s ease-in-out infinite;
+    }
+
+    .critical {
+      min-height: 760px;
+      padding: 110px 50px 130px;
+      background:
+        radial-gradient(circle at 86% 20%, rgba(197,122,36,.11), transparent 24rem),
+        linear-gradient(180deg, #f2eee5, #faf7ef);
+    }
+
+    .critical h2 {
+      margin: 10px 0 46px;
+      max-width: 760px;
+      font-size: 46px;
+      line-height: 1.18;
+      letter-spacing: 0;
+    }
+
+    .section-label {
+      font: 700 22px/1 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr)) 310px;
+      gap: 28px;
+      align-items: start;
+    }
+
+    .card,
+    .console {
+      opacity: 0;
+      transform: translateY(32px);
+      transition: opacity .7s ease, transform .7s cubic-bezier(.2,.8,.2,1);
+    }
+
+    .critical.is-visible .card,
+    .critical.is-visible .console {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .card {
+      min-height: 210px;
+      padding: 28px;
+      border-radius: 10px;
+      background: rgba(255,255,255,.64);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.72);
+    }
+
+    .card:nth-child(2) { transition-delay: .12s; }
+    .card:nth-child(3) { transition-delay: .24s; }
+
+    .card h3 {
+      margin: 0 0 18px;
+      font-size: 24px;
+    }
+
+    .card p {
+      margin: 0;
+      color: rgba(23,21,18,.64);
+      line-height: 1.65;
+    }
+
+    .console {
+      min-height: 310px;
+      border-radius: 14px;
+      padding: 30px;
+      background: rgba(20,17,14,.86);
+      color: white;
+      transition-delay: .36s;
+    }
+
+    .console-line {
+      height: 34px;
+      border-radius: 7px;
+      margin-top: 18px;
+      background: rgba(255,255,255,.13);
+    }
+
+    .console-line:first-of-type {
+      background: var(--copper);
+    }
+
+    @keyframes navIn {
+      from { opacity: 0; transform: translateY(-12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slowSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes mistDrift {
+      0%, 100% { transform: translate3d(0,0,0) scale(1); }
+      50% { transform: translate3d(-28px,18px,0) scale(1.04); }
+    }
+
+    @keyframes orbitFloat {
+      0%, 100% { transform: translate3d(0,0,0); }
+      50% { transform: translate3d(-34px,14px,0); }
+    }
+
+    @keyframes orbitRotate {
+      from { transform: translate(-50%, -50%) rotate(var(--r)); }
+      to { transform: translate(-50%, -50%) rotate(calc(var(--r) + 360deg)); }
+    }
+
+    @keyframes particleRise {
+      0%, 100% { opacity: .18; transform: translateY(0) scale(.85); }
+      45% { opacity: .8; transform: translateY(-22px) scale(1); }
+    }
+
+    @keyframes heroRise {
+      from { opacity: 0; transform: translateY(28px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes hintPulse {
+      0%, 100% { opacity: .26; transform: translate(-50%, 0); }
+      50% { opacity: .56; transform: translate(-50%, 8px); }
+    }
+
+    @media (max-width: 760px) {
+      .nav { padding: 0 24px; }
+      .nav-links span { display: none; }
+      .hero { padding: 0 24px 76px; }
+      .copy { grid-template-columns: 1fr; gap: 36px; }
+      .title { font-size: 48px; }
+      .title-cn { font-size: 32px; }
+      .side p { font-size: 16px; }
+      .cards { grid-template-columns: 1fr; }
+      .critical { padding: 80px 24px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="brand">
+      <span class="brand-logo-wrap">
+        <img class="brand-logo" src="../../src/static/images/logo.webp" alt="时安解忧屋" />
+      </span>
+      <span>时安解忧屋</span>
+    </div>
+    <div class="nav-links">
+      <span>产品</span>
+      <span>术数模型</span>
+      <span>案例</span>
+      <span>定价</span>
+      <button class="enter">进入应用</button>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="ambient" aria-hidden="true">
+      <div class="mist a"></div>
+      <div class="mist b"></div>
+      <div class="mist c"></div>
+      <div class="orbits">
+        <div class="orbit"></div>
+        <div class="orbit"></div>
+        <div class="orbit"></div>
+        <div class="orbit"></div>
+      </div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="bottom-blur"></div>
+    </div>
+
+    <div class="copy">
+      <div>
+        <p class="kicker">The Oriental Insight Agent</p>
+        <h1 class="title">BaZi · QiMen · Ziwei<br>All in Shian</h1>
+        <div class="title-cn">八字 · 奇门 · 紫微<br>一处推演</div>
+      </div>
+      <div class="side">
+        <h2>Chart. Reason. Decide.</h2>
+        <p>把复杂命盘转成可读结论。先看局势，再看路径，最后给出可执行的时机建议。</p>
+        <div class="cta-row">
+          <button class="primary">开始解读</button>
+          <button class="secondary">查看方法</button>
+        </div>
+      </div>
+    </div>
+    <div class="scroll-hint">向下探索</div>
+  </section>
+
+  <section class="critical" id="critical">
+    <div class="section-label">Critical Moment</div>
+    <h2>在关键时刻，看清你真正面对的局。</h2>
+    <div class="cards">
+      <article class="card">
+        <h3>事业抉择</h3>
+        <p>识别趋势、资源和阻力，判断是继续推进，还是换一条更稳的路径。</p>
+      </article>
+      <article class="card">
+        <h3>关系洞察</h3>
+        <p>不只给关系贴标签，而是拆解双方能量、沟通结构与阶段性变化。</p>
+      </article>
+      <article class="card">
+        <h3>择时行动</h3>
+        <p>把“什么时候做”变成清晰的行动窗口，减少犹豫和反复。</p>
+      </article>
+      <aside class="console">
+        <strong>Shian Console</strong>
+        <div class="console-line"></div>
+        <div class="console-line"></div>
+        <div class="console-line"></div>
+        <div class="console-line"></div>
+      </aside>
+    </div>
+  </section>
+
+  <script>
+    const critical = document.querySelector('#critical')
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) critical.classList.add('is-visible')
+      }
+    }, { threshold: 0.24 })
+    observer.observe(critical)
+  </script>
+</body>
+</html>

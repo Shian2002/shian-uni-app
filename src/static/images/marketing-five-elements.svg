@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240" fill="none">
+  <style>
+    .outer-ring {
+      transform-origin: 120px 120px;
+      animation: outerSpin 46s linear infinite;
+    }
+    .inner-ring {
+      transform-origin: 120px 120px;
+      animation: innerSpin 32s linear infinite reverse;
+    }
+    .node-text {
+      font-family: "Songti SC", "STSong", "Noto Serif SC", serif;
+      font-size: 18px;
+      font-weight: 900;
+      fill: #fffaf0;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+    .branch-text {
+      font-family: "Songti SC", "STSong", "Noto Serif SC", serif;
+      font-size: 9px;
+      font-weight: 700;
+      fill: rgba(42, 39, 34, .72);
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+    @keyframes outerSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes innerSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  </style>
+
+  <g class="outer-ring">
+    <circle cx="120" cy="120" r="96" stroke="rgba(45,42,36,.56)" stroke-width="1.6" stroke-dasharray="4 6"/>
+    <g class="branch-text">
+      <text x="120" y="22">子</text>
+      <text x="168" y="35" transform="rotate(30 168 35)">丑</text>
+      <text x="204" y="71" transform="rotate(60 204 71)">寅</text>
+      <text x="218" y="120" transform="rotate(90 218 120)">卯</text>
+      <text x="204" y="169" transform="rotate(120 204 169)">辰</text>
+      <text x="168" y="205" transform="rotate(150 168 205)">巳</text>
+      <text x="120" y="218" transform="rotate(180 120 218)">午</text>
+      <text x="72" y="205" transform="rotate(210 72 205)">未</text>
+      <text x="36" y="169" transform="rotate(240 36 169)">申</text>
+      <text x="22" y="120" transform="rotate(270 22 120)">酉</text>
+      <text x="36" y="71" transform="rotate(300 36 71)">戌</text>
+      <text x="72" y="35" transform="rotate(330 72 35)">亥</text>
+    </g>
+  </g>
+
+  <g class="inner-ring">
+    <circle cx="120" cy="120" r="70" stroke="rgba(45,42,36,.5)" stroke-width="1.8"/>
+    <path d="M120 52 L187 101 L161 181 L79 181 L53 101 Z" stroke="rgba(45,42,36,.58)" stroke-width="1.9" stroke-linejoin="round"/>
+    <path d="M120 52 L161 181 L53 101 L187 101 L79 181 Z" stroke="rgba(45,42,36,.58)" stroke-width="1.9" stroke-linejoin="round"/>
+
+    <g>
+      <circle cx="120" cy="52" r="18" fill="#030303"/>
+      <text class="node-text" x="120" y="52">火</text>
+    </g>
+    <g>
+      <circle cx="187" cy="101" r="18" fill="#030303"/>
+      <text class="node-text" x="187" y="101" transform="rotate(72 187 101)">土</text>
+    </g>
+    <g>
+      <circle cx="161" cy="181" r="18" fill="#030303"/>
+      <text class="node-text" x="161" y="181" transform="rotate(144 161 181)">金</text>
+    </g>
+    <g>
+      <circle cx="79" cy="181" r="18" fill="#030303"/>
+      <text class="node-text" x="79" y="181" transform="rotate(216 79 181)">水</text>
+    </g>
+    <g>
+      <circle cx="53" cy="101" r="18" fill="#030303"/>
+      <text class="node-text" x="53" y="101" transform="rotate(288 53 101)">木</text>
+    </g>
+  </g>
+</svg>

@@ -158,6 +158,31 @@ export default {
     }, 1500)
     // #endif
     var TAB_PAGES = ['/pages/index/index', '/pages/qimen/index', '/pages/bazi-index/index', '/pages/tarot/index', '/pages/liuyao/index', '/pages/meihua/index', '/pages/ziwei/index', '/pages/zeji/index', '/pages/calendar/index', '/pages/community/index', '/pages/profile/index']
+    window.__xcRenderTabPath = function(path) {
+      try {
+        if (!path || path === '/pages/index/index') path = '/'
+        var isHome = path === '/'
+        var isQimen = path === '/pages/qimen/index'
+        document.documentElement.classList.toggle('home-fixed-page', isHome)
+        document.body.classList.toggle('home-fixed-page', isHome)
+        document.documentElement.classList.toggle('qimen-page-active', isQimen)
+        document.body.classList.toggle('qimen-page-active', isQimen)
+
+        var container = document.querySelector('.tab-pages-container')
+        if (container) container.style.display = ''
+        var wrappers = Array.prototype.slice.call(document.querySelectorAll('.tab-page-wrapper'))
+        var target = wrappers.find(function(w) { return w.getAttribute('data-tab-path') === path })
+        if (target) {
+          wrappers.forEach(function(w) { w.style.display = w === target ? '' : 'none' })
+        }
+        var currentHash = (window.location.hash || '').replace('#', '').split('?')[0] || '/'
+        if (currentHash === '/pages/index/index') currentHash = '/'
+        if (currentHash !== path) window.location.hash = path
+      } catch (err) {
+        console.warn('[tab-render-fallback]', err)
+      }
+    }
+    window.__switchTabPageDom = window.__xcRenderTabPath
     document.addEventListener('click', function(e) {
       let el = e.target
       while (el && el.tagName !== 'A') { el = el.parentElement }
@@ -411,7 +436,7 @@ uni-tabbar, .uni-tabbar, .uni-tabbar-bottom {
 .tarot-detail-label { font-size:.7rem; color:var(--accent); margin-bottom:6px; letter-spacing:1px; }
 .tarot-detail-body { font-size:.82rem; color:var(--text-2); line-height:1.7; white-space:pre-wrap; word-break:break-word; }
 @media (max-width: 480px) { .tarot-sidebar { width:260px; } }
-.ai-stage-logo{display:inline-block;width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:3px;object-fit:cover;animation:ai-logo-spin 1s linear infinite}.ai-stage-logo-box{display:inline-block;width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:3px;background:url(/static/images/logo.webp?v=3) center/cover no-repeat;animation:ai-logo-spin 1s linear infinite}@keyframes ai-logo-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.ai-stage-logo{display:inline-block;width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:3px;object-fit:cover;animation:ai-logo-spin 1s linear infinite}.ai-stage-logo-box{display:inline-block;width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:3px;background:url(/static/images/logo.svg?v=7) center/cover no-repeat;animation:ai-logo-spin 1s linear infinite}@keyframes ai-logo-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
 .site-footer{margin-top:0!important;padding:16px 32px 12px!important}.site-footer .footer-disclaimer{margin-bottom:0!important}@media(max-width:768px){.site-footer{padding:12px 16px 10px!important}}
 uni-page-wrapper{min-height:0!important}
 .page-root{padding-top:60px!important}@media(max-width:768px){.page-root{padding-top:56px!important}}
