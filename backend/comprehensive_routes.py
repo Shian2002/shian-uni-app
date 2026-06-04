@@ -503,16 +503,16 @@ def register_comprehensive_routes(app, db, services):
         return cleaned
 
 
-    def save_comprehensive_conversation(data, question, profile, tool_models, paipan_context, artifacts, model_id, cost, history, answer):
+    def save_comprehensive_conversation(data, user_id, question, profile, tool_models, paipan_context, artifacts, model_id, cost, history, answer):
         messages = list(history or [])
         messages.append({'role': 'user', 'content': question})
         messages.append({'role': 'assistant', 'content': _comprehensive_summary_only(answer)})
         conv_id = data.get('conversation_id')
         conv = None
         if conv_id:
-            conv = ComprehensiveConversation.query.filter_by(id=conv_id, user_id=current_user.id).first()
+            conv = ComprehensiveConversation.query.filter_by(id=conv_id, user_id=user_id).first()
         if not conv:
-            conv = ComprehensiveConversation(user_id=current_user.id, created_at=datetime.utcnow())
+            conv = ComprehensiveConversation(user_id=user_id, created_at=datetime.utcnow())
             db.session.add(conv)
         conv.title = (data.get('title') or question or '综合 AI 问答')[:100]
         conv.profile_data = json.dumps(profile or {}, ensure_ascii=False)
@@ -784,7 +784,7 @@ def register_comprehensive_routes(app, db, services):
                         summary_text += chunk
                         full_text += chunk
                         yield _event({'summary': True, 'content': chunk})
-                conv = save_comprehensive_conversation(data, question, profile, tool_models, paipan_context, artifacts, model_id, cost, history, summary_text)
+                conv = save_comprehensive_conversation(data, current_user_id, question, profile, tool_models, paipan_context, artifacts, model_id, cost, history, summary_text)
                 points_left = get_or_create_membership(current_user_id).points
                 membership = get_or_create_membership(current_user_id)
                 mark_ai_run_done(ai_run.id, {
