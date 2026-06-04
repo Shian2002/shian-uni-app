@@ -533,6 +533,49 @@ def migrate_db():
         except Exception as e:
             logger.warning(f"bazi_conversation 迁移失败: {e}")
 
+        # 10. 高频列表与查重查询的复合索引。只创建缺失索引，不改表结构和数据。
+        db_indexes = [
+            ('ix_record_user_app_created', 'record', 'user_id, app_type, created_at'),
+            ('ix_user_profile_user_type_last_created', 'user_profile', 'user_id, profile_type, last_used_at, created_at'),
+            ('ix_user_profile_user_source_record', 'user_profile', 'user_id, source, source_record_id'),
+            ('ix_follow_up_user_record_created', 'follow_up', 'user_id, record_id, created_at'),
+            ('ix_collection_user_target_created', 'collection', 'user_id, target_type, created_at'),
+            ('ix_post_hidden_pinned_created', 'post', 'is_hidden, is_pinned, created_at'),
+            ('ix_post_featured_pinned_created', 'post', 'is_featured, is_pinned, created_at'),
+            ('ix_post_user_created', 'post', 'user_id, created_at'),
+            ('ix_comment_post_parent_created', 'comment', 'post_id, parent_id, created_at'),
+            ('ix_notification_user_read_created', 'notification', 'user_id, is_read, created_at'),
+            ('ix_report_status_created', 'report', 'status, created_at'),
+            ('ix_admin_audit_log_action_created', 'admin_audit_log', 'action, created_at'),
+            ('ix_point_log_user_created', 'point_log', 'user_id, created_at'),
+            ('ix_point_log_user_action_created', 'point_log', 'user_id, action, created_at'),
+            ('ix_recharge_order_user_created', 'recharge_order', 'user_id, created_at'),
+            ('ix_recharge_order_status_created', 'recharge_order', 'status, created_at'),
+            ('ix_recharge_order_payment_reference', 'recharge_order', 'payment_reference'),
+            ('ix_bazi_record_user_pinned_created', 'bazi_record', 'user_id, pinned, created_at'),
+            ('ix_tarot_conversation_user_updated', 'tarot_conversation', 'user_id, updated_at'),
+            ('ix_liuyao_conversation_user_updated', 'liuyao_conversation', 'user_id, updated_at'),
+            ('ix_meihua_conversation_user_updated', 'meihua_conversation', 'user_id, updated_at'),
+            ('ix_qimen_conversation_user_updated', 'qimen_conversation', 'user_id, updated_at'),
+            ('ix_bazi_conversation_user_updated', 'bazi_conversation', 'user_id, updated_at'),
+            ('ix_ziwei_conversation_user_updated', 'ziwei_conversation', 'user_id, updated_at'),
+            ('ix_comprehensive_conversation_user_updated', 'comprehensive_conversation', 'user_id, updated_at'),
+        ]
+        dialect = db.session.bind.dialect.name if db.session.bind else ''
+        for idx_name, table_name, columns in db_indexes:
+            try:
+                if dialect == 'sqlite':
+                    db.session.execute(db.text(
+                        f'CREATE INDEX IF NOT EXISTS {idx_name} ON {table_name} ({columns})'
+                    ))
+                else:
+                    db.session.execute(db.text(f'CREATE INDEX {idx_name} ON {table_name} ({columns})'))
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                if 'already exists' not in str(e).lower() and 'duplicate' not in str(e).lower():
+                    logger.warning(f"{idx_name} 索引迁移失败: {e}")
+
         # 8. Backfill: 已有 BaziConversation 创建 Record（确保侧边栏显示）
         try:
             from sqlalchemy import text as _sql

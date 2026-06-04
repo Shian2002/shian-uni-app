@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS record (
 );
 CREATE INDEX IF NOT EXISTS ix_record_user_id ON record(user_id);
 CREATE INDEX IF NOT EXISTS ix_record_created_at ON record(created_at);
+CREATE INDEX IF NOT EXISTS ix_record_user_app_created ON record(user_id, app_type, created_at);
 
 -- 用户命盘存档
 CREATE TABLE IF NOT EXISTS user_profile (
@@ -62,6 +63,8 @@ CREATE TABLE IF NOT EXISTS user_profile (
 );
 CREATE INDEX IF NOT EXISTS ix_user_profile_user_id ON user_profile(user_id);
 CREATE INDEX IF NOT EXISTS ix_user_profile_source_record_id ON user_profile(source_record_id);
+CREATE INDEX IF NOT EXISTS ix_user_profile_user_type_last_created ON user_profile(user_id, profile_type, last_used_at, created_at);
+CREATE INDEX IF NOT EXISTS ix_user_profile_user_source_record ON user_profile(user_id, source, source_record_id);
 
 -- 问事跟进
 CREATE TABLE IF NOT EXISTS follow_up (
@@ -74,6 +77,7 @@ CREATE TABLE IF NOT EXISTS follow_up (
 );
 CREATE INDEX IF NOT EXISTS ix_follow_up_user_id ON follow_up(user_id);
 CREATE INDEX IF NOT EXISTS ix_follow_up_record_id ON follow_up(record_id);
+CREATE INDEX IF NOT EXISTS ix_follow_up_user_record_created ON follow_up(user_id, record_id, created_at);
 
 -- 收藏表
 CREATE TABLE IF NOT EXISTS collection (
@@ -84,6 +88,7 @@ CREATE TABLE IF NOT EXISTS collection (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS ix_collection_user_id ON collection(user_id);
+CREATE INDEX IF NOT EXISTS ix_collection_user_target_created ON collection(user_id, target_type, created_at);
 
 -- 社区帖子
 CREATE TABLE IF NOT EXISTS post (
@@ -105,6 +110,9 @@ CREATE INDEX IF NOT EXISTS ix_post_user_id ON post(user_id);
 CREATE INDEX IF NOT EXISTS ix_post_is_featured ON post(is_featured);
 CREATE INDEX IF NOT EXISTS ix_post_is_pinned ON post(is_pinned);
 CREATE INDEX IF NOT EXISTS ix_post_is_hidden ON post(is_hidden);
+CREATE INDEX IF NOT EXISTS ix_post_hidden_pinned_created ON post(is_hidden, is_pinned, created_at);
+CREATE INDEX IF NOT EXISTS ix_post_featured_pinned_created ON post(is_featured, is_pinned, created_at);
+CREATE INDEX IF NOT EXISTS ix_post_user_created ON post(user_id, created_at);
 
 -- 评论表
 CREATE TABLE IF NOT EXISTS comment (
@@ -118,6 +126,7 @@ CREATE TABLE IF NOT EXISTS comment (
 );
 CREATE INDEX IF NOT EXISTS ix_comment_user_id ON comment(user_id);
 CREATE INDEX IF NOT EXISTS ix_comment_post_id ON comment(post_id);
+CREATE INDEX IF NOT EXISTS ix_comment_post_parent_created ON comment(post_id, parent_id, created_at);
 
 -- 大师/专家表
 CREATE TABLE IF NOT EXISTS master (
@@ -169,6 +178,7 @@ CREATE TABLE IF NOT EXISTS notification (
 );
 CREATE INDEX IF NOT EXISTS ix_notification_user_id ON notification(user_id);
 CREATE INDEX IF NOT EXISTS ix_notification_is_read ON notification(is_read);
+CREATE INDEX IF NOT EXISTS ix_notification_user_read_created ON notification(user_id, is_read, created_at);
 
 -- 举报表
 CREATE TABLE IF NOT EXISTS report (
@@ -182,6 +192,7 @@ CREATE TABLE IF NOT EXISTS report (
 );
 CREATE INDEX IF NOT EXISTS ix_report_user_id ON report(user_id);
 CREATE INDEX IF NOT EXISTS ix_report_status ON report(status);
+CREATE INDEX IF NOT EXISTS ix_report_status_created ON report(status, created_at);
 
 -- 管理员审计日志
 CREATE TABLE IF NOT EXISTS admin_audit_log (
@@ -199,6 +210,7 @@ CREATE INDEX IF NOT EXISTS ix_admin_audit_log_action ON admin_audit_log(action);
 CREATE INDEX IF NOT EXISTS ix_admin_audit_log_target_type ON admin_audit_log(target_type);
 CREATE INDEX IF NOT EXISTS ix_admin_audit_log_target_id ON admin_audit_log(target_id);
 CREATE INDEX IF NOT EXISTS ix_admin_audit_log_created_at ON admin_audit_log(created_at);
+CREATE INDEX IF NOT EXISTS ix_admin_audit_log_action_created ON admin_audit_log(action, created_at);
 
 -- 会员表
 CREATE TABLE IF NOT EXISTS membership (
@@ -225,6 +237,8 @@ CREATE TABLE IF NOT EXISTS point_log (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ix_point_log_dedupe_key ON point_log(dedupe_key);
+CREATE INDEX IF NOT EXISTS ix_point_log_user_created ON point_log(user_id, created_at);
+CREATE INDEX IF NOT EXISTS ix_point_log_user_action_created ON point_log(user_id, action, created_at);
 
 -- 付费内容
 CREATE TABLE IF NOT EXISTS paid_content (
@@ -265,6 +279,9 @@ CREATE TABLE IF NOT EXISTS recharge_order (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+CREATE INDEX IF NOT EXISTS ix_recharge_order_user_created ON recharge_order(user_id, created_at);
+CREATE INDEX IF NOT EXISTS ix_recharge_order_status_created ON recharge_order(status, created_at);
+CREATE INDEX IF NOT EXISTS ix_recharge_order_payment_reference ON recharge_order(payment_reference);
 
 -- 八字排盘/合盘历史记录
 CREATE TABLE IF NOT EXISTS bazi_record (
@@ -286,6 +303,7 @@ CREATE TABLE IF NOT EXISTS bazi_record (
 );
 CREATE INDEX IF NOT EXISTS ix_bazi_record_user_id ON bazi_record(user_id);
 CREATE INDEX IF NOT EXISTS ix_bazi_record_created_at ON bazi_record(created_at);
+CREATE INDEX IF NOT EXISTS ix_bazi_record_user_pinned_created ON bazi_record(user_id, pinned, created_at);
 
 -- 塔罗对话历史
 CREATE TABLE IF NOT EXISTS tarot_conversation (
@@ -299,6 +317,7 @@ CREATE TABLE IF NOT EXISTS tarot_conversation (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS ix_tarot_conversation_user_id ON tarot_conversation(user_id);
+CREATE INDEX IF NOT EXISTS ix_tarot_conversation_user_updated ON tarot_conversation(user_id, updated_at);
 
 -- 六爻对话历史
 CREATE TABLE IF NOT EXISTS liuyao_conversation (
@@ -312,6 +331,7 @@ CREATE TABLE IF NOT EXISTS liuyao_conversation (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS ix_liuyao_conversation_user_id ON liuyao_conversation(user_id);
+CREATE INDEX IF NOT EXISTS ix_liuyao_conversation_user_updated ON liuyao_conversation(user_id, updated_at);
 
 -- 梅花易数对话历史
 CREATE TABLE IF NOT EXISTS meihua_conversation (
@@ -325,6 +345,7 @@ CREATE TABLE IF NOT EXISTS meihua_conversation (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS ix_meihua_conversation_user_id ON meihua_conversation(user_id);
+CREATE INDEX IF NOT EXISTS ix_meihua_conversation_user_updated ON meihua_conversation(user_id, updated_at);
 
 -- 奇门遁甲对话历史
 CREATE TABLE IF NOT EXISTS qimen_conversation (
@@ -337,6 +358,7 @@ CREATE TABLE IF NOT EXISTS qimen_conversation (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS ix_qimen_conversation_user_id ON qimen_conversation(user_id);
+CREATE INDEX IF NOT EXISTS ix_qimen_conversation_user_updated ON qimen_conversation(user_id, updated_at);
 
 -- 八字AI对话历史
 CREATE TABLE IF NOT EXISTS bazi_conversation (
@@ -349,6 +371,7 @@ CREATE TABLE IF NOT EXISTS bazi_conversation (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS ix_bazi_conversation_user_id ON bazi_conversation(user_id);
+CREATE INDEX IF NOT EXISTS ix_bazi_conversation_user_updated ON bazi_conversation(user_id, updated_at);
 
 CREATE TABLE IF NOT EXISTS ziwei_conversation (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -360,6 +383,7 @@ CREATE TABLE IF NOT EXISTS ziwei_conversation (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS ix_ziwei_conversation_user_id ON ziwei_conversation(user_id);
+CREATE INDEX IF NOT EXISTS ix_ziwei_conversation_user_updated ON ziwei_conversation(user_id, updated_at);
 
 -- 首页综合 AI 对话历史
 CREATE TABLE IF NOT EXISTS comprehensive_conversation (
@@ -376,3 +400,4 @@ CREATE TABLE IF NOT EXISTS comprehensive_conversation (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS ix_comprehensive_conversation_user_id ON comprehensive_conversation(user_id);
+CREATE INDEX IF NOT EXISTS ix_comprehensive_conversation_user_updated ON comprehensive_conversation(user_id, updated_at);
