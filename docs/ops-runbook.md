@@ -230,6 +230,12 @@ curl -sS http://127.0.0.1:5199/api/health/deep
 
 `/api/health/deep` 会主动检查问真 API、数据库连通性和上传目录可写性；其中任一项失败时返回 `status: degraded`。
 
+CSRF 检查：
+
+- `/api/csrf-token` 提供 H5 会话写接口使用的 token。
+- H5 入口 `src/main.js` 会给 `uni.request`、`uni.uploadFile` 和浏览器 `fetch` 的 `/api/*` 写请求自动加 `X-CSRFToken`。
+- 登录、注册、验证码、排盘等明确标注 `@csrf.exempt` 的公开接口仍保持兼容；后台、积分、社区、用户资料等会话写接口默认受 CSRF 保护。
+
 数据库只读审计：
 
 ```bash

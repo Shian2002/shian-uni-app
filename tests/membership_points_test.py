@@ -24,7 +24,7 @@ def app_module(tmp_path, monkeypatch):
     sys.path.insert(0, backend_dir)
     try:
         module = importlib.import_module("app")
-        module.app.config.update(TESTING=True)
+        module.app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
         with module.app.app_context():
             module.db.drop_all()
             module.db.create_all()

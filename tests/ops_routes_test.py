@@ -3,6 +3,7 @@ import os
 import sys
 
 import pytest
+from werkzeug.security import check_password_hash, generate_password_hash
 
 
 @pytest.fixture()
@@ -14,7 +15,7 @@ def app_module(tmp_path, monkeypatch):
     sys.path.insert(0, backend_dir)
     try:
         module = importlib.import_module("app")
-        module.app.config.update(TESTING=True)
+        module.app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
         with module.app.app_context():
             module.db.drop_all()
             module.db.create_all()
@@ -27,6 +28,20 @@ def app_module(tmp_path, monkeypatch):
 @pytest.fixture()
 def client(app_module):
     return app_module.app.test_client()
+
+
+@pytest.fixture()
+def admin_user(app_module):
+    with app_module.app.app_context():
+        user = app_module.User(
+            username="csrf-admin",
+            password_hash=generate_password_hash("secret123", method="pbkdf2:sha256"),
+            has_password=True,
+            is_admin=True,
+        )
+        app_module.db.session.add(user)
+        app_module.db.session.commit()
+        return user.id
 
 
 def test_health_is_lightweight_and_does_not_probe_wenzhen(client, monkeypatch):
@@ -116,3 +131,38 @@ def test_rejected_form_api_request_uses_consistent_error_envelope(client):
     data = response.get_json()
     assert data["success"] is False
     assert data["error"] == "Invalid request"
+
+
+def test_csrf_protects_session_write_api_when_enabled(app_module, client, admin_user):
+    app_module.app.config.update(WTF_CSRF_ENABLED=True)
+    token_response = client.get("/api/csrf-token")
+    token = token_response.get_json()["csrf_token"]
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(admin_user)
+        sess["_fresh"] = True
+
+    rejected = client.post(
+        "/api/admin/change-password",
+        json={
+            "old_password": "secret123",
+            "new_password": "new-secret-12345",
+            "confirm_password": "new-secret-12345",
+        },
+    )
+
+    accepted = client.post(
+        "/api/admin/change-password",
+        json={
+            "old_password": "secret123",
+            "new_password": "new-secret-12345",
+            "confirm_password": "new-secret-12345",
+        },
+        headers={"X-CSRFToken": token},
+    )
+
+    assert rejected.status_code == 400
+    assert rejected.get_json()["success"] is False
+    assert accepted.status_code == 200
+    with app_module.app.app_context():
+        refreshed = app_module.db.session.get(app_module.User, admin_user)
+        assert check_password_hash(refreshed.password_hash, "new-secret-12345")

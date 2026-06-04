@@ -3951,12 +3951,6 @@ def handle_exception(e):
     return _error_response(e, 500, str(e) if app.debug else '服务器内部错误')
 
 
-for _cr in app.url_map.iter_rules():
-    if _cr.rule.startswith('/api/'):
-        _cf = app.view_functions.get(_cr.endpoint)
-        if _cf:
-            csrf.exempt(_cf)
-
 @app.before_request
 def _require_api_header():
     if request.method in ('POST', 'PUT', 'DELETE', 'PATCH') and request.path.startswith('/api/'):

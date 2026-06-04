@@ -19,7 +19,7 @@ def _fresh_import_app(tmp_path, monkeypatch):
             sys.modules.pop(name, None)
     sys.path.insert(0, BACKEND_DIR)
     module = importlib.import_module("app")
-    module.app.config.update(TESTING=True)
+    module.app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
     with module.app.app_context():
         module.db.drop_all()
         module.db.create_all()
