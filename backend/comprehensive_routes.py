@@ -631,7 +631,8 @@ def register_comprehensive_routes(app, db, services):
         if not tool_models and not is_followup:
             return Response(_event({'error': '请至少选择一个术数模型'}), mimetype='text/event-stream')
 
-        ai_run = start_ai_run('comprehensive', user_id=current_user.id, request_json={
+        current_user_id = current_user.id
+        ai_run = start_ai_run('comprehensive', user_id=current_user_id, request_json={
             'question': question,
             'tool_models': tool_models,
             'model_id': model_id,
@@ -707,7 +708,7 @@ def register_comprehensive_routes(app, db, services):
                     'artifact_actions': artifact_actions,
                     'tool_models': tool_models,
                 })
-                spend = spend_ai_quota_once(current_user.id, tool_models, cost, is_followup=is_followup)
+                spend = spend_ai_quota_once(current_user_id, tool_models, cost, is_followup=is_followup)
                 if not spend.get('ok'):
                     mark_ai_run_failed(ai_run.id, '积分不足', {'current': spend.get('current'), 'required': cost})
                     yield _event({'error': '积分不足', 'current': spend.get('current'), 'required': cost})
@@ -784,8 +785,8 @@ def register_comprehensive_routes(app, db, services):
                         full_text += chunk
                         yield _event({'summary': True, 'content': chunk})
                 conv = save_comprehensive_conversation(data, question, profile, tool_models, paipan_context, artifacts, model_id, cost, history, summary_text)
-                points_left = get_or_create_membership(current_user.id).points
-                membership = get_or_create_membership(current_user.id)
+                points_left = get_or_create_membership(current_user_id).points
+                membership = get_or_create_membership(current_user_id)
                 mark_ai_run_done(ai_run.id, {
                     'conversation_id': conv.id,
                     'points_left': points_left,
