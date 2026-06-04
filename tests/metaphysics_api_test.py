@@ -218,12 +218,17 @@ def test_meihua_ask_stream_uses_split_route_and_creates_record(app_module, user_
     assert any(item.get("length") == len("梅花解读正文") for item in payloads)
 
     with app_module.app.app_context():
+        membership = app_module.Membership.query.filter_by(user_id=member.id).one()
+        spend_log = app_module.PointLog.query.filter_by(user_id=member.id, action="meihua_reading").one()
         record = app_module.Record.query.filter_by(user_id=member.id, app_type="meihua").one()
+        assert membership.points == 15
+        assert spend_log.points == -5
+        assert spend_log.description == "梅花易数 AI 解读"
         assert record.question == "这件事能成吗"
         assert record.result_html == "梅花解读正文"
 
 
-def test_liuyao_ask_stream_sends_paipan_from_split_route(app_module, user_factory, monkeypatch):
+def test_liuyao_ask_stream_sends_paipan_and_records_point_spend(app_module, user_factory, monkeypatch):
     member = user_factory("liuyao-stream-user")
     with app_module.app.app_context():
         app_module.add_points(member.id, "admin_add", 20, "测试积分")
@@ -246,6 +251,67 @@ def test_liuyao_ask_stream_sends_paipan_from_split_route(app_module, user_factor
     payloads = _sse_payloads(response)
     assert any(item.get("本卦") == "泽水困" and item.get("变卦") == "水泽节" for item in payloads)
     assert {"content": "六爻解读正文"} in payloads
+
+    with app_module.app.app_context():
+        membership = app_module.Membership.query.filter_by(user_id=member.id).one()
+        spend_log = app_module.PointLog.query.filter_by(user_id=member.id, action="liuyao_reading").one()
+        record = app_module.Record.query.filter_by(user_id=member.id, app_type="liuyao").one()
+        assert membership.points == 15
+        assert spend_log.points == -5
+        assert spend_log.description == "六爻 AI 解读"
+        assert record.question == "合作能成吗"
+        assert record.result_html == "六爻解读正文"
+
+
+@pytest.mark.parametrize(
+    ("path", "payload", "action", "app_type"),
+    [
+        (
+            "/api/meihua/ask/stream",
+            {"question": "积分不足还能解吗", "method": "number", "num1": 7, "num2": 12},
+            "meihua_reading",
+            "meihua",
+        ),
+        (
+            "/api/liuyao/ask/stream",
+            {
+                "question": "积分不足还能解吗",
+                "mode": "manual",
+                "tosses": [[2, 2, 2], [2, 2, 3], [2, 3, 3], [3, 3, 3], [2, 3, 2], [3, 2, 3]],
+            },
+            "liuyao_reading",
+            "liuyao",
+        ),
+    ],
+)
+def test_metaphysics_ask_stream_rejects_insufficient_points_without_side_effects(
+    app_module, user_factory, monkeypatch, path, payload, action, app_type
+):
+    member = user_factory(f"{app_type}-poor-user")
+    with app_module.app.app_context():
+        app_module.add_points(member.id, "admin_add", 4, "不足 5 分")
+
+    monkeypatch.setattr(app_module, "deepseek_available", lambda: True)
+    monkeypatch.setattr(app_module, "get_reading_stream", lambda messages: iter([("不应调用", None)]))
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(member.id)
+        sess["_fresh"] = True
+
+    response = client.post(path, json=payload)
+
+    assert response.status_code == 200
+    payloads = _sse_payloads(response)
+    assert payloads == [{"message": "积分不足（需要 5 积分）"}]
+
+    with app_module.app.app_context():
+        membership = app_module.Membership.query.filter_by(user_id=member.id).one()
+        spend_logs = app_module.PointLog.query.filter_by(user_id=member.id, action=action).all()
+        records = app_module.Record.query.filter_by(user_id=member.id, app_type=app_type).all()
+        assert membership.points == 4
+        assert spend_logs == []
+        assert records == []
 
 
 def test_qimen_ask_stream_uses_split_route_and_creates_record(app_module, user_factory, monkeypatch):
