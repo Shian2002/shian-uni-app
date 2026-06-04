@@ -1,7 +1,33 @@
 """运行状态与运维类 API。"""
 
+import os
+import tempfile
+
 from flask import jsonify
 from flask_wtf.csrf import generate_csrf
+from sqlalchemy import text
+
+from extensions import db
+
+
+def _check_database():
+    try:
+        db.session.execute(text("SELECT 1")).scalar()
+        return {"available": True, "checked": True}
+    except Exception as exc:
+        return {"available": False, "checked": True, "error": str(exc)[:200]}
+
+
+def _check_upload_folder(app):
+    upload_dir = app.config.get("UPLOAD_FOLDER", "")
+    try:
+        os.makedirs(upload_dir, exist_ok=True)
+        with tempfile.NamedTemporaryFile(prefix=".health-", dir=upload_dir, delete=True) as fp:
+            fp.write(b"ok")
+            fp.flush()
+        return {"available": True, "checked": True, "path": upload_dir}
+    except Exception as exc:
+        return {"available": False, "checked": True, "path": upload_dir, "error": str(exc)[:200]}
 
 
 def register_ops_routes(app):
@@ -29,15 +55,20 @@ def register_ops_routes(app):
         from bazi_engine import check_wz_api_health, _WZ_HEALTH
 
         wz_ok = check_wz_api_health()
+        database = _check_database()
+        upload = _check_upload_folder(app)
+        success = bool(wz_ok and database["available"] and upload["available"])
         return jsonify({
-            'success': True,
-            'status': 'running',
+            'success': success,
+            'status': 'running' if success else 'degraded',
             'wz_api': {
                 'available': wz_ok,
                 'fail_count': _WZ_HEALTH.get('fail_count', 0),
                 'last_check': _WZ_HEALTH.get('last_check', 0),
                 'checked': True,
             },
+            'database': database,
+            'upload': upload,
         })
 
     @app.route('/api/csrf-token')

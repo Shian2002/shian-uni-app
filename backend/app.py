@@ -14,9 +14,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, make_response, Response, stream_with_context
 from flask_login import login_required, current_user
-from sqlalchemy import case, event, or_, update
+from sqlalchemy import event, or_
 from sqlalchemy.engine import Engine
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import OperationalError
 from deepseek_service import get_tarot_reading_stream, get_tarot_followup_stream, get_reading_stream, is_available as deepseek_available
 import urllib.parse
 
@@ -87,6 +87,16 @@ app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB 上传限制
 
 # ═══════ 初始化扩展（从 extensions 模块） ═══════
 from extensions import db, login_manager, csrf
+from points_service import (
+    MEMBER_TOOL_LIMIT,
+    POINT_RULES,
+    add_points,
+    create_daily_sign_in_once,
+    get_or_create_membership,
+    init_points_service,
+    spend_ai_quota_once,
+    use_points,
+)
 
 
 @event.listens_for(Engine, 'connect')
@@ -107,6 +117,7 @@ def _set_sqlite_connection_pragmas(dbapi_connection, connection_record):
 db.init_app(app)
 login_manager.init_app(app)
 csrf.init_app(app)
+init_points_service(db)
 
 # ── 启动时检查数据库表结构，添加缺失字段 ──
 # 使用模块级标志避免 Gunicorn 多 worker / reload 时重复执行
@@ -3703,113 +3714,6 @@ def record_admin_audit(action, target_type, target_id=None, detail=None):
 # 商业化与会员体系 API
 # ═══════════════════════════════════════════════════════════════
 
-# 积分规则
-POINT_RULES = {
-    'sign_in': 10,
-    'tool_use': -5,   # 免费用户 -5，会员 0
-    'post': 5,
-    'comment': 2,
-    'liked': 1,        # 被点赞
-    'purchased': 0,    # 作者被购买内容获得 70%，动态计算
-}
-
-# 会员等级对应的每日工具使用限制（-1 表示不限）
-MEMBER_TOOL_LIMIT = {
-    'free': 3,
-    'basic': -1,
-    'premium': -1,
-    'vip': -1,
-}
-
-def get_or_create_membership(user_id, commit=True):
-    """获取或创建会员记录"""
-    m = Membership.query.filter_by(user_id=user_id).first()
-    if not m:
-        m = Membership(user_id=user_id, level='free', points=0)
-        db.session.add(m)
-        if commit:
-            db.session.commit()
-        else:
-            db.session.flush()
-    return m
-
-def add_points(user_id, action, points, description='', dedupe_key=None, commit=True):
-    """添加积分日志并更新会员积分。
-
-    commit=False 时由外层事务统一提交，用于订单确认等复合操作。
-    dedupe_key 用于同一业务动作幂等，例如每日签到和订单到账。
-    """
-    try:
-        log = PointLog(
-            user_id=user_id,
-            action=action,
-            points=points,
-            description=description,
-            dedupe_key=dedupe_key,
-        )
-        db.session.add(log)
-        get_or_create_membership(user_id, commit=False)
-        db.session.flush()
-        db.session.execute(
-            update(Membership)
-            .where(Membership.user_id == user_id)
-            .values(
-                points=case(
-                    (Membership.points + points < 0, 0),
-                    else_=Membership.points + points,
-                ),
-                updated_at=datetime.utcnow(),
-            )
-        )
-        db.session.flush()
-        new_points = Membership.query.filter_by(user_id=user_id).with_entities(Membership.points).scalar()
-        if commit:
-            db.session.commit()
-        return new_points
-    except IntegrityError:
-        db.session.rollback()
-        raise
-
-def create_daily_sign_in_once(user_id):
-    """每日签到幂等写入，同一用户同一天只加一次积分。"""
-    today = datetime.utcnow().strftime('%Y-%m-%d')
-    dedupe_key = f'sign_in:{user_id}:{today}'
-    try:
-        new_points = add_points(
-            user_id,
-            'sign_in',
-            POINT_RULES['sign_in'],
-            '每日签到',
-            dedupe_key=dedupe_key,
-        )
-        return {'ok': True, 'points': new_points, 'added': POINT_RULES['sign_in']}
-    except IntegrityError:
-        return {'ok': False, 'error': '今天已签到'}
-
-def use_points(user_id, action, points, description='', commit=True):
-    """原子扣减积分，余额不足时不写日志。"""
-    if points <= 0:
-        return {'ok': False, 'error': 'points 须为正整数'}
-    get_or_create_membership(user_id, commit=False)
-    changed = Membership.query.filter(
-        Membership.user_id == user_id,
-        Membership.points >= points,
-    ).update(
-        {'points': Membership.points - points, 'updated_at': datetime.utcnow()},
-        synchronize_session=False,
-    )
-    if changed != 1:
-        db.session.rollback()
-        m = get_or_create_membership(user_id)
-        return {'ok': False, 'error': '积分不足', 'current': m.points, 'required': points}
-    log = PointLog(user_id=user_id, action=action, points=-points, description=description)
-    db.session.add(log)
-    db.session.flush()
-    new_points = Membership.query.filter_by(user_id=user_id).with_entities(Membership.points).scalar()
-    if commit:
-        db.session.commit()
-    return {'ok': True, 'points': new_points, 'used': points}
-
 def check_tool_limit(user):
     """检查用户当日工具使用次数，返回 (allowed, current_count, limit)"""
     today = datetime.utcnow().strftime('%Y-%m-%d')
@@ -3833,7 +3737,7 @@ from bazi_routes import register_bazi_routes
 from calendar_routes import register_calendar_routes
 from community_routes import register_community_routes
 from comprehensive_routes import register_comprehensive_routes
-from media_routes import allowed_file, register_media_routes
+from media_routes import allowed_file, register_media_routes, validate_image_upload
 from metaphysics_ask_routes import register_metaphysics_ask_routes
 from metaphysics_routes import register_metaphysics_routes
 from ops_routes import register_ops_routes
@@ -3892,7 +3796,7 @@ register_calendar_routes(app, {
 })
 register_recharge_routes(app, db, {
     'confirm_recharge_order_once': confirm_recharge_order_once,
-    'allowed_file': allowed_file,
+    'validate_image_upload': validate_image_upload,
 })
 register_community_routes(app, db, {
     'allowed_file': allowed_file,
@@ -3903,7 +3807,7 @@ register_media_routes(app, db, {
 })
 register_comprehensive_routes(app, db, {
     'get_or_create_membership': get_or_create_membership,
-    'use_points': use_points,
+    'spend_ai_quota_once': spend_ai_quota_once,
     'qimen_paipan': _qimen_paipan,
     'liuyao_paipan': _liuyao_paipan,
     'meihua_paipan': _meihua_paipan,
@@ -4058,7 +3962,7 @@ def _require_api_header():
     if request.method in ('POST', 'PUT', 'DELETE', 'PATCH') and request.path.startswith('/api/'):
         ct = request.content_type or ''
         if 'application/x-www-form-urlencoded' in ct and not request.headers.get('X-Requested-With') and not request.headers.get('Authorization'):
-            return jsonify({'error': 'Invalid request'}), 400
+            return jsonify({'success': False, 'error': 'Invalid request'}), 400
 
 
 if __name__ == '__main__':

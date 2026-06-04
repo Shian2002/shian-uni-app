@@ -222,6 +222,22 @@ ALERT_EMAIL_TO=你的邮箱 ALERT_WECHAT_MENTION_MOBILE=你的手机号 bash scr
 ssh -i ~/.ssh/deploy_key lighthouse@119.29.128.18 "sudo systemctl start xuan-cet-alert-check.service && sudo journalctl -u xuan-cet-alert-check.service -n 80 --no-pager"
 ```
 
+手动深度健康检查：
+
+```bash
+curl -sS http://127.0.0.1:5199/api/health/deep
+```
+
+`/api/health/deep` 会主动检查问真 API、数据库连通性和上传目录可写性；其中任一项失败时返回 `status: degraded`。
+
+数据库只读审计：
+
+```bash
+python3 scripts/production_db_audit.py /home/lighthouse/tianji/flask-source/backend/tianji.db
+```
+
+审计脚本只读打开 SQLite，检查关键表、完整性、负积分、孤儿会员记录、孤儿积分日志和重复积分幂等键。发现异常时先备份，再按数据事故处理，不要用本地库覆盖线上库。
+
 ## 4. 备份恢复演练
 
 恢复演练只操作临时目录，不碰生产库：

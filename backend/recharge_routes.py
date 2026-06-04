@@ -206,16 +206,11 @@ def _ocr_payment_image(path):
     return '\n'.join(t for t in texts if t)
 
 
-def _save_recharge_proof_file(app, allowed_file, file_storage):
+def _save_recharge_proof_file(app, validate_image_upload, file_storage):
     """保存付款截图并返回 URL、哈希和 OCR 文本。"""
     if not file_storage or not file_storage.filename:
         return None, '', ''
-    if not allowed_file(file_storage.filename):
-        raise ValueError('不支持的文件格式，仅支持 jpg/png/gif/webp')
-    ext = file_storage.filename.rsplit('.', 1)[1].lower()
-    raw = file_storage.read()
-    if not raw:
-        raise ValueError('付款截图为空')
+    ext, raw = validate_image_upload(file_storage)
     proof_hash = hashlib.sha256(raw).hexdigest()
     upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'recharge')
     os.makedirs(upload_dir, exist_ok=True)
@@ -230,7 +225,7 @@ def _save_recharge_proof_file(app, allowed_file, file_storage):
 def register_recharge_routes(app, db, services):
     """注册 /api/recharge/* 路由。"""
     confirm_recharge_order_once = services['confirm_recharge_order_once']
-    allowed_file = services['allowed_file']
+    validate_image_upload = services['validate_image_upload']
 
     @app.route('/api/recharge/packages', methods=['GET'])
     def api_recharge_packages():
@@ -289,7 +284,7 @@ def register_recharge_routes(app, db, services):
         try:
             proof_file = request.files.get('file') or request.files.get('payment_proof')
             if proof_file:
-                proof_url, image_hash, ocr_text = _save_recharge_proof_file(app, allowed_file, proof_file)
+                proof_url, image_hash, ocr_text = _save_recharge_proof_file(app, validate_image_upload, proof_file)
                 proof_hash = proof_hash or image_hash
                 if ocr_text:
                     proof_text = (proof_text + '\n' + ocr_text).strip()

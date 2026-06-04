@@ -3,10 +3,16 @@ import io
 import json
 import os
 import sys
+import base64
 from types import SimpleNamespace
 
 import pytest
 from werkzeug.security import check_password_hash, generate_password_hash
+
+
+PNG_1X1 = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC"
+)
 
 
 @pytest.fixture()
@@ -98,6 +104,70 @@ def test_use_points_does_not_write_log_when_balance_is_insufficient(app_module, 
         assert result["error"] == "积分不足"
         assert membership.points == 5
         assert logs == []
+
+
+def test_app_uses_central_points_service(app_module):
+    assert app_module.add_points.__module__ == "points_service"
+    assert app_module.use_points.__module__ == "points_service"
+    assert app_module.create_daily_sign_in_once.__module__ == "points_service"
+    assert app_module.spend_ai_quota_once.__module__ == "points_service"
+
+
+def test_spend_ai_quota_once_uses_daily_light_before_points(app_module, user_factory):
+    user = user_factory()
+
+    with app_module.app.app_context():
+        app_module.add_points(user.id, "admin_add", 5, "初始积分")
+
+        result = app_module.spend_ai_quota_once(user.id, ["bazi"], 2)
+
+        membership = app_module.Membership.query.filter_by(user_id=user.id).one()
+        logs = app_module.PointLog.query.filter_by(user_id=user.id, action="daily_ai_light").all()
+        assert result["ok"] is True
+        assert result["used_credit"] == "daily_light"
+        assert result["used"] == 0
+        assert membership.points == 5
+        assert membership.daily_ai_light_used_at
+        assert len(logs) == 1
+
+
+def test_spend_ai_quota_once_deducts_combo_credit_atomically(app_module, user_factory):
+    user = user_factory()
+
+    with app_module.app.app_context():
+        membership = app_module.get_or_create_membership(user.id)
+        membership.ai_combo_credits = 1
+        app_module.db.session.commit()
+
+        result = app_module.spend_ai_quota_once(user.id, ["bazi", "ziwei"], 8)
+
+        membership = app_module.Membership.query.filter_by(user_id=user.id).one()
+        logs = app_module.PointLog.query.filter_by(user_id=user.id, action="ai_combo_credit_use").all()
+        assert result["ok"] is True
+        assert result["used_credit"] == "ai_combo_credits"
+        assert result["used"] == 1
+        assert membership.ai_combo_credits == 0
+        assert len(logs) == 1
+
+
+def test_spend_ai_quota_once_falls_back_to_points(app_module, user_factory):
+    user = user_factory()
+
+    with app_module.app.app_context():
+        app_module.add_points(user.id, "admin_add", 12, "初始积分")
+        membership = app_module.get_or_create_membership(user.id)
+        membership.daily_ai_light_used_at = app_module.datetime.utcnow().strftime("%Y-%m-%d")
+        app_module.db.session.commit()
+
+        result = app_module.spend_ai_quota_once(user.id, ["bazi"], 7)
+
+        membership = app_module.Membership.query.filter_by(user_id=user.id).one()
+        logs = app_module.PointLog.query.filter_by(user_id=user.id, action="comprehensive_ai").all()
+        assert result["ok"] is True
+        assert result["used_credit"] == "points"
+        assert result["used"] == 7
+        assert membership.points == 5
+        assert len(logs) == 1
 
 
 def test_recharge_confirmation_only_pays_pending_order_once(app_module, user_factory):
@@ -852,6 +922,41 @@ def test_recharge_screenshot_proof_cannot_be_reused(app_module, user_factory):
     assert response.get_json()["error"] == "付款截图已提交过"
 
 
+def test_recharge_screenshot_rejects_disguised_image_file(app_module, user_factory):
+    member = user_factory("fake-proof-buyer")
+
+    with app_module.app.app_context():
+        order = app_module.RechargeOrder(
+            user_id=member.id,
+            package_id="starter",
+            package_name="体验包",
+            points=60,
+            amount=9.9,
+            status="pending",
+        )
+        app_module.db.session.add(order)
+        app_module.db.session.commit()
+        order_id = order.id
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(member.id)
+        sess["_fresh"] = True
+
+    response = client.post(
+        "/api/recharge/verify-payment",
+        data={
+            "order_id": str(order_id),
+            "paid_amount": "9.9",
+            "file": (io.BytesIO(b"not a real image"), "proof.png"),
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "图片内容无法识别"
+
+
 def test_alipay_recharge_verification_rejects_mismatched_amount(app_module, user_factory):
     member = user_factory("mismatch-buyer")
 
@@ -1181,7 +1286,7 @@ def test_upload_saves_allowed_file_for_logged_in_user(app_module, user_factory, 
 
     response = client.post(
         "/api/upload",
-        data={"file": (io.BytesIO(b"fake image"), "proof.png")},
+        data={"file": (io.BytesIO(PNG_1X1), "proof.png")},
         content_type="multipart/form-data",
     )
 
@@ -1189,3 +1294,22 @@ def test_upload_saves_allowed_file_for_logged_in_user(app_module, user_factory, 
     data = response.get_json()
     assert data["url"].startswith("/static/uploads/")
     assert (upload_dir / data["filename"]).exists()
+
+
+def test_upload_rejects_disguised_image_file(app_module, user_factory, tmp_path):
+    user = user_factory("upload-fake")
+    upload_dir = tmp_path / "uploads"
+    app_module.app.config["UPLOAD_FOLDER"] = str(upload_dir)
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(user.id)
+
+    response = client.post(
+        "/api/upload",
+        data={"file": (io.BytesIO(b"not a real image"), "proof.png")},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "图片内容无法识别"
+    assert not upload_dir.exists()

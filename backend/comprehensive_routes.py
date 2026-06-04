@@ -19,7 +19,7 @@ from comprehensive_ai import (
     build_summary_messages,
 )
 from deepseek_service import get_reading_stream
-from models import ComprehensiveConversation, PointLog, UserProfile
+from models import ComprehensiveConversation, UserProfile
 
 
 _TOOL_DISPLAY = {'bazi': '八字', 'ziwei': '紫微斗数', 'qimen': '奇门遁甲', 'liuyao': '六爻', 'meihua': '梅花易数', 'tarot': '塔罗牌', 'zeji': '择吉工具'}
@@ -28,7 +28,7 @@ _TOOL_DISPLAY = {'bazi': '八字', 'ziwei': '紫微斗数', 'qimen': '奇门遁�
 def register_comprehensive_routes(app, db, services):
     """注册首页综合 AI 相关路由。"""
     get_or_create_membership = services['get_or_create_membership']
-    use_points = services['use_points']
+    spend_ai_quota_once = services['spend_ai_quota_once']
     qimen_paipan = services['qimen_paipan']
     liuyao_paipan = services['liuyao_paipan']
     meihua_paipan = services['meihua_paipan']
@@ -526,36 +526,6 @@ def register_comprehensive_routes(app, db, services):
         return conv
 
 
-    def spend_comprehensive_quota(user_id, tool_models, cost, is_followup=False):
-        membership = get_or_create_membership(user_id)
-        today = datetime.utcnow().strftime('%Y-%m-%d')
-        if not is_followup and cost <= 2 and membership.daily_ai_light_used_at != today:
-            membership.daily_ai_light_used_at = today
-            db.session.add(PointLog(
-                user_id=user_id,
-                action='daily_ai_light',
-                points=0,
-                description='每日轻量 AI 体验额度',
-                dedupe_key=f'daily_ai_light:{user_id}:{today}',
-            ))
-            db.session.commit()
-            return {'ok': True, 'points': membership.points, 'used_credit': 'daily_light', 'used': 0}
-        if not is_followup:
-            if len(tool_models or []) > 1 and int(membership.ai_combo_credits or 0) > 0:
-                membership.ai_combo_credits = int(membership.ai_combo_credits or 0) - 1
-                db.session.add(PointLog(user_id=user_id, action='ai_combo_credit_use', points=0, description='首页多术数合参次数 -1'))
-                db.session.commit()
-                return {'ok': True, 'points': membership.points, 'used_credit': 'ai_combo_credits', 'used': 1}
-            if len(tool_models or []) == 1 and int(membership.ai_single_credits or 0) > 0:
-                membership.ai_single_credits = int(membership.ai_single_credits or 0) - 1
-                db.session.add(PointLog(user_id=user_id, action='ai_single_credit_use', points=0, description='首页单术数 AI 次数 -1'))
-                db.session.commit()
-                return {'ok': True, 'points': membership.points, 'used_credit': 'ai_single_credits', 'used': 1}
-        spend = use_points(user_id, 'comprehensive_ai', cost, '综合 AI ' + ('追问' if is_followup else '解读'))
-        spend['used_credit'] = 'points' if spend.get('ok') else ''
-        return spend
-
-
     @app.route('/api/comprehensive/options')
     @login_required
     def api_comprehensive_options():
@@ -737,7 +707,7 @@ def register_comprehensive_routes(app, db, services):
                     'artifact_actions': artifact_actions,
                     'tool_models': tool_models,
                 })
-                spend = spend_comprehensive_quota(current_user.id, tool_models, cost, is_followup=is_followup)
+                spend = spend_ai_quota_once(current_user.id, tool_models, cost, is_followup=is_followup)
                 if not spend.get('ok'):
                     mark_ai_run_failed(ai_run.id, '积分不足', {'current': spend.get('current'), 'required': cost})
                     yield _event({'error': '积分不足', 'current': spend.get('current'), 'required': cost})
