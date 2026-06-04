@@ -26,6 +26,21 @@ function assertCondition(condition, message) {
   if (!condition) throw new Error(message)
 }
 
+async function checkApiHealth() {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const response = await fetch(`${baseUrl}/api/health`, { signal: controller.signal })
+    assertCondition(response.ok, `健康检查 HTTP 状态异常: ${response.status}`)
+    const data = await response.json()
+    assertCondition(data.success === true, '健康检查 success 不是 true')
+    assertCondition(data.status === 'running', `健康检查 status 异常: ${data.status}`)
+    return { name: '后端健康', status: data.status, success: data.success }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 async function pageSummary(page) {
   return await page.evaluate(() => ({
     href: location.href,
@@ -88,9 +103,38 @@ async function checkLoginModal(browser) {
   assertCondition(modal.visible, '登录弹窗未打开')
   assertCondition(modal.userInput, '登录用户名输入框不存在')
   assertCondition(modal.passInput, '登录密码输入框不存在')
+
+  const registerState = await page.evaluate(() => {
+    const link = document.querySelector('.register-link')
+    if (!link) throw new Error('找不到注册入口')
+    link.click()
+    const modalRoot = document.querySelector('#topnavLoginModal.open') || document
+    const title = (modalRoot.querySelector('.modal-title')?.textContent || '').trim()
+    const primary = (modalRoot.querySelector('.modal-btns .btn-accent')?.textContent || '').trim()
+    const error = (modalRoot.querySelector('#tnLoginError')?.textContent || '').trim()
+    return { title, primary, error }
+  })
+  assertCondition(registerState.title === '注册', `注册弹窗标题异常: ${registerState.title}`)
+  assertCondition(registerState.primary === '注册', `注册主按钮异常: ${registerState.primary}`)
+  assertCondition(registerState.error.includes('请填写用户名和密码完成注册'), '注册提示文案异常')
+
+  const loginState = await page.evaluate(() => {
+    const link = document.querySelector('.login-link')
+    if (!link) throw new Error('找不到返回登录入口')
+    link.click()
+    const modalRoot = document.querySelector('#topnavLoginModal.open') || document
+    const title = (modalRoot.querySelector('.modal-title')?.textContent || '').trim()
+    const primary = (modalRoot.querySelector('.modal-btns .btn-accent')?.textContent || '').trim()
+    const hint = (modalRoot.querySelector('.modal-hint')?.textContent || '').trim()
+    return { title, primary, hint }
+  })
+  assertCondition(loginState.title === '登录', `返回登录标题异常: ${loginState.title}`)
+  assertCondition(loginState.primary === '登录', `返回登录主按钮异常: ${loginState.primary}`)
+  assertCondition(loginState.hint.includes('没有账号？立即注册'), '返回登录提示文案异常')
+
   assertCondition(errors.length === 0, `登录弹窗控制台错误: ${errors.slice(0, 3).join(' | ')}`)
   await page.close()
-  return { name: '登录弹窗', ...modal }
+  return { name: '登录/注册弹窗', ...modal, registerState, loginState }
 }
 
 async function checkMobileHome(browser) {
@@ -118,6 +162,7 @@ async function main() {
   const browser = await chromium.launch({ headless: true })
   try {
     const results = []
+    results.push(await checkApiHealth())
     for (let i = 0; i < pages.length; i += 1) {
       results.push(await checkRoute(browser, pages[i], i))
     }
