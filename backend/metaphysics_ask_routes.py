@@ -312,7 +312,8 @@ def register_metaphysics_ask_routes(app, db, services):
             return _error_stream('请输入您的问题')
 
         cost = 1 if is_followup else 5
-        spend = use_points(current_user.id, 'liuyao_reading', cost, '六爻 AI ' + ('追问' if is_followup else '解读'))
+        user_id = current_user.id
+        spend = use_points(user_id, 'liuyao_reading', cost, '六爻 AI ' + ('追问' if is_followup else '解读'))
         if not spend.get('ok'):
             return _error_stream(f'积分不足（需要 {cost} 积分）')
 
@@ -355,7 +356,7 @@ def register_metaphysics_ask_routes(app, db, services):
 
                 if not is_followup:
                     try:
-                        rec = Record(user_id=current_user.id, app_type='liuyao', question=question, result_html=full_text)
+                        rec = Record(user_id=user_id, app_type='liuyao', question=question, result_html=full_text)
                         db.session.add(rec)
                         db.session.commit()
                     except Exception:
@@ -418,7 +419,8 @@ def register_metaphysics_ask_routes(app, db, services):
             return _error_stream('请输入您的问题')
 
         cost = 1 if is_followup else 5
-        spend = use_points(current_user.id, 'meihua_reading', cost, '梅花易数 AI ' + ('追问' if is_followup else '解读'))
+        user_id = current_user.id
+        spend = use_points(user_id, 'meihua_reading', cost, '梅花易数 AI ' + ('追问' if is_followup else '解读'))
         if not spend.get('ok'):
             return _error_stream(f'积分不足（需要 {cost} 积分）')
 
@@ -464,7 +466,7 @@ def register_metaphysics_ask_routes(app, db, services):
 
                 if not is_followup:
                     try:
-                        rec = Record(user_id=current_user.id, app_type='meihua', question=question, result_html=full_text)
+                        rec = Record(user_id=user_id, app_type='meihua', question=question, result_html=full_text)
                         db.session.add(rec)
                         db.session.commit()
                     except Exception:
