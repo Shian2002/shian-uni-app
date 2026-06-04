@@ -345,7 +345,8 @@ def migrate_db():
         # 2. 创建新表（如果不存在）
         for tbl in ['user_profile', 'follow_up', 'collection', 'post', 'comment', 'master', 'post_like',
                      'membership', 'point_log', 'paid_content', 'purchase', 'recharge_order',
-                     'admin_audit_log', 'tarot_conversation']:
+                     'admin_audit_log', 'tarot_conversation', 'migration_record', 'verification_code',
+                     'rate_limit_bucket', 'ai_run']:
             try:
                 db.session.execute(db.text(f'SELECT 1 FROM {tbl} LIMIT 1'))
             except Exception:

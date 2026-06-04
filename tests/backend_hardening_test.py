@@ -51,6 +51,23 @@ def test_operational_hardening_tables_are_declared_in_models_and_schema():
         assert f"CREATE TABLE IF NOT EXISTS {table}" in schema_sql
 
 
+def test_legacy_database_migration_creates_operational_hardening_tables(app_module):
+    with app_module.app.app_context():
+        for table in ["migration_record", "verification_code", "rate_limit_bucket", "ai_run"]:
+            app_module.db.session.execute(app_module.db.text(f"DROP TABLE IF EXISTS {table}"))
+        app_module.db.session.commit()
+
+        app_module.migrate_db()
+
+        tables = {
+            row[0]
+            for row in app_module.db.session.execute(app_module.db.text(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            )).fetchall()
+        }
+    assert {"migration_record", "verification_code", "rate_limit_bucket", "ai_run"}.issubset(tables)
+
+
 def test_sqlite_connections_use_wal_busy_timeout_and_foreign_keys(app_module):
     with app_module.app.app_context():
         journal_mode = app_module.db.session.execute(app_module.db.text("PRAGMA journal_mode")).scalar()
