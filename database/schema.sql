@@ -401,3 +401,54 @@ CREATE TABLE IF NOT EXISTS comprehensive_conversation (
 );
 CREATE INDEX IF NOT EXISTS ix_comprehensive_conversation_user_id ON comprehensive_conversation(user_id);
 CREATE INDEX IF NOT EXISTS ix_comprehensive_conversation_user_updated ON comprehensive_conversation(user_id, updated_at);
+
+-- 启动迁移登记
+CREATE TABLE IF NOT EXISTS migration_record (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    migration_key VARCHAR(120) NOT NULL UNIQUE,
+    status VARCHAR(20) NOT NULL DEFAULT 'applied',
+    detail TEXT DEFAULT '',
+    applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS ix_migration_record_migration_key ON migration_record(migration_key);
+CREATE INDEX IF NOT EXISTS ix_migration_record_applied_at ON migration_record(applied_at);
+
+-- 验证码持久化
+CREATE TABLE IF NOT EXISTS verification_code (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code_key VARCHAR(160) NOT NULL UNIQUE,
+    code_hash VARCHAR(128) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS ix_verification_code_code_key ON verification_code(code_key);
+CREATE INDEX IF NOT EXISTS ix_verification_code_expires_at ON verification_code(expires_at);
+
+-- 限流桶持久化
+CREATE TABLE IF NOT EXISTS rate_limit_bucket (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    bucket_key VARCHAR(160) NOT NULL UNIQUE,
+    count INTEGER NOT NULL DEFAULT 0,
+    window_started_at DATETIME NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS ix_rate_limit_bucket_bucket_key ON rate_limit_bucket(bucket_key);
+CREATE INDEX IF NOT EXISTS ix_rate_limit_bucket_window_started_at ON rate_limit_bucket(window_started_at);
+
+-- AI/SSE 任务生命周期
+CREATE TABLE IF NOT EXISTS ai_run (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind VARCHAR(40) NOT NULL,
+    user_id INTEGER,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    request_json TEXT DEFAULT '',
+    response_json TEXT DEFAULT '',
+    error TEXT DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    started_at DATETIME,
+    finished_at DATETIME
+);
+CREATE INDEX IF NOT EXISTS ix_ai_run_kind ON ai_run(kind);
+CREATE INDEX IF NOT EXISTS ix_ai_run_user_id ON ai_run(user_id);
+CREATE INDEX IF NOT EXISTS ix_ai_run_status ON ai_run(status);
+CREATE INDEX IF NOT EXISTS ix_ai_run_created_at ON ai_run(created_at);

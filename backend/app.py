@@ -14,7 +14,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, make_response, Response, stream_with_context
 from flask_login import login_required, current_user
-from sqlalchemy import case, or_, update
+from sqlalchemy import case, event, or_, update
+from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError, OperationalError
 from deepseek_service import get_tarot_reading_stream, get_tarot_followup_stream, get_reading_stream, is_available as deepseek_available
 import urllib.parse
@@ -86,6 +87,23 @@ app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB 上传限制
 
 # ═══════ 初始化扩展（从 extensions 模块） ═══════
 from extensions import db, login_manager, csrf
+
+
+@event.listens_for(Engine, 'connect')
+def _set_sqlite_connection_pragmas(dbapi_connection, connection_record):
+    """统一 SQLite 连接参数，降低生产并发写入和锁等待风险。"""
+    module_name = getattr(dbapi_connection.__class__, '__module__', '')
+    if 'sqlite3' not in module_name:
+        return
+    cursor = dbapi_connection.cursor()
+    try:
+        cursor.execute('PRAGMA busy_timeout=5000')
+        cursor.execute('PRAGMA foreign_keys=ON')
+        cursor.execute('PRAGMA journal_mode=WAL')
+    finally:
+        cursor.close()
+
+
 db.init_app(app)
 login_manager.init_app(app)
 csrf.init_app(app)
@@ -132,10 +150,23 @@ Compress(app)
 # ═══════ 静态文件缓存 ═══════
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 3600  # 静态文件缓存1小时
 
+
+@app.after_request
+def add_security_headers(response):
+    """基础安全响应头，不改变现有 API 鉴权方式。"""
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+    response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    return response
+
+
 # ═══════ 导入数据模型（必须在 db.init_app 之后） ═══════
 from models import User, Record, UserProfile
 from models import Post, Master, Membership, PointLog, PaidContent, Purchase, RechargeOrder, AdminAuditLog, TarotConversation, LiuyaoConversation, MeihuaConversation, QimenConversation, BaziConversation, ZiweiConversation, ComprehensiveConversation
+from models import MigrationRecord, VerificationCode, RateLimitBucket, AiRun
 from models import BaziRecord
+from ai_runs import start_ai_run, mark_ai_run_running, mark_ai_run_done, mark_ai_run_failed
+from migrations import record_migration_applied
 
 # ═══════ 农历转公历 ═══════
 def lunar_to_solar(birth_time, cal_type):
@@ -608,6 +639,8 @@ def migrate_db():
                     logger.info(f"[DB] 已为 {count} 条旧 BaziConversation 创建 Record")
         except Exception as e:
             logger.warning(f"bazi backfill 迁移失败: {e}")
+
+        record_migration_applied('legacy_startup_migrate_db', '启动时兼容迁移已执行', logger=logger)
 
 # ── 启动时运行数据库迁移（在 migrate_db 定义之后调用）──
 if not _startup_checks_done:
@@ -3785,7 +3818,7 @@ def check_tool_limit(user):
     return user.daily_tool_count < limit, user.daily_tool_count, limit
 
 from admin_routes import register_admin_routes
-from auth_channel_routes import _check_code, _check_rate_limit, register_auth_channel_routes
+from auth_channel_routes import _check_code, _check_rate_limit, _store_code, register_auth_channel_routes
 from auth_routes import register_auth_routes
 from bazi_history_routes import register_bazi_history_routes
 from bazi_ask_routes import register_bazi_ask_routes

@@ -1,6 +1,7 @@
 """运行状态与运维类 API。"""
 
 from flask import jsonify
+from flask_wtf.csrf import generate_csrf
 
 
 def register_ops_routes(app):
@@ -38,3 +39,8 @@ def register_ops_routes(app):
                 'checked': True,
             },
         })
+
+    @app.route('/api/csrf-token')
+    def api_csrf_token():
+        """给 H5 前端逐步接入 CSRF 保护使用。"""
+        return jsonify({'csrf_token': generate_csrf()})

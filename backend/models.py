@@ -408,3 +408,48 @@ class ComprehensiveConversation(db.Model):
     messages_json = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class MigrationRecord(db.Model):
+    """启动迁移登记，避免重要迁移只靠日志留痕。"""
+    __tablename__ = 'migration_record'
+    id = db.Column(db.Integer, primary_key=True)
+    migration_key = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    status = db.Column(db.String(20), default='applied', nullable=False)
+    detail = db.Column(db.Text, default='')
+    applied_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+
+class VerificationCode(db.Model):
+    """短信/邮箱验证码，跨 Gunicorn worker 持久化。"""
+    __tablename__ = 'verification_code'
+    id = db.Column(db.Integer, primary_key=True)
+    code_key = db.Column(db.String(160), unique=True, nullable=False, index=True)
+    code_hash = db.Column(db.String(128), nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class RateLimitBucket(db.Model):
+    """接口限流桶，跨 worker 共享窗口计数。"""
+    __tablename__ = 'rate_limit_bucket'
+    id = db.Column(db.Integer, primary_key=True)
+    bucket_key = db.Column(db.String(160), unique=True, nullable=False, index=True)
+    count = db.Column(db.Integer, default=0, nullable=False)
+    window_started_at = db.Column(db.DateTime, nullable=False, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AiRun(db.Model):
+    """AI/SSE 任务生命周期记录。"""
+    __tablename__ = 'ai_run'
+    id = db.Column(db.Integer, primary_key=True)
+    kind = db.Column(db.String(40), nullable=False, index=True)
+    user_id = db.Column(db.Integer, nullable=True, index=True)
+    status = db.Column(db.String(20), default='pending', nullable=False, index=True)
+    request_json = db.Column(db.Text, default='')
+    response_json = db.Column(db.Text, default='')
+    error = db.Column(db.Text, default='')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    started_at = db.Column(db.DateTime)
+    finished_at = db.Column(db.DateTime)

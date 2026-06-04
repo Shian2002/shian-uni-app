@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from flask import Response, jsonify, request, stream_with_context
 from flask_login import current_user, login_required
 
+from ai_runs import mark_ai_run_done, mark_ai_run_failed, mark_ai_run_running, start_ai_run
 from comprehensive_ai import (
     COMPREHENSIVE_LLM_MODELS,
     COMPREHENSIVE_TOOL_MODELS,
@@ -660,9 +661,18 @@ def register_comprehensive_routes(app, db, services):
         if not tool_models and not is_followup:
             return Response(_event({'error': '请至少选择一个术数模型'}), mimetype='text/event-stream')
 
+        ai_run = start_ai_run('comprehensive', user_id=current_user.id, request_json={
+            'question': question,
+            'tool_models': tool_models,
+            'model_id': model_id,
+            'is_followup': is_followup,
+            'profile_count': profile_count,
+        })
+
         def generate():
             try:
-                yield _event({'stage': 'profile', 'message': '正在读取命盘档案'})
+                mark_ai_run_running(ai_run.id)
+                yield _event({'run_id': ai_run.id, 'stage': 'profile', 'message': '正在读取命盘档案'})
                 profiles = resolve_comprehensive_profiles(data)
                 profile_count = len(profiles)
                 profile = profiles[0] if profile_count == 1 else profiles
@@ -729,6 +739,7 @@ def register_comprehensive_routes(app, db, services):
                 })
                 spend = spend_comprehensive_quota(current_user.id, tool_models, cost, is_followup=is_followup)
                 if not spend.get('ok'):
+                    mark_ai_run_failed(ai_run.id, '积分不足', {'current': spend.get('current'), 'required': cost})
                     yield _event({'error': '积分不足', 'current': spend.get('current'), 'required': cost})
                     return
                 full_text = ''
@@ -749,6 +760,7 @@ def register_comprehensive_routes(app, db, services):
                     full_text += '\n\n【%s解析】\n' % tool_name
                     for chunk, error in get_reading_stream_func()(tool_messages):
                         if error:
+                            mark_ai_run_failed(ai_run.id, error, {'tool': tool})
                             yield _event({'error': error})
                             return
                         if chunk:
@@ -777,6 +789,7 @@ def register_comprehensive_routes(app, db, services):
                         full_text += '\n\n【大运流年流月解析】\n'
                         for chunk, error in get_reading_stream_func()(yun_messages):
                             if error:
+                                mark_ai_run_failed(ai_run.id, error, {'tool': tool, 'tool_key': 'bazi.yun'})
                                 yield _event({'error': error})
                                 return
                             if chunk:
@@ -793,6 +806,7 @@ def register_comprehensive_routes(app, db, services):
                 full_text += '\n\n【综合合参总结】\n'
                 for chunk, error in get_reading_stream_func()(summary_messages):
                     if error:
+                        mark_ai_run_failed(ai_run.id, error, {'stage': 'summary'})
                         yield _event({'error': error})
                         return
                     if chunk:
@@ -802,8 +816,15 @@ def register_comprehensive_routes(app, db, services):
                 conv = save_comprehensive_conversation(data, question, profile, tool_models, paipan_context, artifacts, model_id, cost, history, summary_text)
                 points_left = get_or_create_membership(current_user.id).points
                 membership = get_or_create_membership(current_user.id)
+                mark_ai_run_done(ai_run.id, {
+                    'conversation_id': conv.id,
+                    'points_left': points_left,
+                    'used_credit': spend.get('used_credit'),
+                    'tool_models': tool_models,
+                })
                 yield _event({
                     'done': True,
+                    'run_id': ai_run.id,
                     'conversation_id': conv.id,
                     'points_left': points_left,
                     'ai_single_credits': int(membership.ai_single_credits or 0),
@@ -816,6 +837,7 @@ def register_comprehensive_routes(app, db, services):
                 })
             except Exception as exc:
                 logger.exception("综合 AI 生成失败")
+                mark_ai_run_failed(ai_run.id, exc)
                 yield _event({'error': '综合解读失败：' + str(exc)[:120]})
 
         return Response(stream_with_context(generate()), mimetype='text/event-stream',

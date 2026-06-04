@@ -71,6 +71,15 @@ EOF"
 $SSH_CMD "$SERVER" "sudo systemctl daemon-reload && sudo systemctl enable xuan-cet-flask >/dev/null && sudo systemctl restart xuan-cet-flask"
 sleep 2
 echo "  等待服务启动..."
+RUNTIME_ENV="$($SSH_CMD "$SERVER" "systemctl show xuan-cet-flask -p Environment --value")"
+EXPECTED_DATABASE_URL_ENV="DATABASE_URL=sqlite:////home/lighthouse/tianji/flask-source/backend/tianji.db"
+if ! grep -q "$EXPECTED_DATABASE_URL_ENV" <<<"$RUNTIME_ENV"; then
+    echo "  [ERROR] 运行中 DATABASE_URL 不符合预期，停止部署验活以避免误用空库"
+    echo "  预期: $EXPECTED_DATABASE_URL_ENV"
+    echo "  实际: $RUNTIME_ENV"
+    exit 1
+fi
+echo "  DATABASE_URL 已确认指向生产库"
 $SSH_CMD "$SERVER" "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5199/ 2>/dev/null" | grep -q 200 && echo "  后端 200 OK" || echo "  ⚠️ 后端可能未正常启动，检查: sudo journalctl -u xuan-cet-flask -n 80"
 
 # 5. 部署后线上验活

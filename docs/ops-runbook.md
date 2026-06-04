@@ -262,6 +262,7 @@ bash deploy-to-server.sh
 - 重启前备份真实在线 SQLite 数据库
 - 安装 Python 依赖
 - 写入并重启 `systemd` 服务 `xuan-cet-flask`
+- 重启后硬校验 `systemd` 运行环境中的 `DATABASE_URL` 必须指向 `/home/lighthouse/tianji/flask-source/backend/tianji.db`
 - 同步 H5 前端到 `/var/www/xuan-cet`
 - 同步前端时排除 `/static/uploads/`
 - 运行 `scripts/production_monitor.sh`
@@ -377,3 +378,6 @@ ssh -i "$HOME/.ssh/deploy_key" lighthouse@119.29.128.18 'sudo systemctl show xua
 - 上传目录由 `UPLOAD_FOLDER=/var/www/xuan-cet/static/uploads` 指定。
 - 不要把 `backend/.secret_key`、生产数据库、上传文件提交到 Git。
 - 管理员权限以 `user.is_admin` 字段为准，不以用户名或用户 ID 推断。
+- 后端 SQLite 连接会启用 `WAL`、`busy_timeout=5000` 和外键检查；如果运维检查发现不是这些值，先查服务环境和启动日志。
+- 验证码、限流、AI/SSE 任务状态和启动迁移登记分别落在 `verification_code`、`rate_limit_bucket`、`ai_run`、`migration_record` 表，排查登录/AI 流式异常时优先核对这些表。
+- H5 前端逐步接入 CSRF 时，可先取 `GET /api/csrf-token`，再把 token 带到登录后写接口；现有豁免接口不要一次性全部改动，避免破坏线上流程。

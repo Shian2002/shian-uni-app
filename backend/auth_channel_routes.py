@@ -11,12 +11,17 @@ from email.header import Header
 from email.mime.text import MIMEText
 
 import email.utils
-from flask import jsonify, redirect, request, session
+import hashlib
+import secrets
+from datetime import datetime, timedelta
+
+from flask import has_app_context, jsonify, redirect, request, session
 from flask_login import current_user, login_user
 from werkzeug.security import generate_password_hash
 
 from extensions import csrf
-from models import User
+from extensions import db
+from models import RateLimitBucket, User, VerificationCode
 
 
 QQ_APP_ID = os.environ.get('QQ_APP_ID', '')
@@ -46,6 +51,28 @@ _rate_limit_lock = threading.Lock()
 
 
 def _check_rate_limit(key, max_count=5, window=60):
+    if has_app_context():
+        now_dt = datetime.utcnow()
+        try:
+            bucket = RateLimitBucket.query.filter_by(bucket_key=key).first()
+            if not bucket or (now_dt - bucket.window_started_at).total_seconds() > window:
+                if not bucket:
+                    bucket = RateLimitBucket(bucket_key=key)
+                    db.session.add(bucket)
+                bucket.count = 1
+                bucket.window_started_at = now_dt
+                bucket.updated_at = now_dt
+                db.session.commit()
+                return True
+            if bucket.count >= max_count:
+                return False
+            bucket.count += 1
+            bucket.updated_at = now_dt
+            db.session.commit()
+            return True
+        except Exception:
+            db.session.rollback()
+
     now = time.time()
     with _rate_limit_lock:
         entry = _rate_limit_store.get(key)
@@ -62,11 +89,49 @@ def _gen_code():
     return str(random.randint(100000, 999999))
 
 
+def _hash_code(key, code):
+    return hashlib.sha256(f'{key}:{code}'.encode('utf-8')).hexdigest()
+
+
 def _store_code(key, code):
+    if has_app_context():
+        try:
+            item = VerificationCode.query.filter_by(code_key=key).first()
+            if not item:
+                item = VerificationCode(code_key=key, code_hash='')
+                db.session.add(item)
+            item.code_hash = _hash_code(key, code)
+            item.expires_at = datetime.utcnow() + timedelta(minutes=5)
+            item.created_at = datetime.utcnow()
+            db.session.commit()
+            return
+        except Exception:
+            db.session.rollback()
     _verify_code_store[key] = {'code': code, 'ts': time.time()}
 
 
 def _check_code(key, code):
+    if has_app_context():
+        try:
+            item = VerificationCode.query.filter_by(code_key=key).first()
+            if not item:
+                return _check_memory_code(key, code)
+            if item.expires_at < datetime.utcnow():
+                db.session.delete(item)
+                db.session.commit()
+                return False
+            ok = secrets.compare_digest(item.code_hash, _hash_code(key, code))
+            if ok:
+                db.session.delete(item)
+                db.session.commit()
+            return ok
+        except Exception:
+            db.session.rollback()
+
+    return _check_memory_code(key, code)
+
+
+def _check_memory_code(key, code):
     entry = _verify_code_store.get(key)
     if not entry:
         return False
