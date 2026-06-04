@@ -26,6 +26,11 @@ eval "$RSYNC_CMD" \
     "$LOCAL_DIR/backend/requirements.txt" \
     "$SERVER:/opt/xuan-cet/backend/"
 
+$SSH_CMD "$SERVER" "mkdir -p /opt/xuan-cet/backend/scripts"
+eval "$RSYNC_CMD" \
+    "$LOCAL_DIR/scripts/"*.py \
+    "$SERVER:/opt/xuan-cet/backend/scripts/"
+
 # 1b. 确保上传目录存在，使头像可被 Nginx 访问
 $SSH_CMD "$SERVER" "sudo mkdir -p /var/www/xuan-cet/static/uploads; sudo chown -R lighthouse:lighthouse /var/www/xuan-cet/static/uploads"
 
