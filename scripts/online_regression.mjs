@@ -26,19 +26,65 @@ function assertCondition(condition, message) {
   if (!condition) throw new Error(message)
 }
 
-async function checkApiHealth() {
+async function fetchJson(path, options = {}) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
-    const response = await fetch(`${baseUrl}/api/health`, { signal: controller.signal })
-    assertCondition(response.ok, `健康检查 HTTP 状态异常: ${response.status}`)
-    const data = await response.json()
-    assertCondition(data.success === true, '健康检查 success 不是 true')
-    assertCondition(data.status === 'running', `健康检查 status 异常: ${data.status}`)
-    return { name: '后端健康', status: data.status, success: data.success }
+    const response = await fetch(`${baseUrl}${path}`, {
+      ...options,
+      signal: controller.signal,
+    })
+    const data = await response.json().catch(() => null)
+    return { response, data }
   } finally {
     clearTimeout(timer)
   }
+}
+
+async function checkApiHealth() {
+  const { response, data } = await fetchJson('/api/health')
+  assertCondition(response.ok, `健康检查 HTTP 状态异常: ${response.status}`)
+  assertCondition(data?.success === true, '健康检查 success 不是 true')
+  assertCondition(data?.status === 'running', `健康检查 status 异常: ${data?.status}`)
+  return { name: '后端健康', status: data.status, success: data.success }
+}
+
+async function checkReadOnlyApis() {
+  const results = []
+
+  const packagesCheck = await fetchJson('/api/recharge/packages')
+  assertCondition(packagesCheck.response.ok, `充值套餐 HTTP 状态异常: ${packagesCheck.response.status}`)
+  const packages = packagesCheck.data?.packages || []
+  assertCondition(Array.isArray(packages) && packages.length >= 5, '充值套餐数量异常')
+  assertCondition(packages.some((item) => item.id === 'starter' && item.points === 60), '缺少体验包 starter')
+  assertCondition(packages.some((item) => item.id === 'ai-starter' && item.ai_single_credits === 10), '缺少 AI 入门包')
+  results.push({ name: '充值套餐接口', packageCount: packages.length })
+
+  const meCheck = await fetchJson('/api/me')
+  assertCondition(meCheck.response.ok, `未登录用户接口 HTTP 状态异常: ${meCheck.response.status}`)
+  assertCondition(meCheck.data?.guest === true, '未登录 /api/me 没有返回 guest=true')
+  results.push({ name: '未登录用户态接口', guest: meCheck.data.guest })
+
+  const membershipCheck = await fetchJson('/api/membership')
+  assertCondition(membershipCheck.response.status === 401, `未登录会员接口应为 401，实际: ${membershipCheck.response.status}`)
+  assertCondition(membershipCheck.data?.error === '请先登录', '未登录会员接口错误文案异常')
+  results.push({ name: '会员鉴权接口', status: membershipCheck.response.status })
+
+  const tarotCheck = await fetchJson('/api/tarot/spreads')
+  assertCondition(tarotCheck.response.ok, `塔罗牌阵 HTTP 状态异常: ${tarotCheck.response.status}`)
+  assertCondition(tarotCheck.data?.code === 0, '塔罗牌阵 code 异常')
+  assertCondition(Array.isArray(tarotCheck.data?.data) && tarotCheck.data.data.length >= 3, '塔罗牌阵数量异常')
+  results.push({ name: '塔罗牌阵接口', spreadCount: tarotCheck.data.data.length })
+
+  const ziweiCheck = await fetchJson('/api/ziwei/info')
+  assertCondition(ziweiCheck.response.ok, `紫微信息 HTTP 状态异常: ${ziweiCheck.response.status}`)
+  assertCondition(ziweiCheck.data?.code === 0, '紫微信息 code 异常')
+  const palaces = ziweiCheck.data?.data?.twelve_palaces || []
+  assertCondition(Array.isArray(palaces) && palaces.length >= 12, '紫微十二宫数据异常')
+  assertCondition(['命宫', '财帛宫', '夫妻宫', '疾厄宫'].every((name) => palaces.includes(name)), '紫微关键宫位缺失')
+  results.push({ name: '紫微信息接口', palaceCount: ziweiCheck.data.data.twelve_palaces.length })
+
+  return results
 }
 
 async function pageSummary(page) {
@@ -163,6 +209,7 @@ async function main() {
   try {
     const results = []
     results.push(await checkApiHealth())
+    results.push(...await checkReadOnlyApis())
     for (let i = 0; i < pages.length; i += 1) {
       results.push(await checkRoute(browser, pages[i], i))
     }
