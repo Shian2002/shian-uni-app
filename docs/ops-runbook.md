@@ -59,6 +59,64 @@ RUN_PROD_SMOKE=1 bash scripts/preflight_release.sh
 
 当前已知情况：`npm run audit:prod` 会报告 DCloud 间接依赖 `@dcloudio/uni-mp-weixin -> ws` 的中危漏洞，而且官方暂无修复。脚本会识别这个已知项并允许继续；如果出现新的审计风险会失败。
 
+## 2.1 测试接手清单
+
+日常改动先按风险分层，不要每次都从头猜要跑什么。
+
+只改前端页面、文案或样式：
+
+```bash
+python3 -m pytest -q
+npm run build:h5
+```
+
+改 H5 构建、路由、导航、登录弹窗或 tab 页面切换：
+
+```bash
+python3 -m pytest -q
+npm run build:h5
+```
+
+必须重点看：
+
+- 首页、八字、奇门、六爻、梅花、紫微、塔罗、日历、积分页面是否能直开。
+- 登录弹窗能打开，能切到注册，再切回登录。
+- 移动端首页不能水平溢出。
+- 浏览器控制台不能出现 error。
+
+改后端 API、积分、充值、账号、登录或数据库模型：
+
+```bash
+python3 -m pytest -q
+bash scripts/preflight_release.sh
+```
+
+必须重点看：
+
+- `/api/health` 返回 `success: true` 和 `status: running`。
+- `/api/recharge/packages` 返回积分套餐和 AI 次数包。
+- 未登录 `/api/me` 返回 `guest: true`。
+- 未登录 `/api/membership` 必须是 `401`，不能误放开会员数据。
+- 涉及积分异常时，同时核对 `membership.points` 和 `point_log`，不能只看余额。
+
+改部署脚本、依赖、服务器配置或数据库迁移：
+
+```bash
+bash scripts/install_production_db_backup.sh
+bash scripts/preflight_release.sh
+bash deploy-to-server.sh
+bash scripts/production_restore_drill.sh
+```
+
+`npm run qa:online` 验的是当前线上站点，不是本地未部署代码。通常由 `bash deploy-to-server.sh` 在部署后自动运行；如果只是想确认当前线上健康，也可以手动运行。
+
+数据库原则：
+
+- 线上数据库只做备份、恢复和只读核验。
+- 不要用本地数据库覆盖线上。
+- 恢复前必须先备份当前生产库。
+- 不清楚当前生产库路径时，先核对 `DATABASE_URL`、`systemd` 服务和脚本变量。
+
 ## 3. 线上错误日志监控
 
 上线后或用户反馈异常时运行：
@@ -136,7 +194,6 @@ bash scripts/production_restore_drill.sh
 ```bash
 bash scripts/preflight_release.sh
 bash deploy-to-server.sh
-bash scripts/production_monitor.sh
 ```
 
 后端或数据库相关改动：
@@ -145,8 +202,6 @@ bash scripts/production_monitor.sh
 bash scripts/install_production_db_backup.sh
 bash scripts/preflight_release.sh
 bash deploy-to-server.sh
-RUN_PROD_SMOKE=1 bash scripts/preflight_release.sh
-bash scripts/production_monitor.sh
 bash scripts/production_restore_drill.sh
 ```
 
@@ -164,6 +219,20 @@ bash deploy-to-server.sh
 - 写入并重启 `systemd` 服务 `xuan-cet-flask`
 - 同步 H5 前端到 `/var/www/xuan-cet`
 - 同步前端时排除 `/static/uploads/`
+- 运行 `scripts/production_monitor.sh`
+- 运行 `npm run qa:online`
+
+如果只是临时救急，必须跳过浏览器回归，可以这样运行：
+
+```bash
+SKIP_ONLINE_QA=1 bash deploy-to-server.sh
+```
+
+跳过后要手动补跑：
+
+```bash
+npm run qa:online
+```
 
 完整服务器初始化或重装时再使用：
 
