@@ -78,6 +78,26 @@ npm run qa:local
 
 如果脚本提示 `manifest devServer.port` 是 `5173`，这是旧配置提醒；实际 H5 本地开发端口以 `vite.config.js` 为准。
 
+标准本地启动流程：
+
+```bash
+# 终端 1：后端，默认监听 127.0.0.1:5199
+npm run dev:backend
+
+# 终端 2：前端，当前 Vite 端口是 3001
+npm run dev:h5
+
+# 终端 3：确认前后端和代理链路
+npm run dev:check
+```
+
+如果要临时换后端端口：
+
+```bash
+FLASK_PORT=5299 npm run dev:backend
+LOCAL_BACKEND_URL=http://localhost:5299 npm run qa:local
+```
+
 只改前端页面、文案或样式：
 
 ```bash

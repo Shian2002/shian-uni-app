@@ -8,6 +8,8 @@
     "build": "npm run build:h5",
     "lint": "node scripts/lint-check.mjs",
     "typecheck": "node scripts/typecheck-lite.mjs",
+    "dev:backend": "cd backend && python3 app.py",
+    "dev:check": "npm run qa:local",
     "dev:h5": "uni dev",
     "build:h5": "node scripts/patch-vue-slot.js && node scripts/patch-tab-dom.js && uni build && node scripts/patch-html-css-order.js",
     "dev:mp-weixin": "uni dev -p mp-weixin",
