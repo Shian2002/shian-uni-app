@@ -6,6 +6,7 @@
   "scripts": {
     "test": "python3 -m pytest -q",
     "build": "npm run build:h5",
+    "lint": "node scripts/lint-check.mjs",
     "dev:h5": "uni dev",
     "build:h5": "node scripts/patch-vue-slot.js && node scripts/patch-tab-dom.js && uni build && node scripts/patch-html-css-order.js",
     "dev:mp-weixin": "uni dev -p mp-weixin",
