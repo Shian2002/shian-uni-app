@@ -19,7 +19,8 @@
     "ops:preflight": "bash scripts/preflight_release.sh",
     "ops:monitor": "bash scripts/production_monitor.sh",
     "ops:alert": "bash scripts/install_production_alert.sh",
-    "ops:restore-drill": "bash scripts/production_restore_drill.sh"
+    "ops:restore-drill": "bash scripts/production_restore_drill.sh",
+    "qa:online": "node scripts/online_regression.mjs"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-alpha-5000920260515001",

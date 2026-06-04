@@ -16,6 +16,7 @@ temp.js
 replace.txt
 tmp/
 artifacts/
+backups/
 *.png
 test_*.py
 test-*.mjs
