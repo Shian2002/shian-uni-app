@@ -1,6 +1,7 @@
 #!/bin/bash
 # 时安解忧屋 - 一键部署
 # 用法: bash deploy-to-server.sh
+# 可选: SKIP_ONLINE_QA=1 bash deploy-to-server.sh 跳过部署后线上回归
 
 set -e
 SERVER_USER="lighthouse"
@@ -18,7 +19,7 @@ echo " 时安解忧屋 - 部署到服务器"
 echo "============================================"
 
 # 1. 同步后端代码
-echo "[1/4] 同步后端代码..."
+echo "[1/5] 同步后端代码..."
 eval "$RSYNC_CMD" \
     "$LOCAL_DIR/backend/"*.py \
     "$LOCAL_DIR/backend/constraints.txt" \
@@ -29,11 +30,11 @@ eval "$RSYNC_CMD" \
 $SSH_CMD "$SERVER" "sudo mkdir -p /var/www/xuan-cet/static/uploads; sudo chown -R lighthouse:lighthouse /var/www/xuan-cet/static/uploads"
 
 # 2. 清理服务器旧的 assets（清理混合版本文件）
-echo "[2/4] 清理旧文件..."
+echo "[2/5] 清理旧文件..."
 $SSH_CMD "$SERVER" "rm -rf /var/www/xuan-cet/assets/" && echo "  旧assets已清理" || echo "  ⚠️ 清理失败，尝试sudo..." && $SSH_CMD "$SERVER" "sudo rm -rf /var/www/xuan-cet/assets/"
 
 # 3. 上传前端 dist
-echo "[3/4] 上传前端..."
+echo "[3/5] 上传前端..."
 eval "$RSYNC_CMD" \
     --exclude '/static/uploads/' \
     "$LOCAL_DIR/dist/build/h5/index.html" \
@@ -42,7 +43,7 @@ eval "$RSYNC_CMD" \
     "$SERVER:/var/www/xuan-cet/"
 
 # 4. 重启后端
-echo "[4/4] 重启后端..."
+echo "[4/5] 重启后端..."
 $SSH_CMD "$SERVER" "if [ -f '$LIVE_DB' ]; then mkdir -p '$DB_BACKUP_DIR'; cp '$LIVE_DB' '$DB_BACKUP_DIR/tianji-deploy-'\$(date -u +%Y%m%d-%H%M%S)'.db'; chmod 600 '$DB_BACKUP_DIR'/tianji-deploy-*.db; ls -1t '$DB_BACKUP_DIR'/tianji-deploy-*.db | tail -n +31 | xargs -r rm -f; else echo '[ERROR] 未找到线上生产库 $LIVE_DB，停止部署以避免创建空库'; exit 1; fi"
 $SSH_CMD "$SERVER" "cd /opt/xuan-cet/backend && ./venv/bin/pip install -q -c constraints.txt -r requirements.txt"
 $SSH_CMD "$SERVER" "sudo tee /etc/systemd/system/xuan-cet-flask.service > /dev/null <<'EOF'
@@ -71,6 +72,20 @@ $SSH_CMD "$SERVER" "sudo systemctl daemon-reload && sudo systemctl enable xuan-c
 sleep 2
 echo "  等待服务启动..."
 $SSH_CMD "$SERVER" "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5199/ 2>/dev/null" | grep -q 200 && echo "  后端 200 OK" || echo "  ⚠️ 后端可能未正常启动，检查: sudo journalctl -u xuan-cet-flask -n 80"
+
+# 5. 部署后线上验活
+echo "[5/5] 线上验活..."
+if [ -x "$LOCAL_DIR/scripts/production_monitor.sh" ]; then
+    bash "$LOCAL_DIR/scripts/production_monitor.sh"
+else
+    echo "  ⚠️ 未找到 production_monitor.sh，跳过基础监控"
+fi
+
+if [ "${SKIP_ONLINE_QA:-0}" = "1" ]; then
+    echo "  已按 SKIP_ONLINE_QA=1 跳过浏览器线上回归"
+else
+    npm run qa:online
+fi
 
 echo ""
 echo "============================================"
