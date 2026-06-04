@@ -68,6 +68,19 @@ def test_legacy_database_migration_creates_operational_hardening_tables(app_modu
     assert {"migration_record", "verification_code", "rate_limit_bucket", "ai_run"}.issubset(tables)
 
 
+def test_migration_registration_recovers_when_record_table_is_missing(app_module):
+    with app_module.app.app_context():
+        app_module.db.session.execute(app_module.db.text("DROP TABLE IF EXISTS migration_record"))
+        app_module.db.session.commit()
+
+        record = app_module.record_migration_applied("test_missing_record_table", "自动建表")
+
+        assert record is not None
+        saved = app_module.MigrationRecord.query.filter_by(migration_key="test_missing_record_table").one()
+        assert saved.status == "applied"
+        assert saved.detail == "自动建表"
+
+
 def test_sqlite_connections_use_wal_busy_timeout_and_foreign_keys(app_module):
     with app_module.app.app_context():
         journal_mode = app_module.db.session.execute(app_module.db.text("PRAGMA journal_mode")).scalar()
