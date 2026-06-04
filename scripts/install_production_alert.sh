@@ -12,11 +12,13 @@ SCP_CMD=(scp -i "$SSH_KEY")
 
 REMOTE_OPS_DIR="${REMOTE_OPS_DIR:-/opt/xuan-cet/ops}"
 REMOTE_ALERT_PY="$REMOTE_OPS_DIR/production_alert.py"
+REMOTE_DB_AUDIT_PY="$REMOTE_OPS_DIR/production_db_audit.py"
 ALERT_ENV_FILE="${ALERT_ENV_FILE:-/etc/xuan-cet-alert.env}"
 ALERT_EMAIL_TO="${ALERT_EMAIL_TO:-}"
 ALERT_WECHAT_MENTION_MOBILE="${ALERT_WECHAT_MENTION_MOBILE:-}"
 ALERT_INTERVAL_MIN="${ALERT_INTERVAL_MIN:-10}"
 ALERT_BASE_URL="${ALERT_BASE_URL:-http://119.29.128.18}"
+ALERT_DB_AUDIT_PATH="${ALERT_DB_AUDIT_PATH:-/home/lighthouse/tianji/flask-source/backend/tianji.db}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
@@ -28,12 +30,18 @@ echo "微信 @ 手机号: ${ALERT_WECHAT_MENTION_MOBILE:-未设置}"
 
 "${SSH_CMD[@]}" "$SERVER" "mkdir -p '$REMOTE_OPS_DIR'"
 "${SCP_CMD[@]}" "$ROOT_DIR/scripts/production_alert.py" "$SERVER:$REMOTE_ALERT_PY"
+"${SCP_CMD[@]}" "$ROOT_DIR/scripts/production_db_audit.py" "$SERVER:$REMOTE_DB_AUDIT_PY"
 
 "${SSH_CMD[@]}" "$SERVER" "set -euo pipefail
 sudo touch '$ALERT_ENV_FILE'
 sudo chmod 600 '$ALERT_ENV_FILE'
 if ! sudo grep -q '^ALERT_BASE_URL=' '$ALERT_ENV_FILE'; then
   echo 'ALERT_BASE_URL=$ALERT_BASE_URL' | sudo tee -a '$ALERT_ENV_FILE' >/dev/null
+fi
+if sudo grep -q '^ALERT_DB_AUDIT_PATH=' '$ALERT_ENV_FILE'; then
+  sudo sed -i 's#^ALERT_DB_AUDIT_PATH=.*#ALERT_DB_AUDIT_PATH=$ALERT_DB_AUDIT_PATH#' '$ALERT_ENV_FILE'
+else
+  echo 'ALERT_DB_AUDIT_PATH=$ALERT_DB_AUDIT_PATH' | sudo tee -a '$ALERT_ENV_FILE' >/dev/null
 fi
 if [ -n '$ALERT_EMAIL_TO' ]; then
   if sudo grep -q '^ALERT_EMAIL_TO=' '$ALERT_ENV_FILE'; then
@@ -49,12 +57,23 @@ if [ -n '$ALERT_WECHAT_MENTION_MOBILE' ]; then
     echo 'ALERT_WECHAT_MENTION_MOBILE=$ALERT_WECHAT_MENTION_MOBILE' | sudo tee -a '$ALERT_ENV_FILE' >/dev/null
   fi
 fi
+chmod 755 '$REMOTE_ALERT_PY' '$REMOTE_DB_AUDIT_PY'
 sudo tee /usr/local/bin/xuan-cet-alert-check >/dev/null <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 /usr/bin/python3 '$REMOTE_ALERT_PY'
 EOF
 sudo chmod 755 /usr/local/bin/xuan-cet-alert-check
+sudo tee /usr/local/bin/xuan-cet-alert-test >/dev/null <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+set -a
+[ -f /opt/xuan-cet/backend/.env ] && . /opt/xuan-cet/backend/.env
+[ -f '$ALERT_ENV_FILE' ] && . '$ALERT_ENV_FILE'
+set +a
+/usr/bin/python3 '$REMOTE_ALERT_PY' --send-ok
+EOF
+sudo chmod 755 /usr/local/bin/xuan-cet-alert-test
 sudo tee /etc/systemd/system/xuan-cet-alert-check.service >/dev/null <<'EOF'
 [Unit]
 Description=时安解忧屋线上健康告警检查

@@ -54,10 +54,10 @@ def require(condition, message, failures):
 def main():
     parser = argparse.ArgumentParser(description="检查线上健康、前端资源、登录和后台权限")
     parser.add_argument("--base-url", default=os.environ.get("SMOKE_BASE_URL", "http://119.29.128.18"))
-    parser.add_argument("--normal-user", default=os.environ.get("SMOKE_NORMAL_USER", "shian"))
-    parser.add_argument("--normal-password", default=os.environ.get("SMOKE_NORMAL_PASSWORD", "asdzxc"))
-    parser.add_argument("--admin-user", default=os.environ.get("SMOKE_ADMIN_USER", "admin"))
-    parser.add_argument("--admin-password", default=os.environ.get("SMOKE_ADMIN_PASSWORD", "asdzxc"))
+    parser.add_argument("--normal-user", default=os.environ.get("SMOKE_NORMAL_USER"))
+    parser.add_argument("--normal-password", default=os.environ.get("SMOKE_NORMAL_PASSWORD"))
+    parser.add_argument("--admin-user", default=os.environ.get("SMOKE_ADMIN_USER"))
+    parser.add_argument("--admin-password", default=os.environ.get("SMOKE_ADMIN_PASSWORD"))
     parser.add_argument("--skip-auth", action="store_true")
     args = parser.parse_args()
 
@@ -71,6 +71,11 @@ def main():
     require(index_status == 200 and "assets/index-" in index_html, "首页 HTML 指向当前构建资源", failures)
 
     if not args.skip_auth:
+        if not all([args.normal_user, args.normal_password, args.admin_user, args.admin_password]):
+            print("[FAIL] 认证烟测需要通过环境变量或参数显式提供普通用户和管理员账号")
+            print("      可设置 SMOKE_NORMAL_USER/SMOKE_NORMAL_PASSWORD/SMOKE_ADMIN_USER/SMOKE_ADMIN_PASSWORD")
+            return 1
+
         normal = SmokeClient(args.base_url)
         normal_login_status, _ = normal.login(args.normal_user, args.normal_password)
         normal_admin_status, _ = normal.request("GET", "/api/admin/summary")

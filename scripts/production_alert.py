@@ -119,6 +119,60 @@ def check_recent_logs(service, since):
     return None
 
 
+def check_database_audit(db_audit_path):
+    if not db_audit_path:
+        return None
+    script_dir = Path(__file__).resolve().parent
+    if str(script_dir) not in sys.path:
+        sys.path.insert(0, str(script_dir))
+    try:
+        from production_db_audit import audit_database
+    except Exception as exc:
+        return f"数据库审计脚本不可用: {exc}"
+
+    try:
+        findings = audit_database(db_audit_path)
+    except Exception as exc:
+        return f"数据库审计执行失败: {exc}"
+
+    if findings:
+        lines = [
+            f"- [{item.get('severity', 'unknown')}] {item.get('code', 'unknown')}: {item.get('message', '')}"
+            for item in findings[:20]
+        ]
+        return "数据库审计发现异常 db_audit:\n" + "\n".join(lines)
+    return None
+
+
+def collect_failures(
+    base_url,
+    service,
+    backup_dir,
+    backup_max_age_hours,
+    disk_path,
+    disk_threshold,
+    since,
+    db_audit_path="",
+    checks=None,
+):
+    checks = checks or {
+        "health": check_health,
+        "service": check_service,
+        "disk": check_disk,
+        "backup": check_backup,
+        "logs": check_recent_logs,
+    }
+    results = [
+        checks["health"](base_url),
+        checks["service"](service),
+        checks["disk"](disk_path, disk_threshold),
+        checks["backup"](backup_dir, backup_max_age_hours),
+        checks["logs"](service, since),
+        check_database_audit(db_audit_path),
+    ]
+    return [item for item in results if item]
+
+
 def send_email(subject, body):
     to_addr = os.environ.get("ALERT_EMAIL_TO", "").strip()
     smtp_user = os.environ.get("ALERT_SMTP_USER", os.environ.get("SMTP_USER", "")).strip()
@@ -194,18 +248,21 @@ def main():
     parser.add_argument("--disk-path", default=os.environ.get("ALERT_DISK_PATH", "/"))
     parser.add_argument("--disk-threshold", type=int, default=int(os.environ.get("ALERT_DISK_THRESHOLD", "85")))
     parser.add_argument("--since", default=os.environ.get("ALERT_LOG_SINCE", "15 min ago"))
+    parser.add_argument("--db-audit-path", default=os.environ.get("ALERT_DB_AUDIT_PATH", ""))
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--send-ok", action="store_true", help="正常时也发送一条测试通知")
     args = parser.parse_args()
 
-    checks = [
-        check_health(args.base_url),
-        check_service(args.service),
-        check_disk(args.disk_path, args.disk_threshold),
-        check_backup(args.backup_dir, args.backup_max_age_hours),
-        check_recent_logs(args.service, args.since),
-    ]
-    failures = [item for item in checks if item]
+    failures = collect_failures(
+        base_url=args.base_url,
+        service=args.service,
+        backup_dir=args.backup_dir,
+        backup_max_age_hours=args.backup_max_age_hours,
+        disk_path=args.disk_path,
+        disk_threshold=args.disk_threshold,
+        since=args.since,
+        db_audit_path=args.db_audit_path,
+    )
 
     host = socket.gethostname()
     if failures:

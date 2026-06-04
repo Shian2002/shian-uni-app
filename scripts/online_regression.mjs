@@ -100,6 +100,22 @@ async function checkApiHealth() {
   return { name: '后端健康', status: data.status, success: data.success }
 }
 
+async function checkDeepHealth() {
+  const { response, data } = await fetchJson('/api/health/deep')
+  assertCondition(response.ok, `深度健康检查 HTTP 状态异常: ${response.status}`)
+  assertCondition(data?.success === true, `深度健康检查失败: ${JSON.stringify(data)}`)
+  assertCondition(data?.status === 'running', `深度健康检查 status 异常: ${data?.status}`)
+  assertCondition(data?.database?.available === true, '深度健康检查数据库不可用')
+  assertCondition(data?.upload?.available === true, '深度健康检查上传目录不可用')
+  return {
+    name: '深度健康',
+    status: data.status,
+    database: data.database?.available,
+    upload: data.upload?.available,
+    wzApi: data.wz_api?.available,
+  }
+}
+
 async function checkReadOnlyApis() {
   const results = []
 
@@ -278,6 +294,7 @@ async function main() {
   try {
     const results = []
     results.push(await checkApiHealth())
+    results.push(await checkDeepHealth())
     results.push(...await checkReadOnlyApis())
     results.push(await checkStaticAssets())
     for (let i = 0; i < pages.length; i += 1) {

@@ -35,6 +35,45 @@ ssh -i ~/.ssh/deploy_key lighthouse@119.29.128.18 "systemctl list-timers --all x
 ssh -i ~/.ssh/deploy_key lighthouse@119.29.128.18 "ls -lh /home/lighthouse/backups/xuan-cet/db | tail"
 ```
 
+## 1.1 百度网盘异地备份
+
+百度网盘只作为 COS 接入前的临时异地备份。上传前脚本会先压缩并加密数据库备份，网盘里只保存 `.db.gz.enc` 文件。
+
+安装百度网盘异地备份 timer：
+
+```bash
+bash scripts/install_baidu_offsite_backup.sh
+```
+
+安装脚本会在服务器 `/opt/xuan-cet/ops/baidu-venv` 独立虚拟环境里安装 `bypy`、同步上传脚本、创建 `xuan-cet-baidu-backup.timer`。首次安装后还需要手动完成两步：
+
+```bash
+ssh -i ~/.ssh/deploy_key lighthouse@119.29.128.18 'export PATH="/opt/xuan-cet/ops/baidu-venv/bin:$PATH"; bypy info'
+ssh -i ~/.ssh/deploy_key lighthouse@119.29.128.18 'echo BAIDU_BACKUP_PASSPHRASE=换成一条强密码 | sudo tee -a /etc/xuan-cet-baidu-backup.env >/dev/null'
+```
+
+第一条命令会输出百度网盘授权链接，需要用浏览器登录百度账号授权。第二条命令写入上传前加密密码；不要把这条密码提交到 Git。
+
+如果安装时还没有写入 `BAIDU_BACKUP_PASSPHRASE`，脚本只安装服务文件，不会启用定时器，避免每天产生失败任务。
+
+授权和密码配置完成后测试一次：
+
+```bash
+ssh -i ~/.ssh/deploy_key lighthouse@119.29.128.18 "sudo systemctl start xuan-cet-baidu-backup.service && sudo journalctl -u xuan-cet-baidu-backup.service -n 80 --no-pager"
+```
+
+测试通过后启用定时器：
+
+```bash
+ssh -i ~/.ssh/deploy_key lighthouse@119.29.128.18 "sudo systemctl enable --now xuan-cet-baidu-backup.timer"
+```
+
+本地 dry-run 检查脚本参数：
+
+```bash
+bash scripts/upload_baidu_backup.sh --backup /path/to/tianji.db --dry-run
+```
+
 ## 2. 上线前一键检查
 
 每次准备上线前先跑：
@@ -198,6 +237,7 @@ ALERT_EMAIL_TO=你的邮箱 bash scripts/install_production_alert.sh
 - 后端 `xuan-cet-flask` 服务状态
 - 根分区磁盘使用率
 - 最新自动备份是否过旧、是否完整
+- 生产 SQLite 只读审计
 - 最近后端关键错误日志
 
 告警渠道：
@@ -219,7 +259,7 @@ ALERT_EMAIL_TO=你的邮箱 ALERT_WECHAT_MENTION_MOBILE=你的手机号 bash scr
 发送一条正常测试通知：
 
 ```bash
-ssh -i ~/.ssh/deploy_key lighthouse@119.29.128.18 "sudo systemctl start xuan-cet-alert-check.service && sudo journalctl -u xuan-cet-alert-check.service -n 80 --no-pager"
+ssh -i ~/.ssh/deploy_key lighthouse@119.29.128.18 "sudo /usr/local/bin/xuan-cet-alert-test"
 ```
 
 手动深度健康检查：
@@ -280,6 +320,7 @@ bash deploy-to-server.sh
 
 脚本会执行这些动作：
 
+- 默认先运行 `scripts/preflight_release.sh`
 - 同步后端代码和 `backend/requirements.txt`
 - 重启前备份真实在线 SQLite 数据库
 - 安装 Python 依赖
@@ -300,6 +341,18 @@ SKIP_ONLINE_QA=1 bash deploy-to-server.sh
 
 ```bash
 npm run qa:online
+```
+
+如果只是临时救急，必须跳过部署前检查，可以这样运行：
+
+```bash
+SKIP_PREFLIGHT=1 bash deploy-to-server.sh
+```
+
+跳过后要尽快补跑：
+
+```bash
+bash scripts/preflight_release.sh
 ```
 
 GitHub Actions 会在推送和 PR 时自动运行：

@@ -1,6 +1,7 @@
 #!/bin/bash
 # 时安解忧屋 - 一键部署
 # 用法: bash deploy-to-server.sh
+# 可选: SKIP_PREFLIGHT=1 bash deploy-to-server.sh 跳过部署前检查
 # 可选: SKIP_ONLINE_QA=1 bash deploy-to-server.sh 跳过部署后线上回归
 
 set -e
@@ -17,6 +18,13 @@ DB_BACKUP_DIR="/home/lighthouse/backups/xuan-cet/db"
 echo "============================================"
 echo " 时安解忧屋 - 部署到服务器"
 echo "============================================"
+
+if [ "${SKIP_PREFLIGHT:-0}" = "1" ]; then
+    echo "[0/5] 已按 SKIP_PREFLIGHT=1 跳过部署前检查"
+else
+    echo "[0/5] 部署前检查..."
+    bash "$LOCAL_DIR/scripts/preflight_release.sh"
+fi
 
 # 1. 同步后端代码
 echo "[1/5] 同步后端代码..."

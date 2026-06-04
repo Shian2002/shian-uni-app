@@ -27,6 +27,7 @@
     "ops:monitor": "bash scripts/production_monitor.sh",
     "ops:alert": "bash scripts/install_production_alert.sh",
     "ops:restore-drill": "bash scripts/production_restore_drill.sh",
+    "ops:baidu-backup": "bash scripts/install_baidu_offsite_backup.sh",
     "qa:local": "node scripts/local_port_check.mjs",
     "qa:online": "node scripts/online_regression.mjs"
   },
