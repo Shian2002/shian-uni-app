@@ -49,13 +49,14 @@ requireFile('src/main.js')
 requireFile('src/pages.json')
 requireFile('src/manifest.json')
 requireFile('deploy-to-server.sh')
+requireFile('.github/workflows/ci.yml')
 
 const pkg = readJson('package.json')
 const pagesJson = readJson('src/pages.json')
 const manifest = readJson('src/manifest.json')
 
 if (pkg) {
-  for (const script of ['lint', 'typecheck', 'test', 'build', 'build:h5', 'dev:backend', 'dev:check', 'qa:local', 'qa:online']) {
+  for (const script of ['lint', 'typecheck', 'test', 'build', 'build:h5', 'dev:backend', 'dev:check', 'dev:smoke', 'qa:local', 'qa:online']) {
     if (!pkg.scripts?.[script]) issues.push(`package.json 缺少 scripts.${script}`)
   }
 }

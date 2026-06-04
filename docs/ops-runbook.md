@@ -91,6 +91,14 @@ npm run dev:h5
 npm run dev:check
 ```
 
+刚启动服务时可以用等待版验活：
+
+```bash
+npm run dev:smoke
+```
+
+`dev:check` 会立即检查当前端口状态；`dev:smoke` 会等待前端、后端和代理链路最多 30 秒，适合刚启动服务后运行。
+
 如果要临时换后端端口：
 
 ```bash
@@ -144,6 +152,8 @@ bash scripts/production_restore_drill.sh
 ```
 
 `npm run qa:online` 验的是当前线上站点，不是本地未部署代码。通常由 `bash deploy-to-server.sh` 在部署后自动运行；如果只是想确认当前线上健康，也可以手动运行。
+
+`npm run qa:online` 会额外检查首页引用的 `/assets/` 和 `/static/` 资源是否 404。每次运行都会写入 `artifacts/qa/<时间>/report.json`；页面失败时还会保存截图和 HTML，方便复盘。
 
 数据库原则：
 
@@ -267,6 +277,15 @@ SKIP_ONLINE_QA=1 bash deploy-to-server.sh
 
 ```bash
 npm run qa:online
+```
+
+GitHub Actions 会在推送和 PR 时自动运行：
+
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run build
 ```
 
 完整服务器初始化或重装时再使用：

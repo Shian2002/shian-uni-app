@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { chromium } from 'playwright'
 
 const baseUrl = process.env.REGRESSION_BASE_URL || 'http://119.29.128.18'
 const timeoutMs = Number(process.env.REGRESSION_TIMEOUT_MS || 15000)
+const artifactDir = process.env.REGRESSION_ARTIFACT_DIR || join('artifacts', 'qa', new Date().toISOString().replace(/[:.]/g, '-'))
 
 const pages = [
   { name: '首页', hash: '/', mustInclude: ['The Oriental Insight Agent', '开始解读'] },
@@ -26,6 +29,32 @@ function assertCondition(condition, message) {
   if (!condition) throw new Error(message)
 }
 
+function ensureArtifactDir() {
+  mkdirSync(artifactDir, { recursive: true })
+}
+
+function safeName(name) {
+  return name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5_-]+/g, '-')
+}
+
+function writeArtifact(name, data) {
+  ensureArtifactDir()
+  writeFileSync(join(artifactDir, name), typeof data === 'string' ? data : JSON.stringify(data, null, 2))
+}
+
+async function captureFailure(page, name, error) {
+  ensureArtifactDir()
+  const base = safeName(name)
+  await page.screenshot({ path: join(artifactDir, `${base}.png`), fullPage: true }).catch(() => {})
+  const html = await page.content().catch(() => '')
+  if (html) writeFileSync(join(artifactDir, `${base}.html`), html)
+  writeArtifact(`${base}.error.json`, {
+    name,
+    message: error.message,
+    url: page.url(),
+  })
+}
+
 async function fetchJson(path, options = {}) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
@@ -39,6 +68,28 @@ async function fetchJson(path, options = {}) {
   } finally {
     clearTimeout(timer)
   }
+}
+
+async function checkStaticAssets() {
+  const response = await fetch(`${baseUrl}/`, { signal: AbortSignal.timeout(timeoutMs) })
+  assertCondition(response.ok, `首页 HTML HTTP 状态异常: ${response.status}`)
+  const html = await response.text()
+  const assetUrls = new Set()
+  for (const match of html.matchAll(/\b(?:src|href)=["']([^"']+)["']/g)) {
+    const raw = match[1]
+    if (!raw || raw.startsWith('data:') || raw.startsWith('http')) continue
+    if (!raw.startsWith('/assets/') && !raw.startsWith('/static/')) continue
+    assetUrls.add(new URL(raw, baseUrl).toString())
+  }
+  assertCondition(assetUrls.size > 0, '首页没有发现静态资源引用')
+
+  const failures = []
+  for (const url of assetUrls) {
+    const assetResponse = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) }).catch((error) => ({ ok: false, status: error.message }))
+    if (!assetResponse.ok) failures.push({ url, status: assetResponse.status })
+  }
+  assertCondition(failures.length === 0, `首页静态资源异常: ${failures.slice(0, 5).map((item) => `${item.status} ${item.url}`).join(' | ')}`)
+  return { name: '首页静态资源', assetCount: assetUrls.size }
 }
 
 async function checkApiHealth() {
@@ -108,19 +159,25 @@ async function checkRoute(browser, item, index) {
   })
   page.on('pageerror', (error) => errors.push(error.message))
 
-  const marker = `online-regression-${Date.now()}-${index}`
-  await page.goto(routeUrl(item.hash, marker), { waitUntil: 'domcontentloaded', timeout: timeoutMs })
-  await page.waitForLoadState('networkidle', { timeout: timeoutMs }).catch(() => {})
-  await page.waitForTimeout(1200)
+  try {
+    const marker = `online-regression-${Date.now()}-${index}`
+    await page.goto(routeUrl(item.hash, marker), { waitUntil: 'domcontentloaded', timeout: timeoutMs })
+    await page.waitForLoadState('networkidle', { timeout: timeoutMs }).catch(() => {})
+    await page.waitForTimeout(1200)
 
-  const summary = await pageSummary(page)
-  for (const text of item.mustInclude) {
-    assertCondition(summary.text.includes(text), `${item.name} 缺少关键文案: ${text}`)
+    const summary = await pageSummary(page)
+    for (const text of item.mustInclude) {
+      assertCondition(summary.text.includes(text), `${item.name} 缺少关键文案: ${text}`)
+    }
+    assertCondition(!summary.horizontalOverflow, `${item.name} 出现水平溢出`)
+    assertCondition(errors.length === 0, `${item.name} 控制台错误: ${errors.slice(0, 3).join(' | ')}`)
+    await page.close()
+    return { name: item.name, title: summary.title, href: summary.href, imageCount: summary.imageCount }
+  } catch (error) {
+    await captureFailure(page, item.name, error)
+    await page.close()
+    throw error
   }
-  assertCondition(!summary.horizontalOverflow, `${item.name} 出现水平溢出`)
-  assertCondition(errors.length === 0, `${item.name} 控制台错误: ${errors.slice(0, 3).join(' | ')}`)
-  await page.close()
-  return { name: item.name, title: summary.title, href: summary.href, imageCount: summary.imageCount }
 }
 
 async function checkLoginModal(browser) {
@@ -131,56 +188,62 @@ async function checkLoginModal(browser) {
   })
   page.on('pageerror', (error) => errors.push(error.message))
 
-  await page.goto(routeUrl('/', `login-${Date.now()}`), { waitUntil: 'domcontentloaded', timeout: timeoutMs })
-  await page.waitForLoadState('networkidle', { timeout: timeoutMs }).catch(() => {})
-  await page.waitForTimeout(1200)
-  await page.evaluate(() => {
-    const targets = Array.from(document.querySelectorAll('button, span, view, text, uni-button'))
-    const login = targets.find((el) => (el.innerText || el.textContent || '').trim() === '登录')
-    if (!login) throw new Error('找不到登录入口')
-    login.click()
-  })
-  await page.waitForTimeout(800)
-  const modal = await page.evaluate(() => ({
-    visible: Boolean(document.querySelector('#topnavLoginModal.open,.login-modal.open,[id*=login][class*=open]')),
-    userInput: Boolean(document.querySelector('#tnLoginUser')),
-    passInput: Boolean(document.querySelector('#tnLoginPass')),
-  }))
-  assertCondition(modal.visible, '登录弹窗未打开')
-  assertCondition(modal.userInput, '登录用户名输入框不存在')
-  assertCondition(modal.passInput, '登录密码输入框不存在')
+  try {
+    await page.goto(routeUrl('/', `login-${Date.now()}`), { waitUntil: 'domcontentloaded', timeout: timeoutMs })
+    await page.waitForLoadState('networkidle', { timeout: timeoutMs }).catch(() => {})
+    await page.waitForTimeout(1200)
+    await page.evaluate(() => {
+      const targets = Array.from(document.querySelectorAll('button, span, view, text, uni-button'))
+      const login = targets.find((el) => (el.innerText || el.textContent || '').trim() === '登录')
+      if (!login) throw new Error('找不到登录入口')
+      login.click()
+    })
+    await page.waitForTimeout(800)
+    const modal = await page.evaluate(() => ({
+      visible: Boolean(document.querySelector('#topnavLoginModal.open,.login-modal.open,[id*=login][class*=open]')),
+      userInput: Boolean(document.querySelector('#tnLoginUser')),
+      passInput: Boolean(document.querySelector('#tnLoginPass')),
+    }))
+    assertCondition(modal.visible, '登录弹窗未打开')
+    assertCondition(modal.userInput, '登录用户名输入框不存在')
+    assertCondition(modal.passInput, '登录密码输入框不存在')
 
-  const registerState = await page.evaluate(() => {
-    const link = document.querySelector('.register-link')
-    if (!link) throw new Error('找不到注册入口')
-    link.click()
-    const modalRoot = document.querySelector('#topnavLoginModal.open') || document
-    const title = (modalRoot.querySelector('.modal-title')?.textContent || '').trim()
-    const primary = (modalRoot.querySelector('.modal-btns .btn-accent')?.textContent || '').trim()
-    const error = (modalRoot.querySelector('#tnLoginError')?.textContent || '').trim()
-    return { title, primary, error }
-  })
-  assertCondition(registerState.title === '注册', `注册弹窗标题异常: ${registerState.title}`)
-  assertCondition(registerState.primary === '注册', `注册主按钮异常: ${registerState.primary}`)
-  assertCondition(registerState.error.includes('请填写用户名和密码完成注册'), '注册提示文案异常')
+    const registerState = await page.evaluate(() => {
+      const link = document.querySelector('.register-link')
+      if (!link) throw new Error('找不到注册入口')
+      link.click()
+      const modalRoot = document.querySelector('#topnavLoginModal.open') || document
+      const title = (modalRoot.querySelector('.modal-title')?.textContent || '').trim()
+      const primary = (modalRoot.querySelector('.modal-btns .btn-accent')?.textContent || '').trim()
+      const error = (modalRoot.querySelector('#tnLoginError')?.textContent || '').trim()
+      return { title, primary, error }
+    })
+    assertCondition(registerState.title === '注册', `注册弹窗标题异常: ${registerState.title}`)
+    assertCondition(registerState.primary === '注册', `注册主按钮异常: ${registerState.primary}`)
+    assertCondition(registerState.error.includes('请填写用户名和密码完成注册'), '注册提示文案异常')
 
-  const loginState = await page.evaluate(() => {
-    const link = document.querySelector('.login-link')
-    if (!link) throw new Error('找不到返回登录入口')
-    link.click()
-    const modalRoot = document.querySelector('#topnavLoginModal.open') || document
-    const title = (modalRoot.querySelector('.modal-title')?.textContent || '').trim()
-    const primary = (modalRoot.querySelector('.modal-btns .btn-accent')?.textContent || '').trim()
-    const hint = (modalRoot.querySelector('.modal-hint')?.textContent || '').trim()
-    return { title, primary, hint }
-  })
-  assertCondition(loginState.title === '登录', `返回登录标题异常: ${loginState.title}`)
-  assertCondition(loginState.primary === '登录', `返回登录主按钮异常: ${loginState.primary}`)
-  assertCondition(loginState.hint.includes('没有账号？立即注册'), '返回登录提示文案异常')
+    const loginState = await page.evaluate(() => {
+      const link = document.querySelector('.login-link')
+      if (!link) throw new Error('找不到返回登录入口')
+      link.click()
+      const modalRoot = document.querySelector('#topnavLoginModal.open') || document
+      const title = (modalRoot.querySelector('.modal-title')?.textContent || '').trim()
+      const primary = (modalRoot.querySelector('.modal-btns .btn-accent')?.textContent || '').trim()
+      const hint = (modalRoot.querySelector('.modal-hint')?.textContent || '').trim()
+      return { title, primary, hint }
+    })
+    assertCondition(loginState.title === '登录', `返回登录标题异常: ${loginState.title}`)
+    assertCondition(loginState.primary === '登录', `返回登录主按钮异常: ${loginState.primary}`)
+    assertCondition(loginState.hint.includes('没有账号？立即注册'), '返回登录提示文案异常')
 
-  assertCondition(errors.length === 0, `登录弹窗控制台错误: ${errors.slice(0, 3).join(' | ')}`)
-  await page.close()
-  return { name: '登录/注册弹窗', ...modal, registerState, loginState }
+    assertCondition(errors.length === 0, `登录弹窗控制台错误: ${errors.slice(0, 3).join(' | ')}`)
+    await page.close()
+    return { name: '登录/注册弹窗', ...modal, registerState, loginState }
+  } catch (error) {
+    await captureFailure(page, '登录注册弹窗', error)
+    await page.close()
+    throw error
+  }
 }
 
 async function checkMobileHome(browser) {
@@ -193,15 +256,21 @@ async function checkMobileHome(browser) {
   page.on('console', (msg) => {
     if (msg.type() === 'error') errors.push(msg.text())
   })
-  await page.goto(routeUrl('/', `mobile-${Date.now()}`), { waitUntil: 'domcontentloaded', timeout: timeoutMs })
-  await page.waitForLoadState('networkidle', { timeout: timeoutMs }).catch(() => {})
-  await page.waitForTimeout(1200)
-  const summary = await pageSummary(page)
-  assertCondition(summary.text.includes('The Oriental Insight Agent'), '移动首页关键文案缺失')
-  assertCondition(!summary.horizontalOverflow, '移动首页出现水平溢出')
-  assertCondition(errors.length === 0, `移动首页控制台错误: ${errors.slice(0, 3).join(' | ')}`)
-  await page.close()
-  return { name: '移动首页', href: summary.href, imageCount: summary.imageCount }
+  try {
+    await page.goto(routeUrl('/', `mobile-${Date.now()}`), { waitUntil: 'domcontentloaded', timeout: timeoutMs })
+    await page.waitForLoadState('networkidle', { timeout: timeoutMs }).catch(() => {})
+    await page.waitForTimeout(1200)
+    const summary = await pageSummary(page)
+    assertCondition(summary.text.includes('The Oriental Insight Agent'), '移动首页关键文案缺失')
+    assertCondition(!summary.horizontalOverflow, '移动首页出现水平溢出')
+    assertCondition(errors.length === 0, `移动首页控制台错误: ${errors.slice(0, 3).join(' | ')}`)
+    await page.close()
+    return { name: '移动首页', href: summary.href, imageCount: summary.imageCount }
+  } catch (error) {
+    await captureFailure(page, '移动首页', error)
+    await page.close()
+    throw error
+  }
 }
 
 async function main() {
@@ -210,18 +279,23 @@ async function main() {
     const results = []
     results.push(await checkApiHealth())
     results.push(...await checkReadOnlyApis())
+    results.push(await checkStaticAssets())
     for (let i = 0; i < pages.length; i += 1) {
       results.push(await checkRoute(browser, pages[i], i))
     }
     results.push(await checkLoginModal(browser))
     results.push(await checkMobileHome(browser))
-    console.log(JSON.stringify({ baseUrl, passed: true, results }, null, 2))
+    const report = { baseUrl, passed: true, artifactDir, results }
+    writeArtifact('report.json', report)
+    console.log(JSON.stringify(report, null, 2))
   } finally {
     await browser.close()
   }
 }
 
 main().catch((error) => {
-  console.error(JSON.stringify({ baseUrl, passed: false, error: error.message }, null, 2))
+  const report = { baseUrl, passed: false, artifactDir, error: error.message }
+  writeArtifact('report.json', report)
+  console.error(JSON.stringify(report, null, 2))
   process.exit(1)
 })
