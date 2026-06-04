@@ -352,11 +352,17 @@ def migrate_db():
             except Exception:
                 logger.warning(f"表 {tbl} 不存在，尝试创建")
                 try:
-                    db.create_all()
-                    logger.info(f"[DB] create_all 完成")
-                    break  # create_all 一次创建所有缺失表
+                    db.session.rollback()
+                    table = db.metadata.tables.get(tbl)
+                    if table is not None:
+                        table.create(bind=db.engine, checkfirst=True)
+                        logger.info(f"[DB] 已确保 {tbl} 表存在")
+                    else:
+                        logger.warning(f"表 {tbl} 未在 SQLAlchemy metadata 中声明")
                 except Exception as ce:
-                    logger.warning(f"create_all 失败: {ce}")
+                    db.session.rollback()
+                    if 'already exists' not in str(ce).lower():
+                        logger.warning(f"{tbl} 表创建失败: {ce}")
 
         # 3. user.daily_tool_count / user.last_tool_date
         for col, ctype in [('daily_tool_count', 'INTEGER DEFAULT 0'), ('last_tool_date', 'VARCHAR(10)')]:
