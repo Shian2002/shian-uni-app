@@ -2,6 +2,7 @@
 
 import json
 from datetime import datetime
+from types import SimpleNamespace
 
 from extensions import db
 from models import AiRun
@@ -22,8 +23,10 @@ def start_ai_run(kind, user_id=None, request_json=None):
         created_at=datetime.utcnow(),
     )
     db.session.add(run)
+    db.session.flush()
+    run_id = run.id
     db.session.commit()
-    return run
+    return SimpleNamespace(id=run_id)
 
 
 def mark_ai_run_running(run_id):
