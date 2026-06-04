@@ -63,6 +63,21 @@ RUN_PROD_SMOKE=1 bash scripts/preflight_release.sh
 
 日常改动先按风险分层，不要每次都从头猜要跑什么。
 
+本地联调先看端口：
+
+```bash
+npm run qa:local
+```
+
+它会检查：
+
+- 前端开发端口是否监听。当前以 `vite.config.js` 为准，是 `3001`。
+- 后端端口 `5199` 是否监听。
+- Vite `/api` 代理是否指向 `http://localhost:5199`。
+- 前端代理 `/api/health` 是否能连到后端。
+
+如果脚本提示 `manifest devServer.port` 是 `5173`，这是旧配置提醒；实际 H5 本地开发端口以 `vite.config.js` 为准。
+
 只改前端页面、文案或样式：
 
 ```bash

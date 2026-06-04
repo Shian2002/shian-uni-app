@@ -55,7 +55,7 @@ const pagesJson = readJson('src/pages.json')
 const manifest = readJson('src/manifest.json')
 
 if (pkg) {
-  for (const script of ['lint', 'typecheck', 'test', 'build', 'build:h5', 'qa:online']) {
+  for (const script of ['lint', 'typecheck', 'test', 'build', 'build:h5', 'qa:local', 'qa:online']) {
     if (!pkg.scripts?.[script]) issues.push(`package.json 缺少 scripts.${script}`)
   }
 }
