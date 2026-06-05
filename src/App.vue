@@ -520,6 +520,9 @@ body:not(.home-fixed-page) .tool-tabs{
   border:1px solid rgba(178,149,93,.14)!important;
   border-radius:14px!important;
   background:rgba(0,0,0,.035)!important;
+  position:static!important;
+  top:auto!important;
+  z-index:auto!important;
   overflow-x:auto!important;
   scrollbar-width:none;
 }
@@ -670,11 +673,11 @@ body:not(.home-fixed-page) .spread-card{
   body:not(.home-fixed-page) .btn-row{gap:8px!important}
 }
 
-/* 第三批工具页体验优化：首屏可达、吸顶导航、记录与结果区阅读性 */
+/* 第三批工具页体验优化：首屏可达、记录与结果区阅读性 */
 body:not(.home-fixed-page) .tool-tabs{
-  position:sticky!important;
-  top:68px;
-  z-index:20;
+  position:static!important;
+  top:auto!important;
+  z-index:auto!important;
   backdrop-filter:blur(18px) saturate(150%);
 }
 body:not(.home-fixed-page) .record-tabs{
@@ -759,7 +762,7 @@ body:not(.home-fixed-page) .btn-row .btn-ghost{
   body:not(.home-fixed-page) .section{padding:14px 10px 48px!important}
   body:not(.home-fixed-page) .tool-container,
   body:not(.home-fixed-page) .tarot-section{padding:14px 10px!important}
-  body:not(.home-fixed-page) .tool-tabs{top:56px;margin-bottom:14px!important}
+  body:not(.home-fixed-page) .tool-tabs{top:auto!important;margin-bottom:14px!important}
   body:not(.home-fixed-page) .record-tabs{top:56px;padding:0 10px!important}
   body:not(.home-fixed-page) .tool-tab{min-height:34px!important;padding:7px 10px!important;font-size:.72rem!important}
   body:not(.home-fixed-page) .tab-badge{font-size:.48rem!important}

@@ -4,6 +4,7 @@ from pathlib import Path
 
 INDEX_VUE = Path(__file__).resolve().parents[1] / "src" / "pages" / "index" / "index.vue"
 QIMEN_VUE = Path(__file__).resolve().parents[1] / "src" / "pages" / "qimen" / "index.vue"
+APP_VUE = Path(__file__).resolve().parents[1] / "src" / "App.vue"
 HOME_AI_UTILS = Path(__file__).resolve().parents[1] / "src" / "pages" / "index" / "homeAiUtils.js"
 HOME_AI_DRAFT = Path(__file__).resolve().parents[1] / "src" / "pages" / "index" / "useHomeAiDraft.js"
 HOME_AI_STREAM = Path(__file__).resolve().parents[1] / "src" / "pages" / "index" / "useHomeAiStream.js"
@@ -16,6 +17,10 @@ def _source():
 
 def _qimen_source():
     return QIMEN_VUE.read_text(encoding="utf-8")
+
+
+def _app_source():
+    return APP_VUE.read_text(encoding="utf-8")
 
 
 def _home_ai_utils_source():
@@ -325,3 +330,14 @@ def test_qimen_standalone_grid_scales_with_available_width():
     assert "p.isMa?`<span class=\"qm-ma-marker\"" in source
     assert "p.isMa?`<span class=\"qm-ma-marker\"" in source.split("${tianHtml}")[0]
     assert "class=\"qm-heaven-stem\"" in source
+
+
+def test_tool_tabs_stay_in_normal_scroll_flow():
+    source = _app_source()
+
+    assert "body:not(.home-fixed-page) .tool-tabs" in source
+    assert "position:static!important" in source
+    assert "top:auto!important" in source
+    assert "z-index:auto!important" in source
+    assert "body:not(.home-fixed-page) .tool-tabs{\n  position:sticky!important;" not in source
+    assert "body:not(.home-fixed-page) .tool-tabs{top:56px" not in source
