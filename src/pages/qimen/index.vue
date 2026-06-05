@@ -1223,6 +1223,7 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   --qm-center-date-font: clamp(0.6rem, calc(var(--qm-grid-size) / 45), 1.08rem);
   --qm-kong-font: clamp(0.58rem, calc(var(--qm-grid-size) / 55), 0.92rem);
   --qm-gong-label-font: clamp(0.46rem, calc(var(--qm-grid-size) / 86), 0.68rem);
+  --qm-cell-pad: clamp(7px, calc(var(--qm-grid-size) / 54), 15px);
   width: min(100%, var(--qm-grid-size));
   margin: 0 auto;
 }
@@ -1242,7 +1243,7 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   aspect-ratio: 1;
   position: relative;
   background: #fff;
-  padding: clamp(4px, 1.3%, 9px);
+  padding: var(--qm-cell-pad);
   font-size: var(--qm-cell-font);
   display: flex;
   flex-direction: column;

@@ -320,6 +320,8 @@ def test_qimen_standalone_grid_scales_with_available_width():
     assert "--qm-cell-font: clamp(0.66rem, calc(var(--qm-grid-size) / 40), 1.24rem)" in source
     assert "--qm-kong-font" in source
     assert "--qm-gong-label-font" in source
+    assert "--qm-cell-pad: clamp(7px, calc(var(--qm-grid-size) / 54), 15px)" in source
+    assert "padding: var(--qm-cell-pad)" in source
     assert "p.isMa?`<span class=\"qm-ma-marker\"" in source
     assert "p.isMa?`<span class=\"qm-ma-marker\"" in source.split("${tianHtml}")[0]
     assert "class=\"qm-heaven-stem\"" in source
