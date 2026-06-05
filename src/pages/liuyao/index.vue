@@ -185,7 +185,9 @@ function switchTab(tab) {
 }
 
 function switchLyMethod(m) {
+  const changed = lyMethod.value !== m
   lyMethod.value = m
+  if (changed) clearLyFreeResult()
   // 免费版方法切换 (v-if替代: DOM直操作)
   if (m === 'auto') {
     var autoEl = document.getElementById('lyMethodAuto')
@@ -206,7 +208,9 @@ function switchLyMethod(m) {
 }
 
 function switchLaiMethod(m) {
+  const changed = laiMethod.value !== m
   laiMethod.value = m
+  if (changed) clearLyAiPaipanResult()
   // AI版方法切换
   if (m === 'auto') {
     var autoEl = document.getElementById('laiMethodAuto')
@@ -229,12 +233,19 @@ function switchLaiMethod(m) {
 const lyMethod = ref('auto')
 const lyTossRows = reactive(Array.from({ length: 6 }, () => [3, 3, 3]))
 const lfQuestion = ref('')
+function clearLyFreeResult() {
+  const resultEl = document.getElementById('lyFreeResult')
+  if (resultEl) resultEl.innerHTML = ''
+}
+function clearLyAiPaipanResult() {
+  const resultEl = document.getElementById('lyAiResult')
+  if (resultEl) { resultEl.style.display = 'none'; resultEl.innerHTML = '' }
+}
 function lfReset() {
   lyMethod.value = 'auto'
   var lfInp = document.getElementById('lfQuestion')
   if (lfInp) lfInp.value = ''
-  const resultEl = document.getElementById('lyFreeResult')
-  if (resultEl) resultEl.innerHTML = ''
+  clearLyFreeResult()
   for (let i = 0; i < 6; i++) { lyTossRows[i] = [3, 3, 3] }
   // 重置方法显示
   switchLyMethod('auto')
@@ -267,13 +278,15 @@ async function showLyCoinAnimation() {
 }
 
 async function liuyaoFreePaipan() {
+  const requestMode = lyMethod.value
   let tossData = null
-  if (lyMethod.value === 'manual') {
+  if (requestMode === 'manual') {
     tossData = lyTossRows.map(row => [...row])
   }
 
   // 铜钱动画
   await showLyCoinAnimation()
+  if (requestMode !== lyMethod.value) return
 
   const resultEl = document.getElementById('lyFreeResult')
   if (!resultEl) return
@@ -281,7 +294,8 @@ async function liuyaoFreePaipan() {
 
   try {
     const question = (document.getElementById('lfQuestion') || {}).value || ''
-    const res = await uni.request({ url: '/api/liuyao/paipan', method: 'POST', data: { mode: lyMethod.value, tosses: tossData, question } })
+    const res = await uni.request({ url: '/api/liuyao/paipan', method: 'POST', data: { mode: requestMode, tosses: tossData, question } })
+    if (requestMode !== lyMethod.value) return
     const data = res.data
     if (data.error) { resultEl.innerHTML = `<div style="color:var(--danger);padding:16px;">${data.error}</div>`; return }
     const panData = data.data || data
@@ -315,6 +329,13 @@ function renderLyYaoLine(detail) {
     <div class="ly-yao-graphic">${lineGraphic}</div>
     <div class="ly-yao-info">${tags.join('')}</div>
   </div>`
+}
+
+function renderLyTableYinyang(detail) {
+  const line = detail.is_yang
+    ? '<span class="ly-table-line ly-table-line-yang"></span>'
+    : '<span class="ly-table-line ly-table-line-yin"><span></span><span></span></span>'
+  return `<span class="ly-table-yinyang">${line}<span>${detail.is_yang ? '阳' : '阴'}</span></span>`
 }
 
 function renderLiuyaoResult(d) {
@@ -432,7 +453,7 @@ function renderLiuyaoResult(d) {
       const x = d.details[i]
       html += `<tr class="${x.is_moving ? 'moving-row' : ''}">
         <td>${x.name}</td>
-        <td>${x.is_yang ? '⚊ 阳' : '⚋ 阴'}</td>
+        <td>${renderLyTableYinyang(x)}</td>
         <td>${x.liuqin}</td>
         <td>${x.liushen}</td>
         <td>${x.naja}</td>
@@ -1032,7 +1053,7 @@ function _updateLyConversation() {
 /* ═══ 六爻纳甲排盘结果样式 ═══ */
 .ly-result-wrap { margin: 24px auto 0; width: min(100%, 860px); }
 .ly-trigram-badge { padding: 4px 12px; background: var(--accent-glow); border: 1px solid var(--border); border-radius: 8px; font-size: 0.8125rem; color: var(--accent); }
-.ly-ben-bian-box { --ly-center-gap: 28px; --ly-side-width: minmax(0, calc((100% - var(--ly-center-gap)) / 2)); background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 20px; }
+.ly-ben-bian-box { --ly-center-gap: 28px; --ly-side-width: minmax(0, calc((100% - var(--ly-center-gap)) / 2)); --ly-side-content-width: min(100%, 278px); background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 20px; }
 .ly-ben-bian-top { display: grid; grid-template-columns: var(--ly-side-width) var(--ly-center-gap) var(--ly-side-width); align-items: center; gap: 0; padding-bottom: 12px; margin-bottom: 10px; border-bottom: 1px solid var(--border); }
 .ly-ben-bian-name-block { text-align: center; }
 .ly-ben-bian-name-block:first-child:nth-last-child(1) { grid-column: 1 / -1; }
@@ -1046,10 +1067,10 @@ function _updateLyConversation() {
 .ly-paired-row:hover { background: rgba(212,168,71,0.04); }
 .ly-paired-row.moving { background: rgba(231,76,60,0.04); }
 .ly-paired-row.bian { background: rgba(155,89,182,0.04); }
-.ly-paired-ben, .ly-paired-bian { width: 40px; height: 10px; display: flex; align-items: center; flex-shrink: 0; }
+.ly-paired-ben, .ly-paired-bian { width: 44px; height: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .ly-paired-info { display: flex; align-items: center; gap: 2px; flex-wrap: nowrap; min-width: 0; }
 .ly-paired-bian-info { display: flex; align-items: center; gap: 2px; flex-wrap: nowrap; min-width: 0; }
-.ly-row-ben-side, .ly-row-bian-side { display: grid; grid-template-columns: 44px 40px minmax(0, 1fr); align-items: center; column-gap: 4px; min-width: 0; width: 100%; }
+.ly-row-ben-side, .ly-row-bian-side { display: grid; grid-template-columns: 44px 44px minmax(0, 1fr); align-items: center; column-gap: 4px; min-width: 0; width: var(--ly-side-content-width); max-width: 100%; justify-self: center; }
 .ly-yao-tags-left { display: flex; align-items: center; gap: 2px; width: 44px; min-width: 0; }
 .ly-row-divider { width: var(--ly-center-gap); display: flex; align-items: center; justify-content: center; align-self: stretch; }
 .ly-row-divider::after { content: ''; width: 1px; align-self: stretch; background: var(--border); min-height: 16px; }
@@ -1087,9 +1108,14 @@ function _updateLyConversation() {
 .ly-detail-table td { padding: 10px 6px; text-align: center; border-bottom: 1px solid rgba(212,168,71,0.06); color: var(--text-2); }
 .ly-detail-table tr:hover td { background: rgba(212,168,71,0.03); }
 .ly-detail-table .moving-row td { color: var(--danger); }
+.ly-table-yinyang { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 52px; line-height: 1; }
+.ly-table-line { width: 24px; height: 10px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ly-table-line-yang::before { content: ''; width: 24px; height: 3px; border-radius: 999px; background: currentColor; }
+.ly-table-line-yin { gap: 5px; }
+.ly-table-line-yin span { width: 9px; height: 3px; border-radius: 999px; background: currentColor; }
 .ly-paipan-meta { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 14px; background: var(--bg-2); border-radius: 10px; margin-top: 16px; font-size: 0.8125rem; color: var(--text-3); flex-wrap: wrap; }
 .ly-paipan-meta span { display: flex; align-items: center; gap: 4px; }
-@media (max-width: 480px) { .ly-ben-bian-box { --ly-center-gap: 18px; padding: 10px; } .ly-ben-bian-name-text { font-size: 1.25rem; letter-spacing: 2px; } .ly-ben-bian-footer { flex-direction: column; gap: 6px; } .ly-paired-row { padding: 3px 0; } .ly-row-ben-side, .ly-row-bian-side { grid-template-columns: 34px 30px minmax(0, 1fr); column-gap: 2px; } .ly-paired-ben, .ly-paired-bian { width: 30px; } .ly-paired-info, .ly-paired-bian-info { gap: 1px; } .ly-yao-pos { width: 22px; font-size: 0.55rem; } .ly-tag { font-size: 0.45rem; padding: 1px 2px; border-radius: 2px; } .ly-yao-tags-left { width: 34px; } .ly-detail-table { font-size: 0.625rem; } .ly-detail-table th, .ly-detail-table td { padding: 6px 2px; } }
+@media (max-width: 480px) { .ly-ben-bian-box { --ly-center-gap: 18px; --ly-side-content-width: min(100%, 138px); padding: 10px; } .ly-ben-bian-name-text { font-size: 1.25rem; letter-spacing: 2px; } .ly-ben-bian-footer { flex-direction: column; gap: 6px; } .ly-paired-row { padding: 3px 0; } .ly-row-ben-side, .ly-row-bian-side { grid-template-columns: 34px 30px minmax(0, 1fr); column-gap: 2px; } .ly-paired-ben, .ly-paired-bian { width: 30px; } .ly-paired-info, .ly-paired-bian-info { gap: 1px; } .ly-yao-pos { width: 22px; font-size: 0.55rem; } .ly-tag { font-size: 0.45rem; padding: 1px 2px; border-radius: 2px; } .ly-yao-tags-left { width: 34px; } .ly-detail-table { font-size: 0.625rem; } .ly-detail-table th, .ly-detail-table td { padding: 6px 2px; } .ly-table-yinyang { gap: 4px; min-width: 42px; } .ly-table-line { width: 18px; } .ly-table-line-yang::before { width: 18px; height: 2px; } .ly-table-line-yin { gap: 4px; } .ly-table-line-yin span { width: 7px; height: 2px; } }
 
 /* AI进度条/结果/开关 */
 .qai-deep-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
@@ -1165,7 +1191,7 @@ function _updateLyConversation() {
 /* 超窄屏（375px以下）六爻结果进一步紧凑 */
 @media (max-width: 420px) {
   .ly-ben-bian-name-text { font-size: 1rem; letter-spacing: 1px; }
-  .ly-ben-bian-box { --ly-center-gap: 16px; padding: 6px; }
+  .ly-ben-bian-box { --ly-center-gap: 16px; --ly-side-content-width: min(100%, 126px); padding: 6px; }
   .ly-paired-row { padding: 2px 0; min-height: 20px; } .ly-paired-ben, .ly-paired-bian { width: 26px; }
   .ly-row-ben-side, .ly-row-bian-side { grid-template-columns: 28px 26px minmax(0, 1fr); column-gap: 1px; }
   .ly-paired-info, .ly-paired-bian-info { gap: 1px; }

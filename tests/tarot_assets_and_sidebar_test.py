@@ -65,6 +65,24 @@ def test_tarot_page_card_images_and_text_are_not_cropped():
     assert mobile_block and ".tarot-card-keyword-below { display: none; }" not in mobile_block.group("body")
 
 
+def test_tarot_result_card_text_has_reserved_space_below_images():
+    page_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "src", "pages", "tarot", "index.vue")
+    )
+    source = open(page_path, encoding="utf-8").read()
+    art_block = re.search(r"\.tarot-card-art-wrap \{(?P<body>.*?)\n\}", source, re.S)
+    position_block = re.search(r"\.tarot-card-position \{(?P<body>.*?)\n\}", source, re.S)
+    keyword_block = re.search(r"\.tarot-card-keyword-below \{(?P<body>.*?)\n\}", source, re.S)
+
+    assert ".tarot-card-front, .tarot-card-back" in source
+    assert "box-sizing: border-box;" in source
+    assert ".tarot-card-front" in source and "gap: 4px;" in source
+    assert art_block and "aspect-ratio: 7 / 10.8;" in art_block.group("body")
+    assert keyword_block and "min-height: 28px;" in keyword_block.group("body")
+    assert position_block and "margin-top: 14px;" in position_block.group("body")
+    assert position_block and "min-height: 74px;" in position_block.group("body")
+
+
 def test_tarot_mobile_card_grid_does_not_overflow_viewport():
     page_path = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "..", "src", "pages", "tarot", "index.vue")
