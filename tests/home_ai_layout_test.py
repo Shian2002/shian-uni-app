@@ -3,6 +3,8 @@ from pathlib import Path
 
 
 INDEX_VUE = Path(__file__).resolve().parents[1] / "src" / "pages" / "index" / "index.vue"
+TOP_NAV_VUE = Path(__file__).resolve().parents[1] / "src" / "components" / "TopNav.vue"
+QIMEN_VUE = Path(__file__).resolve().parents[1] / "src" / "pages" / "qimen" / "index.vue"
 
 
 def _source():
@@ -64,3 +66,34 @@ def test_home_ai_auto_follow_only_when_near_bottom():
     )
     assert scroll_fn, "缺少综合 AI 聊天滚动函数"
     assert "if (!force && !shouldAutoFollowChat.value) return" in scroll_fn.group("body")
+
+
+def test_top_nav_distinguishes_agent_query_from_plain_home():
+    source = TOP_NAV_VUE.read_text(encoding="utf-8")
+    index_source = _source()
+
+    assert 'data-href="#/?app=1"' in source
+    assert "function getCurrentRouteWithQuery()" in source
+    assert "fullRoute === fullTarget" in source
+    assert "window.__xcHomeMode === 'app'" in source
+    assert "xc-home-mode-changed" in source
+    assert "window.__xcHomeMode = active ? 'marketing' : 'app'" in index_source
+    assert "if (href === '#/') target = '/pages/index/index'" not in source
+
+
+def test_home_ai_summary_tab_is_available_during_streaming():
+    source = _source()
+
+    assert ':show-summary="msg.role === \'assistant\' && (!!msg.content || !!msg._streaming)"' in source
+    assert "msg.content || msg._streaming" in source
+    assert "setActiveArtifact(aiIndex, '__summary__')" in source
+
+
+def test_qimen_free_json_copy_is_member_only_and_uses_backend_pan_type_values():
+    source = QIMEN_VUE.read_text(encoding="utf-8")
+
+    assert 'v-if="qfResult && qfJsonCopyAllowed"' in source
+    assert "function copyQimenJson()" in source
+    assert "JSON.stringify(qfRawResult.value, null, 2)" in source
+    assert "const qimenPanTypeValues = [1, 2]" in source
+    assert "[2, 3]" not in source

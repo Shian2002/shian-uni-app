@@ -97,7 +97,8 @@ def register_qimen_ask_routes(app, db, services):
         day = int(data.get('day', now.day))
         hour = int(data.get('hour', now.hour))
         minute = int(data.get('minute', 0))
-        pan_type = int(data.get('panType', 3))
+        # 与免费排盘保持一致：1=拆补法，2=置闰法。
+        pan_type = int(data.get('panType', 1))
         return year, month, day, hour, minute, pan_type
 
     def _qimen_ask_task(run_id):

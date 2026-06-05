@@ -434,7 +434,7 @@
                     :artifacts="artifactTabsForMessage(msg)"
                     :active-key="activeArtifactKeyForMessage(msg, idx)"
                     :summary-active="isSummaryActive(msg, idx)"
-                    :show-summary="msg.role === 'assistant' && !!msg.content"
+                    :show-summary="msg.role === 'assistant' && (!!msg.content || !!msg._streaming)"
                     @select="setActiveArtifact(idx, $event)"
                   />
                   <view class="home-tool-card" v-if="currentArtifactForMessage(msg, idx) && !isSummaryActive(msg, idx)">
@@ -710,6 +710,7 @@ function syncMarketingPageClass() {
   // #ifdef H5
   try {
     const active = !!marketingMode.value
+    window.__xcHomeMode = active ? 'marketing' : 'app'
     const isAndroid = /Android/i.test(window.navigator && window.navigator.userAgent ? window.navigator.userAgent : '')
     marketingAndroid.value = active && isAndroid
     document.documentElement.classList.toggle('marketing-page', active)
@@ -721,6 +722,7 @@ function syncMarketingPageClass() {
       document.documentElement.classList.remove('home-fixed-page')
       document.body.classList.remove('home-fixed-page')
     }
+    window.dispatchEvent(new CustomEvent('xc-home-mode-changed', { detail: { mode: window.__xcHomeMode } }))
   } catch(_) {}
   // #endif
 }
@@ -1427,7 +1429,7 @@ function ensureActiveArtifact(messageIndex, artifacts) {
 
 function activeArtifactKeyForMessage(msg, messageIndex) {
   const list = visibleArtifactList(msg)
-  if (msg && msg.role === 'assistant' && msg.content && !activeArtifactKeyByMessage[messageIndex]) return '__summary__'
+  if (msg && msg.role === 'assistant' && (msg.content || msg._streaming) && !activeArtifactKeyByMessage[messageIndex]) return '__summary__'
   return activeArtifactKeyByMessage[messageIndex] || (list[0] && list[0].key) || ''
 }
 
@@ -1439,7 +1441,7 @@ function setActiveArtifact(messageIndex, key) {
 
 function isSummaryActive(msg, messageIndex) {
   const list = visibleArtifactList(msg)
-  return !!msg && msg.role === 'assistant' && !!msg.content && activeArtifactKeyForMessage(msg, messageIndex) === '__summary__' && list.length > 0
+  return !!msg && msg.role === 'assistant' && (!!msg.content || !!msg._streaming) && activeArtifactKeyForMessage(msg, messageIndex) === '__summary__' && list.length > 0
 }
 
 function currentArtifactForMessage(msg, messageIndex) {
@@ -2678,6 +2680,9 @@ function updateComprehensiveAssistant(aiIndex, patch, options) {
   })
   if (patch.artifacts) {
     ensureActiveArtifact(aiIndex, visibleArtifactList(current))
+  }
+  if ((current.content || current._streaming) && !activeArtifactKeyByMessage[aiIndex]) {
+    setActiveArtifact(aiIndex, '__summary__')
   }
   scheduleComprehensiveDraftSave()
   if (comprehensiveMessages.value.length && (patch.content || patch.stage || patch.artifacts || patch._streaming) && shouldFollow) {

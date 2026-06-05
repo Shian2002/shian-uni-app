@@ -6,6 +6,7 @@ import time
 
 import pytest
 from types import SimpleNamespace
+from pathlib import Path
 from werkzeug.security import generate_password_hash
 
 
@@ -190,6 +191,13 @@ def test_qimen_meihua_and_liuyao_fixed_samples(client):
     assert liuyao["世爻"] == 1
     assert liuyao["应爻"] == 4
     assert [idx + 1 for idx, yao in enumerate(liuyao["六爻"]) if yao["is_moving"]] == [1, 4]
+
+
+def test_qimen_ask_default_pan_type_matches_free_paipan():
+    source = (Path(__file__).resolve().parents[1] / "backend" / "qimen_ask_routes.py").read_text(encoding="utf-8")
+
+    assert "data.get('panType', 1)" in source
+    assert "1=拆补法，2=置闰法" in source
 
 
 def test_meihua_ask_stream_uses_split_route_and_creates_record(app_module, user_factory, monkeypatch):

@@ -67,6 +67,10 @@
             <view class="submit-btn" @tap="qimenFreePaipan" style="margin-top:14px;">☯️ 免费排盘</view>
             <text class="form-hint" style="text-align:center;display:block;margin-top:10px;">本地精准排盘，不含 AI 解读。深度解读请回首页选择奇门遁甲或自动选术数。</text>
 
+            <view class="qf-member-actions" v-if="qfResult && qfJsonCopyAllowed">
+              <view class="btn btn-ghost qf-json-copy-btn" @tap="copyQimenJson">复制 JSON</view>
+            </view>
+
             <!-- 排盘结果 -->
             <view class="qf-result" v-if="qfResult" v-html="qfResult"></view>
           </view>
@@ -237,6 +241,9 @@ function _initHourIdx(h) { return Math.max(0, Math.min(23, parseInt(h, 10) || 0)
 const qfHourIdx = ref(_initHourIdx(_initNow.getHours()))
 const qfMinuteIdx = ref(_initNow.getMinutes())
 const qfPanTypeIdx = ref(0); const qfResult = ref('')
+const qfRawResult = ref(null)
+const qfJsonCopyAllowed = ref(false)
+const qimenPanTypeValues = [1, 2]
 
 function qfOnDateChange() {
   const year = qfYearIdx.value >= 0 ? yearOptions[qfYearIdx.value] : 0
@@ -284,13 +291,48 @@ async function qimenFreePaipan() {
   const d = qfDayOptions.value[qfDayIdx.value]
   const h = hourValues[qfHourIdx.value]
   const min = parseInt(minuteOptions[qfMinuteIdx.value] || '0')
-  const panType = [2, 3][qfPanTypeIdx.value]
+  const panType = qimenPanTypeValues[qfPanTypeIdx.value] || 1
   try {
     const res = await uni.request({ url: '/api/qimen/paipan', method: 'POST', data: { year: y, month: m, day: d, hour: h, minute: min, panType } })
     const data = res.data
-    if (data.error) { qfResult.value = `<div style="color:var(--danger);padding:16px;">${data.error}</div>`; return }
+    if (data.error) {
+      qfRawResult.value = null
+      qfResult.value = `<div style="color:var(--danger);padding:16px;">${data.error}</div>`
+      return
+    }
+    qfRawResult.value = data
     qfResult.value = renderQimenPalaceGrid(data)
-  } catch (e) { qfResult.value = `<div style="color:var(--danger);padding:16px;">排盘失败</div>` }
+  } catch (e) {
+    qfRawResult.value = null
+    qfResult.value = `<div style="color:var(--danger);padding:16px;">排盘失败</div>`
+  }
+}
+
+function isPaidMembershipLevel(level) {
+  return !!level && level !== 'free'
+}
+
+async function refreshQimenJsonCopyPermission() {
+  if (!isLoggedIn.value) {
+    qfJsonCopyAllowed.value = false
+    return
+  }
+  try {
+    const res = await uni.request({ url: '/api/membership', method: 'GET' })
+    const data = res.data || {}
+    qfJsonCopyAllowed.value = isPaidMembershipLevel(data.level)
+  } catch (_) {
+    qfJsonCopyAllowed.value = false
+  }
+}
+
+function copyQimenJson() {
+  if (!qfJsonCopyAllowed.value || !qfRawResult.value) return
+  uni.setClipboardData({
+    data: JSON.stringify(qfRawResult.value, null, 2),
+    success: function() { uni.showToast({ title: 'JSON已复制', icon: 'success' }) },
+    fail: function() { uni.showToast({ title: '复制失败', icon: 'none' }) },
+  })
 }
 
 // ═══ 九宫格渲染（1:1复刻Flask home.js renderQimenPalaceGrid）═══
@@ -495,7 +537,7 @@ function qfReset() {
   qfDayIdx.value = now.getDate() - 1
   qfHourIdx.value = _initHourIdx(now.getHours())
   qfMinuteIdx.value = now.getMinutes()
-  qfPanTypeIdx.value = 0; qfResult.value = ''
+  qfPanTypeIdx.value = 0; qfResult.value = ''; qfRawResult.value = null
   nextTick(() => {
     try { _syncSelectValue('qf-year', qfYearIdx.value) } catch(e) {}
     try { _syncSelectValue('qf-month', qfMonthIdx.value) } catch(e) {}
@@ -586,7 +628,7 @@ async function qimenAskPaipan() {
   var d = qaiDayOptions.value[qaiDayIdx.value]
   var h = hourValues[qaiHourIdx.value]
   var min = parseInt(minuteOptions[qaiMinuteIdx.value] || '0')
-  var panType = [2, 3][qaiJuIdx.value]
+  var panType = qimenPanTypeValues[qaiJuIdx.value] || 1
   var type = 'general'
   window._qaiPanTime = { year: y, month: m, day: d, hour: h, minute: min, panType: panType }
 
@@ -733,7 +775,7 @@ function qaiSendFollowUp() {
       day: pt.day || qaiDayOptions.value[qaiDayIdx.value],
       hour: pt.hour != null ? pt.hour : hourValues[qaiHourIdx.value],
       minute: pt.minute != null ? pt.minute : parseInt(minuteOptions[qaiMinuteIdx.value] || '0'),
-      panType: pt.panType || [2, 3][qaiJuIdx.value]
+      panType: pt.panType || (qimenPanTypeValues[qaiJuIdx.value] || 1)
     },
     question: question,
     onDone: function(fullText) {
@@ -858,6 +900,7 @@ function applyNavQuery(q) {
 
 onShow(() => {
   releaseQimenPageScroll()
+  refreshQimenJsonCopyPermission()
   try {
     var q = sessionStorage.getItem('_nav_query')
     if (q) { sessionStorage.removeItem('_nav_query'); applyNavQuery(q) }
@@ -885,6 +928,13 @@ onShow(() => {
 
 onMounted(() => {
   releaseQimenPageScroll()
+  refreshQimenJsonCopyPermission()
+  try {
+    window.addEventListener('xc-auth-changed', function(e) {
+      isLoggedIn.value = !!(e && e.detail && e.detail.loggedIn)
+      refreshQimenJsonCopyPermission()
+    })
+  } catch (_) {}
   try {
     uni.$on('nav-query', function(q) { applyNavQuery(q) })
     var q = sessionStorage.getItem('_nav_query')
@@ -1158,6 +1208,8 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .qf-pantype-select { width: 100%; padding: 9px 12px; border: 1.5px solid var(--card-border); border-radius: 8px; font-size: 0.85rem; font-weight: 500; background: var(--card-bg); color: var(--text-1); cursor: pointer; appearance: none; -webkit-appearance: none; -moz-appearance: none; outline: none; box-sizing: border-box; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M5 7L1 3h8z' fill='%23999'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; padding-right: 24px; }
 .qf-pantype-select:focus { border-color: var(--accent); }
 .qf-options-row { display: flex; gap: 10px; align-items: flex-end; }
+.qf-member-actions { display: flex; justify-content: flex-end; margin-top: 14px; }
+.qf-json-copy-btn { flex: 0 0 auto; min-width: 116px; padding: 9px 16px; border-radius: 18px; font-size: 0.78rem; letter-spacing: 1px; }
 .qf-result { margin-top: 16px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .qf-result-card { background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid var(--card-border); }
 .qf-result-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 10px; color: var(--accent); letter-spacing: 2px; }

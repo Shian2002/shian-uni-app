@@ -1401,6 +1401,17 @@ function getCurrentRoute() {
   return ''
 }
 
+function getCurrentRouteWithQuery() {
+  try {
+    var hash = window.location.hash.replace('#', '') || '/'
+    var pathOnly = hash.split('?')[0]
+    var queryStr = hash.indexOf('?') > -1 ? hash.substring(hash.indexOf('?')) : ''
+    var route = pathOnly === '/' ? '/pages/index/index' : pathOnly
+    return route + queryStr
+  } catch (_) {}
+  return ''
+}
+
 const currentRoute = ref('')
 currentRoute.value = getCurrentRoute()
 
@@ -1503,7 +1514,13 @@ function toggleMoreMenu(ev) {
 // 必须用 querySelectorAll 遍历所有实例，确保用户看到的导航也被更新。
 function syncNavHighlight() {
   var route = getCurrentRoute()
+  var fullRoute = getCurrentRouteWithQuery()
   if (!route) return
+  try {
+    if (route === '/pages/index/index' && window.__xcHomeMode === 'app') {
+      fullRoute = '/pages/index/index?app=1'
+    }
+  } catch (_) {}
 
   // 清除所有按钮高亮
   document.querySelectorAll('.nav-btn.current, .nav-btn-drop-item.menu-active').forEach(function(el) {
@@ -1513,9 +1530,12 @@ function syncNavHighlight() {
   // 通过 data-href 匹配当前路由（精确匹配，避免 "#/" 匹配所有路由）
   document.querySelectorAll('.nav-btn[data-href], .nav-btn-drop-item[data-href]').forEach(function(el) {
     var href = el.getAttribute('data-href') || ''
-    var target = href.replace('#/', '/pages/')  // "#/pages/..." → "/pages/..."
-    if (href === '#/') target = '/pages/index/index'  // 首页
-    if (target && route === target) {
+    var raw = href.replace('#', '') || '/'
+    var pathOnly = raw.split('?')[0]
+    var queryStr = raw.indexOf('?') > -1 ? raw.substring(raw.indexOf('?')) : ''
+    var target = pathOnly === '/' ? '/pages/index/index' : pathOnly
+    var fullTarget = target + queryStr
+    if (fullTarget && fullRoute === fullTarget) {
       el.classList.add('current')
       el.classList.add('menu-active')
     }
@@ -1541,6 +1561,7 @@ onMounted(() => {
   // #ifdef H5
   window.__topNavGo = go
   window.__topNavGo.avatarLoad = loadAvatar
+  window.addEventListener('xc-home-mode-changed', syncNavHighlight)
 
   var _xc_applyFrost = function(el) {
     if (!el) return
