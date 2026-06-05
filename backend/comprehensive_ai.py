@@ -6,33 +6,33 @@ COMPREHENSIVE_LLM_MODELS = [
     {
         "id": "basic",
         "name": "基础模型",
-        "cost_base": 0,
+        "cost_base": 2,
         "cost_multiplier": 0,
-        "followup_cost": 0,
+        "followup_cost": 2,
         "enabled": True,
     },
     {
         "id": "advanced",
         "name": "高级模型",
-        "cost_base": 2,
-        "cost_multiplier": 1,
-        "followup_cost": 1,
+        "cost_base": 4,
+        "cost_multiplier": 0,
+        "followup_cost": 4,
         "enabled": True,
     },
     {
         "id": "expert",
         "name": "专家模型",
-        "cost_base": 6,
-        "cost_multiplier": 1.5,
-        "followup_cost": 2,
+        "cost_base": 8,
+        "cost_multiplier": 0,
+        "followup_cost": 8,
         "enabled": True,
     }
 ]
 
 COMPREHENSIVE_READING_MODES = [
-    {"id": "concise", "name": "简洁", "cost_delta": -1},
-    {"id": "standard", "name": "标准", "cost_delta": 0},
-    {"id": "deep", "name": "深度", "cost_delta": 3},
+    {"id": "concise", "name": "简约", "cost_delta": -1, "display_cost": 1},
+    {"id": "standard", "name": "标准", "cost_delta": 0, "display_cost": 2},
+    {"id": "deep", "name": "深度", "cost_delta": 2, "display_cost": 4},
 ]
 
 

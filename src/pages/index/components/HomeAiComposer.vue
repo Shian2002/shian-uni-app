@@ -29,8 +29,8 @@
         </picker>
         <picker :range="llmModelNames" :value="llmModelIdx" @change="$emit('llm-model-change', $event)">
           <view class="llm-picker">
-            <text class="llm-name">{{ selectedLlmModel.name || '基础模型' }}</text>
-            <text class="llm-points">{{ estimatedCost }}分</text>
+            <text class="llm-name">{{ compactLlmName }}</text>
+            <text class="llm-points">{{ llmCostText }}</text>
             <text class="llm-caret">⌄</text>
           </view>
         </picker>
@@ -79,27 +79,38 @@ const localValue = computed({
 })
 
 const modeCostText = computed(() => {
+  const cost = Number(props.selectedReadingMode.display_cost || 0)
+  if (cost > 0) return cost + '分'
   const delta = Number(props.selectedReadingMode.cost_delta || 0)
   if (delta > 0) return '+' + delta + '分'
   if (delta < 0) return delta + '分'
-  return '标准'
+  return '2分'
+})
+
+const compactLlmName = computed(() => {
+  return String(props.selectedLlmModel.name || '基础模型').replace(/模型$/, '')
+})
+
+const llmCostText = computed(() => {
+  const cost = Number(props.selectedLlmModel.cost_base || props.estimatedCost || 0)
+  return cost > 0 ? cost + '分' : '0分'
 })
 </script>
 
 <style scoped>
-.home-ai-main { position: fixed; left: 50%; bottom: 14px; z-index: 260; transform: translateX(-50%); width: min(960px, calc(100vw - 36px)); box-sizing: border-box; display: flex; flex-direction: column; gap: 7px; padding: 10px 12px; border: 1px solid rgba(178,149,93,0.18); border-radius: 18px; background: rgba(34, 31, 25, 0.50); backdrop-filter: blur(30px) saturate(145%); box-shadow: 0 16px 48px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.08); overflow-x: hidden; transition: border-color .2s ease, box-shadow .2s ease, background .2s ease; }
+.home-ai-main { position: fixed; left: 50%; bottom: 14px; z-index: 260; transform: translateX(-50%); width: min(960px, calc(100vw - 36px)); box-sizing: border-box; display: flex; flex-direction: column; gap: 7px; padding: 10px 12px; border: 1px solid rgba(178,149,93,0.18); border-radius: 18px; background: rgba(34, 31, 25, 0.50); backdrop-filter: blur(30px) saturate(145%); box-shadow: 0 16px 48px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.08); overflow-x: visible; transition: border-color .2s ease, box-shadow .2s ease, background .2s ease; }
 .home-ai-main:focus-within { border-color: rgba(178,149,93,0.50); box-shadow: 0 18px 52px rgba(0,0,0,0.24), 0 0 0 3px rgba(178,149,93,0.10), inset 0 1px 0 rgba(255,255,255,0.12); }
 [data-theme="light"] .home-ai-main { background: rgba(255,253,248,0.80); box-shadow: 0 12px 34px rgba(60,40,15,0.10), inset 0 1px 0 rgba(255,255,255,0.75); }
 [data-theme="light"] .home-ai-main:focus-within { box-shadow: 0 14px 42px rgba(60,40,15,0.13), 0 0 0 3px rgba(150,103,20,0.10), inset 0 1px 0 rgba(255,255,255,0.82); }
 .home-ai-input { width: 100%; min-height: 42px; max-height: 64px; padding: 5px 4px 0; color: var(--text-1); font-size: 0.9rem; line-height: 1.38; background: transparent !important; background-color: transparent !important; border: none; outline: none; box-sizing: border-box; appearance: none; -webkit-appearance: none; color-scheme: dark; }
 [data-theme="light"] .home-ai-input { color-scheme: light; }
 .home-ai-input::placeholder { color: rgba(120,108,86,0.68); }
-.home-ai-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; flex-wrap: nowrap !important; overflow-x: hidden; box-sizing: border-box; width: 100%; }
+.home-ai-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; flex-wrap: nowrap !important; overflow-x: visible; box-sizing: border-box; width: 100%; }
 .home-ai-toolbar-left { display: flex; align-items: center; gap: 6px; flex-shrink: 1; min-width: 0; }
-.home-ai-toolbar-right { display: flex; align-items: center; gap: 6px; margin-left: auto; flex-shrink: 1; min-width: 0; overflow-x: hidden; box-sizing: border-box; }
-.profile-picker, .tool-picker, .llm-picker, .home-ai-send { min-height: 36px; border-radius: 999px; border: 1px solid rgba(178,149,93,0.18); background: rgba(255,255,255,0.065); color: var(--text-1); display: flex; align-items: center; justify-content: center; cursor: pointer; box-sizing: border-box; flex-shrink: 0; transition: border-color .18s ease, background .18s ease, transform .18s ease; }
-[data-theme="light"] .profile-picker, [data-theme="light"] .tool-picker, [data-theme="light"] .llm-picker { background: rgba(255,251,242,0.76); }
-.profile-picker:hover, .tool-picker:hover, .llm-picker:hover { border-color: rgba(178,149,93,0.45); background: var(--accent-glow); }
+.home-ai-toolbar-right { display: flex; align-items: center; gap: 6px; margin-left: auto; flex-shrink: 1; min-width: 0; overflow-x: visible; box-sizing: border-box; }
+.profile-picker, .tool-picker, .reading-mode-picker, .llm-picker, .home-ai-send { min-height: 36px; border-radius: 999px; border: 1px solid rgba(178,149,93,0.18); background: rgba(255,255,255,0.065); color: var(--text-1); display: flex; align-items: center; justify-content: center; cursor: pointer; box-sizing: border-box; flex-shrink: 0; transition: border-color .18s ease, background .18s ease, transform .18s ease; }
+[data-theme="light"] .profile-picker, [data-theme="light"] .tool-picker, [data-theme="light"] .reading-mode-picker, [data-theme="light"] .llm-picker { background: rgba(255,251,242,0.76); }
+.profile-picker:hover, .tool-picker:hover, .reading-mode-picker:hover, .llm-picker:hover { border-color: rgba(178,149,93,0.45); background: var(--accent-glow); }
 .profile-picker, .tool-picker { justify-content: flex-start; gap: 6px; padding: 0 10px; max-width: 168px; min-width: 86px; flex-shrink: 1; }
 .profile-plus, .tool-picker-icon { width: 20px; height: 20px; border-radius: 50%; background: var(--accent-glow); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; flex-shrink: 0; }
 .profile-name, .tool-picker text:last-child { display: block; font-size: 0.75rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -135,36 +146,26 @@ const modeCostText = computed(() => {
 @media (max-width: 520px) {
   .home-ai-main { bottom: 8px; width: calc(100vw - 18px); border-radius: 16px; padding: 9px 10px; gap: 6px; }
   .home-ai-input { min-height: 40px; max-height: 58px; font-size: 0.88rem; }
-  .home-ai-toolbar { gap: 4px; flex-wrap: nowrap !important; overflow-x: hidden; box-sizing: border-box; }
-  .home-ai-toolbar-left, .home-ai-toolbar-right { gap: 4px; }
-  .home-ai-toolbar-right { gap: 3px; overflow-x: hidden; box-sizing: border-box; }
-  .profile-picker, .tool-picker { max-width: 84px; padding: 0 6px; min-height: 30px; }
+  .home-ai-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr) 72px 72px 30px; align-items: center; gap: 4px; flex-wrap: nowrap !important; overflow: visible; box-sizing: border-box; }
+  .home-ai-toolbar-left, .home-ai-toolbar-right { display: contents; }
+  .profile-picker, .tool-picker, .reading-mode-picker, .llm-picker { width: 100%; min-width: 0; max-width: none; height: 30px; min-height: 30px; padding: 0 7px; flex-direction: row; align-items: center; justify-content: flex-start; gap: 4px; overflow: hidden; }
   .profile-plus, .tool-picker-icon { width: 18px; height: 18px; font-size: 0.72rem; }
   .profile-name, .tool-picker text:last-child { font-size: 0.66rem; }
-  .reading-mode-picker { min-width: 82px; max-width: 92px; min-height: 30px; padding: 0 7px 0 9px; gap: 5px; }
-  .reading-mode-label { font-size: 0.62rem; }
-  .reading-mode-points { height: 16px; padding: 0 4px; font-size: 0.5rem; }
-  .llm-picker { min-width: 96px; max-width: 108px; padding: 0 7px 0 9px; min-height: 30px; gap: 5px; }
-  .llm-name { font-size: 0.64rem; }
-  .llm-points { height: 16px; padding: 0 5px; font-size: 0.52rem; }
-  .home-ai-send { width: 30px; height: 30px; min-height: 30px; font-size: 0.95rem; }
+  .reading-mode-label, .llm-name { font-size: 0.64rem; }
+  .reading-mode-points, .llm-points { display: flex; align-items: center; height: 16px; padding: 0 4px; border-radius: 999px; background: var(--accent-glow); color: var(--accent); font-size: 0.5rem; line-height: 1; flex-shrink: 0; }
+  .reading-mode-caret, .llm-caret { display: none; }
+  .home-ai-send { width: 30px; min-width: 30px; height: 30px; min-height: 30px; font-size: 0.95rem; justify-self: end; }
 }
 
 @media (max-width: 390px) {
   .home-ai-main { padding: 7px 9px; gap: 4px; border-radius: 15px; }
   .home-ai-input { min-height: 34px; max-height: 50px; font-size: 0.84rem; padding: 3px 4px 0; }
-  .home-ai-toolbar { gap: 3px; flex-wrap: nowrap !important; overflow-x: hidden; box-sizing: border-box; }
-  .home-ai-toolbar-left, .home-ai-toolbar-right { gap: 3px; }
-  .home-ai-toolbar-right { overflow-x: hidden; box-sizing: border-box; }
-  .profile-picker, .tool-picker { max-width: 72px; padding: 0 4px; min-height: 28px; }
+  .home-ai-toolbar { grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr) 72px 72px 28px; gap: 3px; overflow: visible; box-sizing: border-box; }
+  .profile-picker, .tool-picker, .reading-mode-picker, .llm-picker { height: 28px; min-height: 28px; padding: 0 5px; gap: 3px; }
   .profile-plus, .tool-picker-icon { width: 16px; height: 16px; font-size: 0.66rem; }
   .profile-name, .tool-picker text:last-child { font-size: 0.6rem; }
-  .reading-mode-picker { min-width: 66px; max-width: 74px; min-height: 28px; padding: 0 6px 0 8px; gap: 4px; }
-  .reading-mode-label { font-size: 0.56rem; }
-  .reading-mode-points { display: none; }
-  .llm-picker { min-width: 82px; max-width: 90px; padding: 0 6px 0 8px; min-height: 28px; gap: 4px; }
-  .llm-name { font-size: 0.58rem; }
-  .llm-points { display: none; }
-  .home-ai-send { width: 26px; height: 26px; min-height: 26px; font-size: 0.9rem; }
+  .reading-mode-label, .llm-name { font-size: 0.58rem; }
+  .reading-mode-points, .llm-points { height: 15px; padding: 0 3px; font-size: 0.46rem; }
+  .home-ai-send { width: 28px; min-width: 28px; height: 28px; min-height: 28px; font-size: 0.9rem; }
 }
 </style>

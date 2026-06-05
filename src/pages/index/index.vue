@@ -1087,11 +1087,11 @@ const readingModeStorageKey = 'xc_home_reading_mode_v1'
 const artifactCollapseStorageKey = 'xc_home_artifact_collapse_v1'
 const comprehensiveDraftStorageKey = 'xc_home_comprehensive_draft_v1'
 const readingModes = ref([
-  { id: 'concise', name: '简洁', cost_delta: -1 },
-  { id: 'standard', name: '标准', cost_delta: 0 },
-  { id: 'deep', name: '深度', cost_delta: 3 },
+  { id: 'concise', name: '简约', cost_delta: -1, display_cost: 1 },
+  { id: 'standard', name: '标准', cost_delta: 0, display_cost: 2 },
+  { id: 'deep', name: '深度', cost_delta: 2, display_cost: 4 },
 ])
-const llmModels = ref([{ id: 'basic', name: '基础模型', cost_base: 0, cost_multiplier: 0, followup_cost: 0 }])
+const llmModels = ref([{ id: 'basic', name: '基础模型', cost_base: 2, cost_multiplier: 0, followup_cost: 2 }])
 const toolModels = ref([
   { id: 'qimen', name: '奇门遁甲', cost: 3 },
   { id: 'bazi', name: '八字', cost: 2 },
@@ -1136,10 +1136,8 @@ const llmModelNames = computed(() => llmModels.value.map(m => m.name || '基础�
 const selectedReadingMode = computed(() => readingModes.value.find(m => m.id === readingMode.value) || readingModes.value[1] || {})
 const readingModeNames = computed(() => readingModes.value.map(m => m.name))
 const readingModeLabels = computed(() => readingModes.value.map(m => {
-  const delta = Number(m.cost_delta || 0)
-  if (delta > 0) return `${m.name}（+${delta}分）`
-  if (delta < 0) return `${m.name}（${delta}分）`
-  return `${m.name}（不加分）`
+  const cost = Number(m.display_cost || 0)
+  return cost > 0 ? `${m.name}（${cost}分）` : m.name
 }))
 const readingModeIdx = computed(() => Math.max(0, readingModes.value.findIndex(m => m.id === selectedReadingMode.value.id)))
 const comprehensivePlaceholder = computed(() => comprehensiveMessages.value.length ? '请继续输入你想问的问题' : '输入你的问题，选择术数模型后开始综合解读')
@@ -5984,7 +5982,7 @@ onBeforeUnmount(() => {
 /* ═══ 首页综合 AI 输入框 ═══ */
 .home-ai-console { max-width: 920px; margin: 0 auto; padding-bottom: 0; text-align: left; display: flex; flex-direction: column; gap: 12px; width: 100%; min-height: 0; overflow: visible; box-sizing: border-box; }
 .home-ai-console.has-chat { width: min(1180px, calc(100vw - 48px)); max-width: none; flex: 1 1 auto; min-height: 0; margin: 0 auto; padding: 0; box-sizing: border-box; overflow: visible; }
-.home-ai-main { position: fixed; left: 50%; bottom: 14px; z-index: 260; transform: translateX(-50%); width: min(960px, calc(100vw - 36px)); box-sizing: border-box; display: flex; flex-direction: column; gap: 7px; padding: 10px 12px; border: 1px solid rgba(178,149,93,0.18); border-radius: 18px; background: rgba(34, 31, 25, 0.50); backdrop-filter: blur(30px) saturate(145%); box-shadow: 0 16px 48px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.08); overflow-x: hidden; transition: border-color .2s ease, box-shadow .2s ease, background .2s ease; }
+.home-ai-main { position: fixed; left: 50%; bottom: 14px; z-index: 260; transform: translateX(-50%); width: min(960px, calc(100vw - 36px)); box-sizing: border-box; display: flex; flex-direction: column; gap: 7px; padding: 10px 12px; border: 1px solid rgba(178,149,93,0.18); border-radius: 18px; background: rgba(34, 31, 25, 0.50); backdrop-filter: blur(30px) saturate(145%); box-shadow: 0 16px 48px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.08); overflow-x: visible; transition: border-color .2s ease, box-shadow .2s ease, background .2s ease; }
 :global(body.home-fixed-page:not(:has(.home-ai-console.has-chat))) .home-ai-main {
   bottom: max(18px, calc(env(safe-area-inset-bottom) + 14px));
   max-height: min(128px, calc(100dvh - 120px));
@@ -5996,9 +5994,9 @@ onBeforeUnmount(() => {
 .home-ai-input { width: 100%; min-height: 42px; max-height: 64px; padding: 5px 4px 0; color: var(--text-1); font-size: 0.9rem; line-height: 1.38; background: transparent !important; background-color: transparent !important; border: none; outline: none; box-sizing: border-box; appearance: none; -webkit-appearance: none; color-scheme: dark; }
 [data-theme="light"] .home-ai-input { color-scheme: light; }
 .home-ai-input::placeholder { color: rgba(120,108,86,0.68); }
-.home-ai-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; flex-wrap: nowrap !important; overflow-x: hidden; box-sizing: border-box; width: 100%; }
+.home-ai-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; flex-wrap: nowrap !important; overflow-x: visible; box-sizing: border-box; width: 100%; }
 .home-ai-toolbar-left { display: flex; align-items: center; gap: 6px; flex-shrink: 1; min-width: 0; }
-.home-ai-toolbar-right { display: flex; align-items: center; gap: 6px; margin-left: auto; flex-shrink: 1; min-width: 0; overflow-x: hidden; box-sizing: border-box; }
+.home-ai-toolbar-right { display: flex; align-items: center; gap: 6px; margin-left: auto; flex-shrink: 1; min-width: 0; overflow-x: visible; box-sizing: border-box; }
 .profile-picker, .tool-picker, .reading-mode-picker, .llm-picker, .home-ai-send { min-height: 36px; border-radius: 999px; border: 1px solid rgba(178,149,93,0.18); background: rgba(255,255,255,0.065); color: var(--text-1); display: flex; align-items: center; justify-content: center; cursor: pointer; box-sizing: border-box; flex-shrink: 0; transition: border-color .18s ease, background .18s ease, transform .18s ease; }
 [data-theme="light"] .profile-picker, [data-theme="light"] .tool-picker, [data-theme="light"] .reading-mode-picker, [data-theme="light"] .llm-picker { background: rgba(255,251,242,0.76); }
 .profile-picker:hover, .tool-picker:hover, .reading-mode-picker:hover, .llm-picker:hover { border-color: rgba(178,149,93,0.45); background: var(--accent-glow); }
@@ -6006,12 +6004,12 @@ onBeforeUnmount(() => {
 .profile-plus, .tool-picker-icon { width: 20px; height: 20px; border-radius: 50%; background: var(--accent-glow); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; flex-shrink: 0; }
 .profile-name, .tool-picker text:last-child { display: block; font-size: 0.75rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .profile-meta { display: block; margin-top: 2px; font-size: 0.66rem; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.llm-picker { min-width: 96px; max-width: 128px; padding: 4px 10px; flex-direction: column; align-items: flex-start; gap: 1px; color: var(--text-2); white-space: nowrap; flex-shrink: 1; overflow: hidden; }
-.reading-mode-picker { min-width: 82px; max-width: 96px; padding: 4px 10px; flex-direction: column; align-items: center; justify-content: center; gap: 1px; color: var(--text-2); white-space: nowrap; flex-shrink: 0; overflow: hidden; text-align: center; }
-.reading-mode-label { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 0.56rem; color: var(--text-3); line-height: 1.15; text-align: center; }
+.llm-picker { min-width: 96px; max-width: 128px; padding: 0 10px; align-items: center; justify-content: flex-start; gap: 7px; color: var(--text-2); white-space: nowrap; flex-shrink: 1; overflow: hidden; }
+.reading-mode-picker { min-width: 82px; max-width: 96px; padding: 0 10px; align-items: center; justify-content: flex-start; gap: 6px; color: var(--text-2); white-space: nowrap; flex-shrink: 0; overflow: hidden; text-align: left; }
+.reading-mode-label { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 0.72rem; color: var(--text-1); line-height: 1; text-align: left; }
 .reading-mode-name { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 0.72rem; color: var(--text-1); line-height: 1.2; text-align: center; }
-.llm-name { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 0.72rem; color: var(--text-1); line-height: 1.2; }
-.llm-points { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 0.58rem; color: var(--text-3); line-height: 1.2; }
+.llm-name { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 0.72rem; color: var(--text-1); line-height: 1; }
+.llm-points { display: flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 999px; background: var(--accent-glow); color: var(--accent); font-size: 0.58rem; line-height: 1; flex-shrink: 0; }
 .home-ai-send { width: 36px; height: 36px; min-height: 36px; background: var(--accent); border-color: var(--accent); color: #fff; font-size: 1.1rem; font-weight: 700; line-height: 1; flex-shrink: 0; box-shadow: 0 8px 22px rgba(120,80,12,0.22); }
 [data-theme="light"] .home-ai-send { background: var(--accent); border-color: var(--accent); color: #fff; }
 .home-ai-send:hover { transform: translateY(-1px); }
@@ -6515,19 +6513,15 @@ onBeforeUnmount(() => {
   .home-ai-main { padding: 9px 10px; gap: 6px; }
   .home-ai-input { min-height: 40px; max-height: 58px; font-size: 0.88rem; }
   .home-ai-console.has-chat .home-ai-input { min-height: 36px; max-height: 54px; }
-  .home-ai-toolbar { gap: 4px; flex-wrap: nowrap !important; overflow-x: hidden; box-sizing: border-box; }
-  .home-ai-toolbar-left, .home-ai-toolbar-right { gap: 4px; }
-  .home-ai-toolbar-right { gap: 3px; overflow-x: hidden; box-sizing: border-box; }
-  .profile-picker, .tool-picker { max-width: 84px; padding: 0 6px; min-height: 30px; }
+  .home-ai-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr) 72px 72px 30px; align-items: center; gap: 4px; flex-wrap: nowrap !important; overflow: visible; box-sizing: border-box; }
+  .home-ai-toolbar-left, .home-ai-toolbar-right { display: contents; }
+  .profile-picker, .tool-picker, .reading-mode-picker, .llm-picker { width: 100%; min-width: 0; max-width: none; height: 30px; min-height: 30px; padding: 0 7px; flex-direction: row; align-items: center; justify-content: flex-start; gap: 4px; overflow: hidden; }
   .profile-plus, .tool-picker-icon { width: 18px; height: 18px; font-size: 0.72rem; }
   .profile-name, .tool-picker text:last-child { font-size: 0.66rem; }
-  .reading-mode-picker { min-width: 58px; max-width: 64px; padding: 3px 6px; min-height: 30px; }
-  .reading-mode-label { display: none; }
-  .reading-mode-name { font-size: 0.64rem; }
-  .llm-picker { min-width: 88px; max-width: 98px; padding: 3px 7px; min-height: 30px; align-items: flex-start; }
-  .llm-name { font-size: 0.64rem; }
-  .llm-points { font-size: 0.52rem; }
-  .home-ai-send { width: 30px; height: 30px; min-height: 30px; font-size: 0.95rem; }
+  .reading-mode-label, .llm-name { display: block; font-size: 0.64rem; line-height: 1; }
+  .reading-mode-points, .llm-points { display: flex; align-items: center; height: 16px; padding: 0 4px; border-radius: 999px; background: var(--accent-glow); color: var(--accent); font-size: 0.5rem; line-height: 1; flex-shrink: 0; }
+  .reading-mode-caret, .llm-caret { display: none; }
+  .home-ai-send { width: 30px; min-width: 30px; height: 30px; min-height: 30px; font-size: 0.95rem; justify-self: end; }
   .home-ai-message.user, .home-ai-message.assistant { margin-left: 0; margin-right: 0; }
   .home-ai-chat-head { align-items: flex-start; padding: 9px 10px; gap: 8px; }
   .home-ai-chat-sub { max-width: calc(100vw - 148px); font-size: 0.66rem; }
@@ -6598,18 +6592,13 @@ onBeforeUnmount(() => {
   .home-ai-console.has-chat .home-ai-chat { flex: 1 1 auto; min-height: 0; max-height: none; padding: 10px 10px var(--home-ai-chat-bottom-buffer); overflow: visible; touch-action: pan-y; scroll-padding-bottom: var(--home-ai-chat-bottom-buffer); }
   .home-ai-main { padding: 7px 9px; gap: 4px; border-radius: 15px; }
   .home-ai-input { min-height: 34px; max-height: 50px; font-size: 0.84rem; padding: 3px 4px 0; }
-  .home-ai-toolbar { gap: 3px; flex-wrap: nowrap !important; overflow-x: hidden; box-sizing: border-box; }
-  .home-ai-toolbar-left, .home-ai-toolbar-right { gap: 3px; }
-  .home-ai-toolbar-right { overflow-x: hidden; box-sizing: border-box; }
-  .profile-picker, .tool-picker { max-width: 72px; padding: 0 4px; min-height: 28px; }
+  .home-ai-toolbar { grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr) 72px 72px 28px; gap: 3px; overflow: visible; box-sizing: border-box; }
+  .profile-picker, .tool-picker, .reading-mode-picker, .llm-picker { height: 28px; min-height: 28px; padding: 0 5px; gap: 3px; }
   .profile-plus, .tool-picker-icon { width: 16px; height: 16px; font-size: 0.66rem; }
   .profile-name, .tool-picker text:last-child { font-size: 0.6rem; }
-  .reading-mode-picker { min-width: 48px; max-width: 52px; padding: 2px 5px; min-height: 28px; }
-  .reading-mode-name { font-size: 0.58rem; }
-  .llm-picker { min-width: 76px; max-width: 82px; padding: 2px 6px; min-height: 28px; }
-  .llm-name { font-size: 0.58rem; }
-  .llm-points { font-size: 0.48rem; }
-  .home-ai-send { width: 26px; height: 26px; min-height: 26px; font-size: 0.9rem; }
+  .reading-mode-label, .llm-name { font-size: 0.58rem; }
+  .reading-mode-points, .llm-points { height: 15px; padding: 0 3px; font-size: 0.46rem; }
+  .home-ai-send { width: 28px; min-width: 28px; height: 28px; min-height: 28px; font-size: 0.9rem; }
   .home-ai-chat-head { margin: 0 0 10px; border-radius: 12px; }
   .home-ai-chat-title { font-size: 0.8rem; }
   .home-ai-chat-sub { max-width: calc(100vw - 136px); font-size: 0.6rem; }

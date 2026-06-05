@@ -723,7 +723,7 @@ def test_comprehensive_reading_mode_cost_delta(app_module, user_factory):
     }).get_json()["estimated_cost"]
 
     assert concise == standard - 1
-    assert deep == standard + 3
+    assert deep == standard + 2
 
 
 def test_comprehensive_options_hide_provider_details(app_module, user_factory):
@@ -739,7 +739,9 @@ def test_comprehensive_options_hide_provider_details(app_module, user_factory):
     models = response.get_json()["llm_models"]
     reading_modes = response.get_json()["reading_modes"]
     assert [m["name"] for m in models] == ["基础模型", "高级模型", "专家模型"]
-    assert [m["name"] for m in reading_modes] == ["简洁", "标准", "深度"]
+    assert [m["name"] for m in reading_modes] == ["简约", "标准", "深度"]
+    assert [m["cost_base"] for m in models] == [2, 4, 8]
+    assert [m["display_cost"] for m in reading_modes] == [1, 2, 4]
     assert all("provider" not in m for m in models)
     assert all("strength" not in m for m in models)
 
