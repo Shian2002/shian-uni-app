@@ -4,6 +4,7 @@ from pathlib import Path
 
 INDEX_VUE = Path(__file__).resolve().parents[1] / "src" / "pages" / "index" / "index.vue"
 QIMEN_VUE = Path(__file__).resolve().parents[1] / "src" / "pages" / "qimen" / "index.vue"
+BAZI_INDEX_VUE = Path(__file__).resolve().parents[1] / "src" / "pages" / "bazi-index" / "index.vue"
 APP_VUE = Path(__file__).resolve().parents[1] / "src" / "App.vue"
 HOME_AI_UTILS = Path(__file__).resolve().parents[1] / "src" / "pages" / "index" / "homeAiUtils.js"
 HOME_AI_DRAFT = Path(__file__).resolve().parents[1] / "src" / "pages" / "index" / "useHomeAiDraft.js"
@@ -17,6 +18,10 @@ def _source():
 
 def _qimen_source():
     return QIMEN_VUE.read_text(encoding="utf-8")
+
+
+def _bazi_index_source():
+    return BAZI_INDEX_VUE.read_text(encoding="utf-8")
 
 
 def _app_source():
@@ -341,3 +346,17 @@ def test_tool_tabs_stay_in_normal_scroll_flow():
     assert "z-index:auto!important" in source
     assert "body:not(.home-fixed-page) .tool-tabs{\n  position:sticky!important;" not in source
     assert "body:not(.home-fixed-page) .tool-tabs{top:56px" not in source
+
+
+def test_bazi_record_cards_align_pillars_before_ops_and_use_soft_colors():
+    source = _bazi_index_source()
+
+    assert "grid-template-columns: 50px minmax(0, 1fr) 132px 44px" in source
+    assert ".bz-card .card-gz { display: flex; gap: 8px; width: 132px;" in source
+    assert ".bz-card .card-ops {\n  width: 44px;" in source
+    assert "grid-template-columns: 42px minmax(0, 1fr) 112px 38px !important" in source
+    assert "'甲':'#4f9d67'" in source
+    assert "'乙':'#63ad74'" in source
+    assert "#07e930" not in source
+    assert "#1dcc36" not in source
+    assert "#2ecc71" not in source

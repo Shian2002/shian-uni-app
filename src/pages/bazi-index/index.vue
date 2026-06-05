@@ -1214,10 +1214,10 @@ function viewRecord(r) {
 }
 
 var WX_CARD = {
-  '甲':'#07e930','乙':'#1dcc36','丙':'#d30505','丁':'#e02a2a','戊':'#8b6d03','己':'#a07d10',
-  '庚':'#ef9104','辛':'#d4860a','壬':'#2e83f6','癸':'#4a96f0',
-  '子':'#2e83f6','丑':'#a07d10','寅':'#07e930','卯':'#1dcc36','辰':'#a07d10','巳':'#d30505',
-  '午':'#e02a2a','未':'#a07d10','申':'#ef9104','酉':'#d4860a','戌':'#8b6d03','亥':'#4a96f0'
+  '甲':'#4f9d67','乙':'#63ad74','丙':'#c85b55','丁':'#d46b60','戊':'#9a7a3c','己':'#aa8847',
+  '庚':'#c18a3c','辛':'#c79a55','壬':'#4f7fb7','癸':'#6090c4',
+  '子':'#4f7fb7','丑':'#aa8847','寅':'#4f9d67','卯':'#63ad74','辰':'#aa8847','巳':'#c85b55',
+  '午':'#d46b60','未':'#aa8847','申':'#c18a3c','酉':'#c79a55','戌':'#9a7a3c','亥':'#6090c4'
 }
 var GAN_WX_NAME = {'甲':'木','乙':'木','丙':'火','丁':'火','戊':'土','己':'土','庚':'金','辛':'金','壬':'水','癸':'水'}
 var ZHI_WX_NAME = {'子':'水','丑':'土','寅':'木','卯':'木','辰':'土','巳':'火','午':'火','未':'土','申':'金','酉':'金','戌':'土','亥':'水'}
@@ -2940,10 +2940,10 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .batch-confirm-btn { background: #e74c3c; color: #fff; border: none; border-radius: 6px; padding: 6px 16px; font-size: 13px; cursor: pointer; }
 .batch-cancel-btn { background: var(--input-bg); color: var(--text-3); border: 1px solid var(--card-border); border-radius: 6px; padding: 6px 16px; font-size: 13px; cursor: pointer; }
 .case-cards { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 10px; padding: 14px 20px 20px; }
-.bz-card { width: auto !important; display: flex; align-items: center; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; position: relative; cursor: pointer; height: 80px; transition: border-color 0.2s, background 0.2s; overflow: hidden; }
+.bz-card { width: auto !important; display: grid; grid-template-columns: 50px minmax(0, 1fr) 132px 44px; column-gap: 8px; align-items: center; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; position: relative; cursor: pointer; height: 80px; padding-left: 12px; transition: border-color 0.2s, background 0.2s; overflow: hidden; }
 .bz-card:hover { border-color: var(--accent); background: var(--accent-glow); }
 .bz-card.starred { border-color: rgba(241,196,15,0.4); background: rgba(241,196,15,0.04); }
-.bz-card.pinned { border-color: rgba(46,204,113,0.6); background: rgba(46,204,113,0.06); box-shadow: 0 0 0 1px rgba(46,204,113,0.3), 0 4px 12px rgba(46,204,113,0.15); }
+.bz-card.pinned { border-color: rgba(95,159,115,0.48); background: rgba(95,159,115,0.055); box-shadow: 0 0 0 1px rgba(95,159,115,0.20), 0 4px 12px rgba(95,159,115,0.10); }
 .bz-card.ctx-active { border-color: var(--accent) !important; background: var(--accent-glow) !important; box-shadow: 0 0 0 2px rgba(178,149,93,0.22), var(--card-shadow) !important; }
 .bz-card.pinned::before {
   content: '';
@@ -2952,10 +2952,10 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   top: 0;
   bottom: 0;
   width: 4px;
-  background: linear-gradient(180deg, #2ecc71 0%, #27ae60 100%);
+  background: linear-gradient(180deg, #6aa579 0%, #5f9f73 100%);
   border-radius: 10px 0 0 10px;
 }
-.bz-card .card-pin-badge { color: #2ecc71; font-size: 12px; }
+.bz-card .card-pin-badge { color: #5f9f73; font-size: 12px; }
 .bz-card .card-avatar {
   width: 38px;
   height: 38px;
@@ -2967,22 +2967,22 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   font-size: 20px;
   flex-shrink: 0;
   color: #333;
-  margin-left: 12px;
+  margin-left: 0;
   line-height: 1;
   padding: 0;
   box-sizing: border-box;
 }
-.bz-card .card-userinfo { flex: 0 1 auto; min-width: 0; max-width: 120px; padding: 0 8px; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+.bz-card .card-userinfo { min-width: 0; max-width: none; padding: 0 6px; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
 .bz-card .card-name { font-size: 14px; font-weight: 700; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px; }
 .bz-card .card-sex { font-size: 10px; color: var(--text-3); background: var(--input-bg); padding: 0 5px; border-radius: 3px; flex-shrink: 0; }
 .bz-card .card-star-badge { color: #f1c40f; font-size: 12px; }
 .bz-card .card-date { font-size: 11px; color: var(--text-3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bz-card .card-gz { display: flex; gap: 8px; flex: 1; justify-content: center; min-width: 120px; align-items: center; padding: 6px 8px; box-sizing: border-box; }
+.bz-card .card-gz { display: flex; gap: 8px; width: 132px; justify-content: center; align-items: center; padding: 6px 4px; box-sizing: border-box; }
 .bz-card .gz-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 0 0 26px; min-width: 26px; }
 .bz-card .gz-circle { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0; line-height: 1; }
 .bz-card .gz-placeholder { background: var(--card-border); color: var(--text-3); }
 .bz-card .card-ops {
-  width: 50px;
+  width: 44px;
   height: 100%;
   display: flex;
   align-items: center;
@@ -3222,8 +3222,11 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   .wz-smart-btns { flex-direction: column; }
   .wz-smart-btns .wz-submit-btn { width: 100%; }
   .case-cards, .star-cards { display: flex !important; flex-direction: column !important; gap: 10px !important; }
-  .bz-card { height: auto !important; min-height: 90px !important; }
+  .bz-card { grid-template-columns: 42px minmax(0, 1fr) 112px 38px !important; column-gap: 6px !important; height: auto !important; min-height: 90px !important; padding-left: 10px !important; }
   .card-userinfo { max-width: 100% !important; }
+  .bz-card .card-gz { width: 112px !important; gap: 6px !important; padding: 6px 2px !important; }
+  .bz-card .gz-col { flex-basis: 23px !important; min-width: 23px !important; }
+  .bz-card .card-ops { width: 38px !important; }
   .gz-circle { width: 20px !important; height: 20px !important; font-size: 11px !important; }
   .record-filter-row { padding: 8px 16px 10px !important; }
   
