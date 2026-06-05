@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import base64
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
 import pytest
@@ -88,6 +89,24 @@ def test_daily_sign_in_is_idempotent_by_user_and_date(app_module, user_factory):
         logs = app_module.PointLog.query.filter_by(user_id=user.id, action="sign_in").all()
         assert membership.points == app_module.POINT_RULES["sign_in"]
         assert len(logs) == 1
+
+
+def test_membership_endpoint_tolerates_concurrent_first_load(app_module, user_factory):
+    user = user_factory("race-member")
+
+    def load_membership():
+        client = app_module.app.test_client()
+        login = client.post("/api/login", json={"username": "race-member", "password": "secret123"})
+        assert login.status_code == 200
+        return client.get("/api/membership")
+
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        responses = list(pool.map(lambda _: load_membership(), range(6)))
+
+    assert [response.status_code for response in responses] == [200] * 6
+    with app_module.app.app_context():
+        memberships = app_module.Membership.query.filter_by(user_id=user.id).all()
+        assert len(memberships) == 1
 
 
 def test_use_points_does_not_write_log_when_balance_is_insufficient(app_module, user_factory):

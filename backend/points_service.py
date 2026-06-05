@@ -45,10 +45,18 @@ def get_or_create_membership(user_id, commit=True):
     if not membership:
         membership = Membership(user_id=user_id, level='free', points=0)
         db.session.add(membership)
-        if commit:
-            db.session.commit()
-        else:
-            db.session.flush()
+        try:
+            if commit:
+                db.session.commit()
+            else:
+                db.session.flush()
+        except IntegrityError:
+            if not commit:
+                raise
+            db.session.rollback()
+            membership = Membership.query.filter_by(user_id=user_id).first()
+            if not membership:
+                raise
     return membership
 
 
