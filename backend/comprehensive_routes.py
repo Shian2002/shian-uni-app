@@ -185,7 +185,7 @@ def register_comprehensive_routes(app, db, services):
 
     def build_qimen_context_from_question(question=''):
         now = datetime.now()
-        result = qimen_paipan(now.year, now.month, now.day, now.hour, now.minute, 1)
+        result = qimen_paipan(now.year, now.month, now.day, now.hour, now.minute, 2)
         if result.get('error'):
             return {'error': result.get('error')}
         context = dict(result or {})

@@ -243,7 +243,7 @@ const qfMinuteIdx = ref(_initNow.getMinutes())
 const qfPanTypeIdx = ref(0); const qfResult = ref('')
 const qfRawResult = ref(null)
 const qfJsonCopyAllowed = ref(false)
-const qimenPanTypeValues = [1, 2]
+const qimenPanTypeValues = [2]
 
 function qfOnDateChange() {
   const year = qfYearIdx.value >= 0 ? yearOptions[qfYearIdx.value] : 0
@@ -291,7 +291,7 @@ async function qimenFreePaipan() {
   const d = qfDayOptions.value[qfDayIdx.value]
   const h = hourValues[qfHourIdx.value]
   const min = parseInt(minuteOptions[qfMinuteIdx.value] || '0')
-  const panType = qimenPanTypeValues[qfPanTypeIdx.value] || 1
+  const panType = qimenPanTypeValues[qfPanTypeIdx.value] || 2
   try {
     const res = await uni.request({ url: '/api/qimen/paipan', method: 'POST', data: { year: y, month: m, day: d, hour: h, minute: min, panType } })
     const data = res.data
@@ -628,7 +628,7 @@ async function qimenAskPaipan() {
   var d = qaiDayOptions.value[qaiDayIdx.value]
   var h = hourValues[qaiHourIdx.value]
   var min = parseInt(minuteOptions[qaiMinuteIdx.value] || '0')
-  var panType = qimenPanTypeValues[qaiJuIdx.value] || 1
+  var panType = qimenPanTypeValues[qaiJuIdx.value] || 2
   var type = 'general'
   window._qaiPanTime = { year: y, month: m, day: d, hour: h, minute: min, panType: panType }
 
@@ -775,7 +775,7 @@ function qaiSendFollowUp() {
       day: pt.day || qaiDayOptions.value[qaiDayIdx.value],
       hour: pt.hour != null ? pt.hour : hourValues[qaiHourIdx.value],
       minute: pt.minute != null ? pt.minute : parseInt(minuteOptions[qaiMinuteIdx.value] || '0'),
-      panType: pt.panType || (qimenPanTypeValues[qaiJuIdx.value] || 1)
+      panType: pt.panType || (qimenPanTypeValues[qaiJuIdx.value] || 2)
     },
     question: question,
     onDone: function(fullText) {
@@ -858,14 +858,14 @@ function _fillAllSelects() {
   _fillSelect('qf-day', qfDayLabels.value, qfDayIdx.value, function(v) { qfDayIdx.value = v })
   _fillSelect('qf-hour', hourOptions, qfHourIdx.value, function(v) { qfHourIdx.value = v })
   _fillSelect('qf-minute', minuteOptions, qfMinuteIdx.value, function(v) { qfMinuteIdx.value = v })
-  _fillSelect('qf-pantype', ['拆补法', '置闰法'], qfPanTypeIdx.value, function(v) { qfPanTypeIdx.value = v })
+  _fillSelect('qf-pantype', ['拆补法'], qfPanTypeIdx.value, function(v) { qfPanTypeIdx.value = v })
   // AI版
   _fillSelect('qai-year', yearLabels, qaiYearIdx.value, function(v) { qaiYearIdx.value = v })
   _fillSelect('qai-month', monthLabels, qaiMonthIdx.value, function(v) { qaiMonthIdx.value = v })
   _fillSelect('qai-day', qaiDayLabels.value, qaiDayIdx.value, function(v) { qaiDayIdx.value = v })
   _fillSelect('qai-hour', hourOptions, qaiHourIdx.value, function(v) { qaiHourIdx.value = v })
   _fillSelect('qai-minute', minuteOptions, qaiMinuteIdx.value, function(v) { qaiMinuteIdx.value = v })
-  _fillSelect('qai-ju', ['拆补法', '置闰法'], qaiJuIdx.value, function(v) { qaiJuIdx.value = v })
+  _fillSelect('qai-ju', ['拆补法'], qaiJuIdx.value, function(v) { qaiJuIdx.value = v })
   _fillSelect('qai-school', ['时家奇门', '日家奇门'], qaiSchoolIdx.value, function(v) { qaiSchoolIdx.value = v })
 }
 

@@ -103,7 +103,7 @@
             <text class="trust-title">📋 排盘内核权威说明</text>
             <view class="auth-item">
               <text class="auth-item-title">奇门遁甲排盘规则</text>
-              <text class="auth-item-desc">采用时家奇门拆补法起局，支持置闰法、茅山法切换。用神取日干/时干双参体系，值符值使自动推演，九星八门三奇六仪完整排布。</text>
+              <text class="auth-item-desc">采用时家奇门拆补法起局。用神取日干/时干双参体系，值符值使自动推演，九星八门三奇六仪完整排布。</text>
             </view>
             <view class="auth-item">
               <text class="auth-item-title">八字排盘命理体系</text>

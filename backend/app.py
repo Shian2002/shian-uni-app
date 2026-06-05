@@ -1088,7 +1088,7 @@ def _gan_zhi_to_num(gan, zhi):
     return 0
 
 
-def _calc_ganzhi(year, month, day, hour):
+def _calc_ganzhi(year, month, day, hour, minute=0):
     """计算四柱干支，使用 sxtwl 库"""
     import sxtwl
     # 处理23点（子时）：23:00-1:00 都属于当前日的子时，用当前日干
@@ -1113,16 +1113,21 @@ def _calc_ganzhi(year, month, day, hour):
     hour_gan = _TIAN_GAN[hour_gan_index]
     hour_zhi = _DI_ZHI[zhi_index]
 
-    # 年柱
-    year_obj = sxtwl.fromSolar(year, month, day)
-    year_gz_index = year_obj.getYearGZ()
-    year_gan = _TIAN_GAN[year_gz_index.tg]
-    year_zhi = _DI_ZHI[year_gz_index.dz]
-
-    # 月柱
-    month_gz_index = year_obj.getMonthGZ()
-    month_gan = _TIAN_GAN[month_gz_index.tg]
-    month_zhi = _DI_ZHI[month_gz_index.dz]
+    # 年柱、月柱按精确节气时刻定界；sxtwl 在节气当天容易提前切换整天。
+    try:
+        from bazi_engine import calc_month_pillar, calc_year_pillar, get_jieqi_times
+        dt_solar = datetime(year, month, day, hour, minute, 0)
+        jieqi_times = get_jieqi_times(year)
+        year_gan, year_zhi = calc_year_pillar(dt_solar, jieqi_times)
+        month_gan, month_zhi = calc_month_pillar(dt_solar, year_gan, jieqi_times)
+    except Exception:
+        year_obj = sxtwl.fromSolar(year, month, day)
+        year_gz_index = year_obj.getYearGZ()
+        year_gan = _TIAN_GAN[year_gz_index.tg]
+        year_zhi = _DI_ZHI[year_gz_index.dz]
+        month_gz_index = year_obj.getMonthGZ()
+        month_gan = _TIAN_GAN[month_gz_index.tg]
+        month_zhi = _DI_ZHI[month_gz_index.dz]
 
     # 旬首：时柱的旬首
     gz_num = _gan_zhi_to_num(hour_gan, hour_zhi)
@@ -1155,11 +1160,10 @@ def _calc_ganzhi(year, month, day, hour):
     }
 
 
-def _calc_jieqi_ju(year, month, day, hour, minute, pan_type=1):
+def _calc_jieqi_ju(year, month, day, hour, minute, pan_type=2):
     """计算节气和起局
-    
-    Args:
-        pan_type: 1=拆补法, 2=置闰法
+
+    现在项目只保留一套对外"拆补法"：以符头定元，处理超神、接气、正授。
     """
     import ephem
     import datetime
@@ -1202,33 +1206,15 @@ def _calc_jieqi_ju(year, month, day, hour, minute, pan_type=1):
 
     jieqi_info = _JIEQI_JU_TABLE[jieqi_idx]
     jieqi_name, dun, shang, zhong, xia = jieqi_info
-    gz_info = _calc_ganzhi(year, month, day, hour)
+    gz_info = _calc_ganzhi(year, month, day, hour, minute)
     day_gan = gz_info['dayGan']
     day_zhi = gz_info['dayZhi']
 
-    if pan_type == 2:
-        # 置闰法定元：基于符头（甲己日）
-        yuan, ju, updated_jieqi_name, updated_dun = _calc_yuan_zhirun(
-            year, month, day, hour, minute, jieqi_info, jieqi_idx)
-        jieqi_name = updated_jieqi_name
-        dun = updated_dun
-    else:
-        # 60甲子直分法（与3meta对齐）：日干支在60甲子中的位置决定三元
-        # 无论 pan_type 是 1(茅山法) 还是 3(拆补法)，统一使用此算法
-        # 前20（甲子~癸未）→上元，中20（甲申~癸卯）→中元，后20（甲辰~癸亥）→下元
-        gan_idx = _TIAN_GAN.index(day_gan)
-        zhi_idx = _DI_ZHI.index(day_zhi)
-        gz_pos = (gan_idx * 6 - zhi_idx * 5 + 60) % 60
-
-        if gz_pos < 20:
-            yuan = '上'
-            ju = shang
-        elif gz_pos < 40:
-            yuan = '中'
-            ju = zhong
-        else:
-            yuan = '下'
-            ju = xia
+    # 拆补法定元：基于符头（甲己日）
+    yuan, ju, updated_jieqi_name, updated_dun = _calc_yuan_chaibu(
+        year, month, day, hour, minute, jieqi_info, jieqi_idx)
+    jieqi_name = updated_jieqi_name
+    dun = updated_dun
 
     # 遁型
     dun_str = '阳遁' if dun == '阳' else '阴遁'
@@ -1322,10 +1308,10 @@ def _find_jieqi_start_datetime(year, month, day, jieqi_idx):
     return datetime.datetime(int(d[0]), int(d[1]), int(d[2]), int(d[3]), int(d[4]))
 
 
-def _calc_yuan_zhirun(year, month, day, hour, minute, jieqi_info, jieqi_idx):
-    """置闰法定元：基于符头（甲己日）
+def _calc_yuan_chaibu(year, month, day, hour, minute, jieqi_info, jieqi_idx):
+    """拆补法定元：基于符头（甲己日）
 
-    置闰法核心逻辑（参照kinqimen实现）：
+    核心逻辑：
     1. 找到当日干支所属的5日组（符头）
     2. 根据符头干支确定上/中/下元
     3. 计算距当前节气开始日的天数差
@@ -1629,11 +1615,12 @@ def _layout_bashen(zhi_fu_target_gong, dun):
 # 主排盘函数
 # ═══════════════════════════════════════════════════════════════
 
-def _qimen_paipan(year, month, day, hour, minute=0, pan_type=1):
+def _qimen_paipan(year, month, day, hour, minute=0, pan_type=2):
     """自写奇门遁甲排盘引擎"""
     try:
+        pan_type = 2
         # Step 1: 干支计算
-        gz = _calc_ganzhi(year, month, day, hour)
+        gz = _calc_ganzhi(year, month, day, hour, minute)
 
         # Step 2: 节气起局
         jq = _calc_jieqi_ju(year, month, day, hour, minute, pan_type)
@@ -1916,7 +1903,7 @@ def _qimen_paipan(year, month, day, hour, minute=0, pan_type=1):
             'tianYiGong': _GONG_BAGUA.get(tian_yi_gong, '') if tian_yi_gong else '',
             'maXing': {'驛馬': yima_zhi},
             'palaces': palaces,
-            'panType': '置闰法' if pan_type == 2 else '拆补法',
+            'panType': '拆补法',
         }
 
         return result

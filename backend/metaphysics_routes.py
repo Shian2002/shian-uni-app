@@ -40,14 +40,14 @@ def register_metaphysics_routes(app, db, services):
         day = data.get('day')
         hour = data.get('hour', 12)
         minute = data.get('minute', 0)
-        pan_type = data.get('panType', 1)  # 1=拆补法, 2=置闰法
+        pan_type = data.get('panType', 2)  # 只保留新拆补法；旧参数统一归一到同一算法。
 
         if not all([year, month, day]):
             return jsonify({'error': '请提供完整的日期参数'}), 400
 
         try:
             year, month, day, hour = int(year), int(month), int(day), int(hour)
-            minute, pan_type = int(minute), int(pan_type)
+            minute, pan_type = int(minute), 2
         except (ValueError, TypeError):
             return jsonify({'error': '日期参数格式错误'}), 400
 
@@ -70,7 +70,7 @@ def register_metaphysics_routes(app, db, services):
         day = request.args.get('day', type=int, default=now.day)
         hour = request.args.get('hour', type=int, default=now.hour)
         minute = request.args.get('minute', type=int, default=0)
-        pan_type = request.args.get('panType', type=int, default=1)
+        pan_type = 2
 
         result = qimen_paipan(year, month, day, hour, minute, pan_type)
         if 'error' in result:

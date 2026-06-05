@@ -95,5 +95,5 @@ def test_qimen_free_json_copy_is_member_only_and_uses_backend_pan_type_values():
     assert 'v-if="qfResult && qfJsonCopyAllowed"' in source
     assert "function copyQimenJson()" in source
     assert "JSON.stringify(qfRawResult.value, null, 2)" in source
-    assert "const qimenPanTypeValues = [1, 2]" in source
-    assert "[2, 3]" not in source
+    assert "const qimenPanTypeValues = [2]" in source
+    assert "['拆补法', '置闰法']" not in source

@@ -52,7 +52,7 @@ CASES = [
         "name": "qimen_paipan",
         "method": "POST",
         "path": "/api/qimen/paipan",
-        "json": {"year": 2024, "month": 2, "day": 4, "hour": 16, "minute": 30, "panType": 1},
+        "json": {"year": 2024, "month": 2, "day": 4, "hour": 16, "minute": 30, "panType": 2},
     },
     {
         "name": "meihua_paipan",

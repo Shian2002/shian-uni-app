@@ -156,13 +156,13 @@ def test_qimen_meihua_and_liuyao_fixed_samples(client):
     qimen = _post_json(
         client,
         "/api/qimen/paipan",
-        {"year": 2024, "month": 2, "day": 4, "hour": 16, "minute": 30, "panType": 1},
+        {"year": 2024, "month": 2, "day": 4, "hour": 16, "minute": 30, "panType": 2},
     )
     assert qimen["fourPillars"] == {"year": "甲辰", "month": "丙寅", "day": "戊戌", "hour": "庚申"}
-    assert qimen["ju"] == "阳遁五局中元"
+    assert qimen["ju"] == "阳遁八局上元"
     assert qimen["solarTerm"] == "立春"
-    assert qimen["zhiFu"] == "值符天蓬落兑七宫(西)"
-    assert qimen["zhiShi"] == "值使休门落兑七宫(西)"
+    assert qimen["zhiFu"] == "值符天辅落坎一宫(北)"
+    assert qimen["zhiShi"] == "值使杜门落坎一宫(北)"
     assert len(qimen["palaces"]) == 9
 
     meihua = _post_json(client, "/api/meihua/paipan", {"method": "number", "num1": 7, "num2": 12})
@@ -193,11 +193,34 @@ def test_qimen_meihua_and_liuyao_fixed_samples(client):
     assert [idx + 1 for idx, yao in enumerate(liuyao["六爻"]) if yao["is_moving"]] == [1, 4]
 
 
+def test_qimen_chaibu_sample_before_mangzhong_uses_previous_month_pillar(client):
+    qimen = _post_json(
+        client,
+        "/api/qimen/paipan",
+        {"year": 2026, "month": 6, "day": 5, "hour": 12, "minute": 2, "panType": 2},
+    )
+
+    assert qimen["fourPillars"] == {"year": "丙午", "month": "癸巳", "day": "庚戌", "hour": "壬午"}
+    assert qimen["ju"] == "阳遁五局上元"
+    assert qimen["solarTerm"] == "小满"
+    assert qimen["xunShou"] == "己"
+    assert qimen["xunKong"] == {"day": "寅卯", "hour": "申酉"}
+    assert qimen["zhiFu"] == "值符天心落离九宫(南)"
+    assert qimen["zhiShi"] == "值使开门落艮八宫(东北)"
+    assert qimen["maXing"] == {"驛馬": "申"}
+
+
 def test_qimen_ask_default_pan_type_matches_free_paipan():
     source = (Path(__file__).resolve().parents[1] / "backend" / "qimen_ask_routes.py").read_text(encoding="utf-8")
 
-    assert "data.get('panType', 1)" in source
-    assert "1=拆补法，2=置闰法" in source
+    assert "pan_type = 2" in source
+    assert "只保留新拆补法" in source
+
+
+def test_comprehensive_qimen_defaults_to_chaibu():
+    source = (Path(__file__).resolve().parents[1] / "backend" / "comprehensive_routes.py").read_text(encoding="utf-8")
+
+    assert "qimen_paipan(now.year, now.month, now.day, now.hour, now.minute, 2)" in source
 
 
 def test_meihua_ask_stream_uses_split_route_and_creates_record(app_module, user_factory, monkeypatch):
@@ -339,7 +362,7 @@ def test_qimen_ask_stream_uses_split_route_and_creates_record(app_module, user_f
         "day": 4,
         "hour": 16,
         "minute": 30,
-        "panType": 1,
+        "panType": 2,
     })
 
     assert response.status_code == 200
@@ -367,7 +390,7 @@ def test_qimen_ask_background_status_from_split_route(app_module, monkeypatch):
         "day": 4,
         "hour": 16,
         "minute": 30,
-        "panType": 1,
+        "panType": 2,
     })
 
     assert response.status_code == 200

@@ -373,7 +373,7 @@ async function qimenFreePaipan() {
         const now = new Date();
         y = now.getFullYear(); m = now.getMonth() + 1; d = now.getDate(); h = now.getHours(); min = now.getMinutes();
     }
-    const panType = pantypeEl ? parseInt(pantypeEl.value) : 1;
+    const panType = pantypeEl ? parseInt(pantypeEl.value) : 2;
     const resultEl = $('qfResult');
     resultEl.style.display = 'block';
     resultEl.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-3);">排盘计算中...</div>';
