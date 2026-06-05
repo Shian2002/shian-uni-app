@@ -233,8 +233,11 @@ async function doLogout() {
   uni.removeStorageSync('xc_user')
   resetProfileSessionState()
   try {
-    window.dispatchEvent(new CustomEvent('xc-auth-changed', { detail: { type: 'logout' } }))
-    uni.$emit('xc-auth-changed', { type: 'logout' })
+    window.dispatchEvent(new CustomEvent('xc-auth-changed', { detail: { type: 'logout', loggedIn: false } }))
+    window.dispatchEvent(new CustomEvent('xc-show-marketing-home'))
+    uni.$emit('xc-auth-changed', { type: 'logout', loggedIn: false })
+    if (window.location.hash !== '#/') window.history.replaceState({ marketing: 'home' }, '', '#/')
+    uni.switchTab({ url: '/pages/index/index' })
   } catch(_) {}
   uni.showToast({ title: '已退出登录', icon: 'none' })
 }

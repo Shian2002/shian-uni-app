@@ -1181,6 +1181,34 @@ function applyLogoutState() {
   try { uni.$emit('xc-auth-changed', { type: 'logout', loggedIn: false }) } catch(_) {}
 }
 
+function showMarketingHomeAfterAuthChange() {
+  // 退出账号后统一回到营销页，避免停留在需要登录态的应用页导致空白。
+  try {
+    sessionStorage.removeItem('_nav_query')
+    window.__xcHomeMode = 'marketing'
+    if (window.location.hash !== '#/') window.history.replaceState({ marketing: 'home' }, '', '#/')
+    window.dispatchEvent(new CustomEvent('xc-show-marketing-home'))
+    window.dispatchEvent(new CustomEvent('xc-home-mode-changed', { detail: { mode: 'marketing' } }))
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  } catch(_) {}
+  try {
+    uni.switchTab({
+      url: '/pages/index/index',
+      success: function() {
+        try {
+          if (window.__xcRenderTabPath) window.__xcRenderTabPath('/')
+          window.dispatchEvent(new CustomEvent('xc-show-marketing-home'))
+        } catch(_) {}
+      },
+      fail: function() {
+        try {
+          if (window.__xcRenderTabPath) window.__xcRenderTabPath('/')
+        } catch(_) {}
+      }
+    })
+  } catch(_) {}
+}
+
 // 监听积分更新事件（签到/消费后实时刷新）
 if (!window.__xcPointsListener) {
   window.__xcPointsListener = true
@@ -1202,9 +1230,11 @@ function performLogout() {
   uni.request({ url: '/api/logout', method: 'POST' }).then(function() {
     uni.removeStorageSync('xc_token'); uni.removeStorageSync('xc_user'); uni.removeStorageSync('xc_has_password'); uni.removeStorageSync('xc_avatar')
     applyLogoutState()
+    showMarketingHomeAfterAuthChange()
   }).catch(function() {
     uni.removeStorageSync('xc_token'); uni.removeStorageSync('xc_user'); uni.removeStorageSync('xc_has_password'); uni.removeStorageSync('xc_avatar')
     applyLogoutState()
+    showMarketingHomeAfterAuthChange()
   })
 }
 
@@ -1342,6 +1372,7 @@ function go(hash) {
   var uniPath = pathOnly === '/' ? '/pages/index/index' : pathOnly
   var fullPath = uniPath + queryStr
   var isTab = TAB_PATHS.indexOf(pathOnly) > -1
+  var wantsMarketingHome = pathOnly === '/' && !queryStr
 
   // 从其他术数页点“八字排盘”时，优先回到本次会话最后看的八字结果页。
   // 只使用 window 变量，刷新页面后失效，避免把旧结果永久记住。
@@ -1360,7 +1391,15 @@ function go(hash) {
     }
   } catch(_) {}
 
-  if (queryStr) {
+  if (wantsMarketingHome) {
+    try {
+      sessionStorage.removeItem('_nav_query')
+      window.__xcHomeMode = 'marketing'
+      if (window.location.hash !== '#/') window.history.pushState({ marketing: 'home' }, '', '#/')
+      window.dispatchEvent(new CustomEvent('xc-show-marketing-home'))
+      window.dispatchEvent(new CustomEvent('xc-home-mode-changed', { detail: { mode: 'marketing' } }))
+    } catch(_) {}
+  } else if (queryStr) {
     try { sessionStorage.setItem('_nav_query', queryStr) } catch(_) {}
   }
 
@@ -1374,6 +1413,9 @@ function go(hash) {
       url: uniPath,
       success: function() {
         renderTargetTab()
+        if (wantsMarketingHome) {
+          try { window.dispatchEvent(new CustomEvent('xc-show-marketing-home')) } catch(_) {}
+        }
         // 切换 tab 后立即同步导航高亮+溢出检测，不依赖 300ms setInterval 轮询
         syncNavHighlight()
         updateNavOverflow()

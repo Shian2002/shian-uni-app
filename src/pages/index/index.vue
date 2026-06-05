@@ -706,6 +706,21 @@ function refreshMarketingMode(query) {
   syncMarketingPageClass()
 }
 
+function showMarketingHome() {
+  marketingPendingEnterAfterLogin = false
+  marketingMode.value = true
+  marketingCriticalVisible.value = false
+  resetMarketingVisibleSections()
+  syncMarketingPageClass()
+  nextTick(setupMarketingObserver)
+  // #ifdef H5
+  try {
+    if (window.location.hash !== '#/') window.history.replaceState({ marketing: 'home' }, '', '#/')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  } catch(_) {}
+  // #endif
+}
+
 function syncMarketingPageClass() {
   // #ifdef H5
   try {
@@ -1030,18 +1045,14 @@ function resetHomeAuthState() {
   profiles.value = []
   selectedProfiles.value = []
   startNewComprehensiveConversation()
-  marketingMode.value = true
-  syncMarketingPageClass()
-  // #ifdef H5
-  try {
-    if (window.location.hash !== '#/') window.history.replaceState({ marketing: 'home' }, '', '#/')
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  } catch(_) {}
-  // #endif
+  showMarketingHome()
 }
 window.addEventListener('xc-session-expired', function() {
   isLoggedIn.value = false
   resetHomeAuthState()
+})
+window.addEventListener('xc-show-marketing-home', function() {
+  showMarketingHome()
 })
 window.addEventListener('xc-auth-changed', function(e) {
   const loggedIn = !!(e && e.detail && e.detail.loggedIn)
