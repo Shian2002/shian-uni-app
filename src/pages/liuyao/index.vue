@@ -186,8 +186,8 @@ function switchTab(tab) {
 
 function switchLyMethod(m) {
   const changed = lyMethod.value !== m
+  if (changed) saveLyFreeResultForMode(lyMethod.value)
   lyMethod.value = m
-  if (changed) clearLyFreeResult()
   // 免费版方法切换 (v-if替代: DOM直操作)
   if (m === 'auto') {
     var autoEl = document.getElementById('lyMethodAuto')
@@ -205,6 +205,7 @@ function switchLyMethod(m) {
   var manBtn = document.getElementById('lyMethodManBtn')
   if (autoBtn) { m === 'auto' ? autoBtn.classList.add('active') : autoBtn.classList.remove('active') }
   if (manBtn) { m === 'manual' ? manBtn.classList.add('active') : manBtn.classList.remove('active') }
+  if (changed) restoreLyFreeResultForMode(m)
 }
 
 function switchLaiMethod(m) {
@@ -233,9 +234,20 @@ function switchLaiMethod(m) {
 const lyMethod = ref('auto')
 const lyTossRows = reactive(Array.from({ length: 6 }, () => [3, 3, 3]))
 const lfQuestion = ref('')
+const lyFreeResultCache = reactive({ auto: '', manual: '' })
+function saveLyFreeResultForMode(mode) {
+  const resultEl = document.getElementById('lyFreeResult')
+  if (resultEl && (mode === 'auto' || mode === 'manual')) lyFreeResultCache[mode] = resultEl.innerHTML
+}
+function restoreLyFreeResultForMode(mode) {
+  const resultEl = document.getElementById('lyFreeResult')
+  if (resultEl && (mode === 'auto' || mode === 'manual')) resultEl.innerHTML = lyFreeResultCache[mode] || ''
+}
 function clearLyFreeResult() {
   const resultEl = document.getElementById('lyFreeResult')
   if (resultEl) resultEl.innerHTML = ''
+  lyFreeResultCache.auto = ''
+  lyFreeResultCache.manual = ''
 }
 function clearLyAiPaipanResult() {
   const resultEl = document.getElementById('lyAiResult')
@@ -286,22 +298,33 @@ async function liuyaoFreePaipan() {
 
   // 铜钱动画
   await showLyCoinAnimation()
-  if (requestMode !== lyMethod.value) return
 
   const resultEl = document.getElementById('lyFreeResult')
   if (!resultEl) return
-  resultEl.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-3);">🧭 排盘计算中...</div>'
+  if (requestMode === lyMethod.value) {
+    resultEl.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-3);">🧭 排盘计算中...</div>'
+  }
 
   try {
     const question = (document.getElementById('lfQuestion') || {}).value || ''
     const res = await uni.request({ url: '/api/liuyao/paipan', method: 'POST', data: { mode: requestMode, tosses: tossData, question } })
-    if (requestMode !== lyMethod.value) return
     const data = res.data
-    if (data.error) { resultEl.innerHTML = `<div style="color:var(--danger);padding:16px;">${data.error}</div>`; return }
+    if (data.error) {
+      const html = `<div style="color:var(--danger);padding:16px;">${data.error}</div>`
+      lyFreeResultCache[requestMode] = html
+      if (requestMode === lyMethod.value) resultEl.innerHTML = html
+      return
+    }
     const panData = data.data || data
     _unscopeStyles()
-    resultEl.innerHTML = renderLiuyaoResult(panData)
-  } catch (e) { resultEl.innerHTML = `<div style="color:var(--danger);padding:16px;">排盘失败</div>` }
+    const html = renderLiuyaoResult(panData)
+    lyFreeResultCache[requestMode] = html
+    if (requestMode === lyMethod.value) resultEl.innerHTML = html
+  } catch (e) {
+    const html = `<div style="color:var(--danger);padding:16px;">排盘失败</div>`
+    lyFreeResultCache[requestMode] = html
+    if (requestMode === lyMethod.value) resultEl.innerHTML = html
+  }
 }
 
 // ═══ 六爻纳甲渲染函数 (1:1移植自Flask liuyao.js) ═══

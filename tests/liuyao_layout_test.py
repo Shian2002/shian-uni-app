@@ -48,16 +48,21 @@ def test_liuyao_markers_remain_inline_with_each_paired_row():
     assert ".ly-row-bian-side .ly-yao-tags-left { width:" not in source
 
 
-def test_liuyao_method_switch_clears_old_free_result_and_guards_async_mode():
+def test_liuyao_method_switch_keeps_separate_free_results_by_mode():
     source = _source()
 
     switch_fn = re.search(r"function switchLyMethod\(m\) \{(?P<body>.*?)\n\}", source, re.S)
     free_fn = re.search(r"async function liuyaoFreePaipan\(\) \{(?P<body>.*?)\n\}", source, re.S)
 
+    assert "const lyFreeResultCache = reactive({ auto: '', manual: '' })" in source
+    assert "function saveLyFreeResultForMode(mode)" in source
+    assert "function restoreLyFreeResultForMode(mode)" in source
     assert "function clearLyFreeResult()" in source
-    assert switch_fn and "clearLyFreeResult()" in switch_fn.group("body")
+    assert switch_fn and "saveLyFreeResultForMode(lyMethod.value)" in switch_fn.group("body")
+    assert switch_fn and "restoreLyFreeResultForMode(m)" in switch_fn.group("body")
     assert free_fn and "const requestMode = lyMethod.value" in free_fn.group("body")
-    assert "if (requestMode !== lyMethod.value) return" in source
+    assert "lyFreeResultCache[requestMode] = html" in source
+    assert "if (requestMode === lyMethod.value) resultEl.innerHTML = html" in source
     assert "mode: requestMode" in source
 
 
