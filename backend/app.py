@@ -1570,10 +1570,9 @@ def _layout_bamen(zhi_shi_door, steps, dun):
             if position < 1:
                 position = 9
 
-    # 中5宫寄宫：阳遁寄艮8，阴遁寄坤2
-    raw_position = position
+    # 中5宫寄坤2：对齐转盘奇门「寄坤宫」盘式。
     if position == 5:
-        position = 8 if dun == '阳' else 2
+        position = 2
 
     # 从值使门落宫开始，按PALACE_CLOCKWISE方向排列八门
     start_idx = _PALACE_CLOCKWISE.index(position)

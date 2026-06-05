@@ -206,8 +206,33 @@ def test_qimen_chaibu_sample_before_mangzhong_uses_previous_month_pillar(client)
     assert qimen["xunShou"] == "己"
     assert qimen["xunKong"] == {"day": "寅卯", "hour": "申酉"}
     assert qimen["zhiFu"] == "值符天心落离九宫(南)"
-    assert qimen["zhiShi"] == "值使开门落艮八宫(东北)"
+    assert qimen["zhiShi"] == "值使开门落坤二宫(西南)"
     assert qimen["maXing"] == {"驛馬": "申"}
+    palaces = {p["gong"]: p for p in qimen["palaces"]}
+    assert palaces[2]["menFull"] == "开门"
+    assert palaces[2]["yinGan"] == "壬"
+    assert palaces[8]["menFull"] == "杜门"
+    assert palaces[8]["yinGan"] == "己"
+
+
+def test_qimen_chaibu_next_hour_keeps_rebu_wei_hour_alignment(client):
+    qimen = _post_json(
+        client,
+        "/api/qimen/paipan",
+        {"year": 2026, "month": 6, "day": 5, "hour": 14, "minute": 25, "panType": 2},
+    )
+
+    assert qimen["fourPillars"] == {"year": "丙午", "month": "癸巳", "day": "庚戌", "hour": "癸未"}
+    assert qimen["ju"] == "阳遁五局上元"
+    assert qimen["solarTerm"] == "小满"
+    assert qimen["zhiFu"] == "值符天心落坎一宫(北)"
+    assert qimen["zhiShi"] == "值使开门落乾六宫(西北)"
+    assert qimen["maXing"] == {"驛馬": "巳"}
+    palaces = {p["gong"]: p for p in qimen["palaces"]}
+    assert palaces[6]["menFull"] == "开门"
+    assert palaces[6]["yinGan"] == "癸"
+    assert palaces[1]["shenFull"] == "值符"
+    assert palaces[1]["xingFull"] == "天心"
 
 
 def test_qimen_ask_default_pan_type_matches_free_paipan():
