@@ -5372,10 +5372,10 @@ onBeforeUnmount(() => {
     font-size: 14px;
   }
   .marketing-critical {
-    height: 100dvh;
+    height: auto;
     min-height: 100dvh;
-    overflow: clip;
-    padding: max(78px, calc(env(safe-area-inset-top) + 66px)) 22px max(20px, calc(env(safe-area-inset-bottom) + 16px));
+    overflow: visible;
+    padding: max(70px, calc(env(safe-area-inset-top) + 58px)) 22px max(86px, calc(env(safe-area-inset-bottom) + 78px));
     display: flex;
     flex-direction: column;
   }
@@ -5392,9 +5392,9 @@ onBeforeUnmount(() => {
     font-size: 14px;
   }
   .marketing-critical-title {
-    margin: 4px auto 20px;
+    margin: 2px auto 14px;
     max-width: 330px;
-    font-size: 26px;
+    font-size: 25px;
     line-height: 1.18;
   }
   .marketing-cards {
@@ -5403,7 +5403,7 @@ onBeforeUnmount(() => {
     min-height: 0;
     flex: 1 1 auto;
     align-content: start;
-    margin: 18px auto 0;
+    margin: 12px auto 0;
     border-top: 1px solid rgba(23,21,18,.12);
     border-bottom: 1px solid rgba(23,21,18,.12);
   }
@@ -5425,8 +5425,8 @@ onBeforeUnmount(() => {
     border-top: 1px solid rgba(23,21,18,.1);
   }
   .marketing-console {
-    min-height: 74px;
-    margin-top: 10px;
+    min-height: 70px;
+    margin-top: 8px;
     padding: 12px 14px;
     border-radius: 16px;
   }
@@ -5443,7 +5443,7 @@ onBeforeUnmount(() => {
   .marketing-card-visual {
     grid-column: 2;
     grid-row: 1 / span 4;
-    height: 58px;
+    height: 48px;
     margin: 0;
     opacity: .42;
   }
@@ -5457,24 +5457,23 @@ onBeforeUnmount(() => {
   .marketing-card-desc {
     grid-column: 1 / -1;
     font-size: 12px;
-    line-height: 1.42;
+    line-height: 1.36;
   }
   .marketing-card-tags {
     grid-column: 1 / -1;
-    margin-top: 8px;
+    margin-top: 6px;
     padding-top: 0;
     font-size: 11px;
   }
 
   /* 第3页：产品推理 移动端 */
   .marketing-tools {
-    height: 100dvh;
+    height: auto;
     min-height: 100dvh;
-    max-height: 100dvh;
-    overflow: hidden;
-    padding: max(84px, calc(env(safe-area-inset-top) + 72px)) 22px max(26px, calc(env(safe-area-inset-bottom) + 22px));
+    overflow: visible;
+    padding: max(70px, calc(env(safe-area-inset-top) + 58px)) 22px max(86px, calc(env(safe-area-inset-bottom) + 78px));
     grid-template-columns: 1fr;
-    gap: 18px;
+    gap: 14px;
     align-items: start;
   }
   .marketing-tools::before {
@@ -5484,9 +5483,9 @@ onBeforeUnmount(() => {
     height: 36%;
   }
   .marketing-product-title {
-    margin: 10px 0 12px;
+    margin: 8px 0 10px;
     max-width: 100%;
-    font-size: 28px;
+    font-size: 25px;
     line-height: 1.12;
     overflow-wrap: break-word;
   }
@@ -5497,13 +5496,13 @@ onBeforeUnmount(() => {
     margin-top: 4px;
   }
   .marketing-product-sub {
-    margin-bottom: 18px;
-    font-size: 16px;
+    margin-bottom: 12px;
+    font-size: 15px;
   }
   .marketing-product-lead {
     max-width: 100%;
-    font-size: 13px;
-    line-height: 1.58;
+    font-size: 12px;
+    line-height: 1.48;
   }
   .marketing-product-stats {
     margin-top: 16px;
@@ -5520,41 +5519,41 @@ onBeforeUnmount(() => {
   }
   .marketing-engine {
     min-height: 0;
-    padding: 16px;
+    padding: 12px;
     border-radius: 10px;
     box-shadow: 0 20px 52px rgba(20,17,14,.18);
   }
   .marketing-engine-browser {
-    margin-bottom: 12px;
+    margin-bottom: 9px;
   }
   .marketing-engine-ui {
-    grid-template-columns: 92px minmax(0, 1fr);
-    gap: 10px;
-    min-height: 230px;
+    grid-template-columns: 82px minmax(0, 1fr);
+    gap: 8px;
+    min-height: 204px;
   }
   .marketing-engine-sidebar,
   .marketing-engine-chat {
     border-radius: 10px;
   }
   .marketing-engine-sidebar {
-    padding: 13px 10px;
+    padding: 11px 8px;
   }
   .marketing-engine-brand {
-    margin-bottom: 14px;
-    font-size: 10px;
+    margin-bottom: 12px;
+    font-size: 9px;
   }
   .marketing-engine-item {
-    margin-top: 8px;
-    padding: 8px;
-    font-size: 10px;
+    margin-top: 7px;
+    padding: 7px;
+    font-size: 9px;
   }
   .marketing-engine-chat {
-    padding: 14px;
+    padding: 12px;
   }
   .marketing-engine-bubble {
     max-width: 92%;
-    padding: 8px 10px;
-    font-size: 10px;
+    padding: 7px 9px;
+    font-size: 9px;
   }
   .marketing-engine-steps {
     gap: 5px;
@@ -5565,8 +5564,8 @@ onBeforeUnmount(() => {
     font-size: 9px;
   }
   .marketing-engine-report {
-    margin-top: 22px;
-    padding: 14px;
+    margin-top: 16px;
+    padding: 12px;
     border-radius: 10px;
   }
   .marketing-engine-report-title {
@@ -5610,11 +5609,10 @@ onBeforeUnmount(() => {
 
   /* 第4页：核心3点 移动端 */
   .marketing-core {
-    height: 100dvh;
+    height: auto;
     min-height: 100dvh;
-    max-height: 100dvh;
-    overflow: hidden;
-    padding: max(84px, calc(env(safe-area-inset-top) + 72px)) 22px max(26px, calc(env(safe-area-inset-bottom) + 22px));
+    overflow: visible;
+    padding: max(70px, calc(env(safe-area-inset-top) + 58px)) 22px max(86px, calc(env(safe-area-inset-bottom) + 78px));
     display: flex;
     flex-direction: column;
   }
@@ -5622,11 +5620,11 @@ onBeforeUnmount(() => {
     max-width: 100%;
   }
   .marketing-system-head .marketing-critical-title {
-    font-size: 26px;
-    line-height: 1.16;
+    font-size: 24px;
+    line-height: 1.18;
   }
   .marketing-system-head .marketing-product-stats {
-    margin-top: 18px;
+    margin-top: 14px;
     max-width: 260px;
   }
   .marketing-system-body {
@@ -5635,8 +5633,8 @@ onBeforeUnmount(() => {
       "bazi"
       "ziwei"
       "qimen";
-    gap: 18px;
-    margin-top: 22px;
+    gap: 14px;
+    margin-top: 18px;
   }
   .marketing-system-item-bazi { grid-area: bazi; }
   .marketing-system-item-ziwei { grid-area: ziwei; }
@@ -5644,8 +5642,8 @@ onBeforeUnmount(() => {
   .marketing-system-item,
   .marketing-system-item-qimen {
     grid-template-columns: 98px minmax(0, 1fr);
-    gap: 16px;
-    min-height: 98px;
+    gap: 14px;
+    min-height: 88px;
     margin-top: 0;
     padding: 0;
     border: 0;
@@ -5656,24 +5654,24 @@ onBeforeUnmount(() => {
     text-align: left;
   }
   .marketing-system-visual {
-    width: 98px;
-    min-width: 98px;
+    width: 86px;
+    min-width: 86px;
     margin: 0;
   }
   .marketing-system-copy {
     max-width: none;
     margin: 0;
-    text-align: center;
+    text-align: left;
   }
   .marketing-system-title {
-    margin-bottom: 10px;
-    font-size: 17px;
+    margin-bottom: 8px;
+    font-size: 16px;
   }
   .marketing-system-desc {
     display: -webkit-box;
     overflow: hidden;
-    font-size: 13px;
-    line-height: 1.46;
+    font-size: 12px;
+    line-height: 1.42;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
   }
@@ -5847,16 +5845,37 @@ onBeforeUnmount(() => {
   .marketing-secondary { height: 48px; }
   .marketing-critical {
     padding-top: max(78px, calc(env(safe-area-inset-top) + 66px));
-    padding-bottom: max(20px, calc(env(safe-area-inset-bottom) + 16px));
+    padding-bottom: max(86px, calc(env(safe-area-inset-bottom) + 78px));
   }
-  .marketing-critical-title { margin-bottom: 14px; font-size: 24px; }
+  .marketing-critical-title { margin-bottom: 12px; font-size: 23px; }
   .marketing-cards { gap: 0; margin-top: 12px; }
-  .marketing-card { padding: 10px 28px 10px 0; }
-  .marketing-card-visual { height: 46px; }
-  .marketing-card-title { font-size: 17px; }
-  .marketing-card-desc { font-size: 12px; line-height: 1.35; }
-  .marketing-console { min-height: 72px; padding: 12px 14px; }
-  .marketing-console-line { height: 9px; margin-top: 7px; }
+  .marketing-card { padding: 9px 26px 9px 0; }
+  .marketing-card-visual { height: 42px; }
+  .marketing-card-title { font-size: 16px; }
+  .marketing-card-desc { font-size: 11px; line-height: 1.34; }
+  .marketing-console { min-height: 68px; padding: 11px 14px; }
+  .marketing-console-line { height: 7px; margin-top: 7px; }
+  .marketing-tools,
+  .marketing-core {
+    padding-top: max(70px, calc(env(safe-area-inset-top) + 58px));
+    padding-bottom: max(86px, calc(env(safe-area-inset-bottom) + 78px));
+  }
+  .marketing-product-title { font-size: 23px; }
+  .marketing-product-lead { font-size: 11px; line-height: 1.44; }
+  .marketing-engine-ui { min-height: 184px; }
+  .marketing-system-head .marketing-critical-title { font-size: 22px; }
+  .marketing-system-body { gap: 12px; margin-top: 14px; }
+  .marketing-system-item,
+  .marketing-system-item-qimen {
+    grid-template-columns: 76px minmax(0, 1fr);
+    min-height: 80px;
+  }
+  .marketing-system-visual {
+    width: 76px;
+    min-width: 76px;
+  }
+  .marketing-system-title { font-size: 15px; margin-bottom: 6px; }
+  .marketing-system-desc { font-size: 11px; line-height: 1.36; }
   .marketing-final {
     min-height: 100dvh;
     height: auto;
