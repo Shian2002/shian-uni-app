@@ -569,7 +569,7 @@ async function liuyaoAskPaipan() {
   // 创建 AI 气泡
   var bubbleId = 'lyBubble_' + Date.now()
   var bubbleHTML = '<div class="chat-bubble-ai" id="' + bubbleId + '">' +
-    '<div class="ai-stage">🔗 正在连接 DeepSeek AI 引擎...</div>' +
+    '<div class="ai-stage">🔗 正在连接 AI 解读引擎...</div>' +
     '<div class="ai-progress-bar"><div class="ai-progress-fill" style="width:20%"></div></div>' +
     '<div class="chat-bubble-content"></div></div>'
   if (chatContainer) chatContainer.innerHTML = bubbleHTML

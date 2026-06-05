@@ -518,7 +518,7 @@ function _startAIReading() {
   chatContainer.innerHTML = ''  // 新占卜清空旧对话
 
   var bubbleHTML = '<div class="chat-bubble-ai" id="aiBubble">' +
-    '<div class="ai-stage" id="aiStage">🔗 正在连接 DeepSeek AI 引擎...</div>' +
+    '<div class="ai-stage" id="aiStage">🔗 正在连接 AI 解读引擎...</div>' +
     '<div class="ai-progress-bar"><div class="ai-progress-fill" id="aiProgressBar"></div></div>' +
     '<div class="chat-bubble-content" id="aiStreamContent"></div>' +
     '</div>'

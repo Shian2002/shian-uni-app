@@ -219,10 +219,61 @@ async function checkLoginModal(browser) {
       visible: Boolean(document.querySelector('#topnavLoginModal.open,.login-modal.open,[id*=login][class*=open]')),
       userInput: Boolean(document.querySelector('#tnLoginUser')),
       passInput: Boolean(document.querySelector('#tnLoginPass')),
+      oldModeTabs: Array.from(document.querySelectorAll('.login-tab')).map((el) => (el.textContent || '').trim()).filter((text) => ['账号', '手机', '邮箱'].includes(text)),
+      modeTabs: Array.from(document.querySelectorAll('.login-tab')).map((el) => (el.textContent || '').trim()),
+      visibleText: (document.querySelector('#topnavLoginModal.open')?.innerText || document.querySelector('#topnavLoginModal.open')?.textContent || '').trim(),
     }))
     assertCondition(modal.visible, '登录弹窗未打开')
-    assertCondition(modal.userInput, '登录用户名输入框不存在')
+    assertCondition(modal.userInput, '登录账号输入框不存在')
     assertCondition(modal.passInput, '登录密码输入框不存在')
+    assertCondition(modal.oldModeTabs.length === 0, `登录弹窗仍存在旧三 tab: ${modal.oldModeTabs.join(',')}`)
+    assertCondition(modal.modeTabs.includes('密码登录') && modal.modeTabs.includes('验证码登录'), '登录方式缺少密码/验证码切换')
+    assertCondition(!modal.visibleText.includes('手机'), '登录弹窗仍出现手机相关入口')
+
+    const measureLoginBox = () => {
+      const box = Array.from(document.querySelectorAll('#topnavLoginModal.open .modal-box')).find((el) => {
+        const r = el.getBoundingClientRect()
+        return r.width > 0 && r.height > 0
+      })
+      if (!box) throw new Error('找不到可见登录弹窗')
+      const r = box.getBoundingClientRect()
+      return {
+        left: Math.round(r.left),
+        top: Math.round(r.top),
+        width: Math.round(r.width),
+        height: Math.round(r.height),
+      }
+    }
+    const passwordBoxBefore = await page.evaluate(measureLoginBox)
+
+    const codeModeState = await page.evaluate(() => {
+      const tab = Array.from(document.querySelectorAll('.login-tab')).find((el) => (el.textContent || '').trim() === '验证码登录')
+      if (!tab) throw new Error('找不到验证码登录切换')
+      tab.click()
+      const modalRoot = document.querySelector('#topnavLoginModal.open') || document
+      const account = modalRoot.querySelector('#tnLoginUser')
+      return {
+        active: Boolean(tab.classList.contains('active')),
+        accountPlaceholder: account?.getAttribute('placeholder') || '',
+        hasCode: Boolean(modalRoot.querySelector('#tnLoginCode')),
+        hasCodeButton: Boolean(modalRoot.querySelector('#tnLoginCodeBtn')),
+        passwordDisplay: window.getComputedStyle(modalRoot.querySelector('#tnLoginPass-wrap')?.closest('.field')).display,
+      }
+    })
+    assertCondition(codeModeState.active, '验证码登录切换未激活')
+    assertCondition(codeModeState.accountPlaceholder === '邮箱', `验证码登录账号占位异常: ${codeModeState.accountPlaceholder}`)
+    assertCondition(codeModeState.hasCode && codeModeState.hasCodeButton, '验证码登录缺少验证码输入或获取按钮')
+    assertCondition(codeModeState.passwordDisplay === 'none', '验证码登录时密码输入未隐藏')
+    const codeBox = await page.evaluate(measureLoginBox)
+
+    await page.evaluate(() => {
+      const tab = Array.from(document.querySelectorAll('.login-tab')).find((el) => (el.textContent || '').trim() === '密码登录')
+      if (!tab) throw new Error('找不到密码登录切换')
+      tab.click()
+    })
+    const passwordBoxAfter = await page.evaluate(measureLoginBox)
+    const stableBox = JSON.stringify(passwordBoxBefore) === JSON.stringify(codeBox) && JSON.stringify(passwordBoxBefore) === JSON.stringify(passwordBoxAfter)
+    assertCondition(stableBox, `登录方式切换导致弹窗尺寸变化: ${JSON.stringify({ passwordBoxBefore, codeBox, passwordBoxAfter })}`)
 
     const registerState = await page.evaluate(() => {
       const link = document.querySelector('.register-link')
@@ -252,9 +303,28 @@ async function checkLoginModal(browser) {
     assertCondition(loginState.primary === '登录', `返回登录主按钮异常: ${loginState.primary}`)
     assertCondition(loginState.hint.includes('没有账号？立即注册'), '返回登录提示文案异常')
 
+    const resetState = await page.evaluate(() => {
+      const link = document.querySelector('.forgot-link')
+      if (!link) throw new Error('找不到忘记密码入口')
+      link.click()
+      const modalRoot = document.querySelector('#topnavLoginModal.open') || document
+      const title = (modalRoot.querySelector('.modal-title')?.textContent || '').trim()
+      const primary = (modalRoot.querySelector('.modal-btns .btn-accent')?.textContent || '').trim()
+      const hasPhone = Boolean(modalRoot.querySelector('.reset-method[data-method="phone"]'))
+      const hasEmail = Boolean(modalRoot.querySelector('.reset-method[data-method="email"]'))
+      const hasTarget = Boolean(modalRoot.querySelector('#tnResetTarget'))
+      const hasCode = Boolean(modalRoot.querySelector('#tnResetCode'))
+      const hasPassword = Boolean(modalRoot.querySelector('#tnResetPassword'))
+      return { title, primary, hasPhone, hasEmail, hasTarget, hasCode, hasPassword }
+    })
+    assertCondition(resetState.title === '重置密码', `忘记密码标题异常: ${resetState.title}`)
+    assertCondition(resetState.primary === '重置密码', `忘记密码主按钮异常: ${resetState.primary}`)
+    assertCondition(!resetState.hasPhone && resetState.hasEmail, '忘记密码仍显示手机找回入口或缺少邮箱入口')
+    assertCondition(resetState.hasTarget && resetState.hasCode && resetState.hasPassword, '忘记密码输入框缺失')
+
     assertCondition(errors.length === 0, `登录弹窗控制台错误: ${errors.slice(0, 3).join(' | ')}`)
     await page.close()
-    return { name: '登录/注册弹窗', ...modal, registerState, loginState }
+    return { name: '登录/注册弹窗', ...modal, codeModeState, loginBox: { passwordBoxBefore, codeBox, passwordBoxAfter }, registerState, loginState, resetState }
   } catch (error) {
     await captureFailure(page, '登录注册弹窗', error)
     await page.close()

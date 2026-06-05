@@ -39,3 +39,17 @@ def test_bazi_error_state_has_explicit_home_navigation_handler():
     assert "url: '/pages/index/index'" in go_home
     assert "location.hash = '#/pages/index/index'" in go_home
     assert "navigateBack" not in go_home
+
+
+def test_bazi_return_paipan_goes_to_bazi_free_tab_not_marketing_home():
+    source = _source()
+
+    assert '<view class="tab-btn tab-return-btn" @tap="goBaziHome">↩ 返回排盘</view>' in source
+    go_bazi_home = _function_body(source, "goBaziHome")
+
+    assert "window.location.hash = '#/pages/bazi-index/index?tab=free'" in go_bazi_home
+    assert "sessionStorage.setItem('_nav_query', 'tab=free')" in go_bazi_home
+    assert "sessionStorage.removeItem('xc_bazi_params')" in go_bazi_home
+    assert "location.hash = '#/pages/index/index'" not in go_bazi_home
+    assert "url: '/pages/index/index'" not in go_bazi_home
+    assert "setTimeout" not in go_bazi_home

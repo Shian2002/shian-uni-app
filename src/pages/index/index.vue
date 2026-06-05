@@ -116,7 +116,7 @@
         :class="{ 'is-visible': marketingCriticalVisible || isMarketingSectionVisible('critical') }"
       >
         <text class="marketing-section-label">Critical Moment</text>
-        <text class="marketing-critical-title">在关键时刻，看清你真正面对的局。</text>
+        <text class="marketing-critical-title">在关键时刻，看清你真正面对的局</text>
         <view class="marketing-cards">
           <view class="marketing-card">
             <view class="marketing-card-visual marketing-card-visual-a" aria-hidden="true">
@@ -185,7 +185,10 @@
       >
         <view class="marketing-product-copy">
           <text class="marketing-section-watermark">Product</text>
-          <text class="marketing-product-title">像老师傅一样思考；像工程系统一样输出。</text>
+          <view class="marketing-product-title">
+            <text class="marketing-product-title-line">像老师傅一样思考</text>
+            <text class="marketing-product-title-line">像工程系统一样输出</text>
+          </view>
           <text class="marketing-product-sub">多模型驱动的 AI 分析系统</text>
           <text class="marketing-product-lead">复刻老师傅级推演逻辑，结合现实处境与时间节律，根据你人生路上的每一次经历与选择，找到那个独一无二的你。多个专业模型各司其职，追求每一步推理的严谨透明。</text>
         </view>
@@ -472,6 +475,7 @@
               :auto-select-tools="autoSelectTools"
               :selected-tool-summary="selectedToolSummary"
               :reading-mode-names="readingModeNames"
+              :reading-mode-labels="readingModeLabels"
               :reading-mode-idx="readingModeIdx"
               :selected-reading-mode="selectedReadingMode"
               :llm-model-names="llmModelNames"
@@ -1082,12 +1086,12 @@ const profileTabs = ['全部', '客户', '用户']
 const readingModeStorageKey = 'xc_home_reading_mode_v1'
 const artifactCollapseStorageKey = 'xc_home_artifact_collapse_v1'
 const comprehensiveDraftStorageKey = 'xc_home_comprehensive_draft_v1'
-const readingModes = [
+const readingModes = ref([
   { id: 'concise', name: '简洁', cost_delta: -1 },
   { id: 'standard', name: '标准', cost_delta: 0 },
   { id: 'deep', name: '深度', cost_delta: 3 },
-]
-const llmModels = ref([{ id: 'basic', name: '基础模型', strength: '基础', cost_base: 2, cost_multiplier: 1, followup_cost: 1 }])
+])
+const llmModels = ref([{ id: 'basic', name: '基础模型', cost_base: 0, cost_multiplier: 0, followup_cost: 0 }])
 const toolModels = ref([
   { id: 'qimen', name: '奇门遁甲', cost: 3 },
   { id: 'bazi', name: '八字', cost: 2 },
@@ -1128,16 +1132,22 @@ const COMPREHENSIVE_DRAFT_SAVE_MS = 320
 const COMPREHENSIVE_DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000
 
 const selectedLlmModel = computed(() => llmModels.value[llmModelIdx.value] || llmModels.value[0] || {})
-const llmModelNames = computed(() => llmModels.value.map(m => m.name + ' · ' + (m.strength || '基础')))
-const selectedReadingMode = computed(() => readingModes.find(m => m.id === readingMode.value) || readingModes[1])
-const readingModeNames = computed(() => readingModes.map(m => m.name))
-const readingModeIdx = computed(() => Math.max(0, readingModes.findIndex(m => m.id === selectedReadingMode.value.id)))
+const llmModelNames = computed(() => llmModels.value.map(m => m.name || '基础模型'))
+const selectedReadingMode = computed(() => readingModes.value.find(m => m.id === readingMode.value) || readingModes.value[1] || {})
+const readingModeNames = computed(() => readingModes.value.map(m => m.name))
+const readingModeLabels = computed(() => readingModes.value.map(m => {
+  const delta = Number(m.cost_delta || 0)
+  if (delta > 0) return `${m.name}（+${delta}分）`
+  if (delta < 0) return `${m.name}（${delta}分）`
+  return `${m.name}（不加分）`
+}))
+const readingModeIdx = computed(() => Math.max(0, readingModes.value.findIndex(m => m.id === selectedReadingMode.value.id)))
 const comprehensivePlaceholder = computed(() => comprehensiveMessages.value.length ? '请继续输入你想问的问题' : '输入你的问题，选择术数模型后开始综合解读')
 const homeAiContextSummary = computed(() => {
   const profileText = selectedProfileName.value || '未选择命盘'
   const toolText = selectedToolSummary.value === '选择术数' ? '未选择术数' : selectedToolSummary.value
   const modelText = selectedLlmModel.value.name || '基础模型'
-  const costText = estimatedCost.value ? estimatedCost.value + ' 积分' : '次数包/体验额度'
+  const costText = estimatedCost.value + ' 积分'
   return profileText + ' · ' + toolText + ' · ' + modelText + ' · ' + costText
 })
 const estimatedCost = computed(() => {
@@ -1271,12 +1281,12 @@ function onLlmModelChange(e) {
 
 function onReadingModeChange(e) {
   const idx = Number(e.detail.value || 0)
-  readingMode.value = (readingModes[idx] && readingModes[idx].id) || 'standard'
+  readingMode.value = (readingModes.value[idx] && readingModes.value[idx].id) || 'standard'
   writeStorageJson(readingModeStorageKey, readingMode.value)
 }
 
 function modeCostDelta() {
-  const mode = selectedReadingMode.value || readingModes[1]
+  const mode = selectedReadingMode.value || readingModes.value[1] || {}
   return Number(mode.cost_delta || 0)
 }
 
@@ -1301,6 +1311,7 @@ async function loadComprehensiveOptions() {
     const res = await uni.request({ url: '/api/comprehensive/options' })
     const data = res.data || {}
     if (Array.isArray(data.llm_models) && data.llm_models.length) llmModels.value = data.llm_models
+    if (Array.isArray(data.reading_modes) && data.reading_modes.length) readingModes.value = data.reading_modes
     if (Array.isArray(data.tool_models) && data.tool_models.length) toolModels.value = data.tool_models
     if (typeof data.points === 'number') currentPoints.value = data.points
     if (typeof data.ai_single_credits === 'number') aiSingleCredits.value = data.ai_single_credits
@@ -2752,7 +2763,7 @@ async function startComprehensiveAsk() {
       const rec = await uni.request({
         url: '/api/comprehensive/recommend-tools',
         method: 'POST',
-        data: { question, llm_model: selectedLlmModel.value.id || 'basic', profile_count: Math.max(1, selectedProfiles.value.length) }
+        data: { question, llm_model: selectedLlmModel.value.id || 'basic', reading_mode: selectedReadingMode.value.id || 'standard', profile_count: Math.max(1, selectedProfiles.value.length) }
       })
       const d = rec.data || {}
       if (Array.isArray(d.tool_models) && d.tool_models.length) selectedToolModels.value = d.tool_models
@@ -3977,7 +3988,6 @@ onBeforeUnmount(() => {
   overflow: hidden;
   padding: 108px 56px 70px;
   background:
-    linear-gradient(112deg, rgba(23,21,18,.045) 0 1px, transparent 1px 100%) 0 0 / 84px 84px,
     radial-gradient(circle at 82% 20%, rgba(197,122,36,.12), transparent 25rem),
     radial-gradient(circle at 18% 82%, rgba(49,95,85,.08), transparent 22rem),
     linear-gradient(180deg, #f2eee5, #faf7ef);
@@ -3997,16 +4007,7 @@ onBeforeUnmount(() => {
   transform: rotate(-12deg);
 }
 .marketing-critical::after {
-  content: "";
-  position: absolute;
-  right: -10%;
-  top: 18%;
-  width: 56%;
-  height: 58%;
-  border: 1px solid rgba(23,21,18,.09);
-  border-radius: 50%;
-  transform: rotate(15deg);
-  pointer-events: none;
+  display: none;
 }
 .marketing-section-head {
   position: relative;
@@ -4046,10 +4047,11 @@ onBeforeUnmount(() => {
 .marketing-critical-title {
   display: block;
   margin: 0 auto;
-  max-width: 980px;
-  font: 800 clamp(42px, 4.4vw, 64px)/1.14 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  max-width: 1120px;
+  font: 800 clamp(42px, 4.1vw, 60px)/1.14 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   line-height: 1.18;
   letter-spacing: 0;
+  text-align: center;
 }
 .marketing-cards {
   position: relative;
@@ -4371,7 +4373,6 @@ onBeforeUnmount(() => {
   overflow: hidden;
   padding: 108px 72px 86px;
   background:
-    linear-gradient(90deg, rgba(23,21,18,.04) 1px, transparent 1px) 0 0 / 92px 92px,
     radial-gradient(circle at 14% 70%, rgba(197,122,36,.1), transparent 22rem),
     radial-gradient(circle at 82% 22%, rgba(49,95,85,.12), transparent 24rem),
     linear-gradient(180deg, #faf7ef, #f2eee5);
@@ -4415,16 +4416,23 @@ onBeforeUnmount(() => {
 }
 .marketing-product-title {
   display: block;
-  margin: 20px 0 22px;
-  max-width: 640px;
-  font-size: clamp(40px, 4vw, 58px);
-  line-height: 1.14;
+  margin: 18px 0 18px;
+  max-width: 620px;
+  font-size: clamp(38px, 3.45vw, 52px);
+  line-height: 1.18;
   font-weight: 780;
   letter-spacing: 0;
 }
+.marketing-product-title-line {
+  display: block;
+  white-space: nowrap;
+}
+.marketing-product-title-line + .marketing-product-title-line {
+  margin-top: 6px;
+}
 .marketing-product-sub {
   display: block;
-  margin-bottom: 64px;
+  margin-bottom: 56px;
   color: rgba(197,122,36,.78);
   font: 600 24px/1.3 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -4661,7 +4669,7 @@ onBeforeUnmount(() => {
   height: 100dvh;
   min-height: 100dvh;
   overflow: hidden;
-  padding: 112px 72px 80px;
+  padding: 96px 72px 104px;
   background:
     radial-gradient(circle at 86% 30%, rgba(197,122,36,.08), transparent 26rem),
     linear-gradient(180deg, #f2eee5, #faf7ef);
@@ -4861,7 +4869,6 @@ onBeforeUnmount(() => {
   gap: clamp(20px, 3.4vh, 38px);
   padding: 104px 72px 44px;
   background:
-    linear-gradient(90deg, rgba(23,21,18,.035) 1px, transparent 1px) 0 0 / 92px 92px,
     radial-gradient(circle at 86% 45%, rgba(23,21,18,.06), transparent 26rem),
     linear-gradient(180deg, #faf7ef, #f2eee5);
   color: var(--marketing-ink);
@@ -4881,7 +4888,8 @@ onBeforeUnmount(() => {
 .marketing-faq {
   position: relative;
   z-index: 1;
-  width: min(100%, 1120px);
+  width: min(100%, 980px);
+  max-width: 980px;
   margin: 0 auto;
 }
 .marketing-final-content {
@@ -5052,7 +5060,7 @@ onBeforeUnmount(() => {
     background-size: 34px 34px;
   }
   .marketing-core {
-    padding: 90px 56px 52px;
+    padding: 78px 56px 76px;
   }
   .marketing-system-body {
     gap: 18px;
@@ -5251,6 +5259,9 @@ onBeforeUnmount(() => {
   }
 }
 @media (max-width: 760px) {
+  .marketing-landing {
+    scroll-padding-top: max(72px, calc(env(safe-area-inset-top) + 62px));
+  }
   .marketing-nav {
     position: fixed;
     top: env(safe-area-inset-top);
@@ -5363,9 +5374,8 @@ onBeforeUnmount(() => {
   .marketing-critical {
     height: 100dvh;
     min-height: 100dvh;
-    max-height: 100dvh;
-    overflow: hidden;
-    padding: max(84px, calc(env(safe-area-inset-top) + 72px)) 22px max(26px, calc(env(safe-area-inset-bottom) + 22px));
+    overflow: clip;
+    padding: max(78px, calc(env(safe-area-inset-top) + 66px)) 22px max(20px, calc(env(safe-area-inset-bottom) + 16px));
     display: flex;
     flex-direction: column;
   }
@@ -5376,25 +5386,38 @@ onBeforeUnmount(() => {
     display: none;
   }
   .marketing-section-sub { margin-top: 10px; font-size: 13px; line-height: 1.45; }
-  .marketing-section-label { font-size: 15px; }
-  .marketing-critical-title { margin: 8px 0 16px; font-size: 27px; line-height: 1.12; }
+  .marketing-section-label {
+    margin-bottom: 14px;
+    padding: 8px 14px;
+    font-size: 14px;
+  }
+  .marketing-critical-title {
+    margin: 4px auto 20px;
+    max-width: 330px;
+    font-size: 26px;
+    line-height: 1.18;
+  }
   .marketing-cards {
     grid-template-columns: 1fr;
     gap: 0;
     min-height: 0;
     flex: 1 1 auto;
     align-content: start;
+    margin: 18px auto 0;
     border-top: 1px solid rgba(23,21,18,.12);
     border-bottom: 1px solid rgba(23,21,18,.12);
   }
   .marketing-card {
     min-height: 0;
-    padding: 12px 0 13px;
+    padding: 12px 34px 13px 0;
     border: 0;
     border-radius: 0;
     background: transparent;
     box-shadow: none;
-    display: block;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 70px;
+    column-gap: 14px;
+    align-items: center;
     overflow: visible;
   }
   .marketing-card + .marketing-card {
@@ -5402,24 +5425,46 @@ onBeforeUnmount(() => {
     border-top: 1px solid rgba(23,21,18,.1);
   }
   .marketing-console {
-    min-height: 82px;
+    min-height: 74px;
     margin-top: 10px;
     padding: 12px 14px;
+    border-radius: 16px;
   }
   .marketing-console-title { font-size: 11px; }
   .marketing-console-line {
-    height: 8px;
+    height: 7px;
     margin-top: 7px;
   }
-  .marketing-card-kicker { margin-bottom: 8px; font-size: 10px; }
-  .marketing-card-visual {
-    height: 42px;
-    margin: 0 0 4px;
-    opacity: .72;
+  .marketing-card-kicker {
+    grid-column: 1;
+    margin: 0 0 7px;
+    font-size: 10px;
   }
-  .marketing-card-title { margin-bottom: 8px; max-width: none; font-size: 18px; line-height: 1.22; }
-  .marketing-card-desc { font-size: 12px; line-height: 1.42; }
-  .marketing-card-tags { margin-top: 8px; padding-top: 0; font-size: 11px; }
+  .marketing-card-visual {
+    grid-column: 2;
+    grid-row: 1 / span 4;
+    height: 58px;
+    margin: 0;
+    opacity: .42;
+  }
+  .marketing-card-title {
+    grid-column: 1;
+    margin-bottom: 8px;
+    max-width: none;
+    font-size: 18px;
+    line-height: 1.18;
+  }
+  .marketing-card-desc {
+    grid-column: 1 / -1;
+    font-size: 12px;
+    line-height: 1.42;
+  }
+  .marketing-card-tags {
+    grid-column: 1 / -1;
+    margin-top: 8px;
+    padding-top: 0;
+    font-size: 11px;
+  }
 
   /* 第3页：产品推理 移动端 */
   .marketing-tools {
@@ -5444,6 +5489,12 @@ onBeforeUnmount(() => {
     font-size: 28px;
     line-height: 1.12;
     overflow-wrap: break-word;
+  }
+  .marketing-product-title-line {
+    white-space: normal;
+  }
+  .marketing-product-title-line + .marketing-product-title-line {
+    margin-top: 4px;
   }
   .marketing-product-sub {
     margin-bottom: 18px;
@@ -5631,13 +5682,16 @@ onBeforeUnmount(() => {
   .marketing-final {
     height: 100dvh;
     min-height: 100dvh;
-    max-height: 100dvh;
-    overflow: hidden;
+    overflow: clip;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    gap: 18px;
-    padding: max(84px, calc(env(safe-area-inset-top) + 72px)) 22px max(26px, calc(env(safe-area-inset-bottom) + 22px));
+    gap: 14px;
+    padding: max(78px, calc(env(safe-area-inset-top) + 66px)) 22px max(20px, calc(env(safe-area-inset-bottom) + 16px));
+    background:
+      radial-gradient(circle at 50% 78%, rgba(197,122,36,.08), transparent 15rem),
+      radial-gradient(circle at 86% 38%, rgba(23,21,18,.045), transparent 16rem),
+      linear-gradient(180deg, #faf7ef, #f2eee5);
   }
   .marketing-faq {
     width: 100%;
@@ -5648,16 +5702,16 @@ onBeforeUnmount(() => {
     text-align: center;
   }
   .marketing-faq-list {
-    margin-top: 22px;
+    margin-top: 18px;
     border-radius: 12px;
   }
   .marketing-faq-row {
-    min-height: 48px;
+    min-height: 46px;
     padding: 0 14px;
-    font-size: 14px;
+    font-size: 13px;
   }
   .marketing-faq-question {
-    min-height: 48px;
+    min-height: 46px;
     gap: 14px;
   }
   .marketing-faq-answer {
@@ -5669,12 +5723,12 @@ onBeforeUnmount(() => {
     padding: 0 30px 10px 0;
   }
   .marketing-final-title {
-    font-size: 34px;
-    margin-bottom: 14px;
+    font-size: 30px;
+    margin-bottom: 10px;
   }
   .marketing-final-content .marketing-final-title {
     max-width: 100%;
-    font-size: 27px;
+    font-size: 25px;
     line-height: 1.18;
     white-space: normal;
     overflow-wrap: break-word;
@@ -5682,20 +5736,26 @@ onBeforeUnmount(() => {
   .marketing-final-content {
     width: 100%;
     max-width: none;
-    padding: 0;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
+    padding: 22px 18px 24px;
+    border: 1px solid rgba(23,21,18,.08);
+    border-radius: 18px;
+    background:
+      radial-gradient(circle at 82% 18%, rgba(197,122,36,.12), transparent 9rem),
+      rgba(255,255,255,.46);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 22px 56px rgba(36,30,22,.07);
     text-align: center;
   }
   .marketing-final-desc {
-    font-size: 15px;
-    margin-bottom: 32px;
+    font-size: 14px;
+    margin-bottom: 22px;
+  }
+  .marketing-final-content .marketing-primary {
+    height: 48px;
+    min-width: 112px;
   }
   .marketing-footer {
     width: 100%;
-    margin-top: auto;
+    margin-top: 0;
   }
   .marketing-footer-text {
     font-size: 13px;
@@ -5789,13 +5849,28 @@ onBeforeUnmount(() => {
     padding-top: max(78px, calc(env(safe-area-inset-top) + 66px));
     padding-bottom: max(20px, calc(env(safe-area-inset-bottom) + 16px));
   }
-  .marketing-critical-title { margin-bottom: 14px; font-size: 25px; }
-  .marketing-cards { gap: 8px; }
-  .marketing-card { padding: 12px 14px; }
+  .marketing-critical-title { margin-bottom: 14px; font-size: 24px; }
+  .marketing-cards { gap: 0; margin-top: 12px; }
+  .marketing-card { padding: 10px 28px 10px 0; }
+  .marketing-card-visual { height: 46px; }
   .marketing-card-title { font-size: 17px; }
   .marketing-card-desc { font-size: 12px; line-height: 1.35; }
   .marketing-console { min-height: 72px; padding: 12px 14px; }
   .marketing-console-line { height: 9px; margin-top: 7px; }
+  .marketing-final {
+    min-height: 100dvh;
+    height: auto;
+    overflow: visible;
+    gap: 12px;
+    padding-top: max(78px, calc(env(safe-area-inset-top) + 66px));
+  }
+  .marketing-final-title { font-size: 28px; }
+  .marketing-faq-list { margin-top: 14px; }
+  .marketing-faq-row { min-height: 42px; font-size: 12px; }
+  .marketing-faq-question { min-height: 42px; }
+  .marketing-final-content { padding: 18px 16px 20px; }
+  .marketing-final-content .marketing-final-title { font-size: 22px; }
+  .marketing-final-desc { margin-bottom: 18px; font-size: 13px; }
 }
 .bg-layer { position: fixed; inset: 0; z-index: 0; transition: background 0.8s var(--ease); pointer-events: none; overflow: hidden; }
 [data-theme="dark"] .bg-layer {

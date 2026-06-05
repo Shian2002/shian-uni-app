@@ -670,7 +670,7 @@ async function zwAiAsk() {
   const date_type = ['solar', 'lunar'][zwAiForm.dateTypeIdx]
   
   zwAiLoading.value = true
-  zwAiResult.value = '<div class="chat-bubble-ai"><div class="ai-stage">🔗 正在连接 DeepSeek AI 引擎...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:20%"></div></div><div class="chat-bubble-content"></div></div>'
+  zwAiResult.value = '<div class="chat-bubble-ai"><div class="ai-stage">🔗 正在连接 AI 解读引擎...</div><div class="ai-progress-bar"><div class="ai-progress-fill" style="width:20%"></div></div><div class="chat-bubble-content"></div></div>'
   zwAiChatReady.value = false
   window._zwChatHistory = []
   

@@ -310,7 +310,7 @@ function renderLyYaoLine(detail) {
     </div>`;
 }
 
-// ═══ 一键起卦 + DeepSeek AI解盘 ═══
+// ═══ 一键起卦 + AI 解盘 ═══
 let _liuyaoAskTimer = null;
 let _liuyaoAskEventSource = null;
 let _liuyaoAskReasoning = null;

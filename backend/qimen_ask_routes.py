@@ -40,6 +40,7 @@ def _error_stream(message):
 def _build_qimen_ask_prompt(question, qimen):
     fp = qimen.get('fourPillars', {})
     palaces = qimen.get('palaces', [])
+    patterns = qimen.get('specialPatterns') or []
 
     prompt = f'''## 奇门排盘数据
 
@@ -52,6 +53,22 @@ def _build_qimen_ask_prompt(question, qimen):
 **值符**：{qimen.get('zhiFu', '')}
 **值使**：{qimen.get('zhiShi', '')}
 
+**特殊格局**：
+'''
+    if patterns:
+        for pattern in patterns:
+            palace = pattern.get('palaceName') or (f"{pattern.get('palace')}宫" if pattern.get('palace') else '')
+            palace_text = f"；宫位={palace}" if palace else ''
+            evidence = '、'.join(pattern.get('evidence') or [])
+            evidence_text = f"；依据={evidence}" if evidence else ''
+            prompt += (
+                f"- {pattern.get('name', '')}（{pattern.get('level', '')}）"
+                f"{palace_text}：{pattern.get('summary', '')}{evidence_text}\n"
+            )
+    else:
+        prompt += "- 无明显已识别格局\n"
+
+    prompt += '''
 **九宫详情**：
 '''
     for palace in palaces:
@@ -67,7 +84,10 @@ def _build_qimen_ask_prompt(question, qimen):
         di = palace.get('diGan', '')
         if isinstance(di, list):
             di = '/'.join(di)
-        prompt += f'- {gong}宫：门={men} 星={xing} 神={shen} 天={tian} 地={di}\n'
+        palace_patterns = palace.get('patterns') or []
+        pattern_names = '、'.join(p.get('name', '') for p in palace_patterns if p.get('name'))
+        pattern_text = f' 格局={pattern_names}' if pattern_names else ''
+        prompt += f'- {gong}宫：门={men} 星={xing} 神={shen} 天={tian} 地={di}{pattern_text}\n'
 
     prompt += f'''
 
@@ -77,7 +97,7 @@ def _build_qimen_ask_prompt(question, qimen):
 
 ## 分析要求
 
-请根据以上奇门排盘数据，对用户的问题进行专业分析。'''
+请根据以上奇门排盘数据，对用户的问题进行专业分析。请先说明特殊格局对全局的影响，再结合用神宫、值符值使、门星神、天盘地盘关系给出判断和建议。'''
     return prompt
 
 

@@ -10,6 +10,7 @@ from flask_login import current_user, login_required
 from ai_runs import mark_ai_run_done, mark_ai_run_failed, mark_ai_run_running, start_ai_run
 from comprehensive_ai import (
     COMPREHENSIVE_LLM_MODELS,
+    COMPREHENSIVE_READING_MODES,
     COMPREHENSIVE_TOOL_MODELS,
     TOOL_DISPLAY_ORDER,
     calculate_cost,
@@ -29,6 +30,7 @@ def register_comprehensive_routes(app, db, services):
     """注册首页综合 AI 相关路由。"""
     get_or_create_membership = services['get_or_create_membership']
     spend_ai_quota_once = services['spend_ai_quota_once']
+    refund_ai_quota_once = services.get('refund_ai_quota_once') or (lambda user_id, spend, description='': {'ok': False})
     qimen_paipan = services['qimen_paipan']
     liuyao_paipan = services['liuyao_paipan']
     meihua_paipan = services['meihua_paipan']
@@ -40,6 +42,17 @@ def register_comprehensive_routes(app, db, services):
     logger = services['logger']
     get_build_one_tool_override = services.get('get_build_one_tool_override') or (lambda: None)
     get_reading_stream_func = services.get('get_reading_stream') or (lambda: get_reading_stream)
+
+    def _stream_model_reading(messages, selected_model_id, selected_reading_mode):
+        stream_func = get_reading_stream_func()
+        try:
+            return stream_func(messages, model_id=selected_model_id, reading_mode=selected_reading_mode)
+        except TypeError:
+            pass
+        try:
+            return stream_func(messages, model_id=selected_model_id)
+        except TypeError:
+            return stream_func(messages)
 
     def _json_loads_safe(text, default):
         try:
@@ -532,6 +545,7 @@ def register_comprehensive_routes(app, db, services):
         membership = get_or_create_membership(current_user.id)
         return jsonify({
             'llm_models': COMPREHENSIVE_LLM_MODELS,
+            'reading_modes': COMPREHENSIVE_READING_MODES,
             'tool_models': COMPREHENSIVE_TOOL_MODELS,
             'points': membership.points,
             'ai_single_credits': int(membership.ai_single_credits or 0),
@@ -547,11 +561,12 @@ def register_comprehensive_routes(app, db, services):
         question = (data.get('question') or '').strip()
         tools, reason = recommend_tool_models(question)
         model_id = data.get('llm_model') or 'basic'
+        reading_mode = data.get('reading_mode') or 'standard'
         profile_count = max(1, int(data.get('profile_count') or 1))
         return jsonify({
             'tool_models': tools,
             'reason': reason,
-            'estimated_cost': calculate_cost(model_id, tools, is_followup=False, profile_count=profile_count),
+            'estimated_cost': calculate_cost(model_id, tools, is_followup=False, profile_count=profile_count, reading_mode=reading_mode),
         })
 
 
@@ -621,7 +636,7 @@ def register_comprehensive_routes(app, db, services):
         is_followup = bool(history)
         requested_profiles = data.get('profiles') if isinstance(data.get('profiles'), list) else None
         profile_count = len(requested_profiles) if requested_profiles else 1
-        cost = calculate_cost(model_id, tool_models, is_followup=is_followup, profile_count=profile_count)
+        cost = calculate_cost(model_id, tool_models, is_followup=is_followup, profile_count=profile_count, reading_mode=reading_mode)
 
         def _event(payload):
             return 'data: %s\n\n' % json.dumps(payload, ensure_ascii=False)
@@ -713,6 +728,13 @@ def register_comprehensive_routes(app, db, services):
                     mark_ai_run_failed(ai_run.id, '积分不足', {'current': spend.get('current'), 'required': cost})
                     yield _event({'error': '积分不足', 'current': spend.get('current'), 'required': cost})
                     return
+
+                def fail_after_spend(error, meta):
+                    refund = refund_ai_quota_once(current_user_id, spend, '综合 AI 上游失败自动退回')
+                    fail_meta = dict(meta or {})
+                    fail_meta['refund'] = refund
+                    mark_ai_run_failed(ai_run.id, error, fail_meta)
+                    return refund
                 full_text = ''
                 tool_analyses = {}
                 ordered_tools = sorted(tool_models or [], key=lambda x: TOOL_DISPLAY_ORDER.index(x) if x in TOOL_DISPLAY_ORDER else 99)
@@ -729,10 +751,10 @@ def register_comprehensive_routes(app, db, services):
                     tool_messages = build_tool_analysis_messages(question, profile, tool, tool_data, history)
                     tool_text = ''
                     full_text += '\n\n【%s解析】\n' % tool_name
-                    for chunk, error in get_reading_stream_func()(tool_messages):
+                    for chunk, error in _stream_model_reading(tool_messages, model_id, reading_mode):
                         if error:
-                            mark_ai_run_failed(ai_run.id, error, {'tool': tool})
-                            yield _event({'error': error})
+                            refund = fail_after_spend(error, {'tool': tool})
+                            yield _event({'error': error, 'refund': refund})
                             return
                         if chunk:
                             tool_text += chunk
@@ -758,10 +780,10 @@ def register_comprehensive_routes(app, db, services):
                         yun_messages = build_tool_analysis_messages(question, profile, 'bazi', (artifacts.get('bazi.yun') or {}).get('data') or tool_data, history)
                         yun_text = ''
                         full_text += '\n\n【大运流年流月解析】\n'
-                        for chunk, error in get_reading_stream_func()(yun_messages):
+                        for chunk, error in _stream_model_reading(yun_messages, model_id, reading_mode):
                             if error:
-                                mark_ai_run_failed(ai_run.id, error, {'tool': tool, 'tool_key': 'bazi.yun'})
-                                yield _event({'error': error})
+                                refund = fail_after_spend(error, {'tool': tool, 'tool_key': 'bazi.yun'})
+                                yield _event({'error': error, 'refund': refund})
                                 return
                             if chunk:
                                 yun_text += chunk
@@ -775,10 +797,10 @@ def register_comprehensive_routes(app, db, services):
                 summary_messages = build_summary_messages(question, profile, ordered_tools, tool_analyses, history)
                 summary_text = ''
                 full_text += '\n\n【综合合参总结】\n'
-                for chunk, error in get_reading_stream_func()(summary_messages):
+                for chunk, error in _stream_model_reading(summary_messages, model_id, reading_mode):
                     if error:
-                        mark_ai_run_failed(ai_run.id, error, {'stage': 'summary'})
-                        yield _event({'error': error})
+                        refund = fail_after_spend(error, {'stage': 'summary'})
+                        yield _event({'error': error, 'refund': refund})
                         return
                     if chunk:
                         summary_text += chunk

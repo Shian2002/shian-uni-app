@@ -6,13 +6,33 @@ COMPREHENSIVE_LLM_MODELS = [
     {
         "id": "basic",
         "name": "基础模型",
-        "provider": "deepseek",
-        "strength": "基础",
+        "cost_base": 0,
+        "cost_multiplier": 0,
+        "followup_cost": 0,
+        "enabled": True,
+    },
+    {
+        "id": "advanced",
+        "name": "高级模型",
         "cost_base": 2,
         "cost_multiplier": 1,
         "followup_cost": 1,
         "enabled": True,
+    },
+    {
+        "id": "expert",
+        "name": "专家模型",
+        "cost_base": 6,
+        "cost_multiplier": 1.5,
+        "followup_cost": 2,
+        "enabled": True,
     }
+]
+
+COMPREHENSIVE_READING_MODES = [
+    {"id": "concise", "name": "简洁", "cost_delta": -1},
+    {"id": "standard", "name": "标准", "cost_delta": 0},
+    {"id": "deep", "name": "深度", "cost_delta": 3},
 ]
 
 
@@ -34,6 +54,13 @@ def get_llm_model(model_id):
         if model["id"] == model_id and model.get("enabled"):
             return model
     return COMPREHENSIVE_LLM_MODELS[0]
+
+
+def get_reading_mode(mode_id):
+    for mode in COMPREHENSIVE_READING_MODES:
+        if mode["id"] == mode_id:
+            return mode
+    return COMPREHENSIVE_READING_MODES[1]
 
 
 def normalize_tool_models(tool_models):
@@ -77,16 +104,17 @@ def recommend_tool_models(question):
     return ["bazi", "qimen"], "无法明确归类时，默认八字看底盘、奇门看当下。"
 
 
-def calculate_cost(model_id, tool_models, is_followup=False, profile_count=1):
+def calculate_cost(model_id, tool_models, is_followup=False, profile_count=1, reading_mode='standard'):
     model = get_llm_model(model_id)
+    mode_delta = int(get_reading_mode(reading_mode).get("cost_delta", 0))
     if is_followup:
-        return int(model.get("followup_cost", 1))
+        return max(0, int(model.get("followup_cost", 1)) + mode_delta)
     selected = normalize_tool_models(tool_models)
     tool_cost_map = {item["id"]: int(item.get("cost", 0)) for item in COMPREHENSIVE_TOOL_MODELS}
     tools_cost = sum(tool_cost_map.get(item, 0) for item in selected)
     multiplier = float(model.get("cost_multiplier", 1))
     count = max(1, int(profile_count or 1))
-    return int(round(int(model.get("cost_base", 0)) + tools_cost * count * multiplier))
+    return max(0, int(round(int(model.get("cost_base", 0)) + tools_cost * count * multiplier + mode_delta)))
 
 
 def build_comprehensive_messages(question, profile, tool_models, paipan_context, history=None):

@@ -331,7 +331,7 @@ function relClass(rel) {
     return 'zhong';
 }
 
-// ═══ 一键起卦 + DeepSeek AI解盘（仿奇门/六爻） ═══
+// ═══ 一键起卦 + AI 解盘（仿奇门/六爻） ═══
 let _meihuaAskTimer = null;
 let _meihuaAskEventSource = null;
 let _meihuaAskReasoning = null;

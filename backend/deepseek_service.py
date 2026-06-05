@@ -14,6 +14,7 @@ _SILICONFLOW_BASE_URL = os.getenv("SILICONFLOW_BASE_URL", "https://api.siliconfl
 MODEL = os.getenv("DEEPSEEK_MODEL_NORMAL", "deepseek-ai/DeepSeek-V3")
 
 _client = None
+_model_clients = {}
 
 def _get_client():
     global _client
@@ -23,6 +24,53 @@ def _get_client():
             base_url=_SILICONFLOW_BASE_URL,
         )
     return _client
+
+
+def _first_env(*names):
+    for name in names:
+        value = os.getenv(name, "")
+        if value:
+            return value
+    return ""
+
+
+def _model_config(model_id):
+    """返回首页综合模型的 OpenAI 兼容调用配置。"""
+    selected = model_id or "basic"
+    if selected == "expert":
+        return {
+            "provider": "zhipu",
+            "api_key": _first_env("EXPERT_AI_API_KEY", "ZAI_API_KEY", "ZHIPU_API_KEY"),
+            "base_url": _first_env("EXPERT_AI_BASE_URL", "ZAI_BASE_URL", "ZHIPU_BASE_URL") or "https://open.bigmodel.cn/api/paas/v4/",
+            "model": _first_env("EXPERT_AI_MODEL", "ZAI_MODEL_EXPERT", "ZHIPU_MODEL_EXPERT") or "glm-5.1",
+            "supports_thinking": True,
+            "thinking_type": "enabled",
+        }
+    if selected == "advanced":
+        return {
+            "provider": "zhipu",
+            "api_key": _first_env("ADVANCED_AI_API_KEY", "ZAI_API_KEY", "ZHIPU_API_KEY"),
+            "base_url": _first_env("ADVANCED_AI_BASE_URL", "ZAI_BASE_URL", "ZHIPU_BASE_URL") or "https://open.bigmodel.cn/api/paas/v4/",
+            "model": _first_env("ADVANCED_AI_MODEL", "ZAI_MODEL_ADVANCED", "ZAI_MODEL_EXPERT", "ZHIPU_MODEL_EXPERT") or "glm-5.1",
+            "supports_thinking": True,
+            "thinking_type": "disabled",
+        }
+    return {
+        "provider": "deepseek",
+        "api_key": _first_env("BASIC_AI_API_KEY", "DEEPSEEK_API_KEY"),
+        "base_url": _first_env("BASIC_AI_BASE_URL", "DEEPSEEK_BASE_URL") or "https://api.deepseek.com",
+        "model": _first_env("BASIC_AI_MODEL", "DEEPSEEK_MODEL_FLASH") or "deepseek-v4-flash",
+        "supports_thinking": False,
+    }
+
+
+def _get_model_client(config):
+    key = (config["provider"], config["base_url"], config["api_key"])
+    if not config["api_key"]:
+        return None
+    if key not in _model_clients:
+        _model_clients[key] = OpenAI(api_key=config["api_key"], base_url=config["base_url"])
+    return _model_clients[key]
 
 
 TAROT_SYSTEM_PROMPT = """你是一位资深塔罗牌解读师，精通韦特塔罗、占星和符号学。
@@ -196,7 +244,7 @@ def is_available() -> bool:
     return bool(_SILICONFLOW_API_KEY)
 
 
-def get_reading_stream(messages: list, model_name: str = None):
+def get_reading_stream(messages: list, model_name: str = None, model_id: str = None, reading_mode: str = "standard"):
     """通用流式解读，供奇门/六爻/梅花/紫微/八字共用
 
     Args:
@@ -208,20 +256,30 @@ def get_reading_stream(messages: list, model_name: str = None):
         (None, None): 完成信号
         (None, str): 错误消息
     """
-    client = _get_client()
+    if model_id:
+        config = _model_config(model_id)
+        client = _get_model_client(config)
+        model = model_name or config["model"]
+        missing_msg = "未配置 %s 模型 API Key" % config["provider"]
+    else:
+        client = _get_client()
+        model = model_name or MODEL
+        missing_msg = "未配置 SILICONFLOW_API_KEY"
     if not client:
-        yield None, "未配置 SILICONFLOW_API_KEY"
+        yield None, missing_msg
         return
 
-    model = model_name or MODEL
     try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=0.8,
-            max_tokens=4096,
-            stream=True,
-        )
+        params = {
+            "model": model,
+            "messages": messages,
+            "temperature": 0.8,
+            "max_tokens": 4096,
+            "stream": True,
+        }
+        if model_id and config.get("supports_thinking"):
+            params["extra_body"] = {"thinking": {"type": config.get("thinking_type", "disabled")}}
+        response = client.chat.completions.create(**params)
         for chunk in response:
             if chunk.choices and chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content, None

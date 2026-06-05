@@ -91,25 +91,6 @@
                 </view>
               </view>
 
-              <!-- 手机号 -->
-              <view class="settings-item" @tap="toggleAccordion('phone')">
-                <text class="settings-item-icon settings-icon-phone">TEL</text>
-                <text class="settings-item-label">绑定手机号</text>
-                <text class="settings-item-value" id="bindPhone">未绑定</text>
-                <text class="settings-item-arrow">{{ accordionOpen === 'phone' ? '▲' : '›' }}</text>
-              </view>
-              <view class="settings-accordion" v-show="accordionOpen === 'phone'">
-                <view class="settings-accordion-inner">
-                  <view class="field"><view id="asBindPhone-wrap" class="dom-input-wrap"></view></view>
-                  <view class="field code-field" style="display:flex;gap:8px;">
-                    <view id="asBindPhoneCode-wrap" class="dom-input-wrap" style="flex:1;"></view>
-                    <view class="btn btn-outline btn-sm" onclick="window._xc_sendBindPhoneCode()" id="asBindPhoneBtn">获取验证码</view>
-                  </view>
-                  <view class="modal-error" id="asBindPhoneError"></view>
-                  <view class="btn btn-accent btn-sm" id="asBindPhoneSubmit" onclick="window._xc_bindPhone()" style="float:right">绑定手机号</view>
-                </view>
-              </view>
-
               <!-- 第三方 -->
               <view class="settings-item" @tap="toggleAccordion('oauth')">
                 <text class="settings-item-icon settings-icon-oauth">↗</text>
@@ -186,8 +167,7 @@ function createAccordionInputs(name) {
   var wrapMap = {
     username: ['asNewUsername-wrap', 'asCurrPassForUser-wrap'],
     password: ['asOldPass-wrap', 'asNewPass-wrap'],
-    email: ['asBindEmail-wrap', 'asBindEmailCode-wrap'],
-    phone: ['asBindPhone-wrap', 'asBindPhoneCode-wrap']
+    email: ['asBindEmail-wrap', 'asBindEmailCode-wrap']
   }
   var wraps = wrapMap[name] || []
   wraps.forEach(function(wrapId) {
@@ -208,8 +188,6 @@ function createAccordionInputs(name) {
       else if (wrapId === 'asNewPass-wrap') inp.placeholder = '输入新密码（至少4位）'
       else if (wrapId === 'asBindEmail-wrap') inp.placeholder = 'your@email.com'
       else if (wrapId === 'asBindEmailCode-wrap') inp.placeholder = '验证码'
-      else if (wrapId === 'asBindPhone-wrap') inp.placeholder = '手机号'
-      else if (wrapId === 'asBindPhoneCode-wrap') inp.placeholder = '验证码'
       else inp.placeholder = '至少4个字符'
       if (wrapId === 'asCurrPassForUser-wrap' && !hasPassword.value) { el.style.display = 'none'; return }
       el.appendChild(inp)
@@ -715,7 +693,7 @@ onMounted(() => {
         var wraps = ['asNewUsername-wrap', 'asNewPass-wrap']
         if (window.__xc_hasPassword) wraps.push('asCurrPassForUser-wrap', 'asOldPass-wrap')
         // 添加绑定相关输入框
-        wraps = wraps.concat(['asBindEmail-wrap', 'asBindEmailCode-wrap', 'asBindPhone-wrap', 'asBindPhoneCode-wrap'])
+        wraps = wraps.concat(['asBindEmail-wrap', 'asBindEmailCode-wrap'])
         wraps.forEach(function(wrapId) {
           if (modal.querySelector('#' + wrapId) && !modal.querySelector('#' + wrapId + ' input')) {
             var wrap = modal.querySelector('#' + wrapId)
@@ -733,14 +711,12 @@ onMounted(() => {
             else if (wrapId === 'asOldPass-wrap') inp.placeholder = '输入当前密码'
             else if (wrapId === 'asBindEmail-wrap') inp.placeholder = 'your@email.com'
             else if (wrapId === 'asBindEmailCode-wrap') inp.placeholder = '验证码'
-            else if (wrapId === 'asBindPhone-wrap') inp.placeholder = '手机号'
-            else if (wrapId === 'asBindPhoneCode-wrap') inp.placeholder = '验证码'
             else inp.placeholder = '至少4个字符'
             wrap.appendChild(inp)
           }
         })
       }
-      try { document.querySelectorAll('#asUsernameError').forEach(function(el) { el.textContent = '' }); document.querySelectorAll('#asPassError').forEach(function(el) { el.textContent = '' }); document.querySelectorAll('#asBindEmailError').forEach(function(el) { el.textContent = '' }); document.querySelectorAll('#asBindPhoneError').forEach(function(el) { el.textContent = '' }) } catch(_) {}
+      try { document.querySelectorAll('#asUsernameError').forEach(function(el) { el.textContent = '' }); document.querySelectorAll('#asPassError').forEach(function(el) { el.textContent = '' }); document.querySelectorAll('#asBindEmailError').forEach(function(el) { el.textContent = '' }) } catch(_) {}
       // 加载绑定信息
       loadBindings()
     }
@@ -781,7 +757,6 @@ onMounted(() => {
         try {
           document.getElementById('bindUsername').textContent = d.username || '—'
           document.getElementById('bindEmail').textContent = d.email || '未绑定'
-          document.getElementById('bindPhone').textContent = d.phone || '未绑定'
           document.getElementById('bindPassword').textContent = d.has_password ? '已设置' : '未设置'
           document.getElementById('bindGitee').textContent = d.oauth_gitee ? '已绑定' : '未绑定'
           var giteeItem = oauthProviders.find(function(p) { return p.key === 'gitee' })
@@ -789,15 +764,13 @@ onMounted(() => {
           // 显示解绑按钮
           var eu = document.getElementById('bindEmailUnbind')
           if (eu) eu.style.display = d.email ? 'inline' : 'none'
-          var pu = document.getElementById('bindPhoneUnbind')
-          if (pu) pu.style.display = d.phone ? 'inline' : 'none'
         } catch(_) {}
       }
     } catch(_) {}
   }
   if (!window._xc_loadBindings) { window._xc_loadBindings = loadBindings }
 
-  // 通用验证码发送（账号设置中绑定邮箱/手机号共用）
+  // 通用验证码发送（账号设置中绑定邮箱使用）
   function _profileSendCode(config) {
     return async function() {
       var btn = document.getElementById(config.btnId)
@@ -820,10 +793,7 @@ onMounted(() => {
   if (!window._xc_sendBindEmailCode) {
     window._xc_sendBindEmailCode = _profileSendCode({ btnId:'asBindEmailBtn', wrapId:'asBindEmail', key:'email', url:'/api/email/send', errMsg:'请输入正确的邮箱', validate:function(v){return v.indexOf('@')!==-1} })
   }
-  if (!window._xc_sendBindPhoneCode) {
-    window._xc_sendBindPhoneCode = _profileSendCode({ btnId:'asBindPhoneBtn', wrapId:'asBindPhone', key:'phone', url:'/api/sms/send', errMsg:'请输入正确的手机号', validate:function(v){return v.length>=11} })
-  }
-  // 通用绑定（邮箱/手机号共用）
+  // 通用绑定（邮箱使用）
   function _profileBind(config) {
     return async function() {
       var valInput = document.querySelector('#' + config.wrapId + '-wrap input')
@@ -848,7 +818,7 @@ onMounted(() => {
       } catch(e) { uni.showToast({ title: '绑定失败', icon: 'none' }); resetBtn() }
     }
   }
-  // 通用解绑（邮箱/手机号共用）
+  // 通用解绑（邮箱使用）
   function _profileUnbind(config) {
     return async function() {
       uni.showModal({
@@ -867,14 +837,8 @@ onMounted(() => {
   if (!window._xc_bindEmail) {
     window._xc_bindEmail = _profileBind({ wrapId:'asBindEmail', codeWrapId:'asBindEmailCode', btnId:'asBindEmailSubmit', key:'email', url:'/api/bind/email', label:'绑定邮箱', successMsg:'邮箱绑定成功' })
   }
-  if (!window._xc_bindPhone) {
-    window._xc_bindPhone = _profileBind({ wrapId:'asBindPhone', codeWrapId:'asBindPhoneCode', btnId:'asBindPhoneSubmit', key:'phone', url:'/api/bind/phone', label:'绑定手机号', successMsg:'手机号绑定成功' })
-  }
   if (!window._xc_unbindEmail) {
     window._xc_unbindEmail = _profileUnbind({ confirmMsg:'确定要解绑邮箱吗？', url:'/api/unbind/email' })
-  }
-  if (!window._xc_unbindPhone) {
-    window._xc_unbindPhone = _profileUnbind({ confirmMsg:'确定要解绑手机号吗？', url:'/api/unbind/phone' })
   }
 
   if (!window._xc_changePassword) {

@@ -142,6 +142,8 @@ def spend_ai_quota_once(user_id, tool_models, cost, is_followup=False):
     """按免费轻量额度、套餐次数、积分的顺序扣减综合 AI 消耗。"""
     db = _require_db()
     membership = get_or_create_membership(user_id)
+    if cost <= 0:
+        return {'ok': True, 'points': membership.points, 'used_credit': 'free_model', 'used': 0}
     today = datetime.utcnow().strftime('%Y-%m-%d')
     tool_count = len(tool_models or [])
     if not is_followup and cost <= 2 and membership.daily_ai_light_used_at != today:
@@ -168,3 +170,28 @@ def spend_ai_quota_once(user_id, tool_models, cost, is_followup=False):
     spend = use_points(user_id, 'comprehensive_ai', cost, '综合 AI ' + ('追问' if is_followup else '解读'))
     spend['used_credit'] = 'points' if spend.get('ok') else ''
     return spend
+
+
+def refund_ai_quota_once(user_id, spend, description='综合 AI 上游失败自动退回'):
+    """综合 AI 失败时按本次消耗类型退回额度，免费档无需处理。"""
+    if not spend or not spend.get('ok'):
+        return {'ok': False, 'error': '无可退回消耗'}
+    db = _require_db()
+    membership = get_or_create_membership(user_id, commit=False)
+    used_credit = spend.get('used_credit')
+    used = int(spend.get('used') or 0)
+    if used_credit == 'points' and used > 0:
+        new_points = add_points(user_id, 'comprehensive_ai_refund', used, description, commit=False)
+        db.session.commit()
+        return {'ok': True, 'used_credit': used_credit, 'refunded': used, 'points': new_points}
+    if used_credit == 'ai_combo_credits' and used > 0:
+        membership.ai_combo_credits = int(membership.ai_combo_credits or 0) + used
+        db.session.add(PointLog(user_id=user_id, action='ai_combo_credit_refund', points=0, description=description))
+        db.session.commit()
+        return {'ok': True, 'used_credit': used_credit, 'refunded': used, 'points': membership.points}
+    if used_credit == 'ai_single_credits' and used > 0:
+        membership.ai_single_credits = int(membership.ai_single_credits or 0) + used
+        db.session.add(PointLog(user_id=user_id, action='ai_single_credit_refund', points=0, description=description))
+        db.session.commit()
+        return {'ok': True, 'used_credit': used_credit, 'refunded': used, 'points': membership.points}
+    return {'ok': True, 'used_credit': used_credit or 'free_model', 'refunded': 0, 'points': membership.points}

@@ -164,6 +164,10 @@ def test_qimen_meihua_and_liuyao_fixed_samples(client):
     assert qimen["zhiFu"] == "值符天辅落坎一宫(北)"
     assert qimen["zhiShi"] == "值使杜门落坎一宫(北)"
     assert len(qimen["palaces"]) == 9
+    assert isinstance(qimen["specialPatterns"], list)
+    assert all("patterns" in palace for palace in qimen["palaces"])
+    pattern_names = {pattern["name"] for pattern in qimen["specialPatterns"]}
+    assert {"落空亡", "门迫", "三奇得使"}.issubset(pattern_names)
 
     meihua = _post_json(client, "/api/meihua/paipan", {"method": "number", "num1": 7, "num2": 12})
     assert meihua["success"] is True
@@ -213,6 +217,43 @@ def test_qimen_chaibu_sample_before_mangzhong_uses_previous_month_pillar(client)
     assert palaces[2]["yinGan"] == "壬"
     assert palaces[8]["menFull"] == "杜门"
     assert palaces[8]["yinGan"] == "己"
+    pattern_names = {pattern["name"] for pattern in qimen["specialPatterns"]}
+    assert {"青龙返首", "螣蛇夭矫", "三奇入墓", "六仪击刑"}.issubset(pattern_names)
+
+
+def test_qimen_before_mangzhong_exact_time_stays_xiaoman(client):
+    qimen = _post_json(
+        client,
+        "/api/qimen/paipan",
+        {"year": 2026, "month": 6, "day": 5, "hour": 16, "minute": 17, "panType": 2},
+    )
+
+    assert qimen["fourPillars"] == {"year": "丙午", "month": "癸巳", "day": "庚戌", "hour": "甲申"}
+    assert qimen["solarTerm"] == "小满"
+    assert qimen["ju"] == "阳遁五局上元"
+    assert qimen["zhiFu"] == "值符天柱落兑七宫(西)"
+    assert qimen["zhiShi"] == "值使惊门落兑七宫(西)"
+    assert qimen["maXing"] == {"驛馬": "寅"}
+
+
+def test_qimen_special_patterns_include_global_and_exportable_palace_data(client):
+    qimen = _post_json(
+        client,
+        "/api/qimen/paipan",
+        {"year": 2026, "month": 6, "day": 5, "hour": 15, "minute": 0, "panType": 2},
+    )
+
+    patterns = qimen["specialPatterns"]
+    by_name = {pattern["name"]: pattern for pattern in patterns}
+    assert {"伏吟", "天显时格", "天网四张", "天乙伏宫"}.issubset(by_name)
+    assert by_name["伏吟"]["category"] == "global"
+    assert by_name["天显时格"]["category"] == "global"
+    assert by_name["天网四张"]["level"] == "大凶"
+    assert by_name["天网四张"]["palace"] == 1
+
+    palaces = {p["gong"]: p for p in qimen["palaces"]}
+    palace_one_patterns = {p["name"] for p in palaces[1]["patterns"]}
+    assert "天网四张" in palace_one_patterns
 
 
 def test_qimen_chaibu_next_hour_keeps_rebu_wei_hour_alignment(client):
@@ -240,6 +281,33 @@ def test_qimen_ask_default_pan_type_matches_free_paipan():
 
     assert "pan_type = 2" in source
     assert "只保留新拆补法" in source
+
+
+def test_qimen_ask_prompt_includes_special_patterns():
+    from qimen_ask_routes import _build_qimen_ask_prompt
+
+    prompt = _build_qimen_ask_prompt("这件事能不能推进", {
+        "solarDate": "2026年6月5日 15时00分",
+        "ju": "阳遁五局上元",
+        "solarTerm": "小满",
+        "fourPillars": {"year": "丙午", "month": "癸巳", "day": "庚戌", "hour": "甲申"},
+        "zhiFu": "值符天心落兑七宫(西)",
+        "zhiShi": "值使开门落坤二宫(西南)",
+        "specialPatterns": [
+            {"name": "伏吟", "level": "凶", "summary": "事情停滞", "evidence": ["值符落原宫"]},
+            {"name": "天网四张", "level": "大凶", "palaceName": "坎一宫(北)", "summary": "受困难脱"},
+        ],
+        "palaces": [
+            {"gong": 1, "men": "休", "xing": "蓬", "shen": "阴", "tianGan": "癸", "diGan": "癸",
+             "patterns": [{"name": "天网四张"}]},
+        ],
+    })
+
+    assert "**特殊格局**" in prompt
+    assert "伏吟（凶）" in prompt
+    assert "天网四张（大凶）" in prompt
+    assert "格局=天网四张" in prompt
+    assert "请先说明特殊格局对全局的影响" in prompt
 
 
 def test_comprehensive_qimen_defaults_to_chaibu():
@@ -624,7 +692,56 @@ def test_comprehensive_recommend_tools_rules(app_module, user_factory):
         assert response.status_code == 200
         data = response.get_json()
         assert data["tool_models"] == expected
-        assert data["estimated_cost"] > 0
+        assert data["estimated_cost"] >= 0
+
+        advanced_response = client.post("/api/comprehensive/recommend-tools", json={"question": question, "llm_model": "advanced"})
+        assert advanced_response.status_code == 200
+        assert advanced_response.get_json()["estimated_cost"] > 0
+
+
+def test_comprehensive_reading_mode_cost_delta(app_module, user_factory):
+    user = user_factory("reading-mode-cost-user")
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+      sess["_user_id"] = str(user.id)
+      sess["_fresh"] = True
+
+    concise = client.post("/api/comprehensive/recommend-tools", json={
+        "question": "最近整体怎么样",
+        "llm_model": "advanced",
+        "reading_mode": "concise",
+    }).get_json()["estimated_cost"]
+    standard = client.post("/api/comprehensive/recommend-tools", json={
+        "question": "最近整体怎么样",
+        "llm_model": "advanced",
+        "reading_mode": "standard",
+    }).get_json()["estimated_cost"]
+    deep = client.post("/api/comprehensive/recommend-tools", json={
+        "question": "最近整体怎么样",
+        "llm_model": "advanced",
+        "reading_mode": "deep",
+    }).get_json()["estimated_cost"]
+
+    assert concise == standard - 1
+    assert deep == standard + 3
+
+
+def test_comprehensive_options_hide_provider_details(app_module, user_factory):
+    user = user_factory("model-options-user")
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+      sess["_user_id"] = str(user.id)
+      sess["_fresh"] = True
+
+    response = client.get("/api/comprehensive/options")
+
+    assert response.status_code == 200
+    models = response.get_json()["llm_models"]
+    reading_modes = response.get_json()["reading_modes"]
+    assert [m["name"] for m in models] == ["基础模型", "高级模型", "专家模型"]
+    assert [m["name"] for m in reading_modes] == ["简洁", "标准", "深度"]
+    assert all("provider" not in m for m in models)
+    assert all("strength" not in m for m in models)
 
 
 def test_bazi_paipan_syncs_logged_in_profile_with_extended_meta(app_module, user_factory):
@@ -696,7 +813,13 @@ def test_profiles_list_backfills_existing_bazi_records(app_module, user_factory)
 
 def test_comprehensive_new_conversation_returns_full_bazi_artifact(app_module, user_factory, monkeypatch):
     user = user_factory("artifact-new-user")
-    monkeypatch.setattr(app_module, "get_reading_stream", lambda messages: iter([("职业方向可以结合命局判断。", None)]))
+    seen_model_ids = []
+
+    def fake_stream(messages, model_id=None):
+        seen_model_ids.append(model_id)
+        return iter([("职业方向可以结合命局判断。", None)])
+
+    monkeypatch.setattr(app_module, "get_reading_stream", fake_stream)
     with app_module.app.app_context():
         app_module.add_points(user.id, "admin_add", 100, "测试积分")
 
@@ -717,6 +840,7 @@ def test_comprehensive_new_conversation_returns_full_bazi_artifact(app_module, u
             "meta": {"birthLng": 116.4074, "useSolarTime": True},
         },
         "auto_select_tools": True,
+        "llm_model": "advanced",
     })
 
     assert response.status_code == 200
@@ -730,6 +854,46 @@ def test_comprehensive_new_conversation_returns_full_bazi_artifact(app_module, u
     assert basic["data"]["four_pillars"]["year"]["gan_zhi"] == "己巳"
     done = payloads[-1]
     assert "bazi.basic" in done["artifacts"]
+    assert seen_model_ids
+    assert set(seen_model_ids) == {"advanced"}
+
+
+def test_comprehensive_stream_passes_reading_mode_to_model_provider(app_module, user_factory, monkeypatch):
+    user = user_factory("artifact-reading-mode-user")
+    seen = []
+
+    def fake_stream(messages, model_id=None, reading_mode=None):
+        seen.append((model_id, reading_mode))
+        return iter([("深度解读正文。", None)])
+
+    monkeypatch.setattr(app_module, "get_reading_stream", fake_stream)
+    with app_module.app.app_context():
+        app_module.add_points(user.id, "admin_add", 100, "测试积分")
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+      sess["_user_id"] = str(user.id)
+      sess["_fresh"] = True
+
+    response = client.post("/api/comprehensive/ask/stream", json={
+        "question": "我适合什么工作",
+        "reading_mode": "deep",
+        "profile": {
+            "name": "深度样例",
+            "gender": "男",
+            "calType": "公历",
+            "birthTime": "199001271030",
+            "birthAddr": "北京",
+            "meta": {"birthLng": 116.4074, "useSolarTime": True},
+        },
+        "tool_models": ["bazi"],
+        "llm_model": "expert",
+    })
+
+    assert response.status_code == 200
+    _sse_payloads(response)
+    assert seen
+    assert set(seen) == {("expert", "deep")}
 
 
 def test_comprehensive_multi_profile_unwraps_artifacts_and_yun(app_module, user_factory, monkeypatch):
@@ -779,6 +943,45 @@ def test_comprehensive_multi_profile_unwraps_artifacts_and_yun(app_module, user_
     assert paipan_done["artifacts"]["qimen.pan"]["data"]["ju"] == "阳遁一局"
     assert paipan_done["artifacts"]["bazi.basic"]["data"]["birth_time"] == "200903010800"
     assert paipan_done["artifacts"]["bazi.yun"]["data"]["dayun"][0]["gan_zhi"] == "戊辰"
+
+
+def test_comprehensive_stream_refunds_points_when_model_provider_fails(app_module, user_factory, monkeypatch):
+    user = user_factory("artifact-refund-user")
+    monkeypatch.setattr(app_module, "get_reading_stream", lambda messages, model_id=None: iter([(None, "AI 服务异常：余额不足")]))
+    with app_module.app.app_context():
+        app_module.add_points(user.id, "admin_add", 20, "测试积分")
+        membership = app_module.get_or_create_membership(user.id)
+        membership.daily_ai_light_used_at = app_module.datetime.utcnow().strftime("%Y-%m-%d")
+        app_module.db.session.commit()
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+      sess["_user_id"] = str(user.id)
+      sess["_fresh"] = True
+
+    response = client.post("/api/comprehensive/ask/stream", json={
+        "question": "我适合什么工作",
+        "profile": {
+            "name": "退回样例",
+            "gender": "男",
+            "calType": "公历",
+            "birthTime": "199001271030",
+            "birthAddr": "北京",
+            "meta": {"birthLng": 116.4074, "useSolarTime": True},
+        },
+        "tool_models": ["bazi"],
+        "llm_model": "advanced",
+    })
+
+    payloads = _sse_payloads(response)
+    error_payload = next(p for p in payloads if p.get("error"))
+    assert error_payload["refund"]["ok"] is True
+    assert error_payload["refund"]["refunded"] == 4
+    with app_module.app.app_context():
+        membership = app_module.Membership.query.filter_by(user_id=user.id).one()
+        refund_logs = app_module.PointLog.query.filter_by(user_id=user.id, action="comprehensive_ai_refund").all()
+        assert membership.points == 20
+        assert len(refund_logs) == 1
 
 
 def test_comprehensive_followup_reuses_existing_artifact_and_adds_yun_when_needed(app_module, user_factory, monkeypatch):
@@ -881,6 +1084,9 @@ def test_homepage_uses_artifact_renderer_and_reading_mode_control():
 
     assert "readingMode" in source
     assert "解读模式" in composer_source
+    assert "readingModeLabels" in source
+    assert "reading-mode-picker" in composer_source
+    assert "reading-mode-segment" not in composer_source
     assert "renderArtifactHtml" in source
     assert "buildResultCards(" not in source
     assert "shouldAutoFollowChat" in source

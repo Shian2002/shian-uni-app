@@ -158,6 +158,38 @@ def register_auth_routes(app, db, services):
         db.session.commit()
         return jsonify({'ok': True})
 
+    @app.route('/api/password/reset', methods=['POST'])
+    @csrf.exempt
+    def api_password_reset():
+        """通过已绑定手机号或邮箱验证码重置密码。"""
+        data = request.get_json(silent=True) or {}
+        method = (data.get('method') or '').strip()
+        target = (data.get('target') or '').strip()
+        code = (data.get('code') or '').strip()
+        new_pw = data.get('new_password') or ''
+
+        if method not in ('phone', 'email'):
+            return jsonify({'error': '请选择手机或邮箱'}), 400
+        if not target or not code or not new_pw:
+            return jsonify({'error': '请填写完整'}), 400
+        if len(new_pw) < 6:
+            return jsonify({'error': '密码至少6个字符'}), 400
+        if not check_rate_limit('password_reset_' + request.remote_addr, 10, 300):
+            return jsonify({'error': '重置尝试过于频繁，请5分钟后再试'}), 429
+
+        code_key = ('sms_' if method == 'phone' else 'email_') + target
+        if not check_code(code_key, code):
+            return jsonify({'error': '验证码错误或已过期'}), 400
+
+        user = User.query.filter_by(phone=target).first() if method == 'phone' else User.query.filter_by(email=target).first()
+        if not user:
+            return jsonify({'error': '该手机或邮箱未绑定账号'}), 400
+
+        user.password_hash = generate_password_hash(new_pw, method='pbkdf2:sha256')
+        user.has_password = True
+        db.session.commit()
+        return jsonify({'ok': True})
+
     @app.route('/api/unbind/email', methods=['POST'])
     @login_required
     @csrf.exempt

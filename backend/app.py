@@ -94,6 +94,7 @@ from points_service import (
     create_daily_sign_in_once,
     get_or_create_membership,
     init_points_service,
+    refund_ai_quota_once,
     spend_ai_quota_once,
     use_points,
 )
@@ -1168,8 +1169,11 @@ def _calc_jieqi_ju(year, month, day, hour, minute, pan_type=2):
     import ephem
     import datetime
 
-    # 计算太阳黄经
-    date = ephem.Date(f'{year}/{month}/{day} {hour}:{minute}:00')
+    # 计算太阳黄经。ephem.Date 按 UTC 解释输入，前端和排盘参数均为北京时间。
+    # 若直接传北京时间，会在节气当天提前 8 小时切换节气。
+    local_dt = datetime.datetime(year, month, day, hour, minute, 0)
+    utc_dt = local_dt - datetime.timedelta(hours=8)
+    date = ephem.Date(utc_dt)
     sun = ephem.Sun(date)
     eq = ephem.Equatorial(sun.ra, sun.dec, epoch=date)
     ecl = ephem.Ecliptic(eq)
@@ -1610,6 +1614,223 @@ def _layout_bashen(zhi_fu_target_gong, dun):
     return shen_pan
 
 
+_GAN_WUXING = {'甲':'木', '乙':'木', '丙':'火', '丁':'火', '戊':'土', '己':'土', '庚':'金', '辛':'金', '壬':'水', '癸':'水'}
+_GAN_YINYANG = {'甲':'阳', '乙':'阴', '丙':'阳', '丁':'阴', '戊':'阳', '己':'阴', '庚':'阳', '辛':'阴', '壬':'阳', '癸':'阴'}
+_GAN_HE = {'甲':'己', '己':'甲', '乙':'庚', '庚':'乙', '丙':'辛', '辛':'丙', '丁':'壬', '壬':'丁', '戊':'癸', '癸':'戊'}
+_OPPOSITE_GONG = {1:9, 9:1, 2:8, 8:2, 3:7, 7:3, 4:6, 6:4}
+
+
+def _qimen_pattern(pattern_id, name, pattern_type, level, summary, palace=None, evidence=None, category='palace'):
+    auspice = {
+        '大吉': 'great_auspicious',
+        '吉': 'auspicious',
+        '平': 'neutral',
+        '凶': 'inauspicious',
+        '大凶': 'great_inauspicious',
+    }.get(level, 'neutral')
+    item = {
+        'id': pattern_id,
+        'name': name,
+        'type': pattern_type,
+        'category': category,
+        'auspice': auspice,
+        'level': level,
+        'summary': summary,
+        'evidence': evidence or [],
+    }
+    if palace is not None:
+        item['palace'] = palace
+        item['palaceName'] = _GONG_NAMES.get(palace, f'{palace}宫')
+        item['bagua'] = _GONG_BAGUA.get(palace, '')
+    return item
+
+
+def _qimen_value_list(value):
+    if isinstance(value, list):
+        return [v for v in value if v]
+    return [value] if value else []
+
+
+def _qimen_add_pattern(patterns, palace_patterns, item):
+    patterns.append(item)
+    palace = item.get('palace')
+    if palace:
+        palace_patterns.setdefault(palace, []).append({
+            'id': item['id'],
+            'name': item['name'],
+            'level': item['level'],
+            'auspice': item['auspice'],
+            'summary': item['summary'],
+        })
+
+
+def _is_wu_bu_yu_shi(day_gan, hour_gan):
+    day_wx = _GAN_WUXING.get(day_gan)
+    hour_wx = _GAN_WUXING.get(hour_gan)
+    if not day_wx or not hour_wx:
+        return False
+    return _KE_MAP.get(hour_wx) == day_wx and _GAN_YINYANG.get(day_gan) == _GAN_YINYANG.get(hour_gan)
+
+
+def _detect_qimen_special_patterns(gz, zfzs, shi_gan_gong, palaces):
+    """识别可导出的奇门格局。
+
+    这里不替代具体断事，只做客观触发条件输出，供免费排盘、JSON 导出和 AI 解读共用。
+    """
+    patterns = []
+    palace_patterns = {}
+
+    zhi_fu_original = zfzs.get('zhiFuEffGong') or zfzs.get('zhiFuYuanGong')
+    if zhi_fu_original and shi_gan_gong:
+        if zhi_fu_original == shi_gan_gong:
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern(
+                'fu_yin', '伏吟', 'global', '凶',
+                '值符落回原宫，星门伏吟，事情多停滞反复，宜守不宜急进。',
+                palace=shi_gan_gong,
+                evidence=[f'值符原宫{zhi_fu_original}宫', f'值符落{shi_gan_gong}宫'],
+                category='global',
+            ))
+        elif _OPPOSITE_GONG.get(zhi_fu_original) == shi_gan_gong:
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern(
+                'fan_yin', '反吟', 'global', '凶',
+                '值符落入原宫对冲之宫，主反复变动、事态易翻转。',
+                palace=shi_gan_gong,
+                evidence=[f'值符原宫{zhi_fu_original}宫', f'值符落对冲{shi_gan_gong}宫'],
+                category='global',
+            ))
+
+    day_gan = gz.get('dayGan', '')
+    hour_gan = gz.get('hourGan', '')
+    if _is_wu_bu_yu_shi(day_gan, hour_gan):
+        _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern(
+            'wu_bu_yu_shi', '五不遇时', 'global', '大凶',
+            '时干克日干且阴阳同性，为奇门重要凶时，谋事多阻。',
+            evidence=[f'日干{day_gan}', f'时干{hour_gan}', '时干克日干'],
+            category='global',
+        ))
+
+    if hour_gan == '甲' or _GAN_HE.get(day_gan) == hour_gan:
+        evidence = []
+        if hour_gan == '甲':
+            evidence.append(f'时柱{gz.get("hour", "")}为六甲时')
+        if _GAN_HE.get(day_gan) == hour_gan:
+            evidence.append(f'日干{day_gan}与时干{hour_gan}相合')
+        _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern(
+            'tian_xian_shi_ge', '天显时格', 'global', '吉',
+            '六甲透出或日时相合，虽遇伏吟亦可取其显达之象，利明面推进。',
+            evidence=evidence,
+            category='global',
+        ))
+
+    for p in palaces:
+        if not p or p.get('gong') == 5:
+            continue
+        gong = p['gong']
+        tian_gans = _qimen_value_list(p.get('tianGan'))
+        di_gans = _qimen_value_list(p.get('diGan'))
+        men = p.get('men', '')
+        shen = p.get('shen', '')
+        shen_full = p.get('shenFull') or _SHEN_FULL.get(shen, shen)
+
+        for gan in p.get('ruMuTianGans') or []:
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern(
+                'ru_mu', '入墓', 'palace', '凶',
+                '天盘干入墓库，主受困、闭塞、机会被埋。',
+                palace=gong,
+                evidence=[f'天盘{gan}入{_GONG_NAMES.get(gong, str(gong))}'],
+            ))
+            if gan in ('乙', '丙', '丁'):
+                _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern(
+                    'san_qi_ru_mu', '三奇入墓', 'palace', '凶',
+                    '乙丙丁三奇入墓，主机遇受压、才智难展。',
+                    palace=gong,
+                    evidence=[f'{gan}奇入墓'],
+                ))
+
+        if p.get('isKong'):
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern(
+                'luo_kong_wang', '落空亡', 'palace', '凶',
+                '宫位落入旬空，主虚、空、落空，成事力度不足。',
+                palace=gong,
+                evidence=['时柱旬空落本宫'],
+            ))
+
+        if p.get('isMenPo'):
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern(
+                'men_po', '门迫', 'palace', '凶',
+                '门克宫位，行动受迫，谋事多阻。',
+                palace=gong,
+                evidence=[f'{_MEN_FULL.get(men, men)}克宫'],
+            ))
+
+        for gan in p.get('jiXingTianGans') or []:
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern(
+                'liu_yi_ji_xing', '六仪击刑', 'palace', '凶',
+                '六仪击刑，主刑伤、争执、官非或突发损害。',
+                palace=gong,
+                evidence=[f'天盘{gan}临击刑宫'],
+            ))
+
+        if '乙' in tian_gans and men == '开':
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('yi_qi_de_shi', '乙奇得使', 'palace', '吉', '乙奇临开门，利谋划、沟通与贵人相助。', gong, ['天盘乙', '开门']))
+        if '丙' in tian_gans and men == '休':
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('bing_qi_de_shi', '丙奇得使', 'palace', '吉', '丙奇临休门，利名声、文书和明面推进。', gong, ['天盘丙', '休门']))
+        if '丁' in tian_gans and men == '生':
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('ding_qi_de_shi', '丁奇得使', 'palace', '吉', '丁奇临生门，利求财、创意和新机会。', gong, ['天盘丁', '生门']))
+        if any(g in tian_gans for g in ('乙', '丙', '丁')) and men in ('休', '生', '开'):
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('san_qi_de_shi', '三奇得使', 'palace', '吉', '三奇临三吉门，主有助力、有机会、有转机。', gong, ['三奇', _MEN_FULL.get(men, men)]))
+
+        if '丁' in tian_gans and men == '开':
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('yu_nv_shou_men', '玉女守门', 'palace', '吉', '丁奇临开门，利婚恋合作、开局启动与求财。', gong, ['天盘丁', '开门']))
+        if '丙' in tian_gans and '丁' in di_gans and men == '生':
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('tian_dun', '天遁', 'palace', '吉', '丙丁同临生门，主天时助力，利启动大事。', gong, ['天盘丙', '地盘丁', '生门']))
+        if '乙' in tian_gans and men == '开' and shen_full == '九地':
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('di_dun', '地遁', 'palace', '吉', '乙奇临开门加九地，利藏形避害、稳中求成。', gong, ['天盘乙', '开门', '九地']))
+        if '丁' in tian_gans and men == '休' and shen_full == '太阴':
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('ren_dun', '人遁', 'palace', '吉', '丁奇临休门加太阴，利人和、暗助、协商。', gong, ['天盘丁', '休门', '太阴']))
+        if '丙' in tian_gans and men == '生' and shen_full == '九天':
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('shen_dun', '神遁', 'palace', '吉', '丙奇临生门加九天，利快速推进、高处发力。', gong, ['天盘丙', '生门', '九天']))
+        if '丁' in tian_gans and men == '杜' and shen_full == '九地':
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('gui_dun', '鬼遁', 'palace', '吉', '丁奇临杜门加九地，利隐秘布局、暗中成事。', gong, ['天盘丁', '杜门', '九地']))
+        if '乙' in tian_gans and men in ('开', '杜') and gong == 4:
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('feng_dun', '风遁', 'palace', '吉', '乙奇临开/杜门在巽宫，利运筹、传播、避祸。', gong, ['天盘乙', _MEN_FULL.get(men, men), '巽四宫']))
+        if '乙' in tian_gans and men == '开' and gong == 6:
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('yun_dun', '云遁', 'palace', '吉', '乙奇临开门在乾宫，利上升、远行、见贵。', gong, ['天盘乙', '开门', '乾六宫']))
+        if '乙' in tian_gans and men == '休' and gong == 1:
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('long_dun', '龙遁', 'palace', '吉', '乙奇临休门在坎宫，利舒展、远谋、转机。', gong, ['天盘乙', '休门', '坎一宫']))
+        if '乙' in tian_gans and men == '开' and gong == 7:
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('hu_dun', '虎遁', 'palace', '吉', '乙奇临开门在兑宫，利果断出击、打开局面。', gong, ['天盘乙', '开门', '兑七宫']))
+
+        if '戊' in tian_gans and '丙' in di_gans:
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('qing_long_fan_shou', '青龙返首', 'palace', '大吉', '戊加丙，主失而复得、转危为安、名利可成。', gong, ['天盘戊', '地盘丙']))
+        if '丙' in tian_gans and '戊' in di_gans:
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('fei_niao_die_xue', '飞鸟跌穴', 'palace', '大吉', '丙加戊，主主动进取、大展宏图、诸事顺遂。', gong, ['天盘丙', '地盘戊']))
+        if '庚' in tian_gans and '癸' in di_gans:
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('da_ge', '大格', 'palace', '大凶', '庚加癸，主谋事难成、阻力重重。', gong, ['天盘庚', '地盘癸']))
+        if '庚' in tian_gans and '壬' in di_gans:
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('xiao_ge', '小格', 'palace', '凶', '庚加壬，主小阻小滞，进展迟缓。', gong, ['天盘庚', '地盘壬']))
+        if '庚' in tian_gans and '己' in di_gans:
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('xing_ge', '刑格', 'palace', '凶', '庚加己，主刑伤、官非、争执。', gong, ['天盘庚', '地盘己']))
+        if ('丙' in tian_gans and '庚' in di_gans) or ('庚' in tian_gans and '丙' in di_gans):
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('bo_ge', '悖格', 'palace', '大凶', '丙庚互临，主悖逆冲突、事情不顺。', gong, ['丙庚互临']))
+        if '癸' in tian_gans and '癸' in di_gans:
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('tian_wang_si_zhang', '天网四张', 'palace', '大凶', '癸加癸，主受困难脱，宜避不宜进。', gong, ['天盘癸', '地盘癸']))
+        if '辛' in tian_gans and '乙' in di_gans:
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('bai_hu_chang_kuang', '白虎猖狂', 'palace', '大凶', '辛加乙，主刑伤灾祸，诸事宜谨慎。', gong, ['天盘辛', '地盘乙']))
+        if '丙' in tian_gans and gong == 1:
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('zhu_que_tou_jiang', '朱雀投江', 'palace', '凶', '丙奇临坎，文书口舌易沉滞，不利诉讼合约。', gong, ['天盘丙', '坎一宫']))
+        if '癸' in tian_gans and '丁' in di_gans:
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('teng_she_yao_jiao', '螣蛇夭矫', 'palace', '大凶', '癸加丁，主虚惊缠绕、文书官非、火水相激。', gong, ['天盘癸', '地盘丁']))
+        if shen_full == '值符' and zhi_fu_original == gong:
+            _qimen_add_pattern(patterns, palace_patterns, _qimen_pattern('tian_yi_fu_gong', '天乙伏宫', 'palace', '吉', '值符伏本宫，主贵人权威、有靠山。', gong, ['值符临本宫']))
+
+    for p in palaces:
+        if p:
+            p['patterns'] = palace_patterns.get(p.get('gong'), [])
+
+    return patterns
+
+
 # ═══════════════════════════════════════════════════════════════
 # 主排盘函数
 # ═══════════════════════════════════════════════════════════════
@@ -1877,6 +2098,7 @@ def _qimen_paipan(year, month, day, hour, minute=0, pan_type=2):
         tian_yi_full = _XING_FULL.get(tian_yi_star, tian_yi_star) if tian_yi_star else ''
         tian_yi_gong_name = _GONG_NAMES.get(tian_yi_gong, f'{tian_yi_gong}宫')
         tian_yi_str = f'天乙{tian_yi_full}落{tian_yi_gong_name}' if tian_yi_full else f'天乙落{tian_yi_gong_name}'
+        special_patterns = _detect_qimen_special_patterns(gz, zfzs, shi_gan_gong, palaces)
 
         result = {
             'solarDate': f'{year}年{month}月{day}日 {hour:02d}时{minute:02d}分',
@@ -1901,6 +2123,7 @@ def _qimen_paipan(year, month, day, hour, minute=0, pan_type=2):
             'tianYiStar': tian_yi_star if tian_yi_star else '',
             'tianYiGong': _GONG_BAGUA.get(tian_yi_gong, '') if tian_yi_gong else '',
             'maXing': {'驛馬': yima_zhi},
+            'specialPatterns': special_patterns,
             'palaces': palaces,
             'panType': '拆补法',
         }
@@ -3794,6 +4017,7 @@ register_media_routes(app, db, {
 register_comprehensive_routes(app, db, {
     'get_or_create_membership': get_or_create_membership,
     'spend_ai_quota_once': spend_ai_quota_once,
+    'refund_ai_quota_once': refund_ai_quota_once,
     'qimen_paipan': _qimen_paipan,
     'liuyao_paipan': _liuyao_paipan,
     'meihua_paipan': _meihua_paipan,

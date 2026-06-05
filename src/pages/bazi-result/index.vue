@@ -2258,13 +2258,9 @@ function goBaziHome() {
     sessionStorage.removeItem('xc_bazi_params')
     sessionStorage.setItem('_nav_query', 'tab=free')
     window.location.hash = '#/pages/bazi-index/index?tab=free'
-    setTimeout(function() {
-      try {
-        if (location.hash.indexOf('/pages/bazi-index/index') >= 0) {
-          uni.switchTab({ url: '/pages/bazi-index/index' })
-        }
-      } catch(_) {}
-    }, 60)
+    try {
+      if (window.__xcRenderTabPath) window.__xcRenderTabPath('/pages/bazi-index/index')
+    } catch(_) {}
     return
   } catch(_) {}
   // #endif

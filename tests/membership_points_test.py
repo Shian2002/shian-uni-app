@@ -130,6 +130,7 @@ def test_app_uses_central_points_service(app_module):
     assert app_module.use_points.__module__ == "points_service"
     assert app_module.create_daily_sign_in_once.__module__ == "points_service"
     assert app_module.spend_ai_quota_once.__module__ == "points_service"
+    assert app_module.refund_ai_quota_once.__module__ == "points_service"
 
 
 def test_spend_ai_quota_once_uses_daily_light_before_points(app_module, user_factory):
@@ -148,6 +149,23 @@ def test_spend_ai_quota_once_uses_daily_light_before_points(app_module, user_fac
         assert membership.points == 5
         assert membership.daily_ai_light_used_at
         assert len(logs) == 1
+
+
+def test_spend_ai_quota_once_allows_free_model_without_point_log(app_module, user_factory):
+    user = user_factory()
+
+    with app_module.app.app_context():
+        app_module.add_points(user.id, "admin_add", 5, "初始积分")
+
+        result = app_module.spend_ai_quota_once(user.id, ["qimen"], 0)
+
+        membership = app_module.Membership.query.filter_by(user_id=user.id).one()
+        logs = app_module.PointLog.query.filter_by(user_id=user.id, action="comprehensive_ai").all()
+        assert result["ok"] is True
+        assert result["used_credit"] == "free_model"
+        assert result["used"] == 0
+        assert membership.points == 5
+        assert logs == []
 
 
 def test_spend_ai_quota_once_deducts_combo_credit_atomically(app_module, user_factory):
@@ -187,6 +205,26 @@ def test_spend_ai_quota_once_falls_back_to_points(app_module, user_factory):
         assert result["used"] == 7
         assert membership.points == 5
         assert len(logs) == 1
+
+
+def test_refund_ai_quota_once_returns_points_after_upstream_failure(app_module, user_factory):
+    user = user_factory()
+
+    with app_module.app.app_context():
+        app_module.add_points(user.id, "admin_add", 12, "初始积分")
+        membership = app_module.get_or_create_membership(user.id)
+        membership.daily_ai_light_used_at = app_module.datetime.utcnow().strftime("%Y-%m-%d")
+        app_module.db.session.commit()
+        spend = app_module.spend_ai_quota_once(user.id, ["bazi"], 7)
+
+        refund = app_module.refund_ai_quota_once(user.id, spend, "测试退回")
+
+        membership = app_module.Membership.query.filter_by(user_id=user.id).one()
+        refund_log = app_module.PointLog.query.filter_by(user_id=user.id, action="comprehensive_ai_refund").one()
+        assert refund["ok"] is True
+        assert refund["refunded"] == 7
+        assert membership.points == 12
+        assert refund_log.points == 7
 
 
 def test_recharge_confirmation_only_pays_pending_order_once(app_module, user_factory):
@@ -541,6 +579,52 @@ def test_email_code_login_uses_shared_verification_store(app_module, user_factor
     assert response.status_code == 200
     body = response.get_json()
     assert body["username"] == "email-code-user"
+
+
+def test_password_reset_by_bound_email_updates_password(app_module, user_factory):
+    member = user_factory("reset-email-user")
+    email_addr = "reset-email@example.com"
+
+    with app_module.app.app_context():
+        user = app_module.db.session.get(app_module.User, member.id)
+        user.email = email_addr
+        app_module.db.session.commit()
+
+    import auth_channel_routes
+    auth_channel_routes._store_code(f"email_{email_addr}", "654321")
+
+    client = app_module.app.test_client()
+    reset_response = client.post("/api/password/reset", json={
+        "method": "email",
+        "target": email_addr,
+        "code": "654321",
+        "new_password": "newpass123",
+    })
+    assert reset_response.status_code == 200
+    assert reset_response.get_json()["ok"] is True
+
+    login_response = client.post("/api/login", json={
+        "username": email_addr,
+        "password": "newpass123",
+    })
+    assert login_response.status_code == 200
+    assert login_response.get_json()["username"] == "reset-email-user"
+
+
+def test_password_reset_rejects_unbound_phone_after_valid_code(app_module):
+    import auth_channel_routes
+    auth_channel_routes._store_code("sms_13900001111", "123123")
+
+    client = app_module.app.test_client()
+    response = client.post("/api/password/reset", json={
+        "method": "phone",
+        "target": "13900001111",
+        "code": "123123",
+        "new_password": "newpass123",
+    })
+
+    assert response.status_code == 400
+    assert "未绑定" in response.get_json()["error"]
 
 
 def test_unconfigured_oauth_url_returns_actionable_error(app_module):

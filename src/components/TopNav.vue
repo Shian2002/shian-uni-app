@@ -58,54 +58,53 @@
     </nav>
   </view>
 
-  <!-- 登录弹窗 — 多Tab登录 -->
+  <!-- 登录弹窗 -->
   <view class="modal-overlay" id="topnavLoginModal" onclick="if(event.target===this) window._openLoginModal_Close()">
     <view class="modal-box">
       <view class="modal-title">登录</view>
       <view class="login-tabs">
-        <view class="login-tab tn-tab-password active" data-tab="password" onclick="window._xc_switchTab(this)">账号</view>
-        <view class="login-tab tn-tab-phone" data-tab="phone" onclick="window._xc_switchTab(this)">手机</view>
-        <view class="login-tab tn-tab-email" data-tab="email" onclick="window._xc_switchTab(this)">邮箱</view>
+        <view class="login-tab tn-tab-password active" data-tab="password" onclick="window._xc_switchTab(this)">密码登录</view>
+        <view class="login-tab tn-tab-code" data-tab="code" onclick="window._xc_switchTab(this)">验证码登录</view>
       </view>
 
-      <!-- 密码登录 -->
-      <view class="tn-panel tn-panel-password" style="">
-        <view class="field"><text class="field-label">用户名/邮箱/手机号</text><view id="tnLoginUser-wrap" class="dom-input-wrap"></view></view>
+      <view class="tn-panel tn-panel-login" style="">
+        <view class="field"><text class="field-label">账号</text><view id="tnLoginUser-wrap" class="dom-input-wrap"></view></view>
         <view class="field"><text class="field-label">密码</text><view id="tnLoginPass-wrap" class="dom-input-wrap"></view></view>
-        <view class="modal-hint">已有账号直接登录 · <text class="register-link" onclick="window._xc_doRegister()" style="color:var(--accent);cursor:pointer;text-decoration:underline;">没有账号？立即注册</text></view>
+        <view class="field code-field" style="display:none;">
+          <text class="field-label">验证码</text>
+          <view style="display:flex;gap:8px;">
+            <view id="tnLoginCode-wrap" class="dom-input-wrap" style="flex:1;"></view>
+            <view class="btn btn-outline btn-sm code-btn" onclick="window._xc_sendLoginCode()" id="tnLoginCodeBtn">获取验证码</view>
+          </view>
+        </view>
+        <view class="modal-hint">没有账号？<text class="register-link" onclick="window._xc_doRegister()" style="color:var(--accent);cursor:pointer;text-decoration:underline;">立即注册</text> · <text class="forgot-link" onclick="window._xc_showForgotPassword()" style="color:var(--accent);cursor:pointer;text-decoration:underline;">忘记密码</text></view>
       </view>
 
-      <!-- 手机验证码登录 -->
-      <view class="tn-panel tn-panel-phone" style="display:none;">
-        <view class="field"><text class="field-label">手机号</text><view id="tnLoginPhone-wrap" class="dom-input-wrap"></view></view>
+      <!-- 忘记密码 -->
+      <view class="tn-panel tn-panel-reset" style="display:none;">
+        <view class="reset-methods">
+          <view class="reset-method active" data-method="email" onclick="window._xc_switchResetMethod(this)">邮箱</view>
+        </view>
+        <view class="field"><text class="field-label" id="tnResetTargetLabel">邮箱</text><view id="tnResetTarget-wrap" class="dom-input-wrap"></view></view>
         <view class="field code-field">
           <text class="field-label">验证码</text>
           <view style="display:flex;gap:8px;">
-            <view id="tnLoginPhoneCode-wrap" class="dom-input-wrap" style="flex:1;"></view>
-            <view class="btn btn-outline btn-sm code-btn" onclick="window._xc_sendPhoneCode()" id="tnPhoneCodeBtn">获取验证码</view>
+            <view id="tnResetCode-wrap" class="dom-input-wrap" style="flex:1;"></view>
+            <view class="btn btn-outline btn-sm code-btn" onclick="window._xc_sendResetCode()" id="tnResetCodeBtn">获取验证码</view>
           </view>
         </view>
-      </view>
-
-      <!-- 邮箱验证码登录 -->
-      <view class="tn-panel tn-panel-email" style="display:none;">
-        <view class="field"><text class="field-label">QQ邮箱</text><view id="tnLoginEmail-wrap" class="dom-input-wrap"></view></view>
-        <view class="field code-field">
-          <text class="field-label">验证码</text>
-          <view style="display:flex;gap:8px;">
-            <view id="tnLoginEmailCode-wrap" class="dom-input-wrap" style="flex:1;"></view>
-            <view class="btn btn-outline btn-sm code-btn" onclick="window._xc_sendEmailCode()" id="tnEmailCodeBtn">获取验证码</view>
-          </view>
-        </view>
+        <view class="field"><text class="field-label">新密码</text><view id="tnResetPassword-wrap" class="dom-input-wrap"></view></view>
+        <view class="modal-hint">想起来了？<text class="login-link" onclick="window._xc_switchToLogin()" style="color:var(--accent);cursor:pointer;text-decoration:underline;">返回登录</text></view>
       </view>
 
       <view class="modal-error" id="tnLoginError"></view>
       <view class="modal-btns"><view class="btn btn-outline" onclick="window._openLoginModal_Close()">取消</view><view class="btn btn-accent" onclick="window._xc_doLogin()">登录</view></view>
       <view class="oauth-divider"><text class="oauth-divider-text">第三方登录</text></view>
+      <view class="oauth-note">已绑定 Gitee 的账号，登录时仍需通过 Gitee 验证身份。</view>
       <view class="oauth-btns">
         <view class="oauth-btn oauth-btn-gitee" @tap="oauthLogin('gitee')">
           <text class="oauth-btn-icon">G</text>
-          <text class="oauth-btn-label">Gitee</text>
+          <text class="oauth-btn-label">Gitee 验证登录</text>
         </view>
       </view>
     </view>
@@ -252,17 +251,50 @@ onMounted(function() {
       return currentModal || modals[0]
     }
   }
-  // 全局登录tab切换（纯DOM操作，不依赖Vue reactive）
+  function _xc_detectLoginIdentifier(value) {
+    var v = (value || '').trim()
+    if (!v) return 'empty'
+    if (v.indexOf('@') !== -1) return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? 'email' : 'invalid-email'
+    if (/^\d+$/.test(v)) return 'username'
+    return 'username'
+  }
+
+  function _xc_getLoginMode(modal) {
+    var active = (modal || document).querySelector('.login-tab.active')
+    return active ? (active.getAttribute('data-tab') || 'password') : 'password'
+  }
+
+  function _xc_applyLoginMode(modal, mode) {
+    if (!modal) return
+    var passwordField = modal.querySelector('#tnLoginPass-wrap')
+    var passwordRow = passwordField ? passwordField.closest('.field') : null
+    var codeField = modal.querySelector('#tnLoginCode-wrap')
+    var codeRow = codeField ? codeField.closest('.field') : null
+    if (passwordRow) passwordRow.style.display = mode === 'code' ? 'none' : ''
+    if (codeRow) codeRow.style.display = mode === 'code' ? '' : 'none'
+    var account = modal.querySelector('#tnLoginUser')
+    if (account) account.placeholder = mode === 'code' ? '邮箱' : '用户名/邮箱'
+    var code = modal.querySelector('#tnLoginCode')
+    if (code && mode !== 'code') code.value = ''
+  }
+
+  // 全局登录方式切换（纯DOM操作，不依赖Vue reactive）
   if (!window._xc_switchTab) {
     window._xc_switchTab = function(el) {
       var tab = el.getAttribute('data-tab') || 'password'
       var modal = el.closest('#topnavLoginModal')
       if (modal) {
+        modal.classList.remove('reset-mode')
         modal.querySelectorAll('.login-tab').forEach(function(t) { t.classList.remove('active') })
         el.classList.add('active')
-        modal.querySelectorAll('.tn-panel-password, .tn-panel-phone, .tn-panel-email').forEach(function(p) { p.style.display = 'none' })
-        var panel = modal.querySelector('.tn-panel-' + tab)
+        modal.querySelectorAll('.tn-panel-login, .tn-panel-reset').forEach(function(p) { p.style.display = 'none' })
+        var panel = modal.querySelector('.tn-panel-login')
         if (panel) panel.style.display = ''
+        _xc_applyLoginMode(modal, tab)
+        var titleEl = modal.querySelector('.modal-title')
+        if (titleEl) titleEl.textContent = '登录'
+        var loginBtn = modal.querySelector('.modal-btns .btn-accent')
+        if (loginBtn) { loginBtn.textContent = '登录'; loginBtn.setAttribute('onclick', 'window._xc_doLogin()') }
       }
       try { var e = document.getElementById('tnLoginError'); if (e) e.textContent = '' } catch(_) {}
     }
@@ -278,12 +310,12 @@ onMounted(function() {
         modal.classList.add('open')
         var e = modal.querySelector('#tnLoginError'); if (e) e.textContent = ''
         var loginInputs = [
-          ['tnLoginUser-wrap', 'text', '用户名/邮箱/手机号'],
+          ['tnLoginUser-wrap', 'text', '用户名/邮箱'],
           ['tnLoginPass-wrap', 'password', '密码'],
-          ['tnLoginPhone-wrap', 'tel', '手机号'],
-          ['tnLoginPhoneCode-wrap', 'text', '验证码'],
-          ['tnLoginEmail-wrap', 'email', 'QQ邮箱@qq.com'],
-          ['tnLoginEmailCode-wrap', 'text', '验证码']
+          ['tnLoginCode-wrap', 'text', '验证码'],
+          ['tnResetTarget-wrap', 'email', '已绑定邮箱'],
+          ['tnResetCode-wrap', 'text', '验证码'],
+          ['tnResetPassword-wrap', 'password', '新密码']
         ]
         loginInputs.forEach(function(item) {
           var wrap = modal.querySelector('#' + item[0])
@@ -293,7 +325,7 @@ onMounted(function() {
             inp.id = item[0].replace('-wrap', '')
             inp.placeholder = item[2]
             // 内联样式（style scoped 对动态创建的 input 不生效）
-            inp.style.cssText = 'width:100%;padding:10px 14px;border-radius:10px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--text-1);font-size:0.875rem;outline:none;box-sizing:border-box;transition:border-color 0.2s,box-shadow 0.2s'
+            inp.style.cssText = 'width:100%;height:42px;padding:10px 14px;border-radius:10px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--text-1);font-size:0.875rem;outline:none;box-sizing:border-box;transition:border-color 0.2s,box-shadow 0.2s'
             inp.onfocus = function() { this.style.borderColor = 'var(--accent)'; this.style.boxShadow = '0 0 0 2px var(--accent-glow)' }
             inp.onblur = function() { this.style.borderColor = 'var(--input-border)'; this.style.boxShadow = 'none' }
             if (item[1] === 'text' || item[1] === 'tel') inp.setAttribute('maxlength', '100')
@@ -302,7 +334,7 @@ onMounted(function() {
         })
         setTimeout(function() {
           try {
-            var firstInput = modal.querySelector('#tnLoginUser, #tnLoginPhone, #tnLoginEmail')
+            var firstInput = modal.querySelector('#tnLoginUser')
             if (firstInput && firstInput.focus) firstInput.focus()
           } catch(_) {}
         }, 60)
@@ -320,6 +352,18 @@ onMounted(function() {
       if (pEl) pEl.value = ''
       var titleEl = (modal || document).querySelector('.modal-title')
       if (titleEl) titleEl.textContent = '注册'
+      if (modal) {
+        modal.classList.remove('reset-mode')
+        modal.querySelectorAll('.login-tab').forEach(function(t) {
+          var isPassword = (t.getAttribute('data-tab') || '') === 'password'
+          t.classList.toggle('active', isPassword)
+        })
+        var loginPanel = modal.querySelector('.tn-panel-login')
+        var resetPanel = modal.querySelector('.tn-panel-reset')
+        if (loginPanel) loginPanel.style.display = ''
+        if (resetPanel) resetPanel.style.display = 'none'
+        _xc_applyLoginMode(modal, 'password')
+      }
       var hintEl = (modal || document).querySelector('.modal-hint')
       if (hintEl) hintEl.innerHTML = '已有账号？<text class="login-link" onclick="window._xc_switchToLogin()" style="color:var(--accent);cursor:pointer;text-decoration:underline;">立即登录</text>'
       var loginBtn = (modal || document).querySelector('.modal-btns .btn-accent')
@@ -353,49 +397,90 @@ onMounted(function() {
       var titleEl = (modal || document).querySelector('.modal-title')
       if (titleEl) titleEl.textContent = '登录'
       var hintEl = (modal || document).querySelector('.modal-hint')
-      if (hintEl) hintEl.innerHTML = '已有账号直接登录 · <text class="register-link" onclick="window._xc_doRegister()" style="color:var(--accent);cursor:pointer;text-decoration:underline;">没有账号？立即注册</text>'
+      if (hintEl) hintEl.innerHTML = '没有账号？<text class="register-link" onclick="window._xc_doRegister()" style="color:var(--accent);cursor:pointer;text-decoration:underline;">立即注册</text> · <text class="forgot-link" onclick="window._xc_showForgotPassword()" style="color:var(--accent);cursor:pointer;text-decoration:underline;">忘记密码</text>'
       var loginBtn = (modal || document).querySelector('.modal-btns .btn-accent')
       if (loginBtn) { loginBtn.textContent = '登录'; loginBtn.setAttribute('onclick', 'window._xc_doLogin()') }
+      if (modal) {
+        modal.classList.remove('reset-mode')
+        var tab = modal.querySelector('.login-tab[data-tab="password"]')
+        if (tab && window._xc_switchTab) window._xc_switchTab(tab)
+      }
       var uEl = (modal || document).querySelector('#tnLoginUser'); var pEl = (modal || document).querySelector('#tnLoginPass')
       if (uEl) uEl.value = ''
       if (pEl) pEl.value = ''
     }
-    window._xc_doLogin = function() {
-      var loginMethods = {
-        password: {inputs:[{id:'tnLoginUser',key:'username'},{id:'tnLoginPass',key:'password'}],url:'/api/login'},
-        phone:    {inputs:[{id:'tnLoginPhone',key:'phone'},{id:'tnLoginPhoneCode',key:'code'}],url:'/api/sms/login'},
-        email:    {inputs:[{id:'tnLoginEmail',key:'email'},{id:'tnLoginEmailCode',key:'code'}],url:'/api/email/login'}
-      }
-      var e = document.getElementById('tnLoginError'), tab = 'password'
+    window._xc_showForgotPassword = function() {
       var modal = window._xc_getVisibleModal()
-      if (modal) {
-        var activeTab = modal.querySelector('.login-tab.active')
-        tab = activeTab ? (activeTab.getAttribute('data-tab') || 'password') : 'password'
-        e = modal.querySelector('#tnLoginError') || e
+      if (!modal) return
+      modal.classList.add('reset-mode')
+      modal.querySelectorAll('.tn-panel-login').forEach(function(p) { p.style.display = 'none' })
+      var resetPanel = modal.querySelector('.tn-panel-reset')
+      if (resetPanel) resetPanel.style.display = ''
+      var titleEl = modal.querySelector('.modal-title')
+      if (titleEl) titleEl.textContent = '重置密码'
+      var loginBtn = modal.querySelector('.modal-btns .btn-accent')
+      if (loginBtn) { loginBtn.textContent = '重置密码'; loginBtn.setAttribute('onclick', 'window._xc_doResetPassword()') }
+      var e = modal.querySelector('#tnLoginError')
+      if (e) e.textContent = ''
+      var target = modal.querySelector('#tnResetTarget')
+      if (target) setTimeout(function() { target.focus() }, 80)
+    }
+    window._xc_switchResetMethod = function(el) {
+      var modal = window._xc_getVisibleModal()
+      if (!modal || !el) return
+      var method = el.getAttribute('data-method') || 'email'
+      modal.querySelectorAll('.reset-method').forEach(function(item) { item.classList.remove('active') })
+      el.classList.add('active')
+      var label = modal.querySelector('#tnResetTargetLabel')
+      var target = modal.querySelector('#tnResetTarget')
+      if (label) label.textContent = '邮箱'
+      if (target) {
+        target.value = ''
+        target.type = 'email'
+        target.placeholder = '已绑定邮箱'
       }
-      var method = loginMethods[tab]
-      if (!method) return
-      // 收集输入值 & 构建请求数据
-      var vals = {}, empty = false, data = {}
-      method.inputs.forEach(function(inp) {
-        var el = (modal || document).querySelector('#' + inp.id)
-        vals[inp.id] = el ? el.value.trim() : ''
-        if (!vals[inp.id]) empty = true
-        data[inp.key] = vals[inp.id]
-      })
-      if (empty) { if (e) e.textContent = '请填写完整'; return }
-      uni.request({ url: method.url, method: 'POST', data: data }).then(function(res) {
+      var e = modal.querySelector('#tnLoginError')
+      if (e) e.textContent = ''
+    }
+    window._xc_doLogin = function() {
+      var e = document.getElementById('tnLoginError')
+      var modal = window._xc_getVisibleModal()
+      if (modal) e = modal.querySelector('#tnLoginError') || e
+      var mode = _xc_getLoginMode(modal)
+      var accountEl = (modal || document).querySelector('#tnLoginUser')
+      var account = accountEl ? accountEl.value.trim() : ''
+      var idType = _xc_detectLoginIdentifier(account)
+      if (!account) { if (e) e.textContent = '请输入用户名或邮箱'; return }
+      if (mode === 'code' && idType !== 'email') {
+        if (e) e.textContent = '验证码登录需要输入邮箱'
+        return
+      }
+      var url = '/api/login'
+      var data = { username: account }
+      if (mode === 'password') {
+        var passEl = (modal || document).querySelector('#tnLoginPass')
+        var password = passEl ? passEl.value : ''
+        if (!password) { if (e) e.textContent = '请输入密码'; return }
+        data.password = password
+      } else {
+        var codeEl = (modal || document).querySelector('#tnLoginCode')
+        var code = codeEl ? codeEl.value.trim() : ''
+        if (!code) { if (e) e.textContent = '请输入验证码'; return }
+        url = '/api/email/login'
+        data = { email: account, code: code }
+      }
+      uni.request({ url: url, method: 'POST', data: data }).then(function(res) {
         var d = res.data
         if (d.error) { if (e) e.textContent = d.error; return }
         uni.setStorageSync('xc_token', 'session')
-        uni.setStorageSync('xc_user', d.username || vals[method.inputs[0].id])
+        uni.setStorageSync('xc_user', d.username || account)
         uni.setStorageSync('xc_has_password', d.has_password !== false ? '1' : '0')
         window._openLoginModal_Close()
         uni.showToast({ title: '登录成功', icon: 'success' })
         applyLoginSuccess()
       }).catch(function() { if (e) e.textContent = '网络错误' })
     }
-    // 通用验证码发送（手机/邮箱共用）
+    // 通用验证码发送（邮箱登录/找回密码共用）
     function _xc_sendCode(config) {
       var modal = window._xc_getVisibleModal()
       if (!modal) return
@@ -413,8 +498,61 @@ onMounted(function() {
         var timer = setInterval(function() { sec--; if (btn) btn.textContent = sec + 's'; if (sec <= 0) { clearInterval(timer); if (btn) { btn.textContent = '获取验证码'; btn.removeAttribute('disabled') } } }, 1000)
       }).catch(function() { err('发送失败') })
     }
-    window._xc_sendPhoneCode = function() { _xc_sendCode({ inputId:'tnLoginPhone', btnId:'tnPhoneCodeBtn', key:'phone', url:'/api/sms/send', errMsg:'请输入正确的手机号', validate:function(v){return v.length>=11} }) }
-    window._xc_sendEmailCode = function() { _xc_sendCode({ inputId:'tnLoginEmail', btnId:'tnEmailCodeBtn', key:'email', url:'/api/email/send', errMsg:'请输入正确的邮箱', validate:function(v){return v.indexOf('@')!==-1} }) }
+    window._xc_sendLoginCode = function() {
+      var modal = window._xc_getVisibleModal()
+      if (!modal) return
+      var accountEl = modal.querySelector('#tnLoginUser')
+      var account = accountEl ? accountEl.value.trim() : ''
+      var idType = _xc_detectLoginIdentifier(account)
+      if (idType !== 'email') {
+        var e0 = modal.querySelector('#tnLoginError')
+        if (e0) e0.textContent = '验证码登录需要输入邮箱'
+        return
+      }
+      _xc_sendCode({
+        inputId: 'tnLoginUser',
+        btnId: 'tnLoginCodeBtn',
+        key: 'email',
+        url: '/api/email/send',
+        errMsg: '请输入正确的邮箱',
+        validate: function(){ return true },
+      })
+    }
+    window._xc_sendResetCode = function() {
+      var modal = window._xc_getVisibleModal()
+      if (!modal) return
+      _xc_sendCode({
+        inputId: 'tnResetTarget',
+        btnId: 'tnResetCodeBtn',
+        key: 'email',
+        url: '/api/email/send',
+        errMsg: '请输入正确的邮箱',
+        validate: function(v){return v.indexOf('@')!==-1},
+      })
+    }
+    window._xc_doResetPassword = function() {
+      var modal = window._xc_getVisibleModal()
+      if (!modal) return
+      var method = 'email'
+      var targetEl = modal.querySelector('#tnResetTarget')
+      var codeEl = modal.querySelector('#tnResetCode')
+      var passEl = modal.querySelector('#tnResetPassword')
+      var target = targetEl ? targetEl.value.trim() : ''
+      var code = codeEl ? codeEl.value.trim() : ''
+      var password = passEl ? passEl.value : ''
+      var e = modal.querySelector('#tnLoginError')
+      if (!target || !code || !password) { if (e) e.textContent = '请填写完整'; return }
+      if (password.length < 6) { if (e) e.textContent = '密码至少6个字符'; return }
+      if (e) e.textContent = '重置中...'
+      uni.request({ url: '/api/password/reset', method: 'POST', data: { method: method, target: target, code: code, new_password: password } }).then(function(res) {
+        var d = res.data || {}
+        if (d.error) { if (e) e.textContent = d.error; return }
+        if (e) e.textContent = '密码已重置，请用新密码登录'
+        if (passEl) passEl.value = ''
+        if (codeEl) codeEl.value = ''
+        setTimeout(function() { if (window._xc_switchToLogin) window._xc_switchToLogin() }, 900)
+      }).catch(function() { if (e) e.textContent = '网络错误' })
+    }
     if (!window.__xcLoginKeyDelegated) {
       window.__xcLoginKeyDelegated = true
       document.addEventListener('keydown', function(e) {
@@ -427,7 +565,8 @@ onMounted(function() {
           var tag = e.target && e.target.tagName ? e.target.tagName.toLowerCase() : ''
           if (tag === 'textarea') return
           e.preventDefault()
-          if (window._xc_doLogin) window._xc_doLogin()
+          if (modal.classList.contains('reset-mode') && window._xc_doResetPassword) window._xc_doResetPassword()
+          else if (window._xc_doLogin) window._xc_doLogin()
         }
       }, true)
     }
@@ -1251,68 +1390,15 @@ function doLogout() {
 }
 function closeLoginModal() { try { document.querySelectorAll('#topnavLoginModal').forEach(function(el) { el.classList.remove('open') }) } catch(_) {} }
 async function doLogin() {
-  var e = document.getElementById('tnLoginError')
-  var tab = loginTab.value || 'password'
-  if (tab === 'password') {
-    var uEl = document.getElementById('tnLoginUser'); var pEl = document.getElementById('tnLoginPass')
-    var u = uEl ? uEl.value.trim() : ''; var p = pEl ? pEl.value : ''
-    if (!u || !p) { if (e) e.textContent = '请填写完整'; return }
-    try {
-      var res = await uni.request({ url: '/api/login', method: 'POST', data: { username: u, password: p } })
-      var d = res.data
-      if (d.error) { if (e) e.textContent = d.error; return }
-      uni.setStorageSync('xc_token', 'session'); uni.setStorageSync('xc_user', d.username || u); uni.setStorageSync('xc_has_password', d.has_password !== false ? '1' : '0')
-      closeLoginModal(); applyLoginSuccess()
-    } catch (_) { if (e) e.textContent = '网络错误' }
-  } else if (tab === 'phone') {
-    var phoneEl = document.getElementById('tnLoginPhone'); var codeEl = document.getElementById('tnLoginPhoneCode')
-    var phone = phoneEl ? phoneEl.value.trim() : ''; var code = codeEl ? codeEl.value.trim() : ''
-    if (!phone || !code) { if (e) e.textContent = '请填写完整'; return }
-    try {
-      var res = await uni.request({ url: '/api/sms/login', method: 'POST', data: { phone: phone, code: code } })
-      var d = res.data
-      if (d.error) { if (e) e.textContent = d.error; return }
-      uni.setStorageSync('xc_token', 'session'); uni.setStorageSync('xc_user', d.username || phone); uni.setStorageSync('xc_has_password', d.has_password !== false ? '1' : '0')
-      closeLoginModal(); applyLoginSuccess()
-    } catch (_) { if (e) e.textContent = '网络错误' }
-  } else if (tab === 'email') {
-    var emailEl = document.getElementById('tnLoginEmail'); var codeEl2 = document.getElementById('tnLoginEmailCode')
-    var email = emailEl ? emailEl.value.trim() : ''; var code2 = codeEl2 ? codeEl2.value.trim() : ''
-    if (!email || !code2) { if (e) e.textContent = '请填写完整'; return }
-    try {
-      var res = await uni.request({ url: '/api/email/login', method: 'POST', data: { email: email, code: code2 } })
-      var d = res.data
-      if (d.error) { if (e) e.textContent = d.error; return }
-      uni.setStorageSync('xc_token', 'session'); uni.setStorageSync('xc_user', d.username || email); uni.setStorageSync('xc_has_password', d.has_password !== false ? '1' : '0')
-      closeLoginModal(); applyLoginSuccess()
-    } catch (_) { if (e) e.textContent = '网络错误' }
-  }
+  if (window._xc_doLogin) window._xc_doLogin()
 }
 
 async function sendPhoneCode() {
-  var phoneEl = document.getElementById('tnLoginPhone')
-  var phone = phoneEl ? phoneEl.value.trim() : ''
-  if (!phone || phone.length < 11) { var e = document.getElementById('tnLoginError'); if (e) e.textContent = '请输入正确的手机号'; return }
-  var btn = document.getElementById('tnPhoneCodeBtn'); if (btn) btn.setAttribute('disabled', 'disabled')
-  try {
-    var res = await uni.request({ url: '/api/sms/send', method: 'POST', data: { phone: phone } })
-    var d = res.data
-    if (d.error) { var e2 = document.getElementById('tnLoginError'); if (e2) e2.textContent = d.error; if (btn) btn.removeAttribute('disabled'); return }
-    var sec = 60; var timer = setInterval(function() { sec--; if (btn) btn.textContent = sec + 's'; if (sec <= 0) { clearInterval(timer); if (btn) { btn.textContent = '获取验证码'; btn.removeAttribute('disabled') } } }, 1000)
-  } catch (_) { var e3 = document.getElementById('tnLoginError'); if (e3) e3.textContent = '发送失败'; if (btn) btn.removeAttribute('disabled') }
+  if (window._xc_sendLoginCode) window._xc_sendLoginCode()
 }
 
 async function sendEmailCode() {
-  var emailEl = document.getElementById('tnLoginEmail')
-  var email = emailEl ? emailEl.value.trim() : ''
-  if (!email || email.indexOf('@') === -1) { var e = document.getElementById('tnLoginError'); if (e) e.textContent = '请输入正确的邮箱'; return }
-  var btn = document.getElementById('tnEmailCodeBtn'); if (btn) btn.setAttribute('disabled', 'disabled')
-  try {
-    var res = await uni.request({ url: '/api/email/send', method: 'POST', data: { email: email } })
-    var d = res.data
-    if (d.error) { var e2 = document.getElementById('tnLoginError'); if (e2) e2.textContent = d.error; if (btn) btn.removeAttribute('disabled'); return }
-    var sec = 60; var timer = setInterval(function() { sec--; if (btn) btn.textContent = sec + 's'; if (sec <= 0) { clearInterval(timer); if (btn) { btn.textContent = '获取验证码'; btn.removeAttribute('disabled') } } }, 1000)
-  } catch (_) { var e3 = document.getElementById('tnLoginError'); if (e3) e3.textContent = '发送失败'; if (btn) btn.removeAttribute('disabled') }
+  if (window._xc_sendLoginCode) window._xc_sendLoginCode()
 }
 
 async function oauthLogin(provider) {
@@ -1944,12 +2030,9 @@ onMounted(() => {
   // 创建登录弹窗原生输入框
   try {
     var modalInputs = [
-      { wrap: 'tnLoginUser-wrap', id: 'tnLoginUser', type: 'text', placeholder: '用户名' },
+      { wrap: 'tnLoginUser-wrap', id: 'tnLoginUser', type: 'text', placeholder: '用户名/邮箱' },
       { wrap: 'tnLoginPass-wrap', id: 'tnLoginPass', type: 'text', placeholder: '密码', isPassword: true },
-      { wrap: 'tnLoginPhone-wrap', id: 'tnLoginPhone', type: 'text', placeholder: '手机号' },
-      { wrap: 'tnLoginPhoneCode-wrap', id: 'tnLoginPhoneCode', type: 'text', placeholder: '验证码' },
-      { wrap: 'tnLoginEmail-wrap', id: 'tnLoginEmail', type: 'text', placeholder: 'QQ邮箱地址' },
-      { wrap: 'tnLoginEmailCode-wrap', id: 'tnLoginEmailCode', type: 'text', placeholder: '验证码' },
+      { wrap: 'tnLoginCode-wrap', id: 'tnLoginCode', type: 'text', placeholder: '验证码' },
     ]
     modalInputs.forEach(function(item) {
       var w = document.getElementById(item.wrap)
@@ -2182,19 +2265,31 @@ body > #navBtnMoreMenu.nav-btn-drop-menu {
 /* ═══ 登录/注册弹窗 ═══ */
 .modal-overlay { position: fixed; inset: 0; z-index: 999; background: rgba(20,16,10,0.48); display: none; align-items: center; justify-content: center; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 .modal-overlay.open { display: flex; }
-.modal-box { background: rgba(31, 29, 24, 0.94); border: 1px solid rgba(178,149,93,0.20); border-radius: 20px; padding: 28px 32px; max-width: 400px; width: 90%; box-shadow: 0 24px 80px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.08); -webkit-backdrop-filter: blur(28px) saturate(1.45); backdrop-filter: blur(28px) saturate(1.45); }
+.modal-box { background: rgba(31, 29, 24, 0.94); border: 1px solid rgba(178,149,93,0.20); border-radius: 20px; padding: 28px 32px; max-width: 400px; width: min(400px, 90vw); min-height: 555px; box-sizing: border-box; box-shadow: 0 24px 80px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.08); -webkit-backdrop-filter: blur(28px) saturate(1.45); backdrop-filter: blur(28px) saturate(1.45); }
 [data-theme="light"] .modal-box { background: rgba(255, 253, 248, 0.96); border: 1px solid rgba(178,149,93,0.18); box-shadow: 0 24px 80px rgba(60,40,15,0.16), inset 0 1px 0 rgba(255,255,255,0.85); }
 .modal-title { font-family: var(--font-serif); font-size: 1.2rem; text-align: center; color: var(--text-1); margin-bottom: 20px; letter-spacing: 2px; }
 .field { margin-bottom: 14px; }
 .field-label { font-size: 0.75rem; color: var(--text-3); margin-bottom: 4px; display: block; }
 .field-input { width: 100%; padding: 10px 14px; border-radius: 12px; background: var(--input-bg); border: 1px solid rgba(178,149,93,0.16); color: var(--text-1); font-size: 0.875rem; outline: none; box-sizing: border-box; transition: border-color .18s ease, box-shadow .18s ease, background .18s ease; }
 .field-input:focus { border-color: rgba(178,149,93,0.54); box-shadow: 0 0 0 3px rgba(178,149,93,0.10); }
+.tn-panel { min-height: 180px; }
+.tn-panel-login { height: 180px; }
+.tn-panel .dom-input-wrap { min-height: 42px; }
+.tn-panel .field-input { height: 42px; }
+.tn-panel .code-field > view { min-height: 42px; align-items: stretch; }
+.tn-panel .code-btn { min-width: 96px; height: 42px; box-sizing: border-box; }
+.modal-overlay.reset-mode .login-tabs { display: none; }
+.tn-panel-reset { min-height: 256px; }
+.reset-methods { display: flex; gap: 4px; margin-bottom: 12px; background: rgba(178,149,93,0.09); border: 1px solid rgba(178,149,93,0.12); border-radius: 12px; padding: 3px; }
+.reset-method { flex: 1; text-align: center; padding: 8px 0; border-radius: 9px; font-size: 0.78rem; color: var(--text-3); cursor: pointer; transition: all 0.2s; }
+.reset-method.active { background: var(--accent); color: #fff; font-weight: 600; }
 .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
 .modal-btns .btn { flex: 1; text-align: center; }
 .modal-error { color: var(--danger); font-size: 0.75rem; text-align: center; margin-top: 10px; min-height: 18px; }
 .oauth-divider { display: flex; align-items: center; margin: 16px 0 12px; }
 .oauth-divider::before, .oauth-divider::after { content: ''; flex: 1; height: 1px; background: var(--card-border); }
 .oauth-divider-text { font-size: 0.72rem; color: var(--text-3); padding: 0 12px; white-space: nowrap; }
+.oauth-note { color: var(--text-3); font-size: 0.68rem; line-height: 1.45; text-align: center; margin: -4px 0 10px; }
 .oauth-btns { display: flex; gap: 10px; }
 .oauth-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; border-radius: 12px; border: 1px solid rgba(178,149,93,0.16); cursor: pointer; transition: all 0.2s; background: var(--input-bg); }
 .oauth-btn:hover { border-color: var(--accent); background: var(--accent-glow); }
@@ -2271,7 +2366,7 @@ body > #navBtnMoreMenu.nav-btn-drop-menu {
 
 /* ═══ 登录弹窗移动端适配 ═══ */
 @media (max-width: 480px) {
-  .modal-box { padding: 20px 16px; border-radius: 16px; max-width: 100%; width: 92%; }
+  .modal-box { padding: 20px 16px; border-radius: 16px; max-width: 100%; width: 92%; min-height: 520px; }
   .modal-title { font-size: 1rem; margin-bottom: 14px; }
   .field { margin-bottom: 10px; }
   .field-input { font-size: 0.8125rem; padding: 10px 12px; }

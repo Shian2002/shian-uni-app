@@ -15,7 +15,7 @@
 
       <!-- 工具面板 -->
       <section class="section">
-        <view class="tool-container" :class="{ 'has-qimen-result': qfResult }">
+        <view class="tool-container" :class="{ 'has-qimen-result': qfResult || qfLoading }">
 
           <!-- Tab 切换 -->
           <view class="tool-tabs">
@@ -64,7 +64,9 @@
               </view>
             </view>
 
-            <view class="submit-btn" @tap="qimenFreePaipan" style="margin-top:14px;">☯️ 免费排盘</view>
+            <view class="submit-btn" :class="{ disabled: qfLoading }" @tap="qimenFreePaipan" style="margin-top:14px;">
+              {{ qfLoading ? '排盘中...' : '☯️ 免费排盘' }}
+            </view>
             <text class="form-hint" style="text-align:center;display:block;margin-top:10px;">本地精准排盘，不含 AI 解读。深度解读请回首页选择奇门遁甲或自动选术数。</text>
 
             <view class="qf-member-actions" v-if="qfResult && qfJsonCopyAllowed">
@@ -72,6 +74,14 @@
             </view>
 
             <!-- 排盘结果 -->
+            <view class="qf-result qf-result-loading" v-if="qfLoading">
+              <view class="qf-result-card qf-loading-card">
+                <view class="qf-loading-title">正在起局</view>
+                <view class="qf-loading-grid">
+                  <view v-for="i in 9" :key="i" class="qf-loading-cell"></view>
+                </view>
+              </view>
+            </view>
             <view class="qf-result" v-if="qfResult" v-html="qfResult"></view>
           </view>
 
@@ -241,6 +251,7 @@ function _initHourIdx(h) { return Math.max(0, Math.min(23, parseInt(h, 10) || 0)
 const qfHourIdx = ref(_initHourIdx(_initNow.getHours()))
 const qfMinuteIdx = ref(_initNow.getMinutes())
 const qfPanTypeIdx = ref(0); const qfResult = ref('')
+const qfLoading = ref(false)
 const qfRawResult = ref(null)
 const qfJsonCopyAllowed = ref(false)
 const qimenPanTypeValues = [2]
@@ -283,6 +294,7 @@ function qfSetNow() {
 }
 
 async function qimenFreePaipan() {
+  if (qfLoading.value) return
   if (qfYearIdx.value < 0 || qfMonthIdx.value < 0 || qfDayIdx.value < 0) {
     uni.showToast({ title: '请选择起局时间', icon: 'none' }); return
   }
@@ -292,8 +304,14 @@ async function qimenFreePaipan() {
   const h = hourValues[qfHourIdx.value]
   const min = parseInt(minuteOptions[qfMinuteIdx.value] || '0')
   const panType = qimenPanTypeValues[qfPanTypeIdx.value] || 2
+  const startedAt = Date.now()
+  qfLoading.value = true
+  qfRawResult.value = null
+  qfResult.value = ''
   try {
     const res = await uni.request({ url: '/api/qimen/paipan', method: 'POST', data: { year: y, month: m, day: d, hour: h, minute: min, panType } })
+    const elapsed = Date.now() - startedAt
+    if (elapsed < 520) await new Promise(resolve => setTimeout(resolve, 520 - elapsed))
     const data = res.data
     if (data.error) {
       qfRawResult.value = null
@@ -305,6 +323,8 @@ async function qimenFreePaipan() {
   } catch (e) {
     qfRawResult.value = null
     qfResult.value = `<div style="color:var(--danger);padding:16px;">排盘失败</div>`
+  } finally {
+    qfLoading.value = false
   }
 }
 
@@ -617,7 +637,7 @@ async function qimenAskPaipan() {
   // 创建 AI 气泡
   var bubbleId = 'qaiBubble_' + Date.now()
   var bubbleHTML = '<div class="chat-bubble-ai" id="' + bubbleId + '">' +
-    '<div class="ai-stage">🔗 正在连接 DeepSeek AI 引擎...</div>' +
+    '<div class="ai-stage">🔗 正在连接 AI 解读引擎...</div>' +
     '<div class="ai-progress-bar"><div class="ai-progress-fill" style="width:20%"></div></div>' +
     '<div class="chat-bubble-content"></div></div>'
   if (chatContainer) chatContainer.innerHTML = bubbleHTML
@@ -1168,7 +1188,7 @@ function _checkQiRestore() {
 .tool-hero-desc { font-size: 0.9375rem; color: var(--text-3); letter-spacing: 2px; }
 
 /* 工具容器 */
-.tool-container { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; backdrop-filter: blur(20px); box-shadow: var(--card-shadow); max-width: 720px; margin: 0 auto; }
+.tool-container { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; backdrop-filter: blur(20px); box-shadow: var(--card-shadow); max-width: 720px; margin: 0 auto; transition: max-width 0.42s var(--ease), padding 0.28s var(--ease), box-shadow 0.28s var(--ease); will-change: max-width; }
 .tool-container.has-qimen-result { max-width: min(1120px, calc(100vw - 64px)); }
 .tool-tabs { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid var(--card-border); }
 .tool-tab { padding: 12px 20px; border-radius: 10px 10px 0 0; font-size: 0.875rem; cursor: pointer; border: 1px solid transparent; border-bottom: none; color: var(--text-3); background: transparent; }
@@ -1187,7 +1207,8 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .advanced-fields { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--card-border); }
 .advanced-fields.show { display: block; }
 .advanced-toggle { font-size: 0.75rem; color: var(--text-3); cursor: pointer; border: none; background: none; text-decoration: underline; margin-top: 8px; }
-.submit-btn { width: 100%; padding: 14px 16px; border-radius: 30px; border: none; background: hsl(35, 38%, 52%); color: #fff; font-size: 1rem; font-weight: 600; cursor: pointer; letter-spacing: 2px; margin-top: 8px; transition: opacity 0.2s; text-align: center; box-sizing: border-box; }
+.submit-btn { width: 100%; padding: 14px 16px; border-radius: 30px; border: none; background: hsl(35, 38%, 52%); color: #fff; font-size: 1rem; font-weight: 600; cursor: pointer; letter-spacing: 2px; margin-top: 8px; transition: opacity 0.2s, transform 0.2s var(--ease), box-shadow 0.2s var(--ease); text-align: center; box-sizing: border-box; }
+.submit-btn:not(.disabled):active { transform: scale(0.99); }
 .submit-btn.disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-row { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
 .btn-row .submit-btn { flex: 85; margin-top: 0; }
@@ -1210,10 +1231,24 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .qf-options-row { display: flex; gap: 10px; align-items: flex-end; }
 .qf-member-actions { display: flex; justify-content: flex-end; margin-top: 14px; }
 .qf-json-copy-btn { flex: 0 0 auto; min-width: 116px; padding: 9px 16px; border-radius: 18px; font-size: 0.78rem; letter-spacing: 1px; }
-.qf-result { margin-top: 16px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.qf-result { margin-top: 16px; overflow-x: auto; -webkit-overflow-scrolling: touch; animation: qfResultEnter 0.38s var(--ease) both; transform-origin: top center; }
 .qf-result-card { background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid var(--card-border); }
 .qf-result-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 10px; color: var(--accent); letter-spacing: 2px; }
 .qf-result-row { font-size: 0.82rem; color: var(--text-2); margin-bottom: 6px; }
+.qf-loading-card { min-height: 360px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; }
+.qf-loading-title { color: var(--accent); font-size: 0.92rem; font-weight: 700; letter-spacing: 2px; }
+.qf-loading-grid { width: min(100%, 420px); aspect-ratio: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 12px; background: rgba(178,149,93,0.18); border: 1px solid var(--card-border); box-sizing: border-box; }
+.qf-loading-cell { border-radius: 9px; background: linear-gradient(135deg, rgba(255,255,255,0.44), rgba(178,149,93,0.10)); border: 1px solid rgba(178,149,93,0.12); animation: qfLoadingPulse 1.05s ease-in-out infinite alternate; }
+.qf-loading-cell:nth-child(2n) { animation-delay: 0.12s; }
+.qf-loading-cell:nth-child(3n) { animation-delay: 0.22s; }
+@keyframes qfResultEnter {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes qfLoadingPulse {
+  from { opacity: 0.52; }
+  to { opacity: 1; }
+}
 .qf-result :deep(.qf-result-card) { background: var(--card-bg); border-radius: 12px; padding: clamp(14px, 2.2vw, 24px); border: 1px solid var(--card-border); }
 .qf-result :deep(.qm-scale-shell) {
   --qm-grid-size: clamp(300px, min(72vw, 72dvh), 760px);
@@ -1221,8 +1256,8 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   --qm-center-font: clamp(0.58rem, calc(var(--qm-grid-size) / 48), 1.02rem);
   --qm-center-small-font: clamp(0.5rem, calc(var(--qm-grid-size) / 58), 0.86rem);
   --qm-center-date-font: clamp(0.6rem, calc(var(--qm-grid-size) / 45), 1.08rem);
-  --qm-kong-font: clamp(0.58rem, calc(var(--qm-grid-size) / 55), 0.92rem);
-  --qm-gong-label-font: clamp(0.46rem, calc(var(--qm-grid-size) / 86), 0.68rem);
+  --qm-kong-font: clamp(0.68rem, calc(var(--qm-grid-size) / 40), 1.24rem);
+  --qm-gong-label-font: clamp(0.62rem, calc(var(--qm-grid-size) / 46), 1.08rem);
   --qm-cell-pad: clamp(7px, calc(var(--qm-grid-size) / 54), 15px);
   width: min(100%, var(--qm-grid-size));
   margin: 0 auto;
@@ -1314,6 +1349,7 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   .qf-datetime-row { flex-wrap: wrap; }
   .qf-dt-col { flex: 1 1 calc(33% - 8px); min-width: 60px; }
   .qf-result :deep(.qm-scale-shell) { --qm-grid-size: clamp(280px, 92vw, 560px); }
+  .qf-loading-card { min-height: 320px; }
 }
 @media (max-width: 480px) {
   .tool-hero-title { font-size: 1.2rem; letter-spacing: 1px; }
@@ -1327,6 +1363,17 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   .btn-row { flex-direction: column; }
   .qf-result :deep(.qf-result-card) { padding: 12px; }
   .qf-result :deep(.qm-scale-shell) { --qm-grid-size: clamp(260px, 92vw, 420px); }
+  .qf-loading-card { min-height: 280px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tool-container,
+  .submit-btn,
+  .qf-result,
+  .qf-loading-cell {
+    transition: none;
+    animation: none;
+  }
 }
 
 /* ═══ 流式解读卡片 ═══ */
