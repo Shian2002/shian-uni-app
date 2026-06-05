@@ -451,7 +451,7 @@ function renderQimenPalaceGrid(data) {
     const FS = 'var(--qm-cell-font)'
     html += `<div class="qm-palace-cell" style="color:${C_DEFAULT};">`
     html += `<div style="display:flex;justify-content:space-between;align-items:center;">`
-    html += `<span style="color:${shenColor};font-weight:${shenWeight};font-size:${FS};white-space:nowrap;">${p.shenFull||''}${p.isKong?`<span style="color:${C_KONG};font-size:0.6rem;font-weight:700;margin-left:2px;">○</span>`:''}</span>`
+    html += `<span style="color:${shenColor};font-weight:${shenWeight};font-size:${FS};white-space:nowrap;">${p.shenFull||''}${p.isKong?`<span style="color:${C_KONG};font-size:var(--qm-kong-font);font-weight:700;margin-left:2px;">○</span>`:''}</span>`
     html += `<span class="qm-tian-gan" style="font-size:${FS};">${p.isMa?`<span class="qm-ma-marker" style="color:${C_MAHORSE};">🐎</span>`:''}${tianHtml}</span></div>`
     html += `<div style="display:flex;justify-content:space-between;align-items:center;">`
     const xingDisplay = xingFullArr.length > 1 ? xingArr.filter(Boolean).join("") : xingFullArr.filter(Boolean).join("")
@@ -463,7 +463,7 @@ function renderQimenPalaceGrid(data) {
     let yinColor = C_YINGAN; let yinWeight = '400'
     html += `<span style="white-space:nowrap;">${p.menFull?`<span style="color:${menColor};font-weight:${menWeight};font-size:${FS};">${p.menFull}</span>`:''}</span>`
     html += `<span style="color:${yinColor};font-weight:${yinWeight};font-size:${FS};white-space:nowrap;">${p.yinGan||''}</span></div>`
-    html += `<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:0.45rem;color:#d0d0d0;font-weight:400;pointer-events:none;">${gongLabel}</div>`
+    html += `<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:var(--qm-gong-label-font);color:#d0d0d0;font-weight:400;pointer-events:none;">${gongLabel}</div>`
     html += `</div>`
   }
   html += `</div></div>`
@@ -1217,10 +1217,12 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .qf-result :deep(.qf-result-card) { background: var(--card-bg); border-radius: 12px; padding: clamp(14px, 2.2vw, 24px); border: 1px solid var(--card-border); }
 .qf-result :deep(.qm-scale-shell) {
   --qm-grid-size: clamp(300px, min(72vw, 72dvh), 760px);
-  --qm-cell-font: clamp(0.62rem, calc(var(--qm-grid-size) / 48), 1rem);
-  --qm-center-font: clamp(0.54rem, calc(var(--qm-grid-size) / 58), 0.86rem);
-  --qm-center-small-font: clamp(0.48rem, calc(var(--qm-grid-size) / 68), 0.76rem);
-  --qm-center-date-font: clamp(0.56rem, calc(var(--qm-grid-size) / 54), 0.9rem);
+  --qm-cell-font: clamp(0.66rem, calc(var(--qm-grid-size) / 40), 1.24rem);
+  --qm-center-font: clamp(0.58rem, calc(var(--qm-grid-size) / 48), 1.02rem);
+  --qm-center-small-font: clamp(0.5rem, calc(var(--qm-grid-size) / 58), 0.86rem);
+  --qm-center-date-font: clamp(0.6rem, calc(var(--qm-grid-size) / 45), 1.08rem);
+  --qm-kong-font: clamp(0.58rem, calc(var(--qm-grid-size) / 55), 0.92rem);
+  --qm-gong-label-font: clamp(0.46rem, calc(var(--qm-grid-size) / 86), 0.68rem);
   width: min(100%, var(--qm-grid-size));
   margin: 0 auto;
 }
@@ -1241,7 +1243,7 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   position: relative;
   background: #fff;
   padding: clamp(4px, 1.3%, 9px);
-  font-size: clamp(0.62rem, calc(var(--qm-grid-size) / 48), 1rem);
+  font-size: var(--qm-cell-font);
   display: flex;
   flex-direction: column;
   justify-content: space-between;

@@ -314,9 +314,12 @@ def test_qimen_standalone_grid_scales_with_available_width():
     assert "qm-palace-grid" in source
     assert "--qm-grid-size" in source
     assert "width: min(100%, var(--qm-grid-size))" in source
-    assert "font-size: clamp(" in source
+    assert "font-size: var(--qm-cell-font)" in source
     assert "max-width:300px" not in source
     assert "max-width: 300px" not in source
+    assert "--qm-cell-font: clamp(0.66rem, calc(var(--qm-grid-size) / 40), 1.24rem)" in source
+    assert "--qm-kong-font" in source
+    assert "--qm-gong-label-font" in source
     assert "p.isMa?`<span class=\"qm-ma-marker\"" in source
     assert "p.isMa?`<span class=\"qm-ma-marker\"" in source.split("${tianHtml}")[0]
     assert "class=\"qm-heaven-stem\"" in source
