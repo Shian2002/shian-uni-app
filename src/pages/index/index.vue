@@ -803,7 +803,7 @@ function enterMarketingApp() {
   try {
     const targetHash = '#/?app=1'
     if (window.location.hash !== targetHash) window.history.pushState({ app: 'home' }, '', targetHash)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    window.scrollTo(0, 0)
   } catch(_) {}
   scheduleHomeVideoLoad()
   // #endif
@@ -5992,14 +5992,14 @@ onBeforeUnmount(() => {
 .hero-home.chat-active.reading-active .home-ai-console.has-chat { flex: 0 0 auto; min-height: calc(100dvh - 60px - var(--home-ai-dock-space)); }
 .hero-brand-icon-wrap { position: relative; display: flex; align-items: center; justify-content: center; width: 120px; height: 120px; margin: 0 auto 16px; animation: float 6s ease-in-out infinite; }
 .hero-brand-icon-wrap::before { content: ''; position: absolute; left: 50%; top: 50%; width: 100%; height: 100%; transform: translate(-50%, -50%); border-radius: 50%; background: var(--hero-logo-backdrop); box-shadow: var(--hero-logo-backdrop-shadow); z-index: 0; }
-.hero-brand-icon { width: 100px; height: 100px; object-fit: cover; object-position: center center; position: relative; z-index: 1; display: block; transform: translateY(4px); }
+.hero-brand-icon { width: 100px; height: 100px; object-fit: cover; object-position: center center; position: relative; z-index: 1; display: block; transform: none; }
 @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 .hero-brand-name { font-family: var(--font-serif); font-size: 2.2rem; font-weight: 400; letter-spacing: 8px; color: var(--text-1); margin-bottom: 12px; background: linear-gradient(135deg, var(--text-1), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-indent: 12px; }
 .hero-brand-divider { width: 50px; height: 2px; background: var(--accent); margin: 12px auto; border-radius: 1px; box-shadow: 0 0 12px var(--accent-glow); }
 .hero-brand-slogan { font-family: var(--font-serif); font-size: 0.95rem; letter-spacing: 4px; color: var(--accent); margin-bottom: 6px; }
 .hero-brand-sub { font-size: 0.78rem; color: var(--text-3); letter-spacing: 1px; }
 .hero-home.chat-active .hero-brand-icon-wrap { width: 58px; height: 58px; margin: 0; animation: none; }
-.hero-home.chat-active .hero-brand-icon { width: 48px; height: 48px; transform: translateY(2px); }
+.hero-home.chat-active .hero-brand-icon { width: 48px; height: 48px; transform: none; }
 .hero-home.chat-active .hero-brand-name { font-size: 1.28rem; letter-spacing: 5px; margin: 0; text-indent: 5px; }
 .hero-home.chat-active .hero-brand-divider { display: none; }
 .hero-home.chat-active .hero-brand-slogan { display: none; }

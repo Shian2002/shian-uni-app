@@ -1689,6 +1689,15 @@ body.home-fixed-page .hero-brand-icon{
   border:0!important;
   -webkit-tap-highlight-color:transparent!important;
 }
+body.home-fixed-page .hero-brand-icon-wrap{
+  animation:none!important;
+}
+body.home-fixed-page .hero-brand-icon{
+  position:absolute!important;
+  left:50%!important;
+  top:50%!important;
+  transform:translate(-50%,-50%)!important;
+}
 body.home-fixed-page .hero-brand::before,
 body.home-fixed-page .hero-brand::after,
 body.home-fixed-page .hero-brand-icon-wrap::after,
