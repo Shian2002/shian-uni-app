@@ -228,6 +228,28 @@ function ensureGlobalSidebar() {
 onMounted(function() {
   // 创建全局侧边栏（仅一次）
   ensureGlobalSidebar()
+  if (!window.__xcSidebarNavDelegated) {
+    window.__xcSidebarNavDelegated = true
+    window.__xcSidebarNavLastTouch = 0
+    var handleSidebarNav = function(e) {
+      var target = e.target
+      var btn = target && target.closest ? target.closest('#topnavSidebarBtn') : null
+      if (!btn) return
+      if (e.type === 'click' && Date.now() - (window.__xcSidebarNavLastTouch || 0) < 450) {
+        e.preventDefault()
+        e.stopPropagation()
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation()
+        return
+      }
+      if (e.type === 'touchstart') window.__xcSidebarNavLastTouch = Date.now()
+      e.preventDefault()
+      e.stopPropagation()
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation()
+      toggleSidebar()
+    }
+    document.addEventListener('click', handleSidebarNav, true)
+    document.addEventListener('touchstart', handleSidebarNav, true)
+  }
 
   // 获取可见弹窗的辅助函数 — 兼容 uni-app H5 页面结构
   if (!window._xc_getVisibleModal) {
@@ -662,24 +684,19 @@ function toggleSidebar() {
   var overlay = document.getElementById('sidebarOverlayGlobal')
   if (!sidebar || !overlay) return
   if (sidebar.classList.contains('open')) {
-    sidebar.classList.remove('open'); overlay.classList.remove('show')
-    sidebar.setAttribute('aria-hidden', 'true')
-    overlay.setAttribute('aria-hidden', 'true')
+    closeSidebarPanel(sidebar, overlay)
     document.body.removeEventListener('click', window.__sidebarClickAway)
     return
   }
-  sidebar.classList.add('open'); overlay.classList.add('show')
-  sidebar.setAttribute('aria-hidden', 'false')
-  overlay.setAttribute('aria-hidden', 'false')
+  openSidebarPanel(sidebar, overlay)
   uni.$emit('sidebar-opened')
   document.body.removeEventListener('click', window.__sidebarClickAway)
   window.__sidebarClickAway = function(e) {
     var s = document.getElementById('tarotSidebarGlobal')
     if (s && s.classList.contains('open') && !s.contains(e.target)) {
-      e.stopPropagation(); s.classList.remove('open')
-      s.setAttribute('aria-hidden', 'true')
+      e.stopPropagation()
       var ov = document.getElementById('sidebarOverlayGlobal')
-      if (ov) { ov.classList.remove('show'); ov.setAttribute('aria-hidden', 'true') }
+      if (ov) closeSidebarPanel(s, ov)
       document.body.removeEventListener('click', window.__sidebarClickAway)
     }
   }
@@ -910,6 +927,32 @@ function _handleSidebarActionEvent(e) {
     e.stopPropagation()
     _runSidebarAction(item.getAttribute('data-click-action'), item)
   }
+}
+
+function openSidebarPanel(sidebar, overlay) {
+  sidebar.classList.add('open')
+  overlay.classList.add('show')
+  sidebar.setAttribute('aria-hidden', 'false')
+  overlay.setAttribute('aria-hidden', 'false')
+  sidebar.style.setProperty('transform', 'translateX(0)', 'important')
+  sidebar.style.setProperty('visibility', 'visible', 'important')
+  sidebar.style.setProperty('pointer-events', 'auto', 'important')
+  sidebar.style.setProperty('z-index', '400', 'important')
+  overlay.style.setProperty('display', 'block', 'important')
+  overlay.style.setProperty('z-index', '399', 'important')
+}
+
+function closeSidebarPanel(sidebar, overlay) {
+  sidebar.classList.remove('open')
+  overlay.classList.remove('show')
+  sidebar.setAttribute('aria-hidden', 'true')
+  overlay.setAttribute('aria-hidden', 'true')
+  sidebar.style.setProperty('transform', 'translateX(-100%)', 'important')
+  sidebar.style.removeProperty('visibility')
+  sidebar.style.removeProperty('pointer-events')
+  sidebar.style.removeProperty('z-index')
+  overlay.style.setProperty('display', 'none', 'important')
+  overlay.style.removeProperty('z-index')
 }
 
 // 返回侧边栏列表
