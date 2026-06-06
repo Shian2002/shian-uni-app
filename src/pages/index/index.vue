@@ -12,7 +12,7 @@
           <text>时安解忧屋</text>
         </view>
         <view class="marketing-nav-links">
-          <text class="marketing-nav-link marketing-agent-link" @tap="enterMarketingApp">时安 Agent</text>
+          <text class="marketing-nav-link marketing-agent-link" @tap="enterMarketingApp">时安agent</text>
           <button class="marketing-enter" @tap="enterMarketingApp">进入应用</button>
         </view>
       </view>

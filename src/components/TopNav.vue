@@ -3,10 +3,10 @@
     <!-- 顶部固定导航 — 两行结构 -->
     <nav class="topnav topnav-solid">
       <!-- 单行：☰ + 按钮栏 + 右侧 -->
-      <view class="topnav-sidebar-btn" id="topnavSidebarBtn" @click="toggleSidebar" @tap="toggleSidebar" onclick="window._xc_toggleSidebar()">☰</view>
+      <view class="topnav-sidebar-btn" id="topnavSidebarBtn" onclick="window._xc_toggleSidebar(event)">☰</view>
       <view class="nav-btn-bar" id="navBtnBar">
         <view class="nav-btn" data-href="#/" @click="go('#/')">首页</view>
-        <view class="nav-btn" data-href="#/?app=1" @click="go('#/?app=1')">时安 Agent</view>
+        <view class="nav-btn" data-href="#/?app=1" @click="go('#/?app=1')">时安agent</view>
 
         <view class="nav-btn" data-href="#/pages/qimen/index?tab=free" onclick="window.__topNavGo('#/pages/qimen/index?tab=free')">奇门遁甲</view>
 
@@ -572,7 +572,11 @@ onMounted(function() {
     }
   })
 
-window._xc_toggleSidebar = function() { toggleSidebar() }
+window._xc_toggleSidebar = function(e) {
+  if (e && e.stopPropagation) e.stopPropagation()
+  if (e && e.preventDefault) e.preventDefault()
+  toggleSidebar()
+}
 window._xc_toggleGroup = function(headerEl) {
   var g = headerEl.parentElement
   if (!g) return
