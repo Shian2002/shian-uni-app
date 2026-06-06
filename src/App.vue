@@ -157,9 +157,10 @@ export default {
     }, 1500)
     // #endif
     var TAB_PAGES = ['/pages/index/index', '/pages/qimen/index', '/pages/bazi-index/index', '/pages/tarot/index', '/pages/liuyao/index', '/pages/meihua/index', '/pages/ziwei/index', '/pages/zeji/index', '/pages/calendar/index', '/pages/community/index', '/pages/profile/index']
-    window.__xcRenderTabPath = function(path) {
+    window.__xcRenderTabPath = function(path, queryStr) {
       try {
         if (!path || path === '/pages/index/index') path = '/'
+        queryStr = queryStr || ''
         var isHome = path === '/'
         var isQimen = path === '/pages/qimen/index'
         document.documentElement.classList.toggle('home-fixed-page', isHome)
@@ -174,9 +175,12 @@ export default {
         if (target) {
           wrappers.forEach(function(w) { w.style.display = w === target ? '' : 'none' })
         }
-        var currentHash = (window.location.hash || '').replace('#', '').split('?')[0] || '/'
+        var targetHash = path + queryStr
+        var currentHash = (window.location.hash || '').replace('#', '') || '/'
+        var currentPath = currentHash.split('?')[0] || '/'
         if (currentHash === '/pages/index/index') currentHash = '/'
-        if (currentHash !== path) window.location.hash = path
+        if (currentPath === '/pages/index/index') currentPath = '/'
+        if (currentHash !== targetHash) window.location.hash = targetHash
       } catch (err) {
         console.warn('[tab-render-fallback]', err)
       }

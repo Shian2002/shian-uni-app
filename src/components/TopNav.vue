@@ -1532,7 +1532,8 @@ function go(hash) {
   var uniPath = pathOnly === '/' ? '/pages/index/index' : pathOnly
   var fullPath = uniPath + queryStr
   var isTab = TAB_PATHS.indexOf(pathOnly) > -1
-  var wantsMarketingHome = pathOnly === '/' && !queryStr
+  var wantsAppHome = pathOnly === '/' && /(?:[?&])app=(?:1|true)(?:&|$)/.test(queryStr)
+  var wantsMarketingHome = pathOnly === '/' && !wantsAppHome
 
   // 从其他术数页点“八字排盘”时，优先回到本次会话最后看的八字结果页。
   // 只使用 window 变量，刷新页面后失效，避免把旧结果永久记住。
@@ -1551,7 +1552,18 @@ function go(hash) {
     }
   } catch(_) {}
 
-  if (wantsMarketingHome) {
+  if (wantsAppHome) {
+    try {
+      sessionStorage.removeItem('_nav_query')
+      window.__xcHomeMode = 'app'
+      document.documentElement.classList.add('home-fixed-page')
+      document.body.classList.add('home-fixed-page')
+      document.documentElement.classList.remove('marketing-page')
+      document.body.classList.remove('marketing-page')
+      if (window.location.hash !== '#/?app=1') window.history.pushState({ app: 'home' }, '', '#/?app=1')
+      window.dispatchEvent(new CustomEvent('xc-home-mode-changed', { detail: { mode: 'app' } }))
+    } catch(_) {}
+  } else if (wantsMarketingHome) {
     try {
       sessionStorage.removeItem('_nav_query')
       window.__xcHomeMode = 'marketing'
@@ -1563,10 +1575,31 @@ function go(hash) {
     try { sessionStorage.setItem('_nav_query', queryStr) } catch(_) {}
   }
 
+  if (wantsAppHome) {
+    var renderAgentHome = function() {
+      try {
+        if (window.__xcRenderTabPath) window.__xcRenderTabPath('/', '?app=1')
+        window.__xcHomeMode = 'app'
+        document.documentElement.classList.add('home-fixed-page')
+        document.body.classList.add('home-fixed-page')
+        document.documentElement.classList.remove('marketing-page')
+        document.body.classList.remove('marketing-page')
+        if (window.location.hash !== '#/?app=1') window.history.replaceState({ app: 'home' }, '', '#/?app=1')
+        window.dispatchEvent(new CustomEvent('xc-home-mode-changed', { detail: { mode: 'app' } }))
+      } catch(_) {}
+    }
+    renderAgentHome()
+    setTimeout(renderAgentHome, 60)
+    setTimeout(renderAgentHome, 220)
+    syncNavHighlight()
+    updateNavOverflow()
+    return
+  }
+
   if (isTab) {
     var renderTargetTab = function() {
       try {
-        if (window.__xcRenderTabPath) window.__xcRenderTabPath(pathOnly)
+        if (window.__xcRenderTabPath) window.__xcRenderTabPath(pathOnly, '')
       } catch(_) {}
     }
     uni.switchTab({

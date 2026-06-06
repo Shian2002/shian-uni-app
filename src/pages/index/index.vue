@@ -689,10 +689,10 @@ function refreshMarketingMode(query) {
   const wantsToolHome = shouldOpenToolHome(query)
   if (wantsToolHome && !isLoggedIn.value) {
     marketingPendingEnterAfterLogin = true
-    marketingMode.value = true
+    marketingMode.value = false
     // #ifdef H5
     try {
-      if (window.location.hash !== '#/') window.history.replaceState({ marketing: 'home' }, '', '#/')
+      if (window.location.hash !== '#/?app=1') window.history.replaceState({ app: 'home' }, '', '#/?app=1')
     } catch(_) {}
     nextTick(openMarketingLogin)
     // #endif
