@@ -174,17 +174,22 @@ def test_comprehensive_home_draft_survives_refresh_during_stream():
     assert "clearComprehensiveDraft()" in new_chat.group("body")
 
 
-def test_home_ai_does_not_lock_page_scroll_while_generating():
+def test_home_ai_locks_shell_and_scrolls_messages_internally():
     source = _source()
 
     assert "setHomeFixedPage(true)" not in source
-    assert "overflow: hidden !important" not in source
-    page_root = re.search(r"\.page-root \{(?P<body>[^}]*)\}", source)
-    assert page_root, "缺少首页根容器样式"
-    assert "overflow-y: auto" in page_root.group("body")
-    page_wrap = re.search(r"\.page-wrap \{(?P<body>[^}]*)\}", source)
-    assert page_wrap, "缺少首页页面容器样式"
-    assert "overflow: visible" in page_wrap.group("body")
+    fixed_root = re.search(r":global\(html\.home-fixed-page\),\n:global\(body\.home-fixed-page\) \{(?P<body>[^}]*)\}", source)
+    assert fixed_root, "缺少首页固定工作台外层样式"
+    assert "overflow: hidden !important" in fixed_root.group("body")
+
+    fixed_page = re.search(r":global\(body\.home-fixed-page\) \.page-root \{(?P<body>[^}]*)\}", source)
+    assert fixed_page, "缺少首页固定工作台根容器样式"
+    assert "overflow: hidden !important" in fixed_page.group("body")
+
+    chat = re.search(r"\.home-ai-console\.has-chat \.home-ai-chat \{(?P<body>[^}]*)\}", source)
+    assert chat, "缺少综合问答消息区样式"
+    assert "overflow-y: auto" in chat.group("body")
+    assert "overscroll-behavior: contain" in chat.group("body")
 
 
 def test_home_artifacts_are_normalized_for_old_history_display():

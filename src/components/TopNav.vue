@@ -3,7 +3,7 @@
     <!-- 顶部固定导航 — 两行结构 -->
     <nav class="topnav topnav-solid">
       <!-- 单行：☰ + 按钮栏 + 右侧 -->
-      <view class="topnav-sidebar-btn" id="topnavSidebarBtn" onclick="window._xc_toggleSidebar(event)">☰</view>
+      <view class="topnav-sidebar-btn" id="topnavSidebarBtn" onclick="window._xc_toggleSidebar(event)" ontouchstart="window._xc_toggleSidebar(event)" onpointerdown="window._xc_toggleSidebar(event)">☰</view>
       <view class="nav-btn-bar" id="navBtnBar">
         <view class="nav-btn" data-href="#/" @click="go('#/')">首页</view>
         <view class="nav-btn" data-href="#/?app=1" @click="go('#/?app=1')">时安agent</view>
@@ -235,20 +235,22 @@ onMounted(function() {
       var target = e.target
       var btn = target && target.closest ? target.closest('#topnavSidebarBtn') : null
       if (!btn) return
-      if (e.type === 'click' && Date.now() - (window.__xcSidebarNavLastTouch || 0) < 450) {
+      if (Date.now() - (window.__xcSidebarNavLastTouch || 0) < 450) {
         e.preventDefault()
         e.stopPropagation()
         if (e.stopImmediatePropagation) e.stopImmediatePropagation()
         return
       }
-      if (e.type === 'touchstart') window.__xcSidebarNavLastTouch = Date.now()
+      window.__xcSidebarNavLastTouch = Date.now()
       e.preventDefault()
       e.stopPropagation()
       if (e.stopImmediatePropagation) e.stopImmediatePropagation()
+      e.__xcSidebarHandled = true
       toggleSidebar()
     }
     document.addEventListener('click', handleSidebarNav, true)
     document.addEventListener('touchstart', handleSidebarNav, true)
+    document.addEventListener('pointerdown', handleSidebarNav, true)
   }
 
   // 获取可见弹窗的辅助函数 — 兼容 uni-app H5 页面结构
@@ -597,6 +599,9 @@ onMounted(function() {
 window._xc_toggleSidebar = function(e) {
   if (e && e.stopPropagation) e.stopPropagation()
   if (e && e.preventDefault) e.preventDefault()
+  if (e && e.__xcSidebarHandled) return
+  if (e && Date.now() - (window.__xcSidebarNavLastTouch || 0) < 450) return
+  window.__xcSidebarNavLastTouch = Date.now()
   toggleSidebar()
 }
 window._xc_toggleGroup = function(headerEl) {
@@ -689,11 +694,15 @@ function toggleSidebar() {
     return
   }
   openSidebarPanel(sidebar, overlay)
+  window.__xcSidebarOpenedAt = Date.now()
   uni.$emit('sidebar-opened')
   document.body.removeEventListener('click', window.__sidebarClickAway)
   window.__sidebarClickAway = function(e) {
+    if (Date.now() - (window.__xcSidebarOpenedAt || 0) < 800) return
     var s = document.getElementById('tarotSidebarGlobal')
-    if (s && s.classList.contains('open') && !s.contains(e.target)) {
+    var target = e && e.target
+    if (target && target.closest && target.closest('#topnavSidebarBtn')) return
+    if (s && s.classList.contains('open') && !s.contains(target)) {
       e.stopPropagation()
       var ov = document.getElementById('sidebarOverlayGlobal')
       if (ov) closeSidebarPanel(s, ov)
@@ -934,7 +943,10 @@ function openSidebarPanel(sidebar, overlay) {
   overlay.classList.add('show')
   sidebar.setAttribute('aria-hidden', 'false')
   overlay.setAttribute('aria-hidden', 'false')
+  sidebar.style.setProperty('left', '0', 'important')
+  sidebar.style.setProperty('right', 'auto', 'important')
   sidebar.style.setProperty('transform', 'translateX(0)', 'important')
+  sidebar.style.setProperty('translate', '0 0', 'important')
   sidebar.style.setProperty('visibility', 'visible', 'important')
   sidebar.style.setProperty('pointer-events', 'auto', 'important')
   sidebar.style.setProperty('z-index', '400', 'important')
@@ -947,7 +959,10 @@ function closeSidebarPanel(sidebar, overlay) {
   overlay.classList.remove('show')
   sidebar.setAttribute('aria-hidden', 'true')
   overlay.setAttribute('aria-hidden', 'true')
+  sidebar.style.setProperty('left', '0', 'important')
+  sidebar.style.setProperty('right', 'auto', 'important')
   sidebar.style.setProperty('transform', 'translateX(-100%)', 'important')
+  sidebar.style.removeProperty('translate')
   sidebar.style.removeProperty('visibility')
   sidebar.style.removeProperty('pointer-events')
   sidebar.style.removeProperty('z-index')

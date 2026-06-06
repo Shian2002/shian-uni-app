@@ -39,11 +39,10 @@ export default {
         var isHome = hash.indexOf('#/pages/index/index') === 0 || hash === '' || hash === '#/' || hash.indexOf('#/?') === 0
         var isQimen = hash.indexOf('#/pages/qimen/index') === 0
         var isAppHome = isHome && _hasAppHomeFlag()
-        var hasChat = !!document.querySelector('.home-ai-console.has-chat')
         var isMarketingHome = isHome && !isAppHome
 
-        // 营销页和普通页面都要允许页面自然滚动，不能被首页空态的单屏锁定规则拦住。
-        _setPageClass('home-fixed-page', isAppHome && hasChat && !isMarketingHome)
+        // app 首页是固定工作台，外层不参与滚动；长对话只在消息区内部滚动。
+        _setPageClass('home-fixed-page', isAppHome && !isMarketingHome)
         _setPageClass('qimen-page-active', isQimen)
         if (!isHome || isMarketingHome) _setPageClass('marketing-page', isMarketingHome)
       } catch(_) {}
@@ -340,7 +339,14 @@ uni-tabbar, .uni-tabbar, .uni-tabbar-bottom {
   border-right: 1px solid rgba(0,0,0,0.05);
   box-shadow: 4px 0 24px rgba(0,0,0,0.08);
 }
-.tarot-sidebar.open { transform:translateX(0); }
+.tarot-sidebar.open {
+  left: 0 !important;
+  right: auto !important;
+  transform: translateX(0) !important;
+  translate: 0 0 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
 .sidebar-overlay { position:fixed; inset:0; z-index:399; background:rgba(0,0,0,.4); display:none; }
 .sidebar-overlay.show { display:block; }
 .sidebar-brand { display:flex; align-items:center; gap:12px; padding:22px 24px 18px; border-bottom:1px solid var(--card-border); }

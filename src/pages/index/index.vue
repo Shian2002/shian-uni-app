@@ -12,8 +12,8 @@
           <text>时安解忧屋</text>
         </view>
         <view class="marketing-nav-links">
-          <text class="marketing-nav-link marketing-agent-link" @tap="enterMarketingApp">时安agent</text>
-          <button class="marketing-enter" @tap="enterMarketingApp">进入应用</button>
+          <text class="marketing-nav-link marketing-agent-link" data-enter-app="1" @tap="enterMarketingApp" @click="enterMarketingApp">时安agent</text>
+          <button class="marketing-enter" data-enter-app="1" @tap="enterMarketingApp" @click="enterMarketingApp">进入应用</button>
         </view>
       </view>
 
@@ -102,7 +102,7 @@
             <text class="marketing-side-title">Chart. Reason. Decide.</text>
             <text class="marketing-side-desc">把复杂命盘转成可读结论。先看局势，再看路径，最后给出可执行的时机建议。</text>
             <view class="marketing-cta-row">
-              <button class="marketing-primary" @tap="enterMarketingApp">开始解读</button>
+              <button class="marketing-primary" data-enter-app="1" @tap="enterMarketingApp" @click="enterMarketingApp">开始解读</button>
               <button class="marketing-secondary" @tap="scrollMarketingCritical">详细了解</button>
             </view>
           </view>
@@ -346,7 +346,7 @@
         <view class="marketing-final-content">
           <text class="marketing-final-title">准备好探索你的命盘了吗？</text>
           <text class="marketing-final-desc">开始一次真正有深度的命理对话</text>
-          <button class="marketing-primary" @tap="enterMarketingApp">进入应用</button>
+          <button class="marketing-primary" data-enter-app="1" @tap="enterMarketingApp" @click="enterMarketingApp">进入应用</button>
         </view>
         <view class="marketing-footer">
           <text class="marketing-footer-text">© 2026 时安解忧屋 · 保留所有权利</text>
@@ -628,6 +628,7 @@ let marketingObserver = null
 let marketingPendingEnterAfterLogin = false
 let marketingScrollRestoration = ''
 let marketingTopResetTimer = null
+let marketingEnterLastTouch = 0
 
 function resetMarketingVisibleSections() {
   marketingVisibleSections.hero = true
@@ -740,6 +741,9 @@ function syncMarketingPageClass() {
     if (active) {
       document.documentElement.classList.remove('home-fixed-page')
       document.body.classList.remove('home-fixed-page')
+    } else {
+      document.documentElement.classList.add('home-fixed-page')
+      document.body.classList.add('home-fixed-page')
     }
     window.dispatchEvent(new CustomEvent('xc-home-mode-changed', { detail: { mode: window.__xcHomeMode } }))
   } catch(_) {}
@@ -802,6 +806,27 @@ function enterMarketingApp() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   } catch(_) {}
   scheduleHomeVideoLoad()
+  // #endif
+}
+
+function onMarketingEnterNative(e) {
+  // #ifdef H5
+  try {
+    const target = e && e.target
+    const trigger = target && target.closest ? target.closest('[data-enter-app="1"]') : null
+    if (!trigger || !marketingMode.value) return
+    if (e.type === 'click' && Date.now() - marketingEnterLastTouch < 500) {
+      e.preventDefault()
+      e.stopPropagation()
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation()
+      return
+    }
+    if (e.type === 'touchstart') marketingEnterLastTouch = Date.now()
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation()
+    enterMarketingApp()
+  } catch(_) {}
   // #endif
 }
 
@@ -3095,7 +3120,7 @@ onLoad((query) => {
 
 onShow(() => {
   refreshMarketingMode()
-  setHomeFixedPage(false)
+  setHomeFixedPage(!marketingMode.value)
   var t = uni.getStorageSync('xc_theme')
   if (t && t !== theme.value) {
     theme.value = t
@@ -3136,7 +3161,7 @@ onMounted(() => {
   loadComprehensiveOptions()
   loadProfiles()
   // #ifdef H5
-  setHomeFixedPage(false)
+  setHomeFixedPage(!marketingMode.value)
   window._xc_restoreComprehensive = restoreComprehensiveFromSidebar
   window._xc_newComprehensive = startNewComprehensiveConversation
   window.addEventListener('keydown', onHomeKeydown)
@@ -3145,6 +3170,8 @@ onMounted(() => {
   window.addEventListener('popstate', onMarketingRouteChange)
   window.addEventListener('hashchange', onMarketingRouteChange)
   window.addEventListener('beforeunload', saveComprehensiveDraftForUnload)
+  document.addEventListener('click', onMarketingEnterNative, true)
+  document.addEventListener('touchstart', onMarketingEnterNative, { passive: false, capture: true })
   document.addEventListener('visibilitychange', onHomeVisibilityChange)
   document.addEventListener('click', onHomeBaziYunClick)
   if (!marketingMode.value) scheduleHomeVideoLoad()
@@ -3169,6 +3196,8 @@ onBeforeUnmount(() => {
   window.removeEventListener('popstate', onMarketingRouteChange)
   window.removeEventListener('hashchange', onMarketingRouteChange)
   window.removeEventListener('beforeunload', saveComprehensiveDraftForUnload)
+  document.removeEventListener('click', onMarketingEnterNative, true)
+  document.removeEventListener('touchstart', onMarketingEnterNative, true)
   document.removeEventListener('visibilitychange', onHomeVisibilityChange)
   document.removeEventListener('click', onHomeBaziYunClick)
   if (homeVideoFallbackTimer) clearTimeout(homeVideoFallbackTimer)
@@ -3223,7 +3252,13 @@ onBeforeUnmount(() => {
 }
 
 :global(html.home-fixed-page),
-:global(body.home-fixed-page) { min-height: 100%; overflow-y: auto; overscroll-behavior: auto; }
+:global(body.home-fixed-page) {
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  max-height: 100dvh !important;
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+}
 :global(uni-page[data-marketing-hidden="true"]) {
   display: none !important;
 }
@@ -3233,12 +3268,17 @@ onBeforeUnmount(() => {
 }
 :global(body.home-fixed-page uni-page-body),
 :global(body.home-fixed-page uni-page-wrapper),
-:global(body.home-fixed-page .uni-page-body) { min-height: 100dvh; overflow-y: auto; }
+:global(body.home-fixed-page .uni-page-body) {
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  max-height: 100dvh !important;
+  overflow: hidden !important;
+}
 :global(html.home-fixed-page:not(:has(.home-ai-console.has-chat))),
 :global(body.home-fixed-page:not(:has(.home-ai-console.has-chat))) {
   height: 100dvh;
   min-height: 100dvh;
-  overflow-y: auto !important;
+  overflow-y: hidden !important;
   overscroll-behavior: none;
 }
 :global(body.home-fixed-page:not(:has(.home-ai-console.has-chat)) uni-page-body),
@@ -3247,7 +3287,7 @@ onBeforeUnmount(() => {
   height: 100dvh;
   min-height: 100dvh;
   max-height: 100dvh;
-  overflow-y: auto !important;
+  overflow-y: hidden !important;
 }
 :global(html.home-fixed-page:has(.marketing-active)),
 :global(body.home-fixed-page:has(.marketing-active)) {
@@ -3298,11 +3338,11 @@ onBeforeUnmount(() => {
   scroll-behavior: smooth;
   touch-action: auto;
 }
-:global(body.home-fixed-page:not(:has(.home-ai-console.has-chat))) .page-root {
+:global(body.home-fixed-page) .page-root {
   height: 100dvh;
   min-height: 100dvh;
   max-height: 100dvh;
-  overflow-y: auto !important;
+  overflow: hidden !important;
 }
 :global(body.marketing-page) .page-root.marketing-active {
   padding-top: 0 !important;
@@ -5901,11 +5941,11 @@ onBeforeUnmount(() => {
               linear-gradient(155deg, var(--bg-grad-1), var(--bg-grad-2) 60%, var(--bg-grad-3));
 }
 .page-wrap { position: relative; z-index: 1; width: 100%; min-height: calc(100dvh - 60px); max-width: 100vw; overflow: visible; box-sizing: border-box; }
-:global(body.home-fixed-page:not(:has(.home-ai-console.has-chat))) .page-wrap {
+:global(body.home-fixed-page) .page-wrap {
   height: calc(100dvh - 60px);
   min-height: calc(100dvh - 60px);
   max-height: calc(100dvh - 60px);
-  overflow: visible;
+  overflow: hidden;
 }
 
 @media (min-width: 769px) {
@@ -5936,7 +5976,7 @@ onBeforeUnmount(() => {
 
 /* ═══ Hero ═══ */
 .hero-home { min-height: calc(100dvh - 60px); display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; padding: 36px 32px 154px; overflow: visible; box-sizing: border-box; }
-:global(body.home-fixed-page:not(:has(.home-ai-console.has-chat))) .hero-home {
+:global(body.home-fixed-page) .hero-home {
   height: calc(100dvh - 60px);
   min-height: calc(100dvh - 60px);
   max-height: calc(100dvh - 60px);
@@ -6016,7 +6056,7 @@ onBeforeUnmount(() => {
 .home-ai-send.disabled { opacity: 0.55; pointer-events: none; }
 .home-ai-chat { border: 1px solid rgba(178,149,93,0.16); border-radius: 18px; background: rgba(255,255,255,0.045); backdrop-filter: blur(18px); padding: 16px; max-height: none; overflow: visible; overscroll-behavior: auto; box-shadow: inset 0 1px 0 rgba(255,255,255,0.06); }
 [data-theme="light"] .home-ai-chat { background: rgba(255,253,248,0.66); }
-.home-ai-console.has-chat .home-ai-chat { flex: 1 1 auto; min-height: 0; max-height: none; box-sizing: border-box; overflow: visible; touch-action: pan-y; padding-bottom: var(--home-ai-chat-bottom-buffer); scroll-padding-bottom: var(--home-ai-chat-bottom-buffer); }
+.home-ai-console.has-chat .home-ai-chat { flex: 1 1 auto; min-height: 0; max-height: calc(100dvh - 60px - var(--home-ai-dock-space) - 14px); box-sizing: border-box; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; padding-bottom: var(--home-ai-chat-bottom-buffer); scroll-padding-bottom: var(--home-ai-chat-bottom-buffer); }
 .home-ai-console.has-chat .home-ai-input { min-height: 38px; max-height: 58px; }
 .home-ai-chat-head { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; margin: 0 0 12px; border: 1px solid rgba(178,149,93,0.16); border-radius: 14px; background: rgba(34,31,25,0.62); backdrop-filter: blur(18px) saturate(145%); box-shadow: 0 10px 28px rgba(0,0,0,0.12); }
 [data-theme="light"] .home-ai-chat-head { background: rgba(255,251,242,0.86); box-shadow: 0 10px 28px rgba(80,55,18,0.08); }
@@ -6508,7 +6548,7 @@ onBeforeUnmount(() => {
   .home-scan-action-sub { display: none; }
   .home-ai-console { margin-top: 0; padding-bottom: 0; }
   .home-ai-console.has-chat { width: calc(100vw - 32px); padding: 0; margin-top: 0; }
-  .home-ai-console.has-chat .home-ai-chat { flex: 1 1 auto; min-height: 0; max-height: none; padding-bottom: var(--home-ai-chat-bottom-buffer); overflow: visible; touch-action: pan-y; scroll-padding-bottom: var(--home-ai-chat-bottom-buffer); }
+  .home-ai-console.has-chat .home-ai-chat { flex: 1 1 auto; min-height: 0; max-height: calc(100dvh - 60px - var(--home-ai-dock-space) - 10px); padding-bottom: var(--home-ai-chat-bottom-buffer); overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; scroll-padding-bottom: var(--home-ai-chat-bottom-buffer); }
   .home-ai-main { bottom: 8px; width: calc(100vw - 18px); border-radius: 16px; }
   .home-ai-main { padding: 9px 10px; gap: 6px; }
   .home-ai-input { min-height: 40px; max-height: 58px; font-size: 0.88rem; }
@@ -6589,7 +6629,7 @@ onBeforeUnmount(() => {
   .home-scan-panel { display: none; }
   .hero-home.chat-active .hero-brand-slogan { display: none; }
   .home-ai-console.has-chat { width: calc(100vw - 32px); padding-top: 0; }
-  .home-ai-console.has-chat .home-ai-chat { flex: 1 1 auto; min-height: 0; max-height: none; padding: 10px 10px var(--home-ai-chat-bottom-buffer); overflow: visible; touch-action: pan-y; scroll-padding-bottom: var(--home-ai-chat-bottom-buffer); }
+  .home-ai-console.has-chat .home-ai-chat { flex: 1 1 auto; min-height: 0; max-height: calc(100dvh - 60px - var(--home-ai-dock-space) - 8px); padding: 10px 10px var(--home-ai-chat-bottom-buffer); overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; scroll-padding-bottom: var(--home-ai-chat-bottom-buffer); }
   .home-ai-main { padding: 7px 9px; gap: 4px; border-radius: 15px; }
   .home-ai-input { min-height: 34px; max-height: 50px; font-size: 0.84rem; padding: 3px 4px 0; }
   .home-ai-toolbar { grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr) 72px 72px 28px; gap: 3px; overflow: visible; box-sizing: border-box; }
