@@ -125,6 +125,10 @@ function normalizeAvatarUrl(src) {
   if (!value || value.indexOf('/static/images/logo.') !== -1 || value.indexOf('/logo.webp') !== -1) return ''
   return value
 }
+function isLocalUploadAvatar(src) {
+  var value = (src || '').trim()
+  return value.indexOf('/static/uploads/') === 0
+}
 const localLoggedIn = ref(props.isLoggedIn || !!uni.getStorageSync('xc_token'))
 
 if (typeof window !== 'undefined') {
@@ -222,7 +226,8 @@ function ensureGlobalSidebar() {
   document.body.appendChild(sidebar)
   _bindSidebarListInteractions(sidebar)
   _restoreSidebarView()
-  applySidebarAvatar(uni.getStorageSync('xc_avatar'), false)
+  var cachedAvatar = normalizeAvatarUrl(uni.getStorageSync('xc_avatar'))
+  applySidebarAvatar(isLocalUploadAvatar(cachedAvatar) ? '' : cachedAvatar, false)
 }
 
 onMounted(function() {
@@ -939,19 +944,24 @@ function _handleSidebarActionEvent(e) {
 }
 
 function openSidebarPanel(sidebar, overlay) {
+  try {
+    document.documentElement.classList.remove('marketing-page', 'marketing-android')
+    document.body.classList.remove('marketing-page', 'marketing-android')
+  } catch(_) {}
   sidebar.classList.add('open')
   overlay.classList.add('show')
   sidebar.setAttribute('aria-hidden', 'false')
   overlay.setAttribute('aria-hidden', 'false')
   sidebar.style.setProperty('left', '0', 'important')
   sidebar.style.setProperty('right', 'auto', 'important')
+  sidebar.style.setProperty('display', 'flex', 'important')
   sidebar.style.setProperty('transform', 'translateX(0)', 'important')
   sidebar.style.setProperty('translate', '0 0', 'important')
   sidebar.style.setProperty('visibility', 'visible', 'important')
   sidebar.style.setProperty('pointer-events', 'auto', 'important')
-  sidebar.style.setProperty('z-index', '400', 'important')
+  sidebar.style.setProperty('z-index', '2100', 'important')
   overlay.style.setProperty('display', 'block', 'important')
-  overlay.style.setProperty('z-index', '399', 'important')
+  overlay.style.setProperty('z-index', '2000', 'important')
 }
 
 function closeSidebarPanel(sidebar, overlay) {
@@ -963,6 +973,7 @@ function closeSidebarPanel(sidebar, overlay) {
   sidebar.style.setProperty('right', 'auto', 'important')
   sidebar.style.setProperty('transform', 'translateX(-100%)', 'important')
   sidebar.style.removeProperty('translate')
+  sidebar.style.removeProperty('display')
   sidebar.style.removeProperty('visibility')
   sidebar.style.removeProperty('pointer-events')
   sidebar.style.removeProperty('z-index')
@@ -1310,8 +1321,9 @@ function loadAvatar() {
   }
   var cachedAvatar = normalizeAvatarUrl(uni.getStorageSync('xc_avatar'))
   if (!cachedAvatar) uni.removeStorageSync('xc_avatar')
-  avatarUrl.value = cachedAvatar
-  applySidebarAvatar(cachedAvatar, false)
+  var safeCachedAvatar = isLocalUploadAvatar(cachedAvatar) ? '' : cachedAvatar
+  avatarUrl.value = safeCachedAvatar
+  applySidebarAvatar(safeCachedAvatar, false)
   if (_avatarInstanceLoaded) return
   _avatarInstanceLoaded = true
   window.__avatarLoaded = true

@@ -6,6 +6,7 @@ from sqlalchemy import or_
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from extensions import csrf
+from avatar_utils import visible_avatar_url
 from models import User
 
 
@@ -14,7 +15,7 @@ def _user_payload(user, include_admin=False):
         'id': user.id,
         'username': user.username,
         'has_password': user.has_password,
-        'avatar': user.avatar or '',
+        'avatar': visible_avatar_url(user.avatar),
         'created_at': user.created_at.isoformat() if user.created_at else None,
     }
     if include_admin:

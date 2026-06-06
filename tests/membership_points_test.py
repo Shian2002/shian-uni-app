@@ -52,6 +52,21 @@ def user_factory(app_module):
     return create_user
 
 
+def test_visible_avatar_url_filters_missing_local_upload(app_module, tmp_path):
+    with app_module.app.app_context():
+        upload_dir = tmp_path / "uploads"
+        upload_dir.mkdir()
+        app_module.app.config["UPLOAD_FOLDER"] = str(upload_dir)
+        avatar_utils = importlib.import_module("avatar_utils")
+
+        assert avatar_utils.visible_avatar_url("/static/uploads/missing.png") == ""
+        assert avatar_utils.visible_avatar_url("https://example.com/avatar.png") == "https://example.com/avatar.png"
+
+        existing = upload_dir / "avatar_1.png"
+        existing.write_bytes(PNG_1X1)
+        assert avatar_utils.visible_avatar_url("/static/uploads/avatar_1.png") == "/static/uploads/avatar_1.png"
+
+
 def test_add_points_can_participate_in_existing_transaction(app_module, user_factory):
     user = user_factory()
 

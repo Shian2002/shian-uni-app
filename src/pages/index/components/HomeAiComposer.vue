@@ -80,11 +80,11 @@ const localValue = computed({
 
 const modeCostText = computed(() => {
   const cost = Number(props.selectedReadingMode.display_cost || 0)
-  if (cost > 0) return cost + '分'
+  if (cost > 0) return cost + '积分'
   const delta = Number(props.selectedReadingMode.cost_delta || 0)
-  if (delta > 0) return '+' + delta + '分'
-  if (delta < 0) return delta + '分'
-  return '2分'
+  if (delta > 0) return '+' + delta + '积分'
+  if (delta < 0) return delta + '积分'
+  return '2积分'
 })
 
 const compactLlmName = computed(() => {
@@ -93,7 +93,7 @@ const compactLlmName = computed(() => {
 
 const llmCostText = computed(() => {
   const cost = Number(props.selectedLlmModel.cost_base || props.estimatedCost || 0)
-  return cost > 0 ? cost + '分' : '0分'
+  return cost > 0 ? cost + '积分' : '0积分'
 })
 </script>
 

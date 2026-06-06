@@ -21,6 +21,7 @@ from werkzeug.security import generate_password_hash
 
 from extensions import csrf
 from extensions import db
+from avatar_utils import visible_avatar_url
 from models import RateLimitBucket, User, VerificationCode
 
 
@@ -149,7 +150,7 @@ def _user_payload(user):
         'id': user.id,
         'username': user.username,
         'has_password': user.has_password,
-        'avatar': user.avatar or '',
+        'avatar': visible_avatar_url(user.avatar),
         'created_at': user.created_at.isoformat() if user.created_at else None,
     }
 

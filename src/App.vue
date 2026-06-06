@@ -344,11 +344,13 @@ uni-tabbar, .uni-tabbar, .uni-tabbar-bottom {
   right: auto !important;
   transform: translateX(0) !important;
   translate: 0 0 !important;
+  display: flex !important;
   visibility: visible !important;
   pointer-events: auto !important;
+  z-index: 2100 !important;
 }
-.sidebar-overlay { position:fixed; inset:0; z-index:399; background:rgba(0,0,0,.4); display:none; }
-.sidebar-overlay.show { display:block; }
+.sidebar-overlay { position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,.4); display:none; }
+.sidebar-overlay.show { display:block; z-index:2000 !important; }
 .sidebar-brand { display:flex; align-items:center; gap:12px; padding:22px 24px 18px; border-bottom:1px solid var(--card-border); }
 .sidebar-brand-icon-wrap { position:relative; display:flex; align-items:center; justify-content:center; width:48px; height:48px; flex-shrink:0; }
 .sidebar-brand-icon-wrap::before { content:''; position:absolute; inset:0; border-radius:50%; background:var(--hero-logo-backdrop); box-shadow:var(--hero-logo-backdrop-shadow); z-index:0; }

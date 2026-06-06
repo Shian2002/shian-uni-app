@@ -1162,7 +1162,7 @@ const selectedReadingMode = computed(() => readingModes.value.find(m => m.id ===
 const readingModeNames = computed(() => readingModes.value.map(m => m.name))
 const readingModeLabels = computed(() => readingModes.value.map(m => {
   const cost = Number(m.display_cost || 0)
-  return cost > 0 ? `${m.name}（${cost}分）` : m.name
+  return cost > 0 ? `${m.name}（${cost}积分）` : m.name
 }))
 const readingModeIdx = computed(() => Math.max(0, readingModes.value.findIndex(m => m.id === selectedReadingMode.value.id)))
 const comprehensivePlaceholder = computed(() => comprehensiveMessages.value.length ? '请继续输入你想问的问题' : '输入你的问题，选择术数模型后开始综合解读')
@@ -1170,7 +1170,7 @@ const homeAiContextSummary = computed(() => {
   const profileText = selectedProfileName.value || '未选择命盘'
   const toolText = selectedToolSummary.value === '选择术数' ? '未选择术数' : selectedToolSummary.value
   const modelText = selectedLlmModel.value.name || '基础模型'
-  const costText = estimatedCost.value + ' 积分'
+  const costText = estimatedCost.value + '积分'
   return profileText + ' · ' + toolText + ' · ' + modelText + ' · ' + costText
 })
 const estimatedCost = computed(() => {
