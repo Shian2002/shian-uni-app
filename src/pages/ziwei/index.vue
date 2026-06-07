@@ -74,13 +74,16 @@
                 <text class="form-label">出生地经度</text>
                 <input type="digit" class="form-input form-input-text" v-model="zwForm.longitude" placeholder="如 116.4074">
               </view>
-              <view class="form-group zw-save-field">
-                <text class="form-label">保存档案</text>
+              <view class="form-group zw-save-field" @tap="saveZiweiProfile = !saveZiweiProfile">
+                <view class="zw-save-copy">
+                  <text class="zw-save-title">保存档案</text>
+                  <text class="zw-save-desc">{{ saveZiweiProfile ? '排盘后同步到档案列表' : '本次只看盘不入库' }}</text>
+                </view>
                 <view class="zw-save-row">
-                  <view class="zw-switch" :class="{ active: saveZiweiProfile }" @tap="saveZiweiProfile = !saveZiweiProfile">
+                  <text class="zw-switch-hint">{{ saveZiweiProfile ? '保存' : '不保存' }}</text>
+                  <view class="zw-switch" :class="{ active: saveZiweiProfile }" @tap.stop="saveZiweiProfile = !saveZiweiProfile">
                     <view class="zw-switch-dot"></view>
                   </view>
-                  <text class="zw-switch-hint">{{ saveZiweiProfile ? '保存' : '不保存' }}</text>
                 </view>
               </view>
             </view>
@@ -1526,12 +1529,16 @@ onUnmounted(function() {
 .zw-birth-col { min-width: 0; }
 .zw-birth-select { width: 100%; min-height: 36px; padding: 8px 22px 8px 10px; border: 1.5px solid var(--card-border); border-radius: 8px; background-color: var(--card-bg); color: var(--text-1); font-size: 0.82rem; font-weight: 600; line-height: 18px; text-align: center; box-sizing: border-box; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M5 7L1 3h8z' fill='%23999'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; transition: border-color 0.18s, background-color 0.18s, box-shadow 0.18s; }
 .zw-birth-select:hover { border-color: var(--accent); background-color: var(--input-bg); }
-.zw-save-field { padding: 11px 13px; border-radius: 10px; border: 1px solid var(--card-border); background: var(--section-alt); }
-.zw-save-row { min-height: 40px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.zw-switch { width: 46px; height: 25px; padding: 3px; border-radius: 999px; border: 1px solid var(--input-border); background: var(--input-bg); cursor: pointer; box-sizing: border-box; }
-.zw-switch-dot { width: 17px; height: 17px; border-radius: 50%; background: var(--text-3); transition: transform 0.18s, background 0.18s; }
-.zw-switch.active .zw-switch-dot { transform: translateX(20px); background: var(--accent); }
-.zw-switch-hint { color: var(--text-2); font-size: 0.8rem; font-weight: 600; }
+.zw-save-field { grid-column: span 2; min-height: 48px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--card-border); background: linear-gradient(135deg, var(--section-alt), rgba(212,168,71,0.045)); display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; box-sizing: border-box; }
+.zw-save-copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.zw-save-title { color: var(--text-2); font-size: 0.82rem; font-weight: 700; letter-spacing: 0.5px; }
+.zw-save-desc { color: var(--text-4); font-size: 0.66rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.zw-save-row { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
+.zw-switch { width: 42px; height: 23px; padding: 2px; border-radius: 999px; border: 1px solid var(--input-border); background: rgba(128,118,96,0.16); cursor: pointer; box-sizing: border-box; transition: background 0.18s, border-color 0.18s, box-shadow 0.18s; }
+.zw-switch.active { border-color: rgba(180,111,39,0.42); background: linear-gradient(135deg, #b46f27, #d4a847); box-shadow: 0 4px 12px rgba(180,111,39,0.16); }
+.zw-switch-dot { width: 17px; height: 17px; border-radius: 50%; background: rgba(255,255,255,0.86); box-shadow: 0 1px 4px rgba(0,0,0,0.16); transition: transform 0.18s, background 0.18s; }
+.zw-switch.active .zw-switch-dot { transform: translateX(19px); background: #fff; }
+.zw-switch-hint { color: var(--text-2); font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
 .zw-result { margin-top: 16px; }
 .zw-result-card { background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid var(--card-border); }
 .zw-result-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 10px; color: var(--accent); letter-spacing: 2px; }
