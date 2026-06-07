@@ -1263,6 +1263,7 @@ function zwChartLegend() {
     '<span class="legend-chip quan">权</span>' +
     '<span class="legend-chip ke">科</span>' +
     '<span class="legend-chip ji">忌</span>' +
+    '<span class="legend-swipe-hint">左右滑动查看完整命盘</span>' +
     '</div>'
 }
 
@@ -1555,6 +1556,7 @@ onUnmounted(function() {
 .legend-chip.quan { color: #d94a3a; background: rgba(217,74,58,0.12); }
 .legend-chip.ke { color: #2d83c5; background: rgba(45,131,197,0.12); }
 .legend-chip.ji { color: #8b49b6; background: rgba(139,73,182,0.12); }
+.legend-swipe-hint { display: none !important; color: var(--text-4); }
 .zw-pro-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 14px; padding: 14px 16px; border: 1px solid rgba(180,111,39,0.22); border-radius: 12px; background: linear-gradient(135deg, rgba(180,111,39,0.10), rgba(37,109,156,0.08)); }
 .zw-pro-title { font-family: var(--font-serif); font-size: 1.05rem; font-weight: 700; color: var(--text-1); letter-spacing: 1px; }
 .zw-pro-subtitle { margin-top: 4px; font-size: 0.74rem; line-height: 1.55; color: var(--text-3); }
@@ -1700,6 +1702,7 @@ onUnmounted(function() {
 .zw-result :deep(.legend-chip.quan) { color: #d94a3a; background: rgba(217,74,58,0.12); }
 .zw-result :deep(.legend-chip.ke) { color: #2d83c5; background: rgba(45,131,197,0.12); }
 .zw-result :deep(.legend-chip.ji) { color: #8b49b6; background: rgba(139,73,182,0.12); }
+.zw-result :deep(.legend-swipe-hint) { display: none !important; color: var(--text-4); }
 .zw-result :deep(.zw-basic-card) { background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
 .zw-result :deep(.zw-basic-grid) { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 .zw-result :deep(.zw-basic-item) { display: flex; flex-direction: column; gap: 2px; }
@@ -1893,6 +1896,8 @@ onUnmounted(function() {
   .zw-result :deep(.zw-chart-scroll) { width: 100%; overflow-x: auto; overflow-y: hidden; margin: 0 -4px 4px; padding: 0 4px 8px; overscroll-behavior-x: contain; }
   .zw-chart-legend { flex-wrap: nowrap; overflow-x: auto; margin-bottom: 8px; padding: 7px 8px; font-size: 0.62rem; }
   .zw-result :deep(.zw-chart-legend) { flex-wrap: nowrap; overflow-x: auto; margin-bottom: 8px; padding: 7px 8px; font-size: 0.62rem; }
+  .legend-swipe-hint { display: inline-flex !important; padding-left: 4px; }
+  .zw-result :deep(.legend-swipe-hint) { display: inline-flex !important; padding-left: 4px; }
   .zw-palace-grid { grid-template-columns: repeat(4, 1fr); gap: 3px; }
   .zw-result :deep(.zw-palace-grid) { grid-template-columns: repeat(4, 1fr); gap: 3px; }
   .zw-palace-cell { min-height: 70px; padding: 5px; }
