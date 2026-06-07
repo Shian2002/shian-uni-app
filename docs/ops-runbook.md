@@ -98,6 +98,8 @@ RUN_PROD_SMOKE=1 bash scripts/preflight_release.sh
 
 当前已知情况：`npm run audit:prod` 会报告 DCloud 间接依赖 `@dcloudio/uni-mp-weixin -> ws` 的中危漏洞，而且官方暂无修复。脚本会识别这个已知项并允许继续；如果出现新的审计风险会失败。
 
+安全值守入口见 `docs/security-duty-checklist.md`。后端、登录、充值、积分、上传、数据库、部署脚本或依赖发生改动时，先按该清单做安全复核；外部安全技能库只作为审计思路来源，不整包安装到业务仓库。
+
 ## 2.1 测试接手清单
 
 日常改动先按风险分层，不要每次都从头猜要跑什么。

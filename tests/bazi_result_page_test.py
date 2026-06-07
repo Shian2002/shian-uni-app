@@ -3,6 +3,8 @@ from pathlib import Path
 
 
 BAZI_RESULT_VUE = Path(__file__).resolve().parents[1] / "src" / "pages" / "bazi-result" / "index.vue"
+BAZI_INDEX_VUE = Path(__file__).resolve().parents[1] / "src" / "pages" / "bazi-index" / "index.vue"
+INDEX_HTML = Path(__file__).resolve().parents[1] / "index.html"
 
 
 def _source():
@@ -53,3 +55,33 @@ def test_bazi_return_paipan_goes_to_bazi_free_tab_not_marketing_home():
     assert "location.hash = '#/pages/index/index'" not in go_bazi_home
     assert "url: '/pages/index/index'" not in go_bazi_home
     assert "setTimeout" not in go_bazi_home
+
+
+def test_bazi_paipan_persists_last_params_for_refresh_recovery():
+    source = BAZI_INDEX_VUE.read_text(encoding="utf-8")
+
+    assert "function persistBaziResultParams(data)" in source
+    assert "sessionStorage.setItem('xc_bazi_params', raw)" in source
+    assert "localStorage.setItem('xc_bazi_last_params', raw)" in source
+    assert source.count("persistBaziResultParams(data)") >= 3
+
+
+def test_bazi_result_refresh_reads_last_params_fallback():
+    source = _source()
+
+    assert "function readBaziParamsFromStorage()" in source
+    assert "var keys = ['xc_bazi_params', 'xc_bazi_last_params']" in source
+    assert "localStorage.getItem(keys[i])" in source
+    assert "sessionStorage.setItem('xc_bazi_params', stored)" in source
+    assert "params = readBaziParamsFromStorage()" in source
+    assert "刷新后没有找到本次排盘参数" in source
+
+
+def test_boot_fallback_prevents_blank_screen_when_app_fails_to_mount():
+    source = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert 'id="xc-boot-fallback"' in source
+    assert "function markBootFailed()" in source
+    assert "window.addEventListener('error'" in source
+    assert "window.addEventListener('unhandledrejection'" in source
+    assert "页面加载异常" in source

@@ -60,6 +60,8 @@ export default {
     }
     window.addEventListener('wheel', function(e) {
       try {
+        var target = e && e.target
+        if (target && target.closest && target.closest('.tarot-sidebar')) return
         var hash = window.location.hash || ''
         var isHome = hash.indexOf('#/pages/index/index') === 0 || hash === '' || hash === '#/' || hash.indexOf('#/?') === 0
         if (isHome || !e.deltaY) return
@@ -334,7 +336,7 @@ uni-tabbar, .uni-tabbar, .uni-tabbar-bottom {
   background:rgba(22, 26, 42, 0.94); border-right:1px solid rgba(255,255,255,0.1);
   transform:translateX(-100%); transition:transform .3s ease;
   box-shadow:4px 0 24px rgba(0,0,0,.2);
-  display:flex; flex-direction:column;
+  display:flex; flex-direction:column; overscroll-behavior:contain; touch-action:pan-y;
   -webkit-backdrop-filter: blur(20px) saturate(1.6);
   backdrop-filter: blur(20px) saturate(1.6);
 }
@@ -375,7 +377,7 @@ uni-tabbar, .uni-tabbar, .uni-tabbar-bottom {
 .sidebar-tab { font-size:0.75rem; padding:4px 12px; border-radius:12px; color:var(--text-3); background:transparent; transition:all .2s; }
 .sidebar-tab.active { color:var(--accent); background:var(--accent-glow); }
 /* 内容区（可滚动） */
-.sidebar-content { flex:1; overflow-y:auto; min-height:0; }
+.sidebar-content { flex:1; overflow-y:auto; min-height:0; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
 .sidebar-empty { text-align:center; color:var(--text-4); font-size:.85rem; padding:40px 20px; }
 /* 分组 */
 .sidebar-group { border-bottom:1px solid var(--card-border); }

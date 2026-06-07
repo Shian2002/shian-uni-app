@@ -813,6 +813,76 @@ def test_profiles_list_backfills_existing_bazi_records(app_module, user_factory)
     assert synced["meta"]["birthLng"] == 116.4074
 
 
+def test_profiles_update_preserves_owner_and_serializes_meta(app_module, user_factory):
+    user = user_factory("profile-edit-user")
+    with app_module.app.app_context():
+        profile = app_module.UserProfile(
+            user_id=user.id,
+            name="旧名",
+            gender="男",
+            cal_type="公历",
+            birth_time="199001271030",
+            birth_addr="北京",
+            profile_type="self",
+            source="manual",
+        )
+        app_module.db.session.add(profile)
+        app_module.db.session.commit()
+        profile_id = profile.id
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+      sess["_user_id"] = str(user.id)
+      sess["_fresh"] = True
+
+    response = client.put(f"/api/profiles/{profile_id}", json={
+        "name": "新名",
+        "gender": "女",
+        "calType": "农历",
+        "birthTime": "199102030405",
+        "birthAddr": "上海",
+        "profileType": "customer",
+        "isDefault": True,
+        "source": "manual",
+        "meta": {"note": "测试"},
+    })
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["name"] == "新名"
+    assert data["profileType"] == "customer"
+    assert data["isDefault"] is True
+    assert data["meta"]["note"] == "测试"
+
+
+def test_profiles_create_ziwei_source_updates_same_birth_profile(app_module, user_factory):
+    user = user_factory("ziwei-profile-user")
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+      sess["_user_id"] = str(user.id)
+      sess["_fresh"] = True
+
+    payload = {
+        "name": "紫微样例",
+        "gender": "男",
+        "calType": "公历",
+        "birthTime": "199001271030",
+        "birthAddr": "北京",
+        "profileType": "self",
+        "source": "ziwei_pan",
+        "meta": {"longitude": 116.4074, "soul_star": "文曲"},
+    }
+    first = client.post("/api/profiles", json=payload)
+    second = client.post("/api/profiles", json={**payload, "meta": {"longitude": 116.4, "body_star": "天同"}})
+
+    assert first.status_code == 201
+    assert second.status_code == 200
+    profiles = client.get("/api/profiles?sort=last_used").get_json()["profiles"]
+    ziwei_profiles = [p for p in profiles if p["source"] == "ziwei_pan" and p["name"] == "紫微样例"]
+    assert len(ziwei_profiles) == 1
+    assert ziwei_profiles[0]["meta"]["body_star"] == "天同"
+
+
 def test_comprehensive_new_conversation_returns_full_bazi_artifact(app_module, user_factory, monkeypatch):
     user = user_factory("artifact-new-user")
     seen_model_ids = []

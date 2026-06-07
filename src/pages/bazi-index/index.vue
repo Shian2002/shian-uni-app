@@ -124,7 +124,7 @@
               <view class="wz-divider"></view>
 
               <!-- 出生地址 -->
-              <view class="wz-form-group">
+              <view class="wz-form-group bazi-address-group">
                 <text class="wz-form-label">出生地址</text>
                 <view class="wz-addr-selects">
                   <select id="baziProvince" class="wz-addr-select"><option value="">-- 省 --</option></select>
@@ -614,19 +614,27 @@ async function baziFreePaipan() {
     if (res.data) window.__lastBaziPanData = res.data
     if (res.data && res.data.redirect) {
       // #ifdef H5
-      sessionStorage.setItem('xc_bazi_params', JSON.stringify(data))
+      persistBaziResultParams(data)
       // #endif
       uni.navigateTo({ url: `/pages/bazi-result/index?id=${res.data.id}` })
     }
     else if (res.data && res.data.success) {
       // #ifdef H5
-      sessionStorage.setItem('xc_bazi_params', JSON.stringify(data))
+      persistBaziResultParams(data)
       // #endif
       // 无 redirect 时直接跳转结果页（带参数）
       uni.navigateTo({ url: `/pages/bazi-result/index` })
     }
     else if (res.data && res.data.error) { uni.showToast({ title: res.data.error, icon: 'none' }) }
   } catch (e) { uni.showToast({ title: '排盘失败', icon: 'none' }) }
+}
+
+function persistBaziResultParams(data) {
+  try {
+    var raw = JSON.stringify(data || {})
+    sessionStorage.setItem('xc_bazi_params', raw)
+    localStorage.setItem('xc_bazi_last_params', raw)
+  } catch (_) {}
 }
 
 // ── 八字AI系统 ──
@@ -2240,6 +2248,57 @@ function updateBaziDate() {
   baziDate.value = y + '-' + m + '-' + d
 }
 
+function applySelectedProfileToBazi() {
+  try {
+    var raw = uni.getStorageSync('xc_selected_profile')
+    if (!raw) return
+    var p = typeof raw === 'string' ? JSON.parse(raw) : raw
+    if (!p || !p.birthTime) return
+    uni.removeStorageSync('xc_selected_profile')
+
+    var nameEl = document.getElementById('baziName')
+    if (nameEl) nameEl.value = p.name || ''
+    baziName.value = p.name || ''
+    selectBaziGender(p.gender === '女' ? '女' : '男')
+    var calType = (p.calType || p.cal_type) === '农历' ? '农历' : '公历'
+    if (baziCalType.value !== calType) selectBaziCalType(calType)
+
+    var bt = String(p.birthTime || p.birth_time || '').padEnd(12, '0')
+    var y = bt.slice(0, 4)
+    var m = String(parseInt(bt.slice(4, 6)) || 1)
+    var d = String(parseInt(bt.slice(6, 8)) || 1)
+    var h = String(parseInt(bt.slice(8, 10)) || 0)
+    var min = String(parseInt(bt.slice(10, 12)) || 0)
+    var applyDate = function() {
+      var yEl = document.getElementById('baziYear')
+      var mEl = document.getElementById('baziMonth')
+      var dEl = document.getElementById('baziDay')
+      var hEl = document.getElementById('baziHour')
+      var minEl = document.getElementById('baziMinute')
+      if (yEl) yEl.value = y
+      if (mEl) mEl.value = m
+      refillBaziDaySelect()
+      if (dEl) dEl.value = d
+      if (hEl) hEl.value = h
+      if (minEl) minEl.value = min
+      baziDate.value = y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0')
+      baziHourIdx.value = parseInt(h) || 0
+      baziMinuteIdx.value = parseInt(min) || 0
+    }
+    applyDate()
+    setTimeout(applyDate, 220)
+
+    var addrEl = document.getElementById('baziBirthAddr')
+    var lngEl = document.getElementById('baziBirthLng')
+    var latEl = document.getElementById('baziBirthLat')
+    var meta = p.meta || {}
+    if (addrEl) addrEl.value = p.birthAddr || p.birth_addr || ''
+    if (lngEl && (meta.birthLng || meta.longitude)) lngEl.value = meta.birthLng || meta.longitude
+    if (latEl && meta.birthLat) latEl.value = meta.birthLat
+    uni.showToast({ title: '已带入档案', icon: 'none' })
+  } catch (_) {}
+}
+
 // ── 模式A: 创建原生输入框 ──
 function createNativeInput(wrapId, type, placeholder, maxlength) {
   var wrap = document.getElementById(wrapId + '-wrap')
@@ -2276,6 +2335,7 @@ onShow(() => {
     if (q) { sessionStorage.removeItem('_nav_query'); applyNavQuery(q) }
   } catch(_) {}
   nextTick(function() { _checkBaziRestore() })
+  setTimeout(applySelectedProfileToBazi, 260)
   loadRecords()
   var token = uni.getStorageSync('xc_token')
   var loggedIn = !!token
@@ -2422,6 +2482,7 @@ onMounted(() => {
   fillBaziSelect('baziMinute', minOpts, now.getMinutes(), function(val) {
     baziMinuteIdx.value = parseInt(val)
   })
+  setTimeout(applySelectedProfileToBazi, 160)
   // #endif
   
   // 立即填充 AI Tab 的日期时间 select
@@ -2649,13 +2710,13 @@ onMounted(() => {
 .page-wrap { position: relative; z-index: 1; }
 
 /* 工具页Hero */
-.section { max-width: var(--max-w); margin: 0 auto; padding: 80px 32px; }
-.section-tag { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.6875rem; letter-spacing: 2px; color: var(--accent); background: var(--accent-glow); margin-bottom: 12px; }
-.tool-hero { padding: 60px 32px 32px; text-align: center; position: relative; overflow: hidden; }
+.section { max-width: var(--max-w); margin: 0 auto; padding: 16px 32px 32px; }
+.section-tag { display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 0.66rem; letter-spacing: 1.5px; color: var(--accent); background: var(--accent-glow); margin-bottom: 8px; }
+.tool-hero { padding: 28px 32px 14px; text-align: center; position: relative; overflow: hidden; }
 .tool-hero::before { content: ''; position: absolute; top: -50%; left: -20%; width: 140%; height: 200%; background: radial-gradient(ellipse at center, var(--accent-glow) 0%, transparent 70%); opacity: 0.5; pointer-events: none; }
 .tool-hero-content { position: relative; z-index: 1; max-width: var(--max-w); margin: 0 auto; }
-.tool-hero-title { font-family: var(--font-serif); font-size: 2rem; font-weight: 400; letter-spacing: 4px; color: var(--text-1); margin-bottom: 12px; }
-.tool-hero-desc { font-size: 0.9375rem; color: var(--text-3); letter-spacing: 2px; }
+.tool-hero-title { font-family: var(--font-serif); font-size: 1.48rem; font-weight: 400; letter-spacing: 3px; color: var(--text-1); margin-bottom: 6px; }
+.tool-hero-desc { font-size: 0.82rem; color: var(--text-3); letter-spacing: 1.5px; }
 
 /* 工具容器 */
 .tool-container {
@@ -2663,12 +2724,12 @@ onMounted(() => {
     linear-gradient(145deg, rgba(255,255,255,0.30), rgba(255,255,255,0.10)),
     var(--card-bg);
   border: 1px solid rgba(255,255,255,0.34);
-  border-radius: 24px;
-  padding: 32px;
+  border-radius: 20px;
+  padding: 22px;
   -webkit-backdrop-filter: blur(30px) saturate(170%);
   backdrop-filter: blur(30px) saturate(170%);
   box-shadow: 0 22px 60px rgba(72,52,22,0.13), inset 0 1px 0 rgba(255,255,255,0.58);
-  max-width: 720px;
+  max-width: 980px;
   margin: 0 auto;
   position: relative;
   overflow: visible;
@@ -2688,8 +2749,8 @@ onMounted(() => {
 .tool-tabs {
   display: flex;
   gap: 8px;
-  margin-bottom: 28px;
-  padding: 6px;
+  margin-bottom: 14px;
+  padding: 5px;
   border: 1px solid rgba(255,255,255,0.28);
   border-radius: 18px;
   background: rgba(255,255,255,0.26);
@@ -2704,7 +2765,7 @@ onMounted(() => {
 }
 .tool-tab {
   flex: 1;
-  padding: 11px 16px;
+  padding: 9px 16px;
   border-radius: 13px;
   font-size: 0.875rem;
   cursor: pointer;
@@ -2732,32 +2793,32 @@ onMounted(() => {
 .tool-tab-content { display: block; }
 
 /* ── 问真风格表单 ── */
-.wz-form { padding: 4px 0; }
-.wz-form-row { display: flex; gap: 12px; margin-bottom: 14px; }
+.wz-form { padding: 2px 0; }
+.wz-form-row { display: flex; gap: 12px; margin-bottom: 10px; }
 .wz-form-item { flex: 1; position: relative; }
 .wz-flex-1 { flex: 0 0 90px; }
 .wz-flex-2 { flex: 2; }
 .wz-flex-3 { flex: 3; }
-.wz-form-label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-2); margin-bottom: 6px; letter-spacing: 1px; }
+.wz-form-label { display: block; font-size: 0.74rem; font-weight: 600; color: var(--text-2); margin-bottom: 5px; letter-spacing: 1px; }
 .wz-form-input { width: 100%; padding: 9px 12px; border: 1.5px solid var(--card-border); border-radius: 10px; font-size: 0.85rem; background: var(--card-bg); color: var(--text-1); outline: none; box-sizing: border-box; }
 .picker-display { line-height: 1.4; cursor: pointer; }
 .wz-segment-box { display: flex; gap: 6px; }
-.wz-segment-btn { flex: 1; padding: 7px 14px; cursor: pointer; font-size: 0.85rem; font-weight: 500; color: var(--text-2); background: var(--card-bg); border: 1.5px solid var(--card-border); border-radius: 10px; transition: all 0.25s; display: flex; align-items: center; justify-content: center; text-align: center; }
+.wz-segment-btn { flex: 1; padding: 7px 12px; cursor: pointer; font-size: 0.82rem; font-weight: 500; color: var(--text-2); background: var(--card-bg); border: 1.5px solid var(--card-border); border-radius: 10px; transition: all 0.25s; display: flex; align-items: center; justify-content: center; text-align: center; }
 .wz-segment-btn.active { color: #fff; background: var(--accent); border-color: var(--accent); }
-.wz-divider { border: none; border-top: 1px solid var(--card-border); margin: 14px 0; }
-.wz-form-group { margin-bottom: 14px; }
-.wz-form-hint { font-size: 0.72rem; color: var(--text-3); margin-top: 6px; line-height: 1.5; }
+.wz-divider { border: none; border-top: 1px solid var(--card-border); margin: 10px 0; }
+.wz-form-group { margin-bottom: 10px; }
+.wz-form-hint { font-size: 0.69rem; color: var(--text-3); margin-top: 5px; line-height: 1.45; }
 
 /* 日期时间行 */
 .wz-datetime-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
 .wz-dt-col { flex: 1; min-width: 0; position: relative; }
 .wz-dt-hour { flex: 0.8; }
 .wz-dt-minute { flex: 0.7; }
-.wz-datetime-select { width: 100%; padding: 9px 6px; border: 1.5px solid var(--card-border); border-radius: 8px; font-size: 0.85rem; font-weight: 500; background: var(--card-bg); color: var(--text-1); cursor: pointer; text-align: center; appearance: none; -webkit-appearance: none; -moz-appearance: none; outline: none; box-sizing: border-box; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M5 7L1 3h8z' fill='%23999'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 4px center; padding-right: 16px; }
+.wz-datetime-select { width: 100%; padding: 8px 6px; border: 1.5px solid var(--card-border); border-radius: 8px; font-size: 0.82rem; font-weight: 500; background: var(--card-bg); color: var(--text-1); cursor: pointer; text-align: center; appearance: none; -webkit-appearance: none; -moz-appearance: none; outline: none; box-sizing: border-box; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M5 7L1 3h8z' fill='%23999'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 4px center; padding-right: 16px; }
 .wz-datetime-select:focus { border-color: var(--accent); }
 
 /* 即时起局 */
-.wz-instant-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.wz-instant-row { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
 .wz-instant-btn { padding: 7px 16px; border-radius: 10px; background: var(--accent-glow); border: 1.5px solid var(--accent); color: var(--accent); font-size: 0.85rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .wz-instant-preview { font-size: 0.72rem; color: var(--text-1); display: flex; flex-direction: column; gap: 2px; }
 .wz-instant-pillars { font-weight: 500; color: var(--text-1); }
@@ -2772,14 +2833,14 @@ onMounted(() => {
 
 /* 地址选择 */
 .wz-addr-selects { display: flex; gap: 8px; }
-.wz-addr-select { flex: 1; padding: 9px 8px; border: 1.5px solid var(--card-border); border-radius: 10px; font-size: 0.85rem; background: var(--card-bg); color: var(--text-1); cursor: pointer; text-align: center; appearance: none; -webkit-appearance: none; -moz-appearance: none; outline: none; box-sizing: border-box; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M5 7L1 3h8z' fill='%23999'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 4px center; padding-right: 16px; }
+.wz-addr-select { flex: 1; padding: 8px 8px; border: 1.5px solid var(--card-border); border-radius: 10px; font-size: 0.82rem; background: var(--card-bg); color: var(--text-1); cursor: pointer; text-align: center; appearance: none; -webkit-appearance: none; -moz-appearance: none; outline: none; box-sizing: border-box; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M5 7L1 3h8z' fill='%23999'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 4px center; padding-right: 16px; }
 .wz-addr-info { margin-top: 8px; display: flex; gap: 16px; font-size: 0.72rem; color: var(--text-3); }
 .wz-addr-solar { color: var(--success); }
 .wz-addr-lng { color: var(--text-4); }
 
 /* 开关 */
-.wz-advanced-box { background: var(--section-alt); border-radius: 12px; padding: 14px 16px; border: 1px solid var(--card-border); }
-.wz-switch-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.wz-advanced-box { background: var(--section-alt); border-radius: 12px; padding: 12px 14px; border: 1px solid var(--card-border); }
+.wz-switch-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
 .wz-switch-row { display: flex; align-items: center; gap: 8px; }
 .wz-switch-label { font-size: 0.82rem; color: var(--text-2); min-width: 60px; }
 .wz-switch { width: 40px; height: 22px; background: var(--card-border); border-radius: 11px; position: relative; cursor: pointer; transition: background 0.3s; }
@@ -2788,7 +2849,7 @@ onMounted(() => {
 .wz-switch.active .wz-switch-slider { transform: translateX(18px); }
 .wz-switch-hint { font-size: 0.72rem; color: var(--text-3); }
 
-.wz-submit-btn { width: 100%; padding: 14px; border-radius: 30px; border: none; background: hsl(35, 38%, 52%); color: #fff; font-size: 1rem; font-weight: 600; cursor: pointer; letter-spacing: 2px; margin-top: 14px; text-align: center; box-sizing: border-box; }
+.wz-submit-btn { width: 100%; padding: 12px; border-radius: 30px; border: none; background: hsl(35, 38%, 52%); color: #fff; font-size: 0.95rem; font-weight: 600; cursor: pointer; letter-spacing: 2px; margin-top: 8px; text-align: center; box-sizing: border-box; }
 
 /* AI tab datetime selects (matches qimen pattern) */
 .qf-datetime-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
@@ -3203,11 +3264,88 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 
 /* 响应式 */
 
+@media (min-width: 769px) {
+  .tool-tab-content[v-show],
+  .tool-tab-content {
+    min-width: 0;
+  }
+
+  .tool-tab-content .wz-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px 16px;
+    align-items: start;
+  }
+
+  .tool-tab-content .wz-form > .wz-form-row,
+  .tool-tab-content .wz-form > .wz-form-group,
+  .tool-tab-content .wz-form > .wz-instant-row,
+  .tool-tab-content .wz-form > .wz-submit-btn,
+  .tool-tab-content .wz-form > .wz-form-hint {
+    margin: 0;
+  }
+
+  .tool-tab-content .wz-form > .wz-divider {
+    display: none;
+  }
+
+  .tool-tab-content .wz-form > #baziDateSection,
+  .tool-tab-content .wz-form > #baziSiziSection {
+    grid-column: 1;
+    grid-row: 2 / span 2;
+  }
+
+  .tool-tab-content .wz-form > .bazi-address-group {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .tool-tab-content .wz-form > .wz-instant-row {
+    grid-column: 2;
+    grid-row: 3;
+    min-height: 36px;
+  }
+
+  .tool-tab-content .wz-form > .wz-advanced-box {
+    grid-column: 1 / -1;
+    padding: 10px 12px;
+  }
+
+  .tool-tab-content .wz-form > .wz-submit-btn,
+  .tool-tab-content .wz-form > .wz-form-hint:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .tool-tab-content .wz-form > .wz-form-hint:last-child {
+    margin-top: -4px;
+  }
+
+  .wz-datetime-row-date,
+  .wz-datetime-row-time {
+    flex-wrap: nowrap;
+  }
+
+  .wz-datetime-row-time {
+    margin-top: 8px !important;
+  }
+
+  .wz-advanced-box .wz-form-hint {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .record-page {
+    max-height: none;
+  }
+}
+
 @media (max-width: 768px) {
-  .tool-hero { padding: 40px 16px 24px; }
+  .tool-hero { padding: 28px 16px 16px; }
   .tool-hero-title { font-size: 1.5rem; }
   .tool-container { padding: 20px 16px; }
-  .section { padding: 48px 16px; }
+  .section { padding: 24px 16px 36px; }
   .wz-form-row { flex-wrap: wrap; }
   .wz-flex-1 { flex: 1 1 100%; }
   .wz-datetime-row { flex-wrap: wrap; }

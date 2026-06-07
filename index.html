@@ -4,24 +4,43 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0" />
   <title>时安解忧屋</title>
-  <link rel="icon" type="image/svg+xml" href="/static/images/favicon.svg?v=7">
-  <link rel="icon" type="image/png" sizes="16x16" href="/static/images/favicon-16.png?v=7">
-  <link rel="icon" type="image/png" sizes="32x32" href="/static/images/favicon-32.png?v=7">
-  <link rel="icon" type="image/png" sizes="48x48" href="/static/images/favicon-48.png?v=7">
-  <link rel="shortcut icon" href="/static/images/favicon.ico?v=7">
-  <link rel="apple-touch-icon" sizes="180x180" href="/static/images/apple-touch-icon.png?v=7">
+  <link rel="icon" type="image/svg+xml" href="/static/images/favicon.svg?v=8">
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/images/favicon-16.png?v=8">
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/images/favicon-32.png?v=8">
+  <link rel="icon" type="image/png" sizes="48x48" href="/static/images/favicon-48.png?v=8">
+  <link rel="shortcut icon" href="/static/images/favicon.ico?v=8">
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/images/apple-touch-icon.png?v=8">
   <link rel="preload" href="/static/images/logo.svg?v=7" as="image" type="image/svg+xml">
   <!--preload-links-->
   <!--app-context-->
-  <style>#xc-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:#f8f5f0;z-index:999999}#xc-overlay .xc-img{position:absolute;top:calc(50% - 40px);left:50%;margin-left:-40px;width:80px;height:80px;border-radius:50%;object-fit:cover;animation:xc-rotate 1s linear infinite;box-shadow:0 0 30px rgba(0,0,0,.06)}#xc-overlay .xc-tx{position:absolute;top:calc(50% + 50px);left:0;width:100%;text-align:center;font-size:13px;color:#b8a088}@keyframes xc-rotate{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>
+  <style>#xc-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:#f8f5f0;z-index:999999}#xc-overlay .xc-img{position:absolute;top:calc(50% - 40px);left:50%;margin-left:-40px;width:80px;height:80px;border-radius:50%;object-fit:cover;animation:xc-rotate 1s linear infinite;box-shadow:0 0 30px rgba(0,0,0,.06)}#xc-overlay .xc-tx{position:absolute;top:calc(50% + 50px);left:0;width:100%;text-align:center;font-size:13px;color:#b8a088}#xc-boot-fallback{display:none;position:fixed;inset:0;z-index:999998;background:#f8f5f0;color:#4b3b26;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-align:center;padding:34vh 24px 0;box-sizing:border-box}#xc-boot-fallback .xc-title{font-size:20px;font-weight:700;margin-bottom:10px}#xc-boot-fallback .xc-desc{font-size:14px;color:#8a7454;margin-bottom:18px}.xc-reload-btn{border:0;border-radius:999px;background:#8a631f;color:#fff;padding:10px 22px;font-size:14px;cursor:pointer}@keyframes xc-rotate{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>
 </head>
 <body>
   <div id="app"><!--app-html--></div>
   <div id="xc-overlay"><img class="xc-img" src="/static/images/logo.svg?v=7" alt=""><div class="xc-tx">时安解忧屋</div></div>
+  <div id="xc-boot-fallback"><div class="xc-title">页面加载异常</div><div class="xc-desc">当前资源没有正常启动，请重新加载页面。</div><button class="xc-reload-btn" type="button" onclick="location.reload()">重新加载</button></div>
   <script>
     (function(){
       var o = document.getElementById('xc-overlay');
+      var f = document.getElementById('xc-boot-fallback');
+      var bootFailed = false;
+      function markBootFailed(){
+        bootFailed = true;
+        if(o)o.style.display='none';
+        var app=document.getElementById('app');
+        var appText=app&&app.innerText ? app.innerText.replace(/\s/g,'') : '';
+        if(f && !appText) f.style.display='block';
+      }
+      window.addEventListener('error', function(e){
+        var target = e && e.target;
+        if(target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK')) markBootFailed();
+      }, true);
+      window.addEventListener('unhandledrejection', function(e){
+        var msg = e && e.reason && (e.reason.message || String(e.reason));
+        if(msg && (/Failed to fetch dynamically imported module|Importing a module script failed|Loading chunk|NetworkError/i).test(msg)) markBootFailed();
+      });
       function hide(){
+        if(bootFailed)return;
         if(!o)return;
         o.style.display='none';
         var a=document.getElementById('app');
@@ -37,7 +56,15 @@
           setTimeout(hide,120);
         }
       }, 60);
-      setTimeout(function(){ clearInterval(t); hide(); }, 1500);
+      setTimeout(function(){
+        clearInterval(t);
+        hide();
+        setTimeout(function(){
+          var app=document.getElementById('app');
+          var appText=app&&app.innerText ? app.innerText.replace(/\s/g,'') : '';
+          if(!appText) markBootFailed();
+        }, 1200);
+      }, 1500);
     })();
   </script>
   <script src="/static/js/sidebar-types.js"></script>

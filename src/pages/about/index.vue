@@ -275,7 +275,7 @@
           </view>
           <view class="footer-col">
             <view class="footer-col-title">备案与版权</view>
-            <view class="footer-icp">ICP备案号：京ICP备2026050601号-1</view>
+            <view class="footer-icp footer-icp-link" @tap="openMiitBeian">ICP备案号：粤ICP备2026072162号-1</view>
             <view class="footer-link" @tap="showFooterInfo('copyright')">版权信息</view>
             <view class="footer-icp">© 2026 时安解忧屋 版权所有</view>
           </view>
@@ -403,6 +403,19 @@ export default {
         copyright: '版权信息：© 2026 时安解忧屋 版权所有',
       }
       uni.showModal({ title: '提示', content: infoMap[type] || '', showCancel: false })
+    },
+    openMiitBeian() {
+      // #ifdef H5
+      try {
+        window.open('https://beian.miit.gov.cn/', '_blank', 'noopener,noreferrer')
+        return
+      } catch(_) {}
+      // #endif
+      uni.showModal({
+        title: '备案信息',
+        content: 'ICP备案号：粤ICP备2026072162号-1\n工信部备案官网：https://beian.miit.gov.cn/',
+        showCancel: false
+      })
     },
     clearAllData() {
       uni.showModal({
@@ -623,6 +636,8 @@ export default {
 .footer-col-title { font-size: 0.8125rem; color: var(--text-2); margin-bottom: 12px; letter-spacing: 1px; }
 .footer-col navigator, .footer-col .footer-link { display: block; font-size: 0.75rem; color: var(--text-3); text-decoration: none; padding: 3px 0; cursor: pointer; }
 .footer-icp { font-size: 0.6875rem; color: var(--text-3); margin-top: 8px; }
+.footer-icp-link { cursor: pointer; text-decoration: none; }
+.footer-icp-link:hover { color: var(--accent); }
 .footer-bottom { max-width: var(--max-w); margin: 24px auto 0; padding-top: 16px; border-top: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center; }
 .footer-bottom-text { font-size: 0.6875rem; color: var(--text-3); }
 .btn-clear-data { font-size: 0.6875rem; padding: 4px 10px; border-radius: 6px; background: transparent; border: 1px solid var(--danger); color: var(--danger); cursor: pointer; }

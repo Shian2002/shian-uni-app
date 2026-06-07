@@ -1028,39 +1028,39 @@ function _updateLyConversation() {
 .page-wrap { position: relative; z-index: 1; }
 
 /* 工具页 */
-.section { max-width: var(--max-w); margin: 0 auto; padding: 80px 32px; }
-.section-tag { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.6875rem; letter-spacing: 2px; color: var(--accent); background: var(--accent-glow); margin-bottom: 12px; }
-.tool-hero { padding: 60px 32px 32px; text-align: center; position: relative; overflow: hidden; }
+.section { max-width: var(--max-w); margin: 0 auto; padding: 16px 32px 32px; }
+.section-tag { display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 0.66rem; letter-spacing: 1.5px; color: var(--accent); background: var(--accent-glow); margin-bottom: 8px; }
+.tool-hero { padding: 28px 32px 14px; text-align: center; position: relative; overflow: hidden; }
 .tool-hero-content { position: relative; z-index: 1; max-width: var(--max-w); margin: 0 auto; }
-.tool-hero-title { font-family: var(--font-serif); font-size: 2rem; font-weight: 400; letter-spacing: 4px; color: var(--text-1); margin-bottom: 12px; }
-.tool-hero-desc { font-size: 0.9375rem; color: var(--text-3); letter-spacing: 2px; }
-.tool-container { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; backdrop-filter: blur(20px); box-shadow: var(--card-shadow); max-width: 960px; margin: 0 auto; box-sizing: border-box; }
-.tool-tabs { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid var(--card-border); }
-.tool-tab { padding: 12px 20px; border-radius: 10px 10px 0 0; font-size: 0.875rem; cursor: pointer; border: 1px solid transparent; border-bottom: none; color: var(--text-3); background: transparent; }
+.tool-hero-title { font-family: var(--font-serif); font-size: 1.48rem; font-weight: 400; letter-spacing: 3px; color: var(--text-1); margin-bottom: 6px; }
+.tool-hero-desc { font-size: 0.82rem; color: var(--text-3); letter-spacing: 1.5px; }
+.tool-container { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 22px; backdrop-filter: blur(20px); box-shadow: var(--card-shadow); max-width: 900px; margin: 0 auto; box-sizing: border-box; }
+.tool-tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--card-border); }
+.tool-tab { padding: 9px 16px; border-radius: 10px 10px 0 0; font-size: 0.84rem; cursor: pointer; border: 1px solid transparent; border-bottom: none; color: var(--text-3); background: transparent; }
 .tool-tab.active { color: var(--accent); background: var(--accent-glow); border-color: var(--accent); font-weight: 600; }
 .tab-badge { font-size: 0.5625rem; padding: 1px 5px; border-radius: 4px; background: var(--accent); color: #fff; margin-left: 4px; }
 .tab-badge.free { background: var(--success); }
 #lyTabAiContent { display: none; }
 
 /* 表单 */
-.form-group { margin-bottom: 16px; }
+.form-group { margin-bottom: 12px; }
 .form-label { display: block; font-size: 0.75rem; color: var(--text-3); margin-bottom: 6px; letter-spacing: 1px; }
 .form-input, .form-select-picker { width: 100%; padding: 10px 14px; border-radius: 10px; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-1); font-size: 0.875rem; outline: none; box-sizing: border-box; }
 .form-hint { font-size: 0.6875rem; color: var(--text-3); }
-.submit-btn { width: 100%; padding: 14px; border-radius: 30px; border: none; background: hsl(35, 38%, 52%); color: #fff; font-size: 1rem; font-weight: 600; cursor: pointer; letter-spacing: 2px; margin-top: 8px; text-align: center; }
-.btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+.submit-btn { width: 100%; padding: 12px 14px; border-radius: 30px; border: none; background: hsl(35, 38%, 52%); color: #fff; font-size: 0.95rem; font-weight: 600; cursor: pointer; letter-spacing: 2px; margin-top: 6px; text-align: center; }
+.btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
 .btn-row .submit-btn { margin-top: 0; }
 .btn-row .btn-ghost { margin-top: 0; }
 .btn-ghost { background: transparent; border: 1px solid var(--card-border); color: var(--text-3); padding: 7px 18px; border-radius: 10px; font-size: 0.8125rem; }
 
 /* 起卦方式切换 */
-.method-switch { display: flex; gap: 8px; margin-bottom: 16px; }
+.method-switch { display: flex; gap: 8px; margin-bottom: 12px; }
 .method-switch-btn { padding: 8px 16px; border-radius: 10px; border: 1px solid var(--card-border); background: transparent; color: var(--text-3); font-size: 0.8125rem; cursor: pointer; }
 .method-switch-btn.active { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); font-weight: 600; }
 
 /* 六爻手动输入 */
-.ly-auto-info { text-align: center; padding: 16px; }
-.ly-auto-icon { font-size: 2rem; margin-bottom: 8px; }
+.ly-auto-info { text-align: center; padding: 10px 12px; }
+.ly-auto-icon { font-size: 1.6rem; margin-bottom: 4px; }
 .ly-toss-rows { display: flex; flex-direction: column; gap: 8px; }
 .ly-toss-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; background: var(--section-alt); border: 1px solid var(--card-border); }
 .ly-toss-label { font-size: 0.75rem; color: var(--text-3); min-width: 48px; }
@@ -1186,10 +1186,10 @@ function _updateLyConversation() {
 .modal-error { color: var(--danger); font-size: 0.75rem; text-align: center; margin-top: 10px; min-height: 18px; }
 
 @media (max-width: 768px) {
-  .tool-hero { padding: 40px 16px 24px; }
+  .tool-hero { padding: 28px 16px 16px; }
   .tool-hero-title { font-size: 1.5rem; }
   .tool-container { padding: 20px 16px; }
-  .section { padding: 48px 16px; }
+  .section { padding: 24px 16px 36px; }
 
 }
 @media (max-width: 480px) {

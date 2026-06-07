@@ -67,8 +67,21 @@
                 <input type="text" class="form-input form-input-text" v-model="zwForm.chartName" placeholder="我的命盘">
               </view>
               <view class="form-group">
+                <text class="form-label">出生地</text>
+                <input type="text" class="form-input form-input-text" v-model="zwForm.birthAddr" placeholder="如 北京">
+              </view>
+              <view class="form-group">
                 <text class="form-label">出生地经度</text>
                 <input type="digit" class="form-input form-input-text" v-model="zwForm.longitude" placeholder="如 116.4074">
+              </view>
+              <view class="form-group zw-save-field">
+                <text class="form-label">保存档案</text>
+                <view class="zw-save-row">
+                  <view class="zw-switch" :class="{ active: saveZiweiProfile }" @tap="saveZiweiProfile = !saveZiweiProfile">
+                    <view class="zw-switch-dot"></view>
+                  </view>
+                  <text class="zw-switch-hint">{{ saveZiweiProfile ? '保存' : '不保存' }}</text>
+                </view>
               </view>
             </view>
             <view class="submit-btn" @click="ziweiFreePan">⭐ 免费排盘</view>
@@ -172,6 +185,7 @@ const isLoggedIn = ref(!!uni.getStorageSync('xc_token'))
 window.addEventListener('xc-session-expired', function() { isLoggedIn.value = false })
 
 const activeTab = ref('pan')
+const saveZiweiProfile = ref(true)
 
 // Tab切换函数
 function switchTab(tabName) {
@@ -182,6 +196,7 @@ const zwForm = reactive({
   year: 2000, month: 8, day: 16, hour: 12, minute: 0,
   genderIdx: 0, dateTypeIdx: 0,
   chartName: '我的命盘',
+  birthAddr: '',
   longitude: '116.4074'
 })
 
@@ -260,6 +275,73 @@ function setBirthPart(form, part, e) {
   if (part === 'minute') form.minute = idx
   if (part === 'year' || part === 'month') {
     form.day = clampNumber(form.day, 1, daysInBirthMonth(form))
+  }
+}
+
+function ziweiBirthTime(form) {
+  return String(parseInt(form.year) || 2000).padStart(4, '0') +
+    String(parseInt(form.month) || 1).padStart(2, '0') +
+    String(parseInt(form.day) || 1).padStart(2, '0') +
+    String(parseInt(form.hour) || 0).padStart(2, '0') +
+    String(parseInt(form.minute) || 0).padStart(2, '0')
+}
+
+function applySelectedProfileToZiwei() {
+  try {
+    var raw = uni.getStorageSync('xc_selected_profile')
+    if (!raw) return
+    var p = typeof raw === 'string' ? JSON.parse(raw) : raw
+    if (!p || !p.birthTime) return
+    uni.removeStorageSync('xc_selected_profile')
+    var bt = String(p.birthTime || p.birth_time || '').padEnd(12, '0')
+    zwForm.year = parseInt(bt.slice(0, 4)) || zwForm.year
+    zwForm.month = parseInt(bt.slice(4, 6)) || zwForm.month
+    zwForm.day = parseInt(bt.slice(6, 8)) || zwForm.day
+    zwForm.hour = parseInt(bt.slice(8, 10)) || zwForm.hour
+    zwForm.minute = parseInt(bt.slice(10, 12)) || 0
+    zwForm.genderIdx = p.gender === '女' ? 1 : 0
+    zwForm.dateTypeIdx = (p.calType || p.cal_type) === '农历' ? 1 : 0
+    zwForm.chartName = p.name || zwForm.chartName || '我的命盘'
+    zwForm.birthAddr = p.birthAddr || p.birth_addr || ''
+    var meta = p.meta || {}
+    if (meta.longitude || meta.birthLng) zwForm.longitude = String(meta.longitude || meta.birthLng)
+    uni.showToast({ title: '已带入档案', icon: 'none' })
+  } catch (_) {}
+}
+
+async function saveZiweiPanProfile(panData) {
+  if (!saveZiweiProfile.value || !isLoggedIn.value) return
+  const basic = (panData || {}).basic_info || {}
+  const core = (panData || {}).core_palace || {}
+  const longitude = parseFloat(zwForm.longitude)
+  const payload = {
+    name: (zwForm.chartName || '我的命盘').trim(),
+    gender: ['男', '女'][zwForm.genderIdx],
+    calType: zwForm.dateTypeIdx === 1 ? '农历' : '公历',
+    birthTime: ziweiBirthTime(zwForm),
+    birthAddr: (zwForm.birthAddr || '').trim(),
+    profileType: 'self',
+    source: 'ziwei_pan',
+    isDefault: false,
+    meta: {
+      source: 'ziwei_pan',
+      chartName: zwForm.chartName || '我的命盘',
+      date_type: ['solar', 'lunar'][zwForm.dateTypeIdx],
+      longitude: isNaN(longitude) ? '' : longitude,
+      solar_date: basic.solar_date || '',
+      lunar_date: basic.lunar_date || '',
+      shichen: basic.shichen || '',
+      five_elements_class: basic.five_elements_class || '',
+      soul_star: core.soul_star || '',
+      body_star: core.body_star || '',
+    },
+  }
+  try {
+    const res = await uni.request({ url: '/api/profiles', method: 'POST', data: payload })
+    if ((res.data || {}).error) throw new Error(res.data.error)
+    window.__sidebarCache = null
+  } catch (_) {
+    uni.showToast({ title: '紫微档案保存失败', icon: 'none' })
   }
 }
 
@@ -391,6 +473,7 @@ async function ziweiFreePan() {
     zwFlowState.horoscope = null
     zwFlowState.error = ''
     zwPanResult.value = renderZiweiPan(panData)
+    await saveZiweiPanProfile(panData)
     refreshZiweiFlow()
   } catch (e) {
     const errMsg = (e && e.errMsg) || (e && e.message) || (e && String(e)) || '未知错误'
@@ -1350,10 +1433,12 @@ onShow(function() {
       document.body.setAttribute('data-theme', t)
     } catch(_) {}
   }
+  setTimeout(applySelectedProfileToZiwei, 120)
 })
 
 onMounted(function() {
   initDatePickers()
+  setTimeout(applySelectedProfileToZiwei, 80)
   const now = new Date()
   const day = now.getDate()
   if (zwDayOptions.value.length > day - 1) {
@@ -1387,20 +1472,20 @@ onUnmounted(function() {
 [data-theme="dark"] .bg-layer { background: radial-gradient(ellipse 80% 60% at 18% 8%, rgba(45,50,90,0.30) 0%, transparent 72%), linear-gradient(162deg, var(--bg-grad-1), var(--bg-grad-2) 50%, var(--bg-grad-3)); }
 [data-theme="light"] .bg-layer { background: radial-gradient(ellipse 72% 52% at 12% 18%, rgba(210,190,150,0.20) 0%, transparent 65%), linear-gradient(155deg, var(--bg-grad-1), var(--bg-grad-2) 60%, var(--bg-grad-3)); }
 .page-wrap { position: relative; z-index: 1; }
-.section { max-width: var(--max-w); margin: 0 auto; padding: 80px 32px; }
-.section-tag { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.6875rem; letter-spacing: 2px; color: var(--accent); background: var(--accent-glow); margin-bottom: 12px; }
-.tool-hero { padding: 60px 32px 32px; text-align: center; position: relative; overflow: hidden; }
+.section { max-width: var(--max-w); margin: 0 auto; padding: 16px 32px 32px; }
+.section-tag { display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 0.66rem; letter-spacing: 1.5px; color: var(--accent); background: var(--accent-glow); margin-bottom: 8px; }
+.tool-hero { padding: 28px 32px 14px; text-align: center; position: relative; overflow: hidden; }
 .tool-hero-content { position: relative; z-index: 1; max-width: var(--max-w); margin: 0 auto; }
-.tool-hero-title { font-family: var(--font-serif); font-size: 2rem; font-weight: 400; letter-spacing: 4px; color: var(--text-1); margin-bottom: 12px; }
-.tool-hero-desc { font-size: 0.9375rem; color: var(--text-3); letter-spacing: 2px; }
-.tool-container { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 32px; backdrop-filter: blur(20px); box-shadow: var(--card-shadow); max-width: 1180px; margin: 0 auto; }
-.tool-tabs { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid var(--card-border); }
-.tool-tab { padding: 12px 20px; border-radius: 10px 10px 0 0; font-size: 0.875rem; cursor: pointer; border: 1px solid transparent; border-bottom: none; color: var(--text-3); background: transparent; transition: all 0.2s; }
+.tool-hero-title { font-family: var(--font-serif); font-size: 1.48rem; font-weight: 400; letter-spacing: 3px; color: var(--text-1); margin-bottom: 6px; }
+.tool-hero-desc { font-size: 0.82rem; color: var(--text-3); letter-spacing: 1.5px; }
+.tool-container { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: 22px; backdrop-filter: blur(20px); box-shadow: var(--card-shadow); max-width: 1180px; margin: 0 auto; }
+.tool-tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--card-border); }
+.tool-tab { padding: 9px 16px; border-radius: 10px 10px 0 0; font-size: 0.84rem; cursor: pointer; border: 1px solid transparent; border-bottom: none; color: var(--text-3); background: transparent; transition: all 0.2s; }
 .tool-tab.active { color: var(--accent); background: var(--accent-glow); border-color: var(--accent); font-weight: 600; }
 .tool-tab:hover { color: var(--accent); }
 .tab-badge { font-size: 0.5625rem; padding: 1px 5px; border-radius: 4px; background: var(--accent); color: #fff; margin-left: 4px; }
 .tab-badge.free { background: var(--success); }
-.form-group { margin-bottom: 16px; }
+.form-group { margin-bottom: 12px; }
 .form-label { display: block; font-size: 0.75rem; color: var(--text-3); margin-bottom: 6px; letter-spacing: 1px; }
 .form-input, .form-select-picker { width: 100%; padding: 10px 14px; border-radius: 10px; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-1); font-size: 0.875rem; outline: none; box-sizing: border-box; }
 .zw-form-grid .form-input .uni-input-wrapper { height: 22px; }
@@ -1409,18 +1494,24 @@ onUnmounted(function() {
 .form-input-text .uni-input-wrapper { width: 100%; height: auto; display: flex; align-items: center; }
 .form-input-text .uni-input-input { height: auto !important; padding: 0 !important; margin: 0; border: none !important; background: transparent !important; font-size: 1rem !important; color: inherit !important; line-height: normal !important; }
 .form-hint { font-size: 0.6875rem; color: var(--text-3); }
-.submit-btn { display: block; width: 100%; max-width: 100%; box-sizing: border-box; padding: 14px 16px; border-radius: 30px; border: none; background: hsl(35, 38%, 52%); color: #fff; font-size: 1rem; font-weight: 600; cursor: pointer; letter-spacing: 2px; margin-top: 8px; text-align: center; transition: opacity 0.2s; }
+.submit-btn { display: block; width: 100%; max-width: 100%; box-sizing: border-box; padding: 12px 16px; border-radius: 30px; border: none; background: hsl(35, 38%, 52%); color: #fff; font-size: 0.95rem; font-weight: 600; cursor: pointer; letter-spacing: 2px; margin-top: 6px; text-align: center; transition: opacity 0.2s; }
 .submit-btn:hover { opacity: 0.9; }
-.btn-row { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
+.btn-row { display: flex; gap: 10px; justify-content: center; margin-top: 12px; }
 .btn-row .submit-btn { flex: 1; margin-top: 0; }
 .btn-ghost { background: transparent; border: 1px solid var(--card-border); color: var(--text-3); padding: 7px 18px; border-radius: 10px; font-size: 0.8125rem; }
-.privacy-note { margin-top: 12px; padding: 10px 14px; border-radius: 10px; background: rgba(110,195,135,0.08); border: 1px solid rgba(110,195,135,0.15); font-size: 0.75rem; color: var(--success); text-align: center; }
-.zw-form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
-.zw-birth-time-group { grid-column: 1 / -1; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--card-border); background: var(--section-alt); margin-bottom: 4px; }
+.privacy-note { margin-top: 8px; padding: 8px 12px; border-radius: 10px; background: rgba(110,195,135,0.08); border: 1px solid rgba(110,195,135,0.15); font-size: 0.72rem; color: var(--success); text-align: center; }
+.zw-form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.zw-birth-time-group { grid-column: 1 / -1; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--card-border); background: var(--section-alt); margin-bottom: 2px; }
 .zw-birth-row { display: grid; grid-template-columns: minmax(104px, 1.25fr) repeat(4, minmax(64px, 1fr)); gap: 8px; align-items: center; }
 .zw-birth-col { min-width: 0; }
-.zw-birth-select { width: 100%; min-height: 40px; padding: 9px 22px 9px 10px; border: 1.5px solid var(--card-border); border-radius: 8px; background-color: var(--card-bg); color: var(--text-1); font-size: 0.85rem; font-weight: 600; line-height: 20px; text-align: center; box-sizing: border-box; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M5 7L1 3h8z' fill='%23999'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; transition: border-color 0.18s, background-color 0.18s, box-shadow 0.18s; }
+.zw-birth-select { width: 100%; min-height: 36px; padding: 8px 22px 8px 10px; border: 1.5px solid var(--card-border); border-radius: 8px; background-color: var(--card-bg); color: var(--text-1); font-size: 0.82rem; font-weight: 600; line-height: 18px; text-align: center; box-sizing: border-box; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M5 7L1 3h8z' fill='%23999'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; transition: border-color 0.18s, background-color 0.18s, box-shadow 0.18s; }
 .zw-birth-select:hover { border-color: var(--accent); background-color: var(--input-bg); }
+.zw-save-field { padding: 11px 13px; border-radius: 10px; border: 1px solid var(--card-border); background: var(--section-alt); }
+.zw-save-row { min-height: 40px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.zw-switch { width: 46px; height: 25px; padding: 3px; border-radius: 999px; border: 1px solid var(--input-border); background: var(--input-bg); cursor: pointer; box-sizing: border-box; }
+.zw-switch-dot { width: 17px; height: 17px; border-radius: 50%; background: var(--text-3); transition: transform 0.18s, background 0.18s; }
+.zw-switch.active .zw-switch-dot { transform: translateX(20px); background: var(--accent); }
+.zw-switch-hint { color: var(--text-2); font-size: 0.8rem; font-weight: 600; }
 .zw-result { margin-top: 16px; }
 .zw-result-card { background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid var(--card-border); }
 .zw-result-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 10px; color: var(--accent); letter-spacing: 2px; }
@@ -1727,8 +1818,8 @@ onUnmounted(function() {
 .analysis-type-btn.active { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); }
 
 @media (max-width: 768px) {
-  .section { padding: 48px 16px; }
-  .tool-hero { padding: 40px 16px 24px; }
+  .section { padding: 24px 16px 36px; }
+  .tool-hero { padding: 28px 16px 16px; }
   .tool-hero-title { font-size: 1.5rem; }
   .tool-container { padding: 20px 16px; }
   .zw-form-grid { grid-template-columns: 1fr 1fr; }

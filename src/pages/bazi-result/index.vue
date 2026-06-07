@@ -833,6 +833,40 @@ function rememberBaziResultRoute() {
   // #endif
 }
 
+function readBaziParamsFromStorage() {
+  // #ifdef H5
+  var keys = ['xc_bazi_params', 'xc_bazi_last_params']
+  for (var i = 0; i < keys.length; i++) {
+    try {
+      var stored = keys[i] === 'xc_bazi_params'
+        ? sessionStorage.getItem(keys[i])
+        : localStorage.getItem(keys[i])
+      if (stored) {
+        var parsed = JSON.parse(stored)
+        if (parsed && (parsed.birthTime || parsed.birthDate || parsed.siziPillars || parsed.id)) {
+          if (keys[i] !== 'xc_bazi_params') {
+            try { sessionStorage.setItem('xc_bazi_params', stored) } catch (_) {}
+          }
+          return parsed
+        }
+      }
+    } catch (_) {}
+  }
+  // #endif
+  return null
+}
+
+function rememberLastBaziParams(params) {
+  // #ifdef H5
+  try {
+    if (!params || params._replay) return
+    var raw = JSON.stringify(params)
+    sessionStorage.setItem('xc_bazi_params', raw)
+    localStorage.setItem('xc_bazi_last_params', raw)
+  } catch (_) {}
+  // #endif
+}
+
 async function loadWzProData() {
   if (wzProData.value) return
   var d = baziData.value
@@ -2533,7 +2567,7 @@ onMounted(async () => {
   let params = null
 
   // #ifdef H5
-  try { const stored = sessionStorage.getItem('xc_bazi_params'); if (stored) params = JSON.parse(stored) } catch (e) {}
+  params = readBaziParamsFromStorage()
   // #endif
 
   if (!params) {
@@ -2575,7 +2609,7 @@ onMounted(async () => {
 
   if (!params) {
     loading.value = false
-    errorMsg.value = '未找到排盘参数，请返回首页重新排盘'
+    errorMsg.value = '刷新后没有找到本次排盘参数，请返回八字排盘重新排盘，或从用户管理/历史记录进入。'
     return
   }
 
@@ -2630,6 +2664,7 @@ onMounted(async () => {
     const data = r.data
     if (data && data.success) {
       baziData.value = data
+      rememberLastBaziParams(params)
       // 更新导航信息
       const fp = data.four_pillars || {}
       const sx = data.sheng_xiao || ''

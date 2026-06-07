@@ -81,6 +81,59 @@ def test_top_nav_distinguishes_agent_query_from_plain_home():
     assert "if (href === '#/') target = '/pages/index/index'" not in source
 
 
+def test_top_nav_switches_back_to_home_before_rendering_agent_from_non_tab_pages():
+    source = TOP_NAV_VUE.read_text(encoding="utf-8")
+
+    assert "var routeBeforeNav = getCurrentRoute()" in source
+    assert "var routeBeforeIsTab = TAB_PATHS.indexOf(routeBeforeNav) > -1 || routeBeforeNav === '/pages/index/index'" in source
+    assert "var shouldSwitchForAgentHome = wantsAppHome && !routeBeforeIsTab" in source
+    assert "if (wantsAppHome && !shouldSwitchForAgentHome)" in source
+    assert "if (shouldSwitchForAgentHome)" in source
+    assert "uni.switchTab({" in source
+    assert "url: '/pages/index/index'" in source
+    assert "setTimeout(renderAgentHome, 260)" in source
+    assert re.search(
+        r"if \(shouldSwitchForAgentHome\) \{(?P<body>.*?)\n\s*\}\s*catch\(_\) \{\}\n\s*renderAgentHome\(\)",
+        source,
+        re.S,
+    ), "非 tab 页进入时安agent必须先 switchTab 并 return，避免先改 URL 导致页面栈卡死"
+
+
+def test_top_nav_primary_buttons_are_not_double_handled_by_global_delegate():
+    source = TOP_NAV_VUE.read_text(encoding="utf-8")
+
+    assert "function goAsync(hash, event)" in source
+    assert "setTimeout(function() { go(hash) }, 0)" in source
+    assert "window.__topNavGoAsync = function(event, hash) { return goAsync(hash, event) }" in source
+    assert '@click="goAsync(\'#/?app=1\', $event)"' in source
+    assert "return window.__topNavGoAsync(event, '#/pages/qimen/index?tab=free')" in source
+    assert "return window.__topNavGoAsync(event, '#/pages/bazi-index/index?tab=free')" in source
+    assert "if (el.classList && el.classList.contains('nav-btn')) return" in source
+    delegate = re.search(
+        r"document\.addEventListener\('click', function\(e\) \{(?P<body>.*?)\n\s*\}, true\)",
+        source,
+        re.S,
+    )
+    assert delegate, "缺少顶部导航全局点击代理"
+    assert delegate.group("body").find("contains('nav-btn')) return") < delegate.group("body").find("if (el.dataset && el.dataset.href)")
+
+
+def test_top_nav_waits_for_switch_tab_before_rendering_from_non_tab_pages():
+    source = TOP_NAV_VUE.read_text(encoding="utf-8")
+
+    assert "if (!routeBeforeIsTab) {" in source
+    assert "setTimeout(finishTargetTab, 30)" in source
+    assert "setTimeout(finishTargetTab, 180)" in source
+    non_tab_branch = re.search(
+        r"if \(!routeBeforeIsTab\) \{(?P<body>.*?)\n\s*\}\n\s*uni\.switchTab",
+        source,
+        re.S,
+    )
+    assert non_tab_branch, "非 tab 页切 tab 必须单独分支，避免提前兜底渲染导致空白卡死"
+    assert "return" in non_tab_branch.group("body")
+    assert "setTimeout(renderTargetTab, 60)" not in non_tab_branch.group("body")
+
+
 def test_home_ai_summary_tab_is_available_during_streaming():
     source = _source()
 

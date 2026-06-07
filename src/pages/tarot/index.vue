@@ -1109,12 +1109,12 @@ function _checkTarotRestore() {
 /* ── Hero区域 ── */
 .tarot-hero {
   text-align: center;
-  padding: 60px 20px 40px;
+  padding: 22px 20px 12px;
   position: relative;
 }
 .tarot-hero-icon {
-  font-size: 4rem;
-  margin-bottom: 16px;
+  font-size: 2.45rem;
+  margin-bottom: 6px;
   animation: tarotFloat 4s ease-in-out infinite;
   filter: drop-shadow(0 0 20px rgba(201, 162, 60, 0.4));
 }
@@ -1125,15 +1125,15 @@ function _checkTarotRestore() {
 }
 .tarot-hero-title {
   font-family: var(--font-serif);
-  font-size: 2.2rem;
+  font-size: 1.62rem;
   color: var(--text-1);
-  letter-spacing: 4px;
-  margin-bottom: 8px;
+  letter-spacing: 3px;
+  margin-bottom: 6px;
 }
 .tarot-hero-desc {
   color: var(--text-3);
-  font-size: 0.9375rem;
-  line-height: 1.8;
+  font-size: 0.82rem;
+  line-height: 1.55;
   max-width: 480px;
   margin: 0 auto;
 }
@@ -1162,14 +1162,26 @@ function _checkTarotRestore() {
 .tarot-section {
   max-width: 960px;
   margin: 0 auto;
-  padding: 0 20px 40px;
+  padding: 16px 18px 22px;
+  border: 1px solid rgba(178,149,93,0.18);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(178,149,93,0.12), rgba(255,255,255,0.035)),
+    var(--card-bg);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: blur(20px);
+}
+[data-theme="light"] .tarot-section {
+  background:
+    linear-gradient(135deg, rgba(178,149,93,0.11), rgba(255,250,240,0.68)),
+    rgba(255,253,248,0.70);
 }
 .tarot-section-title {
   font-family: var(--font-serif);
-  font-size: 1.3rem;
+  font-size: 1.08rem;
   color: var(--text-1);
   letter-spacing: 2px;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1186,14 +1198,14 @@ function _checkTarotRestore() {
   gap: 8px;
 }
 .spread-card {
-  background: var(--bg-2);
-  border: 1.5px solid var(--border);
+  background: rgba(255,255,255,0.045);
+  border: 1.5px solid rgba(178,149,93,0.18);
   border-radius: 10px;
-  padding: 10px 14px;
+  padding: 9px 12px;
   cursor: pointer;
   transition: all 0.25s ease;
   overflow: hidden;
-  min-height: 80px;
+  min-height: 68px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1206,7 +1218,7 @@ function _checkTarotRestore() {
 }
 .spread-card.active {
   border-color: var(--accent);
-  background: var(--accent-glow);
+  background: linear-gradient(135deg, var(--accent-glow), rgba(255,255,255,0.04));
   box-shadow: 0 0 0 1px var(--accent);
 }
 .spread-card-head {
@@ -1217,7 +1229,7 @@ function _checkTarotRestore() {
 }
 .spread-card-name {
   font-weight: 700;
-  font-size: 0.875rem;
+  font-size: 0.84rem;
   color: var(--text-1);
 }
 .spread-card-count {
@@ -1230,7 +1242,7 @@ function _checkTarotRestore() {
   white-space: nowrap;
 }
 .spread-card-desc {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: var(--text-3);
   line-height: 1.2;
   opacity: 0.7;
@@ -1246,13 +1258,13 @@ function _checkTarotRestore() {
 .tarot-settings {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 10px;
   align-items: center;
-  margin: 24px 0;
-  padding: 20px;
-  background: var(--bg-2);
+  margin: 14px 0 0;
+  padding: 12px;
+  background: rgba(255,255,255,0.04);
   border-radius: 12px;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(178,149,93,0.16);
 }
 .tarot-setting-item {
   display: flex;
@@ -1307,7 +1319,7 @@ function _checkTarotRestore() {
 }
 
 /* ── 抽牌按钮 ── */
-.tarot-btn-row { display: flex; gap: 10px; justify-content: center; align-items: center; margin: 30px auto; }
+.tarot-btn-row { display: flex; gap: 10px; justify-content: center; align-items: center; margin: 12px auto 0; }
 .btn-ghost { background: transparent; border: 1px solid var(--card-border); color: var(--text-3); padding: 7px 18px; border-radius: 10px; font-size: 0.8125rem; }
 .tarot-btn-row .tarot-draw-btn {
   margin: 0;

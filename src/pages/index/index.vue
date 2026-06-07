@@ -350,6 +350,7 @@
         </view>
         <view class="marketing-footer">
           <text class="marketing-footer-text">© 2026 时安解忧屋 · 保留所有权利</text>
+          <text class="marketing-footer-icp" @tap="openMiitBeian">粤ICP备2026072162号-1</text>
         </view>
       </view>
     </view>
@@ -474,6 +475,8 @@
               :selected-profile-name="selectedProfileName"
               :auto-select-tools="autoSelectTools"
               :selected-tool-summary="selectedToolSummary"
+              :tool-models="toolModels"
+              :selected-tool-models="selectedToolModels"
               :reading-mode-names="readingModeNames"
               :reading-mode-labels="readingModeLabels"
               :reading-mode-idx="readingModeIdx"
@@ -484,7 +487,8 @@
               :estimated-cost="estimatedCost"
               :current-points="currentPoints"
               @open-profile="openProfilePicker"
-              @open-tool="openToolPicker"
+              @tool-auto-toggle="toggleAutoSelectTools"
+              @tool-model-toggle="toggleToolModel"
               @reading-mode-change="onReadingModeChange"
               @llm-model-change="onLlmModelChange"
               @send="startComprehensiveAsk"
@@ -529,40 +533,6 @@
         <view class="sheet-actions">
           <view class="sheet-btn sheet-btn-secondary" @tap="cancelProfileSelection">取消</view>
           <view class="sheet-btn sheet-btn-primary" @tap="confirmProfileSelection">确认</view>
-        </view>
-      </view>
-    </view>
-
-    <view class="profile-sheet" v-if="toolSheetOpen">
-      <view class="profile-sheet-mask" @tap="toolSheetOpen = false"></view>
-      <view class="profile-sheet-panel tool-sheet-panel">
-        <view class="profile-sheet-head">
-          <text class="profile-sheet-title">选择术数模型</text>
-          <text class="profile-sheet-close" @tap="toolSheetOpen = false">×</text>
-        </view>
-        <view class="tool-options">
-          <view class="tool-options-inner">
-            <view class="tool-option auto-option" :class="{ active: autoSelectTools }" @tap="toggleAutoSelectTools">
-              <view>
-                <text class="tool-option-name">自动选择术数</text>
-                <text class="tool-option-meta">按问题自动匹配八字、奇门、六爻、梅花、紫微、塔罗、择吉</text>
-              </view>
-              <text class="tool-option-check">{{ autoSelectTools ? '✓' : '' }}</text>
-            </view>
-            <view
-              class="tool-option"
-              v-for="tool in toolModels"
-              :key="tool.id"
-              :class="{ active: selectedToolModels.includes(tool.id) }"
-              @tap="toggleToolModel(tool.id)"
-            >
-              <view>
-                <text class="tool-option-name">{{ tool.name }}</text>
-                <text class="tool-option-meta">{{ tool.cost }} 积分 · 可复选</text>
-              </view>
-              <text class="tool-option-check">{{ selectedToolModels.includes(tool.id) ? '✓' : '' }}</text>
-            </view>
-          </view>
         </view>
       </view>
     </view>
@@ -1105,7 +1075,6 @@ const profiles = ref([])
 const selectedProfiles = ref([])
 const draftSelectedProfiles = ref([])
 const profileSheetOpen = ref(false)
-const toolSheetOpen = ref(false)
 const profileTab = ref('全部')
 const profileTabs = ['全部', '客户', '用户']
 const readingModeStorageKey = 'xc_home_reading_mode_v1'
@@ -1225,6 +1194,20 @@ function goToPage(url) {
   }
 }
 
+function openMiitBeian() {
+  // #ifdef H5
+  try {
+    window.open('https://beian.miit.gov.cn/', '_blank', 'noopener,noreferrer')
+    return
+  } catch(_) {}
+  // #endif
+  uni.showModal({
+    title: '备案信息',
+    content: 'ICP备案号：粤ICP备2026072162号-1\n工信部备案官网：https://beian.miit.gov.cn/',
+    showCancel: false
+  })
+}
+
 function profileTypeLabel(type) {
   if (type === 'customer') return '客户'
   if (type === 'collect') return '收藏'
@@ -1250,10 +1233,6 @@ function openProfilePicker() {
   draftSelectedProfiles.value = selectedProfiles.value.slice()
   profileSheetOpen.value = true
   loadProfiles()
-}
-
-function openToolPicker() {
-  toolSheetOpen.value = true
 }
 
 function profileKey(p) {
@@ -1352,9 +1331,27 @@ async function loadProfiles() {
       return Object.assign({ source: 'profile' }, p)
     })
     profiles.value = profileList
+    applyPendingAgentProfile(profileList)
   } catch (_) {
     profiles.value = []
   }
+}
+
+function applyPendingAgentProfile(profileList) {
+  try {
+    const pendingId = uni.getStorageSync('xc_agent_profile_autoselect')
+    if (!pendingId) return
+    const list = profileList || profiles.value || []
+    let selected = list.find(p => String(p.id) === String(pendingId))
+    if (!selected) {
+      const raw = uni.getStorageSync('xc_selected_profile')
+      selected = raw ? JSON.parse(raw) : null
+    }
+    if (selected && selected.name) {
+      selectedProfiles.value = [Object.assign({ source: 'profile' }, selected)]
+    }
+    uni.removeStorageSync('xc_agent_profile_autoselect')
+  } catch (_) {}
 }
 
 function comprehensiveProfilePayload(p) {
@@ -3055,10 +3052,6 @@ function onHomeKeydown(e) {
     }
     return
   }
-  if (toolSheetOpen.value && (e.key === 'Escape' || e.key === 'Enter')) {
-    e.preventDefault()
-    toolSheetOpen.value = false
-  }
 }
 
 function scrollMarketingRootBy(deltaY) {
@@ -3080,6 +3073,7 @@ function onMarketingWheel(e) {
   try {
     const target = e.target
     if (target && target.closest && target.closest('.modal-overlay')) return
+    if (target && target.closest && target.closest('.tarot-sidebar')) return
     if (scrollMarketingRootBy(e.deltaY)) e.preventDefault()
   } catch(_) {}
   // #endif
@@ -5056,6 +5050,14 @@ onBeforeUnmount(() => {
   color: rgba(23,21,18,.38);
   text-align: center;
 }
+.marketing-footer-icp {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(23,21,18,.48);
+  text-align: center;
+  cursor: pointer;
+}
 
 @media (max-width: 1280px) and (min-width: 761px) {
   .marketing-critical {
@@ -6437,17 +6439,6 @@ onBeforeUnmount(() => {
 .sheet-btn:hover { transform: translateY(-1px); border-color: rgba(178,149,93,0.45); }
 .sheet-btn-secondary { color: var(--text-2); background: var(--input-bg); }
 .sheet-btn-primary { color: #fff; background: var(--accent); border-color: var(--accent); }
-.tool-sheet-panel { width: min(520px, calc(100vw - 28px)); max-height: min(86dvh, 640px); min-height: 0; }
-.tool-options { display: block; flex: 1 1 auto; min-height: 0; height: auto; max-height: none; overflow-y: auto; overflow-x: hidden; padding-right: 2px; padding-bottom: max(2px, env(safe-area-inset-bottom)); -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; box-sizing: border-box; }
-.tool-options :deep(.uni-scroll-view) { height: 100% !important; overflow-y: auto !important; overflow-x: hidden !important; -webkit-overflow-scrolling: touch; touch-action: pan-y; overscroll-behavior: contain; }
-.tool-options :deep(.uni-scroll-view-content) { min-height: max-content; height: auto !important; }
-.tool-options-inner { display: grid; gap: 8px; padding-bottom: 2px; min-height: 100%; box-sizing: border-box; }
-.tool-option { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 58px; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(178,149,93,0.13); background: rgba(255,255,255,0.035); cursor: pointer; box-sizing: border-box; transition: border-color .18s ease, background .18s ease; }
-.tool-option.active { border-color: rgba(178,149,93,0.62); background: var(--accent-glow); }
-.tool-option-name { display: block; color: var(--text-1); font-size: 0.88rem; }
-.tool-option-meta { display: block; margin-top: 4px; color: var(--text-3); font-size: 0.72rem; }
-.tool-option-check { width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--card-border); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 0.86rem; font-weight: 700; flex-shrink: 0; }
-
 /* ═══ 页脚 ═══ */
 .site-footer { background: var(--nav-bg); border-top: 1px solid var(--card-border); padding: 24px 32px 24px; margin-top: 0; }
 .footer-disclaimer { max-width: var(--max-w); margin: 0 auto 32px; padding: 14px 20px; border-radius: 10px; background: rgba(215,125,110,0.08); border: 1px solid rgba(215,125,110,0.15); font-size: 0.75rem; color: var(--danger); line-height: 1.6; text-align: center; }
@@ -6653,9 +6644,6 @@ onBeforeUnmount(() => {
   .profile-sheet-head { flex-shrink: 0; margin-bottom: 10px; }
   .profile-tabs { flex-shrink: 0; }
   .profile-options { max-height: calc(100dvh - 236px); }
-  .tool-sheet-panel { height: calc(100dvh - 22px); max-height: calc(100dvh - 22px); min-height: 0; }
-  .tool-sheet-panel .profile-sheet-head { flex-shrink: 0; }
-  .tool-options { flex: 1 1 auto; height: auto; max-height: none; min-height: 0; }
   .home-tool-card-title { font-size: 0.78rem; }
   .home-tool-card-sub { font-size: 0.62rem; }
   .home-artifact-render :deep(.artifact-grid-4),

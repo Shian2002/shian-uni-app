@@ -12,6 +12,9 @@ from models import BaziRecord, UserProfile
 
 logger = logging.getLogger('xuancetai')
 
+PROFILE_TYPES = ('self', 'customer', 'collect')
+PROFILE_SOURCES = ('manual', 'bazi_record', 'ziwei_pan')
+
 
 def _json_loads_safe(text, default):
     try:
@@ -35,6 +38,37 @@ def serialize_user_profile(p):
         'lastUsedAt': p.last_used_at.isoformat() if p.last_used_at else None,
         'createdAt': p.created_at.isoformat() if p.created_at else None,
     }
+
+
+def _profile_type_from_payload(data):
+    profile_type = data.get('profileType', 'self')
+    return profile_type if profile_type in PROFILE_TYPES else 'self'
+
+
+def _source_from_payload(data, current_source='manual'):
+    source = data.get('source') or current_source or 'manual'
+    return source if source in PROFILE_SOURCES else 'manual'
+
+
+def _apply_profile_payload(profile, data):
+    name = (data.get('name') or '').strip()
+    if not name:
+        return '缺少姓名'
+    birth_time = (data.get('birthTime') or '').strip()
+    if not birth_time or len(birth_time) < 8:
+        return '缺少出生时间'
+
+    profile.name = name
+    profile.gender = data.get('gender', '男')
+    profile.cal_type = data.get('calType', '公历')
+    profile.birth_time = birth_time
+    profile.birth_addr = (data.get('birthAddr') or '').strip()
+    profile.is_default = bool(data.get('isDefault', False))
+    profile.profile_type = _profile_type_from_payload(data)
+    profile.source = _source_from_payload(data, getattr(profile, 'source', 'manual'))
+    profile.meta_json = json.dumps(data.get('meta') or {}, ensure_ascii=False)
+    profile.last_used_at = datetime.utcnow()
+    return ''
 
 
 def sync_bazi_record_to_profile(db, user_id, record, params_data, paipan_result=None):
@@ -147,35 +181,52 @@ def register_profile_routes(app, db):
     def api_profiles_create():
         """创建命盘存档。"""
         data = request.get_json(silent=True) or {}
-        name = (data.get('name') or '').strip()
-        if not name:
-            return jsonify({'error': '缺少姓名'}), 400
-        birth_time = (data.get('birthTime') or '').strip()
-        if not birth_time or len(birth_time) < 8:
-            return jsonify({'error': '缺少出生时间'}), 400
+        source = _source_from_payload(data)
+        p = None
+        if source == 'ziwei_pan':
+            p = UserProfile.query.filter_by(
+                user_id=current_user.id,
+                source='ziwei_pan',
+                name=(data.get('name') or '').strip(),
+                birth_time=(data.get('birthTime') or '').strip(),
+                cal_type=data.get('calType', '公历'),
+            ).first()
+        created = p is None
+        if not p:
+            p = UserProfile(user_id=current_user.id, created_at=datetime.utcnow())
+            db.session.add(p)
 
-        profile_type = data.get('profileType', 'self')
-        if profile_type not in ('self', 'customer', 'collect'):
-            profile_type = 'self'
-
-        p = UserProfile(
-            user_id=current_user.id,
-            name=name,
-            gender=data.get('gender', '男'),
-            cal_type=data.get('calType', '公历'),
-            birth_time=birth_time,
-            birth_addr=(data.get('birthAddr') or '').strip(),
-            is_default=data.get('isDefault', False),
-            profile_type=profile_type,
-            source='manual',
-            meta_json=json.dumps(data.get('meta') or {}, ensure_ascii=False),
-        )
+        error = _apply_profile_payload(p, data)
+        if error:
+            if created:
+                db.session.rollback()
+            return jsonify({'error': error}), 400
         if p.is_default:
             UserProfile.query.filter_by(user_id=current_user.id, is_default=True)\
                 .update({'is_default': False})
-        db.session.add(p)
         db.session.commit()
-        return jsonify({'id': p.id, 'name': p.name, 'profileType': p.profile_type}), 201
+        status = 201 if created else 200
+        return jsonify(serialize_user_profile(p)), status
+
+    @app.route('/api/profiles/<int:pid>', methods=['PUT'])
+    @login_required
+    def api_profiles_update(pid):
+        """编辑命盘存档。"""
+        p = db.session.get(UserProfile, pid)
+        if not p or p.user_id != current_user.id:
+            return jsonify({'error': '无权操作'}), 403
+        data = request.get_json(silent=True) or {}
+        error = _apply_profile_payload(p, data)
+        if error:
+            return jsonify({'error': error}), 400
+        if p.is_default:
+            UserProfile.query.filter(
+                UserProfile.user_id == current_user.id,
+                UserProfile.id != p.id,
+                UserProfile.is_default == True,  # noqa: E712
+            ).update({'is_default': False})
+        db.session.commit()
+        return jsonify(serialize_user_profile(p))
 
     @app.route('/api/profiles/<int:pid>', methods=['DELETE'])
     @login_required

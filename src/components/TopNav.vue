@@ -5,21 +5,21 @@
       <!-- 单行：☰ + 按钮栏 + 右侧 -->
       <view class="topnav-sidebar-btn" id="topnavSidebarBtn" onclick="window._xc_toggleSidebar(event)" ontouchstart="window._xc_toggleSidebar(event)" onpointerdown="window._xc_toggleSidebar(event)">☰</view>
       <view class="nav-btn-bar" id="navBtnBar">
-        <view class="nav-btn" data-href="#/" @click="go('#/')">首页</view>
-        <view class="nav-btn" data-href="#/?app=1" @click="go('#/?app=1')">时安agent</view>
+        <view class="nav-btn" data-href="#/?app=1" @click="goAsync('#/?app=1', $event)">时安agent</view>
 
-        <view class="nav-btn" data-href="#/pages/qimen/index?tab=free" onclick="window.__topNavGo('#/pages/qimen/index?tab=free')">奇门遁甲</view>
+        <view class="nav-btn" data-href="#/pages/qimen/index?tab=free" onclick="return window.__topNavGoAsync(event, '#/pages/qimen/index?tab=free')">奇门遁甲</view>
 
-        <view class="nav-btn" data-href="#/pages/bazi-index/index?tab=free" onclick="window.__topNavGo('#/pages/bazi-index/index?tab=free')">八字排盘</view>
+        <view class="nav-btn" data-href="#/pages/bazi-index/index?tab=free" onclick="return window.__topNavGoAsync(event, '#/pages/bazi-index/index?tab=free')">八字排盘</view>
 
-        <view class="nav-btn" data-href="#/pages/liuyao/index" @click="go('#/pages/liuyao/index')">六爻排盘</view>
-        <view class="nav-btn" data-href="#/pages/meihua/index" @click="go('#/pages/meihua/index')">梅花易数</view>
-        <view class="nav-btn" data-href="#/pages/ziwei/index" @click="go('#/pages/ziwei/index')">紫微斗数</view>
-        <view class="nav-btn" data-href="#/pages/tarot/index" @click="go('#/pages/tarot/index')">塔罗牌</view>
-        <view class="nav-btn" data-href="#/pages/zeji/index" @click="go('#/pages/zeji/index')">择吉工具</view>
-        <view class="nav-btn" data-href="#/pages/calendar/index" @click="go('#/pages/calendar/index')">专属日历</view>
-        <view class="nav-btn" data-href="#/pages/community/index" @click="go('#/pages/community/index')">社区</view>
-        <view class="nav-btn" data-href="#/pages/about/index" @click="go('#/pages/about/index')">关于我们</view>
+        <view class="nav-btn" data-href="#/pages/liuyao/index" @click="goAsync('#/pages/liuyao/index', $event)">六爻排盘</view>
+        <view class="nav-btn" data-href="#/pages/meihua/index" @click="goAsync('#/pages/meihua/index', $event)">梅花易数</view>
+        <view class="nav-btn" data-href="#/pages/ziwei/index" @click="goAsync('#/pages/ziwei/index', $event)">紫微斗数</view>
+        <view class="nav-btn" data-href="#/pages/tarot/index" @click="goAsync('#/pages/tarot/index', $event)">塔罗牌</view>
+        <view class="nav-btn" data-href="#/pages/zeji/index" @click="goAsync('#/pages/zeji/index', $event)">择吉工具</view>
+        <view class="nav-btn" data-href="#/pages/calendar/index" @click="goAsync('#/pages/calendar/index', $event)">专属日历</view>
+        <view class="nav-btn" data-href="#/pages/user-management/index" @click="goAsync('#/pages/user-management/index', $event)">档案列表</view>
+        <view class="nav-btn" data-href="#/pages/community/index" @click="goAsync('#/pages/community/index', $event)">社区</view>
+        <view class="nav-btn" data-href="#/pages/about/index" @click="goAsync('#/pages/about/index', $event)">关于我们</view>
 
         <!-- 溢出"更多"按钮（JS 控制显示） -->
         <view class="nav-btn nav-btn-more" id="navBtnMore" style="display:none;" onclick="window._xc_toggleMore(event)">
@@ -48,6 +48,7 @@
              </view>
              <view class="avatar-dropdown-divider"></view>
              <view class="avatar-dropdown-item avatar-dropdown-action" data-href="#/pages/profile/index">个人中心 ›</view>
+             <view class="avatar-dropdown-item avatar-dropdown-action" data-href="#/pages/user-management/index">档案列表 ›</view>
              <view class="avatar-dropdown-item avatar-dropdown-action" data-href="#/pages/points/index">积分中心 ›</view>
              <view class="avatar-dropdown-item avatar-dropdown-action admin-dropdown-item" id="avatarAdminEntry" data-href="#/pages/admin/index" style="display:none;">后台管理 ›</view>
              <view class="avatar-dropdown-divider"></view>
@@ -224,6 +225,7 @@ function ensureGlobalSidebar() {
 
   document.body.appendChild(overlay)
   document.body.appendChild(sidebar)
+  _bindSidebarScrollIsolation(sidebar)
   _bindSidebarListInteractions(sidebar)
   _restoreSidebarView()
   var cachedAvatar = normalizeAvatarUrl(uni.getStorageSync('xc_avatar'))
@@ -873,6 +875,18 @@ function _runSidebarAction(id, el) {
   if (id && typeof map[id] === 'function') map[id](el)
 }
 
+function _bindSidebarScrollIsolation(sidebar) {
+  if (!sidebar || sidebar.__scrollIsolationBound) return
+  sidebar.__scrollIsolationBound = true
+  var stopScrollBubble = function(e) {
+    if (!e) return
+    e.stopPropagation()
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation()
+  }
+  sidebar.addEventListener('wheel', stopScrollBubble, { passive: true })
+  sidebar.addEventListener('touchmove', stopScrollBubble, { passive: true })
+}
+
 function _bindSidebarListInteractions(sidebar) {
   var list = sidebar && sidebar.querySelector ? sidebar.querySelector('#sidebarListGlobal') : null
   if (!list || list.__sidebarTouchBound) return
@@ -1512,8 +1526,24 @@ function onToggleTheme() {
 //   Round 8: 直接设 hash + reload, 但 HASH_TO_TAB 把首页映射成 /pages/index/index → 白屏
 //   Round 9: 首页用真实路由路径 #/ (uni-app 中首页路由注册为 path:"/")
 //            其他 tabBar 页面用 #/pages/xxx/index (它们在 __uniRoutes 中 path 就是 /pages/xxx/index)
-var TAB_PATHS = ['/', '/pages/qimen/index', '/pages/bazi-index/index', '/pages/tarot/index', '/pages/liuyao/index', '/pages/meihua/index', '/pages/ziwei/index', '/pages/zeji/index', '/pages/calendar/index', '/pages/community/index', '/pages/profile/index', '/pages/about/index', '/pages/points/index']
-var TAB_ROUTES = ['pages/index/index', 'pages/qimen/index', 'pages/bazi-index/index', 'pages/tarot/index', 'pages/liuyao/index', 'pages/meihua/index', 'pages/ziwei/index', 'pages/zeji/index', 'pages/calendar/index', 'pages/community/index', 'pages/profile/index', 'pages/about/index', 'pages/points/index']
+var TAB_PATHS = ['/', '/pages/qimen/index', '/pages/bazi-index/index', '/pages/tarot/index', '/pages/liuyao/index', '/pages/meihua/index', '/pages/ziwei/index', '/pages/zeji/index', '/pages/calendar/index', '/pages/community/index', '/pages/user-management/index', '/pages/profile/index', '/pages/about/index', '/pages/points/index']
+var TAB_ROUTES = ['pages/index/index', 'pages/qimen/index', 'pages/bazi-index/index', 'pages/tarot/index', 'pages/liuyao/index', 'pages/meihua/index', 'pages/ziwei/index', 'pages/zeji/index', 'pages/calendar/index', 'pages/community/index', 'pages/user-management/index', 'pages/profile/index', 'pages/about/index', 'pages/points/index']
+var TAB_TITLES = {
+  '/': '时安解忧屋',
+  '/pages/qimen/index': '奇门遁甲',
+  '/pages/bazi-index/index': '八字排盘',
+  '/pages/tarot/index': '塔罗牌',
+  '/pages/liuyao/index': '六爻排盘',
+  '/pages/meihua/index': '梅花易数',
+  '/pages/ziwei/index': '紫微斗数',
+  '/pages/zeji/index': '择吉工具',
+  '/pages/calendar/index': '专属日历',
+  '/pages/community/index': '社区',
+  '/pages/user-management/index': '档案列表',
+  '/pages/profile/index': '个人中心',
+  '/pages/about/index': '关于我们',
+  '/pages/points/index': '积分中心',
+}
 function isOnTabPage() {
   try {
     var pages = getCurrentPages()
@@ -1525,7 +1555,30 @@ function isOnTabPage() {
   return false
 }
 
+function closeBlockingOverlaysBeforeNav() {
+  try {
+    document.querySelectorAll('#topnavLoginModal').forEach(function(el) { el.classList.remove('open') })
+  } catch(_) {}
+  try {
+    document.querySelectorAll('.modal-overlay.open').forEach(function(el) {
+      if (el.id === 'topnavLoginModal') el.classList.remove('open')
+    })
+  } catch(_) {}
+}
+
+function goAsync(hash, event) {
+  try {
+    if (event && event.preventDefault) event.preventDefault()
+    if (event && event.stopPropagation) event.stopPropagation()
+    if (event && event.stopImmediatePropagation) event.stopImmediatePropagation()
+  } catch(_) {}
+  setTimeout(function() { go(hash) }, 0)
+  return false
+}
+
 function go(hash) {
+  closeBlockingOverlaysBeforeNav()
+  var routeBeforeNav = getCurrentRoute()
   var raw = hash.replace('#', '') || '/'
   var pathOnly = raw.split('?')[0]
   var queryStr = raw.indexOf('?') > -1 ? raw.substring(raw.indexOf('?')) : ''
@@ -1534,6 +1587,8 @@ function go(hash) {
   var isTab = TAB_PATHS.indexOf(pathOnly) > -1
   var wantsAppHome = pathOnly === '/' && /(?:[?&])app=(?:1|true)(?:&|$)/.test(queryStr)
   var wantsMarketingHome = pathOnly === '/' && !wantsAppHome
+  var routeBeforeIsTab = TAB_PATHS.indexOf(routeBeforeNav) > -1 || routeBeforeNav === '/pages/index/index'
+  var shouldSwitchForAgentHome = wantsAppHome && !routeBeforeIsTab
 
   // 从其他术数页点“八字排盘”时，优先回到本次会话最后看的八字结果页。
   // 只使用 window 变量，刷新页面后失效，避免把旧结果永久记住。
@@ -1552,7 +1607,7 @@ function go(hash) {
     }
   } catch(_) {}
 
-  if (wantsAppHome) {
+  if (wantsAppHome && !shouldSwitchForAgentHome) {
     try {
       sessionStorage.removeItem('_nav_query')
       window.__xcHomeMode = 'app'
@@ -1580,6 +1635,7 @@ function go(hash) {
       try {
         if (window.__xcRenderTabPath) window.__xcRenderTabPath('/', '?app=1')
         window.__xcHomeMode = 'app'
+        try { document.title = '时安解忧屋' } catch(_) {}
         document.documentElement.classList.add('home-fixed-page')
         document.body.classList.add('home-fixed-page')
         document.documentElement.classList.remove('marketing-page')
@@ -1588,6 +1644,23 @@ function go(hash) {
         window.dispatchEvent(new CustomEvent('xc-home-mode-changed', { detail: { mode: 'app' } }))
       } catch(_) {}
     }
+    try {
+      if (shouldSwitchForAgentHome) {
+        uni.switchTab({
+          url: '/pages/index/index',
+          success: function() {
+            renderAgentHome()
+            setTimeout(renderAgentHome, 80)
+            setTimeout(renderAgentHome, 260)
+          },
+          fail: function() {
+            renderAgentHome()
+            setTimeout(renderAgentHome, 120)
+          }
+        })
+        return
+      }
+    } catch(_) {}
     renderAgentHome()
     setTimeout(renderAgentHome, 60)
     setTimeout(renderAgentHome, 220)
@@ -1602,20 +1675,35 @@ function go(hash) {
         if (window.__xcRenderTabPath) window.__xcRenderTabPath(pathOnly, '')
       } catch(_) {}
     }
+    var finishTargetTab = function() {
+      renderTargetTab()
+      try { document.title = TAB_TITLES[pathOnly] || document.title } catch(_) {}
+      if (wantsMarketingHome) {
+        try { window.dispatchEvent(new CustomEvent('xc-show-marketing-home')) } catch(_) {}
+      }
+      // 切换 tab 后立即同步导航高亮+溢出检测，不依赖 300ms setInterval 轮询
+      syncNavHighlight()
+      updateNavOverflow()
+      if (queryStr) {
+        setTimeout(function() { try { uni.$emit('nav-query', queryStr) } catch(_) {} }, 200)
+      }
+    }
+    if (!routeBeforeIsTab) {
+      uni.switchTab({
+        url: uniPath,
+        success: function() {
+          setTimeout(finishTargetTab, 30)
+          setTimeout(finishTargetTab, 180)
+        },
+        fail: function() {
+          setTimeout(finishTargetTab, 80)
+        }
+      })
+      return
+    }
     uni.switchTab({
       url: uniPath,
-      success: function() {
-        renderTargetTab()
-        if (wantsMarketingHome) {
-          try { window.dispatchEvent(new CustomEvent('xc-show-marketing-home')) } catch(_) {}
-        }
-        // 切换 tab 后立即同步导航高亮+溢出检测，不依赖 300ms setInterval 轮询
-        syncNavHighlight()
-        updateNavOverflow()
-        if (queryStr) {
-          setTimeout(function() { try { uni.$emit('nav-query', queryStr) } catch(_) {} }, 200)
-        }
-      },
+      success: finishTargetTab,
       fail: renderTargetTab
     })
     setTimeout(renderTargetTab, 60)
@@ -1719,7 +1807,7 @@ function updateNavOverflow() {
           } else {
             e.stopPropagation()
             more.classList.remove('open')
-            if (href) go(href)
+            if (href) goAsync(href, e)
           }
         }
         moreMenu.appendChild(clone)
@@ -1795,6 +1883,7 @@ defineExpose({ getCurrentRoute, go })
 onMounted(() => {
   // #ifdef H5
   window.__topNavGo = go
+  window.__topNavGoAsync = function(event, hash) { return goAsync(hash, event) }
   window.__topNavGo.avatarLoad = loadAvatar
   window.addEventListener('xc-home-mode-changed', syncNavHighlight)
 
@@ -1954,6 +2043,7 @@ onMounted(() => {
         if (el.id === 'navBtnMore' || el.id === 'avatarDropdown') return
         if (el.classList && el.classList.contains('nav-avatar-wrap')) return
         if (el.classList && el.classList.contains('avatar-dropdown-item')) return
+        if (el.classList && el.classList.contains('nav-btn')) return
         if (el.dataset && el.dataset.href) {
           e.preventDefault()
           e.stopPropagation()

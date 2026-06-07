@@ -12,6 +12,7 @@
     {"path": "pages/community/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "社区"}},
     {"path": "pages/admin/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "后台管理"}},
     {"path": "pages/profile/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "个人中心"}},
+    {"path": "pages/user-management/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "档案列表"}},
     {"path": "pages/error/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "错误页面"}},
     {"path": "pages/tool-coming/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "即将上线"}},
     {"path": "pages/zeji/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "择吉工具"}},
@@ -114,6 +115,12 @@
         "text": "社区",
         "iconPath": "static/tab/community.png",
         "selectedIconPath": "static/tab/community-active.png"
+      },
+      {
+        "pagePath": "pages/user-management/index",
+        "text": "档案列表",
+        "iconPath": "static/tab/profile.png",
+        "selectedIconPath": "static/tab/profile-active.png"
       },
       {
         "pagePath": "pages/profile/index",

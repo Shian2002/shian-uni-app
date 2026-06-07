@@ -211,8 +211,11 @@ async function doLogout() {
   uni.removeStorageSync('xc_user')
   resetProfileSessionState()
   try {
+    sessionStorage.removeItem('_nav_query')
+    window.__xcHomeMode = 'marketing'
     window.dispatchEvent(new CustomEvent('xc-auth-changed', { detail: { type: 'logout', loggedIn: false } }))
     window.dispatchEvent(new CustomEvent('xc-show-marketing-home'))
+    window.dispatchEvent(new CustomEvent('xc-home-mode-changed', { detail: { mode: 'marketing' } }))
     uni.$emit('xc-auth-changed', { type: 'logout', loggedIn: false })
     if (window.location.hash !== '#/') window.history.replaceState({ marketing: 'home' }, '', '#/')
     uni.switchTab({ url: '/pages/index/index' })
