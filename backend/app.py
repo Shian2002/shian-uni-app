@@ -1956,14 +1956,14 @@ def _qimen_paipan(year, month, day, hour, minute=0, pan_type=2):
             }
             palaces[gong_num - 1] = palace
 
-        # 中5宫寄宫标记：阳遁寄艮八，阴遁寄坤二
-        ji_gong_target = 8 if jq['dun'] == '阳' else 2
+        # 中5宫寄宫标记：对齐天禽/天芮寄坤二宫的常用盘式
+        ji_gong_target = 2
         for p in palaces:
             if p and p.get('gong') == 5:
                 p['jiGong'] = ji_gong_target
 
-        # 中5宫寄宫处理（3meta handleMiddlePalace 格式）：
-        # 1. 寄宫目标（艮8/坤2）的地盘干追加中5宫地盘干 → [原干, 中5宫干]
+        # 中5宫寄宫处理：
+        # 1. 寄宫目标（坤2）的地盘干追加中5宫地盘干 → [原干, 中5宫干]
         # 2. 天芮所在宫追加天禽+中5宫天盘干 → xing=[芮,禽], tianGan=[原干,中5宫干]
         zhong_di_gan = di_pan.get(5, '')
         zhong_tian_gan = tian_pan.get(5, '')

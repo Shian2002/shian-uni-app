@@ -221,6 +221,22 @@ def test_qimen_chaibu_sample_before_mangzhong_uses_previous_month_pillar(client)
     assert {"青龙返首", "螣蛇夭矫", "三奇入墓", "六仪击刑"}.issubset(pattern_names)
 
 
+def test_qimen_middle_palace_earth_stem_ji_gong_uses_kun_not_gen(client):
+    qimen = _post_json(
+        client,
+        "/api/qimen/paipan",
+        {"year": 2026, "month": 6, "day": 7, "hour": 18, "minute": 19, "panType": 2},
+    )
+
+    palaces = {p["gong"]: p for p in qimen["palaces"]}
+    assert palaces[5]["diGan"] == "乙"
+    assert palaces[5]["jiGong"] == 2
+    assert palaces[8]["bagua"] == "艮"
+    assert palaces[8]["diGan"] == "庚"
+    assert palaces[2]["bagua"] == "坤"
+    assert palaces[2]["diGan"] == ["癸", "乙"]
+
+
 def test_qimen_before_mangzhong_exact_time_stays_xiaoman(client):
     qimen = _post_json(
         client,
