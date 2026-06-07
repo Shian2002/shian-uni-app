@@ -1253,12 +1253,13 @@ function zwCenterInfo(bi, cp, meta, periods) {
 
 function zwChartLegend() {
   return '<div class="zw-chart-legend">' +
-    '<span><i class="legend-line soul"></i>命宫</span>' +
-    '<span><i class="legend-line body"></i>身宫</span>' +
+    '<span><i class="legend-text soul"></i>命宫</span>' +
+    '<span><i class="legend-text body"></i>身宫</span>' +
+    '<span><i class="legend-line decadal"></i>大限</span>' +
     '<span><i class="legend-line age"></i>小限</span>' +
     '<span><i class="legend-line year"></i>流年</span>' +
     '<span><i class="legend-line month"></i>流月</span>' +
-    '<span><i class="legend-line fly"></i>四化飞星</span>' +
+    '<span><i class="legend-text fly"></i>四化飞星</span>' +
     '<span class="legend-chip lu">禄</span>' +
     '<span class="legend-chip quan">权</span>' +
     '<span class="legend-chip ke">科</span>' +
@@ -1545,12 +1546,14 @@ onUnmounted(function() {
 .zw-chart-legend { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin: 0 0 10px; padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 10px; background: rgba(255,255,255,0.035); color: var(--text-3); font-size: 0.66rem; line-height: 1.35; }
 .zw-chart-legend span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .legend-line { display: inline-block; width: 16px; height: 10px; box-sizing: border-box; border-radius: 3px; background: rgba(255,255,255,0.04); }
-.legend-line.soul { border: 2px solid var(--accent); box-shadow: inset 0 0 0 1px rgba(212,168,71,0.18); }
-.legend-line.body { border: 2px solid var(--danger); }
+.legend-line.decadal { border: 2px solid rgba(180,111,39,0.68); background: rgba(180,111,39,0.08); }
 .legend-line.age { border: 2px solid rgba(39,174,96,0.65); }
 .legend-line.year { border: 2px solid rgba(212,168,71,0.7); background: rgba(212,168,71,0.08); }
 .legend-line.month { border: 2px solid rgba(45,156,219,0.65); }
-.legend-line.fly { border: 2px solid rgba(190,56,56,0.55); background: rgba(190,56,56,0.08); }
+.legend-text { display: inline-block; width: 7px; height: 7px; border-radius: 999px; }
+.legend-text.soul { background: var(--accent); }
+.legend-text.body { background: var(--danger); }
+.legend-text.fly { background: linear-gradient(135deg, #20a35a 0 25%, #d94a3a 25% 50%, #2d83c5 50% 75%, #8b49b6 75% 100%); }
 .legend-chip { display: inline-flex; min-width: 18px; height: 18px; align-items: center; justify-content: center; border-radius: 4px; padding: 0 5px; font-size: 0.62rem; font-weight: 800; }
 .legend-chip.lu { color: #20a35a; background: rgba(32,163,90,0.13); }
 .legend-chip.quan { color: #d94a3a; background: rgba(217,74,58,0.12); }
@@ -1571,8 +1574,7 @@ onUnmounted(function() {
 .zw-palace-grid { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; margin-bottom: 12px; }
 .zw-palace-cell { background: rgba(255,255,255,0.035); border: 1px solid var(--border); border-radius: 6px; padding: 7px; min-height: 158px; position: relative; transition: border-color 0.12s, background-color 0.12s, box-shadow 0.12s; cursor: default; overflow: visible; }
 .zw-palace-cell:hover { border-color: var(--accent); box-shadow: inset 0 0 0 1px rgba(212,168,71,0.24); }
-.zw-palace-cell.is-soul { border-color: var(--accent); box-shadow: inset 0 0 0 1px rgba(212,168,71,0.24); }
-.zw-palace-cell.is-body { border-color: var(--danger); }
+.zw-palace-cell.is-flow-decadal { border-color: rgba(180,111,39,0.72); box-shadow: inset 0 0 0 2px rgba(180,111,39,0.38); }
 .zw-palace-cell.is-flow-age { box-shadow: inset 0 0 0 2px rgba(39,174,96,0.52); }
 .zw-palace-cell.is-flow-year { border-color: rgba(212,168,71,0.62); background: rgba(212,168,71,0.06); }
 .zw-palace-cell.is-flow-month { box-shadow: inset 0 0 0 2px rgba(45,156,219,0.55); }
@@ -1620,7 +1622,7 @@ onUnmounted(function() {
 .zw-chart-mode-bar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0 4px; padding: 6px; border-radius: 14px; background: rgba(255,255,255,0.055); border: 1px solid var(--border); }
 .zw-chart-mode-btn { appearance: none; border: 0; border-radius: 10px; padding: 9px 4px; color: var(--text-3); background: transparent; font-weight: 800; font-size: 0.82rem; cursor: pointer; }
 .zw-chart-mode-btn.active { color: #fff; background: linear-gradient(135deg, #b66b2d, #d9a443); box-shadow: 0 5px 16px rgba(212,168,71,0.22); }
-.zw-palace-cell.has-fly-mutagen { border-color: rgba(190,56,56,0.45); background: linear-gradient(180deg, rgba(190,56,56,0.055), rgba(255,255,255,0.035)); }
+.zw-palace-cell.has-fly-mutagen { background: linear-gradient(180deg, rgba(190,56,56,0.04), rgba(255,255,255,0.035)); }
 .zw-palace-fly { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; position: relative; z-index: 7; }
 .zw-fly-tag { display: inline-flex; align-items: center; gap: 2px; max-width: 100%; border-radius: 4px; padding: 1px 4px; font-size: 0.56rem; line-height: 1.25; font-weight: 800; border: 1px solid rgba(255,255,255,0.16); }
 .zw-fly-tag b, .zw-fly-tag em { font-style: normal; white-space: nowrap; }
@@ -1652,7 +1654,7 @@ onUnmounted(function() {
 .zw-mode-sihua .zw-palace-flow { position: relative; z-index: 6; }
 .zw-mode-feixing .zw-palace-ages { color: #4777a8; font-size: 0.64rem; font-weight: 800; }
 .zw-mode-feixing .zw-flow-badge { font-size: 0.62rem; }
-.zw-mode-feixing .zw-palace-cell.has-fly-mutagen { border-color: rgba(45,131,197,0.46); background: linear-gradient(180deg, rgba(45,131,197,0.055), rgba(255,255,255,0.035)); }
+.zw-mode-feixing .zw-palace-cell.has-fly-mutagen { background: linear-gradient(180deg, rgba(45,131,197,0.04), rgba(255,255,255,0.035)); }
 .zw-flow-row { display: grid; grid-template-columns: 54px minmax(0,1fr); gap: 8px; align-items: stretch; margin-top: 8px; }
 .zw-flow-title { display: flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(212,168,71,0.16); color: var(--accent); font-weight: 800; font-size: 0.78rem; }
 .zw-flow-scroll { display: flex; overflow-x: auto; gap: 4px; padding-bottom: 2px; }
@@ -1691,12 +1693,14 @@ onUnmounted(function() {
 .zw-result :deep(.zw-chart-legend) { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin: 0 0 10px; padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 10px; background: rgba(255,255,255,0.035); color: var(--text-3); font-size: 0.66rem; line-height: 1.35; }
 .zw-result :deep(.zw-chart-legend span) { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .zw-result :deep(.legend-line) { display: inline-block; width: 16px; height: 10px; box-sizing: border-box; border-radius: 3px; background: rgba(255,255,255,0.04); }
-.zw-result :deep(.legend-line.soul) { border: 2px solid var(--accent); box-shadow: inset 0 0 0 1px rgba(212,168,71,0.18); }
-.zw-result :deep(.legend-line.body) { border: 2px solid var(--danger); }
+.zw-result :deep(.legend-line.decadal) { border: 2px solid rgba(180,111,39,0.68); background: rgba(180,111,39,0.08); }
 .zw-result :deep(.legend-line.age) { border: 2px solid rgba(39,174,96,0.65); }
 .zw-result :deep(.legend-line.year) { border: 2px solid rgba(212,168,71,0.7); background: rgba(212,168,71,0.08); }
 .zw-result :deep(.legend-line.month) { border: 2px solid rgba(45,156,219,0.65); }
-.zw-result :deep(.legend-line.fly) { border: 2px solid rgba(190,56,56,0.55); background: rgba(190,56,56,0.08); }
+.zw-result :deep(.legend-text) { display: inline-block; width: 7px; height: 7px; border-radius: 999px; }
+.zw-result :deep(.legend-text.soul) { background: var(--accent); }
+.zw-result :deep(.legend-text.body) { background: var(--danger); }
+.zw-result :deep(.legend-text.fly) { background: linear-gradient(135deg, #20a35a 0 25%, #d94a3a 25% 50%, #2d83c5 50% 75%, #8b49b6 75% 100%); }
 .zw-result :deep(.legend-chip) { display: inline-flex; min-width: 18px; height: 18px; align-items: center; justify-content: center; border-radius: 4px; padding: 0 5px; font-size: 0.62rem; font-weight: 800; }
 .zw-result :deep(.legend-chip.lu) { color: #20a35a; background: rgba(32,163,90,0.13); }
 .zw-result :deep(.legend-chip.quan) { color: #d94a3a; background: rgba(217,74,58,0.12); }
@@ -1711,8 +1715,7 @@ onUnmounted(function() {
 .zw-result :deep(.zw-palace-grid) { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 20px; }
 .zw-result :deep(.zw-palace-cell) { background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; min-height: 110px; position: relative; transition: border-color 0.12s, background-color 0.12s, box-shadow 0.12s; cursor: default; overflow: visible; }
 .zw-result :deep(.zw-palace-cell:hover) { border-color: var(--accent); box-shadow: inset 0 0 0 1px rgba(212,168,71,0.24); }
-.zw-result :deep(.zw-palace-cell.is-soul) { border-color: var(--accent); box-shadow: inset 0 0 0 1px rgba(212,168,71,0.24); }
-.zw-result :deep(.zw-palace-cell.is-body) { border-color: var(--danger); }
+.zw-result :deep(.zw-palace-cell.is-flow-decadal) { border-color: rgba(180,111,39,0.72); box-shadow: inset 0 0 0 2px rgba(180,111,39,0.38); }
 .zw-result :deep(.zw-palace-cell.is-flow-age) { box-shadow: inset 0 0 0 2px rgba(39,174,96,0.52); }
 .zw-result :deep(.zw-palace-cell.is-flow-year) { border-color: rgba(212,168,71,0.62); background: rgba(212,168,71,0.06); }
 .zw-result :deep(.zw-palace-cell.is-flow-month) { box-shadow: inset 0 0 0 2px rgba(45,156,219,0.55); }
@@ -1797,7 +1800,7 @@ onUnmounted(function() {
 .zw-result :deep(.zw-chart-mode-bar) { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0 4px; padding: 6px; border-radius: 14px; background: rgba(255,255,255,0.055); border: 1px solid var(--border); }
 .zw-result :deep(.zw-chart-mode-btn) { appearance: none; border: 0; border-radius: 10px; padding: 9px 4px; color: var(--text-3); background: transparent; font-weight: 800; font-size: 0.82rem; cursor: pointer; }
 .zw-result :deep(.zw-chart-mode-btn.active) { color: #fff; background: linear-gradient(135deg, #b66b2d, #d9a443); box-shadow: 0 5px 16px rgba(212,168,71,0.22); }
-.zw-result :deep(.zw-palace-cell.has-fly-mutagen) { border-color: rgba(190,56,56,0.45); background: linear-gradient(180deg, rgba(190,56,56,0.055), rgba(255,255,255,0.035)); }
+.zw-result :deep(.zw-palace-cell.has-fly-mutagen) { background: linear-gradient(180deg, rgba(190,56,56,0.04), rgba(255,255,255,0.035)); }
 .zw-result :deep(.zw-palace-fly) { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; position: relative; z-index: 7; }
 .zw-result :deep(.zw-fly-tag) { display: inline-flex; align-items: center; gap: 2px; max-width: 100%; border-radius: 4px; padding: 1px 4px; font-size: 0.56rem; line-height: 1.25; font-weight: 800; border: 1px solid rgba(255,255,255,0.16); }
 .zw-result :deep(.zw-fly-tag b), .zw-result :deep(.zw-fly-tag em) { font-style: normal; white-space: nowrap; }
@@ -1829,7 +1832,7 @@ onUnmounted(function() {
 .zw-result :deep(.zw-mode-sihua .zw-palace-flow) { position: relative; z-index: 6; }
 .zw-result :deep(.zw-mode-feixing .zw-palace-ages) { color: #4777a8; font-size: 0.64rem; font-weight: 800; }
 .zw-result :deep(.zw-mode-feixing .zw-flow-badge) { font-size: 0.62rem; }
-.zw-result :deep(.zw-mode-feixing .zw-palace-cell.has-fly-mutagen) { border-color: rgba(45,131,197,0.46); background: linear-gradient(180deg, rgba(45,131,197,0.055), rgba(255,255,255,0.035)); }
+.zw-result :deep(.zw-mode-feixing .zw-palace-cell.has-fly-mutagen) { background: linear-gradient(180deg, rgba(45,131,197,0.04), rgba(255,255,255,0.035)); }
 .zw-result :deep(.zw-flow-row) { display: grid; grid-template-columns: 54px minmax(0,1fr); gap: 8px; align-items: stretch; margin-top: 8px; }
 .zw-result :deep(.zw-flow-title) { display: flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(212,168,71,0.16); color: var(--accent); font-weight: 800; font-size: 0.78rem; }
 .zw-result :deep(.zw-flow-scroll) { display: flex; overflow-x: auto; gap: 4px; padding-bottom: 2px; }
