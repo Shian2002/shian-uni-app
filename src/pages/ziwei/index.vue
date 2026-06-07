@@ -1251,6 +1251,21 @@ function zwCenterInfo(bi, cp, meta, periods) {
     '</div>'
 }
 
+function zwChartLegend() {
+  return '<div class="zw-chart-legend">' +
+    '<span><i class="legend-line soul"></i>命宫</span>' +
+    '<span><i class="legend-line body"></i>身宫</span>' +
+    '<span><i class="legend-line age"></i>小限</span>' +
+    '<span><i class="legend-line year"></i>流年</span>' +
+    '<span><i class="legend-line month"></i>流月</span>' +
+    '<span><i class="legend-line fly"></i>四化飞星</span>' +
+    '<span class="legend-chip lu">禄</span>' +
+    '<span class="legend-chip quan">权</span>' +
+    '<span class="legend-chip ke">科</span>' +
+    '<span class="legend-chip ji">忌</span>' +
+    '</div>'
+}
+
 function zwTimeline(title, palaces, periods) {
   const decadal = periods && periods.decadal
   const age = periods && periods.age
@@ -1305,7 +1320,9 @@ function renderZiweiPan(d) {
   const meta = d.display_meta || {}
   const palaces = d.twelve_palaces || []
   const periods = zwFlowPeriods(palaces)
+  html += zwChartLegend()
   html += '<div class="zw-orientation zw-orientation-top">正南方</div>'
+  html += '<div class="zw-chart-scroll" aria-label="紫微斗数命盘，可左右滑动查看完整宫位">'
   html += '<div class="zw-palace-grid zw-pro-grid zw-chart-mode-sanhe">'
   html += zwPalaceCell(palaces[4], periods, null)
   html += zwPalaceCell(palaces[3], periods, null)
@@ -1320,6 +1337,7 @@ function renderZiweiPan(d) {
   html += zwPalaceCell(palaces[11], periods, null)
   html += zwPalaceCell(palaces[10], periods, null)
   html += zwPalaceCell(palaces[9], periods, null)
+  html += '</div>'
   html += '</div>'
   html += '<div class="zw-orientation zw-orientation-bottom">正北方</div>'
   html += zwTimeline('大限', palaces, periods)
@@ -1522,6 +1540,21 @@ onUnmounted(function() {
 .qf-datetime-select { width: 100%; padding: 10px 14px; border-radius: 10px; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-1); font-size: 0.875rem; text-align: center; }
 
 .zw-result-wrap { margin-top: 24px; }
+.zw-chart-scroll { width: 100%; overflow-x: visible; overflow-y: visible; -webkit-overflow-scrolling: touch; }
+.zw-chart-legend { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin: 0 0 10px; padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 10px; background: rgba(255,255,255,0.035); color: var(--text-3); font-size: 0.66rem; line-height: 1.35; }
+.zw-chart-legend span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.legend-line { display: inline-block; width: 16px; height: 10px; box-sizing: border-box; border-radius: 3px; background: rgba(255,255,255,0.04); }
+.legend-line.soul { border: 2px solid var(--accent); box-shadow: inset 0 0 0 1px rgba(212,168,71,0.18); }
+.legend-line.body { border: 2px solid var(--danger); }
+.legend-line.age { border: 2px solid rgba(39,174,96,0.65); }
+.legend-line.year { border: 2px solid rgba(212,168,71,0.7); background: rgba(212,168,71,0.08); }
+.legend-line.month { border: 2px solid rgba(45,156,219,0.65); }
+.legend-line.fly { border: 2px solid rgba(190,56,56,0.55); background: rgba(190,56,56,0.08); }
+.legend-chip { display: inline-flex; min-width: 18px; height: 18px; align-items: center; justify-content: center; border-radius: 4px; padding: 0 5px; font-size: 0.62rem; font-weight: 800; }
+.legend-chip.lu { color: #20a35a; background: rgba(32,163,90,0.13); }
+.legend-chip.quan { color: #d94a3a; background: rgba(217,74,58,0.12); }
+.legend-chip.ke { color: #2d83c5; background: rgba(45,131,197,0.12); }
+.legend-chip.ji { color: #8b49b6; background: rgba(139,73,182,0.12); }
 .zw-pro-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 14px; padding: 14px 16px; border: 1px solid rgba(180,111,39,0.22); border-radius: 12px; background: linear-gradient(135deg, rgba(180,111,39,0.10), rgba(37,109,156,0.08)); }
 .zw-pro-title { font-family: var(--font-serif); font-size: 1.05rem; font-weight: 700; color: var(--text-1); letter-spacing: 1px; }
 .zw-pro-subtitle { margin-top: 4px; font-size: 0.74rem; line-height: 1.55; color: var(--text-3); }
@@ -1652,6 +1685,21 @@ onUnmounted(function() {
 
 /* v-html 插入的命盘节点不会带页面 scope 属性，必须用 deep 才能保留卡片样式 */
 .zw-result :deep(.zw-result-wrap) { margin-top: 24px; }
+.zw-result :deep(.zw-chart-scroll) { width: 100%; overflow-x: visible; overflow-y: visible; -webkit-overflow-scrolling: touch; }
+.zw-result :deep(.zw-chart-legend) { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin: 0 0 10px; padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 10px; background: rgba(255,255,255,0.035); color: var(--text-3); font-size: 0.66rem; line-height: 1.35; }
+.zw-result :deep(.zw-chart-legend span) { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.zw-result :deep(.legend-line) { display: inline-block; width: 16px; height: 10px; box-sizing: border-box; border-radius: 3px; background: rgba(255,255,255,0.04); }
+.zw-result :deep(.legend-line.soul) { border: 2px solid var(--accent); box-shadow: inset 0 0 0 1px rgba(212,168,71,0.18); }
+.zw-result :deep(.legend-line.body) { border: 2px solid var(--danger); }
+.zw-result :deep(.legend-line.age) { border: 2px solid rgba(39,174,96,0.65); }
+.zw-result :deep(.legend-line.year) { border: 2px solid rgba(212,168,71,0.7); background: rgba(212,168,71,0.08); }
+.zw-result :deep(.legend-line.month) { border: 2px solid rgba(45,156,219,0.65); }
+.zw-result :deep(.legend-line.fly) { border: 2px solid rgba(190,56,56,0.55); background: rgba(190,56,56,0.08); }
+.zw-result :deep(.legend-chip) { display: inline-flex; min-width: 18px; height: 18px; align-items: center; justify-content: center; border-radius: 4px; padding: 0 5px; font-size: 0.62rem; font-weight: 800; }
+.zw-result :deep(.legend-chip.lu) { color: #20a35a; background: rgba(32,163,90,0.13); }
+.zw-result :deep(.legend-chip.quan) { color: #d94a3a; background: rgba(217,74,58,0.12); }
+.zw-result :deep(.legend-chip.ke) { color: #2d83c5; background: rgba(45,131,197,0.12); }
+.zw-result :deep(.legend-chip.ji) { color: #8b49b6; background: rgba(139,73,182,0.12); }
 .zw-result :deep(.zw-basic-card) { background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
 .zw-result :deep(.zw-basic-grid) { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 .zw-result :deep(.zw-basic-item) { display: flex; flex-direction: column; gap: 2px; }
@@ -1839,8 +1887,12 @@ onUnmounted(function() {
   .tool-tabs { overflow-x: auto; gap: 2px; }
   .tool-tab { padding: 10px 14px; font-size: 0.8125rem; white-space: nowrap; }
   .submit-btn { font-size: 0.875rem; padding: 12px 16px; letter-spacing: 1px; }
-  .zw-result-wrap { overflow-x: hidden; }
-  .zw-result :deep(.zw-result-wrap) { overflow-x: hidden; }
+  .zw-result-wrap { overflow-x: visible; max-width: 100%; }
+  .zw-result :deep(.zw-result-wrap) { overflow-x: visible; max-width: 100%; }
+  .zw-chart-scroll { width: 100%; overflow-x: auto; overflow-y: hidden; margin: 0 -4px 4px; padding: 0 4px 8px; overscroll-behavior-x: contain; }
+  .zw-result :deep(.zw-chart-scroll) { width: 100%; overflow-x: auto; overflow-y: hidden; margin: 0 -4px 4px; padding: 0 4px 8px; overscroll-behavior-x: contain; }
+  .zw-chart-legend { flex-wrap: nowrap; overflow-x: auto; margin-bottom: 8px; padding: 7px 8px; font-size: 0.62rem; }
+  .zw-result :deep(.zw-chart-legend) { flex-wrap: nowrap; overflow-x: auto; margin-bottom: 8px; padding: 7px 8px; font-size: 0.62rem; }
   .zw-palace-grid { grid-template-columns: repeat(4, 1fr); gap: 3px; }
   .zw-result :deep(.zw-palace-grid) { grid-template-columns: repeat(4, 1fr); gap: 3px; }
   .zw-palace-cell { min-height: 70px; padding: 5px; }
@@ -1889,31 +1941,32 @@ onUnmounted(function() {
   .zw-result :deep(.zw-mutagen) { font-size: 0.5rem; padding: 1px 2px; }
   .zw-result :deep(.zw-pro-header) { flex-direction: column; gap: 8px; padding: 12px; }
   .zw-result :deep(.zw-pro-pill) { align-self: flex-start; white-space: normal; }
-  .zw-result :deep(.zw-pro-grid) { gap: 2px; }
-  .zw-result :deep(.zw-pro-grid .zw-palace-cell) { min-height: 108px; padding: 4px; border-radius: 4px; }
-  .zw-result :deep(.zw-pro-grid .zw-palace-header) { padding-right: 18px; margin-bottom: 2px; gap: 2px; }
-  .zw-result :deep(.zw-pro-grid .zw-palace-name) { font-size: 0.63rem; }
-  .zw-result :deep(.zw-pro-grid .zw-palace-ganzhi) { font-size: 0.48rem; }
-  .zw-result :deep(.zw-pro-grid .zw-palace-badge) { font-size: 0.42rem; padding: 0 2px; top: 3px; right: 3px; }
-  .zw-result :deep(.zw-pro-grid .zw-star-major) { font-size: 0.56rem; }
-  .zw-result :deep(.zw-pro-grid .zw-star-minor) { font-size: 0.5rem; }
-  .zw-result :deep(.zw-pro-grid .zw-star-adj) { font-size: 0.46rem; }
-  .zw-result :deep(.zw-pro-grid .zw-star-major em), .zw-result :deep(.zw-pro-grid .zw-star-minor em), .zw-result :deep(.zw-pro-grid .zw-star-adj em) { font-size: 0.42rem; }
-  .zw-result :deep(.zw-pro-grid .zw-mutagen) { min-width: 10px; height: 10px; font-size: 0.42rem; padding: 0 1px; }
-  .zw-result :deep(.zw-palace-support) { font-size: 0.43rem; line-height: 1.2; margin-top: 2px; }
-  .zw-result :deep(.zw-pro-grid .zw-palace-decadal) { font-size: 0.44rem; margin-top: 2px; padding-top: 2px; }
-  .zw-result :deep(.zw-palace-ages) { font-size: 0.4rem; }
-  .zw-result :deep(.zw-pro-grid .zw-center-info) { min-height: 218px; padding: 6px; border-radius: 4px; }
-  .zw-result :deep(.zw-center-kicker) { font-size: 0.48rem; }
-  .zw-result :deep(.zw-pro-grid .zw-center-title) { font-size: 0.72rem; letter-spacing: 1px; margin: 2px 0; }
-  .zw-result :deep(.zw-pro-grid .zw-center-wuxing) { font-size: 0.58rem; margin-bottom: 4px; }
-  .zw-result :deep(.zw-center-line) { grid-template-columns: 40px minmax(0,1fr); gap: 3px; font-size: 0.45rem; margin: 1px 0; }
-  .zw-result :deep(.zw-center-line strong) { font-size: 0.47rem; }
-  .zw-result :deep(.zw-center-two) { gap: 4px; margin: 4px 0 3px; font-size: 0.48rem; }
-  .zw-result :deep(.zw-center-flow) { gap: 3px; margin: 3px 0; }
-  .zw-result :deep(.zw-center-flow span) { font-size: 0.43rem; padding: 2px 3px; }
-  .zw-result :deep(.zw-center-error) { font-size: 0.42rem; margin: 1px auto 2px; }
-  .zw-result :deep(.zw-flow-badge) { font-size: 0.38rem; padding: 0 2px; }
+  .zw-pro-grid { min-width: 760px; width: 760px; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+  .zw-result :deep(.zw-pro-grid) { min-width: 760px; width: 760px; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+  .zw-result :deep(.zw-pro-grid .zw-palace-cell) { min-height: 150px; padding: 7px; border-radius: 6px; }
+  .zw-result :deep(.zw-pro-grid .zw-palace-header) { padding-right: 26px; margin-bottom: 4px; gap: 4px; }
+  .zw-result :deep(.zw-pro-grid .zw-palace-name) { font-size: 0.8rem; }
+  .zw-result :deep(.zw-pro-grid .zw-palace-ganzhi) { font-size: 0.66rem; }
+  .zw-result :deep(.zw-pro-grid .zw-palace-badge) { font-size: 0.52rem; padding: 1px 4px; top: 5px; right: 5px; }
+  .zw-result :deep(.zw-pro-grid .zw-star-major) { font-size: 0.74rem; }
+  .zw-result :deep(.zw-pro-grid .zw-star-minor) { font-size: 0.66rem; }
+  .zw-result :deep(.zw-pro-grid .zw-star-adj) { font-size: 0.58rem; }
+  .zw-result :deep(.zw-pro-grid .zw-star-major em), .zw-result :deep(.zw-pro-grid .zw-star-minor em), .zw-result :deep(.zw-pro-grid .zw-star-adj em) { font-size: 0.52rem; }
+  .zw-result :deep(.zw-pro-grid .zw-mutagen) { min-width: 13px; height: 13px; font-size: 0.52rem; padding: 0 3px; }
+  .zw-result :deep(.zw-palace-support) { font-size: 0.54rem; line-height: 1.28; margin-top: 3px; }
+  .zw-result :deep(.zw-pro-grid .zw-palace-decadal) { font-size: 0.58rem; margin-top: 4px; padding-top: 3px; }
+  .zw-result :deep(.zw-palace-ages) { font-size: 0.5rem; }
+  .zw-result :deep(.zw-pro-grid .zw-center-info) { min-height: 302px; padding: 12px; border-radius: 6px; }
+  .zw-result :deep(.zw-center-kicker) { font-size: 0.66rem; }
+  .zw-result :deep(.zw-pro-grid .zw-center-title) { font-size: 1.05rem; letter-spacing: 2px; margin: 4px 0; }
+  .zw-result :deep(.zw-pro-grid .zw-center-wuxing) { font-size: 0.82rem; margin-bottom: 6px; }
+  .zw-result :deep(.zw-center-line) { grid-template-columns: 58px minmax(0,1fr); gap: 5px; font-size: 0.64rem; margin: 2px 0; }
+  .zw-result :deep(.zw-center-line strong) { font-size: 0.68rem; }
+  .zw-result :deep(.zw-center-two) { gap: 6px; margin: 6px 0 4px; font-size: 0.66rem; }
+  .zw-result :deep(.zw-center-flow) { gap: 4px; margin: 4px 0; }
+  .zw-result :deep(.zw-center-flow span) { font-size: 0.58rem; padding: 3px 4px; }
+  .zw-result :deep(.zw-center-error) { font-size: 0.55rem; margin: 2px auto 3px; }
+  .zw-result :deep(.zw-flow-badge) { font-size: 0.5rem; padding: 1px 3px; }
   .zw-result :deep(.zw-palace-flow) { gap: 2px; margin-top: 2px; }
   .zw-result :deep(.zw-mode-chip) { font-size: 0.45rem; padding: 2px 4px; }
   .zw-result :deep(.zw-flow-row) { grid-template-columns: 40px minmax(0,1fr); gap: 5px; }
