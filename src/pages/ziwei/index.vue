@@ -1183,7 +1183,7 @@ function zwBuildModeOverlay(palaces, periods) {
 
 function zwFlowPeriodBadge(period, label, cls) {
   if (!period) return ''
-  const suffix = period.ganzhi ? period.ganzhi : (period.nominal_age ? (period.nominal_age + '岁') : '')
+  const suffix = cls === 'age' ? '' : (period.ganzhi ? period.ganzhi : (period.nominal_age ? (period.nominal_age + '岁') : ''))
   return '<span class="zw-flow-badge ' + cls + '">' + zwEsc(label) + (suffix ? ' ' + zwEsc(suffix) : '') + '</span>'
 }
 
