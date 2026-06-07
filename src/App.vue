@@ -57,7 +57,7 @@ export default {
         _setPageClass('qimen-page-active', isQimen)
         _setPageClass('tool-compact-page', isCompactTool)
         _setPageClass('bazi-tool-page', isBaziTool)
-        if (!isHome || isMarketingHome) _setPageClass('marketing-page', isMarketingHome)
+        _setPageClass('marketing-page', isMarketingHome)
       } catch(_) {}
     }
     function _getActivePageScroller() {
@@ -91,8 +91,8 @@ export default {
     setTimeout(_syncHomeFixedRoute, 800)
     setTimeout(_syncHomeFixedRoute, 1600)
     window.addEventListener('load', function() { setTimeout(_syncHomeFixedRoute, 0); setTimeout(_syncHomeFixedRoute, 200) })
-    window.addEventListener('hashchange', function() { setTimeout(_syncHomeFixedRoute, 0); setTimeout(_syncHomeFixedRoute, 120) })
-    window.addEventListener('popstate', function() { setTimeout(_syncHomeFixedRoute, 0); setTimeout(_syncHomeFixedRoute, 120) })
+    window.addEventListener('hashchange', function() { setTimeout(_syncHomeFixedRoute, 0); setTimeout(_syncHomeFixedRoute, 80); setTimeout(_syncHomeFixedRoute, 240) })
+    window.addEventListener('popstate', function() { setTimeout(_syncHomeFixedRoute, 0); setTimeout(_syncHomeFixedRoute, 80); setTimeout(_syncHomeFixedRoute, 240) })
     document.addEventListener('click', function() { setTimeout(_syncHomeFixedRoute, 80); setTimeout(_syncHomeFixedRoute, 300) }, true)
     function _isTypingTarget(el) {
       if (!el) return false
@@ -1933,11 +1933,14 @@ body.home-fixed-page:not(:has(.home-ai-console.has-chat)) .home-ai-main{
     position:static!important;
     bottom:auto!important;
   }
-  body.tool-compact-page:not(:has(.qf-result-card)):not(:has(.ly-result-card)):not(:has(.zw-result-wrap)):not(:has(.tarot-result-area.show)):not(:has(#zejiResultSection[style*="block"])) uni-page-wrapper,
-  body.bazi-tool-page:has(#baziTabFree.active) uni-page-wrapper{
-    height:100dvh!important;
-    max-height:100dvh!important;
-    overflow-y:hidden!important;
+  body.tool-compact-page uni-page-wrapper,
+  body.bazi-tool-page uni-page-wrapper{
+    min-height:100dvh!important;
+    height:auto!important;
+    max-height:none!important;
+    overflow-y:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+    overscroll-behavior-y:contain!important;
   }
   body.tool-compact-page:has(.qf-result-card) uni-page-wrapper,
   body.tool-compact-page:has(.ly-result-card) uni-page-wrapper,
@@ -1945,7 +1948,8 @@ body.home-fixed-page:not(:has(.home-ai-console.has-chat)) .home-ai-main{
   body.tool-compact-page:has(.tarot-result-area.show) uni-page-wrapper,
   body.tool-compact-page:has(#zejiResultSection[style*="block"]) uni-page-wrapper,
   body.bazi-tool-page:has(#baziTabRecords.active) uni-page-wrapper{
-    height:100dvh!important;
+    min-height:100dvh!important;
+    height:auto!important;
     max-height:100dvh!important;
     overflow-y:auto!important;
     -webkit-overflow-scrolling:touch!important;

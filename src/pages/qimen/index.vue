@@ -1506,4 +1506,25 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 :global(body.qimen-page-active uni-page-body) {
   overflow: visible !important;
 }
+@media (max-width: 768px) {
+  :global(html.qimen-page-active),
+  :global(body.qimen-page-active) {
+    min-height: 100dvh !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: hidden !important;
+    overscroll-behavior-y: contain;
+  }
+  :global(body.qimen-page-active uni-page-wrapper) {
+    min-height: 100dvh !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-y: contain;
+  }
+  :global(body.qimen-page-active:not(:has(.qf-result-card)) uni-page-wrapper) {
+    overflow-y: auto !important;
+  }
+}
 </style>

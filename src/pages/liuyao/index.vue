@@ -235,6 +235,17 @@ const lyMethod = ref('auto')
 const lyTossRows = reactive(Array.from({ length: 6 }, () => [3, 3, 3]))
 const lfQuestion = ref('')
 const lyFreeResultCache = reactive({ auto: '', manual: '' })
+function scrollLyFreeResultIntoView() {
+  // H5 手机端结果生成在表单下方，主动滚到结果区，避免外层滚动状态切换后看不见。
+  try {
+    setTimeout(function() {
+      const resultEl = document.getElementById('lyFreeResult')
+      if (resultEl && resultEl.innerHTML.trim()) {
+        resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }, 80)
+  } catch (_) {}
+}
 function saveLyFreeResultForMode(mode) {
   const resultEl = document.getElementById('lyFreeResult')
   if (resultEl && (mode === 'auto' || mode === 'manual')) lyFreeResultCache[mode] = resultEl.innerHTML
@@ -303,6 +314,7 @@ async function liuyaoFreePaipan() {
   if (!resultEl) return
   if (requestMode === lyMethod.value) {
     resultEl.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-3);">🧭 排盘计算中...</div>'
+    scrollLyFreeResultIntoView()
   }
 
   try {
@@ -313,6 +325,7 @@ async function liuyaoFreePaipan() {
       const html = `<div style="color:var(--danger);padding:16px;">${data.error}</div>`
       lyFreeResultCache[requestMode] = html
       if (requestMode === lyMethod.value) resultEl.innerHTML = html
+      if (requestMode === lyMethod.value) scrollLyFreeResultIntoView()
       return
     }
     const panData = data.data || data
@@ -320,10 +333,12 @@ async function liuyaoFreePaipan() {
     const html = renderLiuyaoResult(panData)
     lyFreeResultCache[requestMode] = html
     if (requestMode === lyMethod.value) resultEl.innerHTML = html
+    if (requestMode === lyMethod.value) scrollLyFreeResultIntoView()
   } catch (e) {
     const html = `<div style="color:var(--danger);padding:16px;">排盘失败</div>`
     lyFreeResultCache[requestMode] = html
     if (requestMode === lyMethod.value) resultEl.innerHTML = html
+    if (requestMode === lyMethod.value) scrollLyFreeResultIntoView()
   }
 }
 
@@ -1068,7 +1083,7 @@ function _updateLyConversation() {
 .ly-coin-btn { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--card-border); background: var(--card-bg); color: var(--text-2); font-size: 0.75rem; cursor: pointer; }
 .ly-coin-btn.heads { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); }
 .ly-toss-sum { font-size: 0.75rem; color: var(--accent); margin-left: auto; font-weight: 600; }
-.ly-result { margin-top: 16px; display: none; width: 100%; }
+.ly-result { margin-top: 16px; display: none; width: 100%; scroll-margin-top: 72px; }
 .ly-result:empty { display: none; }
 .ly-result:not(:empty) { display: flex; justify-content: center; }
 .ly-result-card { background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid var(--card-border); }
