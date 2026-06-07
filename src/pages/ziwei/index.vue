@@ -85,7 +85,7 @@
               </view>
             </view>
             <view class="submit-btn" @click="ziweiFreePan">⭐ 免费排盘</view>
-            <text class="form-hint" style="text-align:center;display:block;margin-top:12px;">基于 iztro-py 精确排盘，展示十二宫、主星辅星与三合命盘。深度解读请回首页选择紫微斗数或自动选术数。</text>
+            <text class="form-hint" style="text-align:center;display:block;margin-top:12px;">基于 Shian 精确排盘，展示十二宫、主星辅星与三合命盘。深度解读请回首页选择紫微斗数或自动选术数。</text>
             <view class="zw-result" v-if="zwPanResult" v-html="zwPanResult"></view>
           </view>
           <!-- AI解读面板 -->
@@ -1868,10 +1868,14 @@ onUnmounted(function() {
   .zw-period-grid { grid-template-columns: 1fr 1fr; }
   .zw-result :deep(.zw-period-grid) { grid-template-columns: 1fr 1fr; }
   .zw-form-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .zw-birth-time-group { padding: 10px; }
+  .zw-birth-time-group { padding: 8px; }
   .zw-birth-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
   .zw-birth-col-year { grid-column: span 2; }
-  .zw-birth-select { min-height: 38px; padding: 8px 20px 8px 8px; font-size: 0.8125rem; }
+  .zw-birth-select { min-height: 34px; padding: 6px 20px 6px 8px; font-size: 0.76rem; }
+  .form-input-text { height: 42px !important; padding: 0 12px !important; }
+  .zw-save-field { padding: 8px 10px; }
+  .zw-save-row { min-height: 32px; }
+  .form-hint { line-height: 1.35; }
   .zw-basic-grid { grid-template-columns: 1fr 1fr; }
   .qf-datetime-row { gap: 4px; }
   .qf-dt-col { min-width: 50px; }

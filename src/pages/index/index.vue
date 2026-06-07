@@ -3054,31 +3054,6 @@ function onHomeKeydown(e) {
   }
 }
 
-function scrollMarketingRootBy(deltaY) {
-  if (!marketingMode.value || !deltaY) return false
-  try {
-    const root = document.querySelector('.marketing-landing') || document.querySelector('.page-root.marketing-active')
-    if (!root || root.scrollHeight <= root.clientHeight) return false
-    const before = root.scrollTop
-    const maxTop = root.scrollHeight - root.clientHeight
-    root.scrollTop = Math.max(0, Math.min(maxTop, before + deltaY))
-    return root.scrollTop !== before
-  } catch(_) {}
-  return false
-}
-
-function onMarketingWheel(e) {
-  // #ifdef H5
-  if (!marketingMode.value || !e) return
-  try {
-    const target = e.target
-    if (target && target.closest && target.closest('.modal-overlay')) return
-    if (target && target.closest && target.closest('.tarot-sidebar')) return
-    if (scrollMarketingRootBy(e.deltaY)) e.preventDefault()
-  } catch(_) {}
-  // #endif
-}
-
 // ── 页脚 ──
 function showFooterInfo(type) {
   const infoMap = {
@@ -3159,7 +3134,6 @@ onMounted(() => {
   window._xc_restoreComprehensive = restoreComprehensiveFromSidebar
   window._xc_newComprehensive = startNewComprehensiveConversation
   window.addEventListener('keydown', onHomeKeydown)
-  window.addEventListener('wheel', onMarketingWheel, { passive: false, capture: true })
   window.addEventListener('scroll', onHomePageScroll, { passive: true })
   window.addEventListener('popstate', onMarketingRouteChange)
   window.addEventListener('hashchange', onMarketingRouteChange)
@@ -3185,7 +3159,6 @@ onBeforeUnmount(() => {
   if (window._xc_restoreComprehensive === restoreComprehensiveFromSidebar) window._xc_restoreComprehensive = null
   if (window._xc_newComprehensive === startNewComprehensiveConversation) window._xc_newComprehensive = null
   window.removeEventListener('keydown', onHomeKeydown)
-  window.removeEventListener('wheel', onMarketingWheel, true)
   window.removeEventListener('scroll', onHomePageScroll)
   window.removeEventListener('popstate', onMarketingRouteChange)
   window.removeEventListener('hashchange', onMarketingRouteChange)
@@ -3304,7 +3277,7 @@ onBeforeUnmount(() => {
   min-height: 100% !important;
   overflow-x: hidden !important;
   overflow-y: hidden !important;
-  overscroll-behavior-y: none !important;
+  overscroll-behavior-y: auto !important;
   touch-action: auto !important;
 }
 :global(body.marketing-page uni-page-body),
@@ -3313,7 +3286,7 @@ onBeforeUnmount(() => {
   height: 100dvh !important;
   min-height: 100dvh !important;
   max-height: 100dvh !important;
-  overflow-y: auto !important;
+  overflow-y: hidden !important;
   touch-action: auto !important;
 }
 
@@ -3327,9 +3300,9 @@ onBeforeUnmount(() => {
   max-height: 100dvh !important;
   overflow-x: hidden !important;
   overflow-y: hidden !important;
-  overscroll-behavior-y: none;
+  overscroll-behavior-y: auto;
   -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
   touch-action: auto;
 }
 :global(body.home-fixed-page) .page-root {
@@ -3345,7 +3318,7 @@ onBeforeUnmount(() => {
   max-height: 100dvh !important;
   overflow-x: hidden !important;
   overflow-y: hidden !important;
-  overscroll-behavior-y: none !important;
+  overscroll-behavior-y: auto !important;
   -webkit-overflow-scrolling: touch;
   touch-action: auto !important;
 }
@@ -3363,14 +3336,21 @@ onBeforeUnmount(() => {
   max-height: 100dvh;
   overflow-x: hidden;
   overflow-y: auto;
-  overscroll-behavior-y: contain;
+  overscroll-behavior-y: auto;
   scroll-snap-type: y mandatory;
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
   -webkit-overflow-scrolling: touch;
   touch-action: auto;
   color: var(--marketing-ink);
   font-family: ui-serif, "Songti SC", "STSong", "Times New Roman", serif;
   box-sizing: border-box;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.marketing-landing::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 .marketing-auth-host {
   position: fixed;
@@ -3482,7 +3462,7 @@ onBeforeUnmount(() => {
 .marketing-hero {
   position: relative;
   scroll-snap-align: start;
-  scroll-snap-stop: always;
+  scroll-snap-stop: normal;
   height: 100dvh;
   min-height: 100dvh;
   overflow: hidden;
@@ -3858,7 +3838,7 @@ onBeforeUnmount(() => {
     width: min(100%, 330px);
   }
   .marketing-side {
-    transform: translateY(130px);
+    transform: translateY(42px);
   }
   .marketing-cta-row {
     gap: 12px;
@@ -3921,7 +3901,7 @@ onBeforeUnmount(() => {
   .marketing-side {
     position: absolute;
     right: 0;
-    bottom: -148px;
+    bottom: -96px;
     width: clamp(220px, calc(100vw - 742px), 320px);
     transform: none;
   }
@@ -3932,13 +3912,13 @@ onBeforeUnmount(() => {
     padding-bottom: 30px;
   }
   .marketing-copy {
-    transform: translateY(-16px);
+    transform: translateY(-30px);
   }
   .marketing-main {
-    transform: translateY(-76px);
+    transform: translateY(-148px);
   }
   .marketing-side {
-    transform: translateY(46px);
+    transform: translateY(-72px);
   }
   .marketing-side-title {
     margin-bottom: 14px;
@@ -3950,7 +3930,7 @@ onBeforeUnmount(() => {
     line-height: 1.48;
   }
   .marketing-cta-row {
-    margin-top: 24px;
+    margin-top: 18px;
   }
   .marketing-cta-row .marketing-primary,
   .marketing-cta-row .marketing-secondary {
@@ -3963,7 +3943,7 @@ onBeforeUnmount(() => {
 
 @media (max-height: 780px) and (max-width: 1120px) and (min-width: 761px) {
   .marketing-side {
-    bottom: 20px;
+    bottom: 58px;
     transform: none;
   }
 }
@@ -3973,10 +3953,10 @@ onBeforeUnmount(() => {
     padding-bottom: 22px;
   }
   .marketing-main {
-    transform: translateY(-58px);
+    transform: translateY(-132px);
   }
   .marketing-side {
-    transform: translateY(28px);
+    transform: translateY(-78px);
   }
   .marketing-side-title {
     margin-bottom: 10px;
@@ -3997,8 +3977,72 @@ onBeforeUnmount(() => {
 
 @media (max-height: 700px) and (max-width: 1120px) and (min-width: 761px) {
   .marketing-side {
-    bottom: 12px;
+    bottom: 52px;
     transform: none;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1120px) {
+  .marketing-hero {
+    padding-left: 166px;
+  }
+  .marketing-copy {
+    position: static;
+    transform: none;
+  }
+  .marketing-main {
+    width: 658px;
+    max-width: 658px;
+    transform: translateY(-154px);
+  }
+  .marketing-kicker {
+    margin-bottom: 18px;
+    font-size: 22px;
+    line-height: 1.1;
+  }
+  .marketing-title {
+    font-size: 82px;
+    line-height: 1.08;
+  }
+  .marketing-title-cn {
+    margin-top: 18px;
+    font-size: 48px;
+    line-height: 1.18;
+  }
+  .marketing-side {
+    right: 50px;
+    bottom: 34px;
+    width: clamp(360px, 38vw, 410px);
+    transform: none;
+  }
+  .marketing-side-title {
+    margin-bottom: 10px;
+    font-size: 28px;
+    line-height: 1.15;
+  }
+  .marketing-side-desc {
+    font-size: 18px;
+    line-height: 1.65;
+  }
+  .marketing-cta-row {
+    gap: 18px;
+    margin-top: 10px;
+  }
+  .marketing-cta-row .marketing-primary,
+  .marketing-cta-row .marketing-secondary {
+    height: 56px;
+    min-width: 0;
+    padding: 0 20px;
+    font-size: 15px;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1120px) and (max-height: 720px) {
+  .marketing-main {
+    transform: translateY(-154px);
+  }
+  .marketing-side {
+    bottom: 34px;
   }
 }
 
@@ -4014,7 +4058,7 @@ onBeforeUnmount(() => {
 .marketing-critical {
   position: relative;
   scroll-snap-align: start;
-  scroll-snap-stop: always;
+  scroll-snap-stop: normal;
   height: 100dvh;
   min-height: 100dvh;
   overflow: hidden;
@@ -4399,7 +4443,7 @@ onBeforeUnmount(() => {
 .marketing-tools {
   position: relative;
   scroll-snap-align: start;
-  scroll-snap-stop: always;
+  scroll-snap-stop: normal;
   height: 100dvh;
   min-height: 100dvh;
   overflow: hidden;
@@ -4697,7 +4741,7 @@ onBeforeUnmount(() => {
 .marketing-core {
   position: relative;
   scroll-snap-align: start;
-  scroll-snap-stop: always;
+  scroll-snap-stop: normal;
   height: 100dvh;
   min-height: 100dvh;
   overflow: hidden;
@@ -4892,7 +4936,7 @@ onBeforeUnmount(() => {
 .marketing-final {
   position: relative;
   scroll-snap-align: start;
-  scroll-snap-stop: always;
+  scroll-snap-stop: normal;
   height: 100dvh;
   min-height: 100dvh;
   display: flex;

@@ -69,10 +69,6 @@
             </view>
             <text class="form-hint" style="text-align:center;display:block;margin-top:10px;">本地精准排盘，不含 AI 解读。深度解读请回首页选择奇门遁甲或自动选术数。</text>
 
-            <view class="qf-member-actions" v-if="qfResult && qfJsonCopyAllowed">
-              <view class="btn btn-ghost qf-json-copy-btn" @tap="copyQimenJson">复制 JSON</view>
-            </view>
-
             <!-- 排盘结果 -->
             <view class="qf-result qf-result-loading" v-if="qfLoading">
               <view class="qf-result-card qf-loading-card">
@@ -82,7 +78,10 @@
                 </view>
               </view>
             </view>
-            <view class="qf-result" v-if="qfResult" v-html="qfResult"></view>
+            <view class="qf-result-shell" v-if="qfResult">
+              <view v-if="qfResult && qfJsonCopyAllowed" class="btn btn-ghost qf-json-copy-btn" @tap="copyQimenJson">复制 JSON</view>
+              <view class="qf-result" v-html="qfResult"></view>
+            </view>
           </view>
 
           <!-- ══ 奇门AI系统 ══ -->
@@ -1229,9 +1228,21 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .qf-pantype-select { width: 100%; padding: 9px 12px; border: 1.5px solid var(--card-border); border-radius: 8px; font-size: 0.85rem; font-weight: 500; background: var(--card-bg); color: var(--text-1); cursor: pointer; appearance: none; -webkit-appearance: none; -moz-appearance: none; outline: none; box-sizing: border-box; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M5 7L1 3h8z' fill='%23999'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; padding-right: 24px; }
 .qf-pantype-select:focus { border-color: var(--accent); }
 .qf-options-row { display: flex; gap: 10px; align-items: flex-end; }
-.qf-member-actions { display: flex; justify-content: flex-end; margin-top: 14px; }
-.qf-json-copy-btn { flex: 0 0 auto; min-width: 116px; padding: 9px 16px; border-radius: 18px; font-size: 0.78rem; letter-spacing: 1px; }
+.qf-result-shell { position: relative; margin-top: 16px; }
+.qf-json-copy-btn {
+  position: absolute;
+  top: clamp(14px, 2.2vw, 24px);
+  right: clamp(14px, 2.2vw, 24px);
+  z-index: 3;
+  flex: 0 0 auto;
+  min-width: 116px;
+  padding: 9px 16px;
+  border-radius: 18px;
+  font-size: 0.78rem;
+  letter-spacing: 1px;
+}
 .qf-result { margin-top: 16px; overflow-x: auto; -webkit-overflow-scrolling: touch; animation: qfResultEnter 0.38s var(--ease) both; transform-origin: top center; }
+.qf-result-shell .qf-result { margin-top: 0; }
 .qf-result-card { background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid var(--card-border); }
 .qf-result-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 10px; color: var(--accent); letter-spacing: 2px; }
 .qf-result-row { font-size: 0.82rem; color: var(--text-2); margin-bottom: 6px; }
@@ -1485,6 +1496,12 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
+}
+:global(body.qimen-page-active:not(:has(.qf-result-card)) uni-page-wrapper) {
+  overflow-y: hidden !important;
+}
+:global(body.qimen-page-active:has(.qf-result-card) uni-page-wrapper) {
+  overflow-y: auto !important;
 }
 :global(body.qimen-page-active uni-page-body) {
   overflow: visible !important;

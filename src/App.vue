@@ -38,12 +38,25 @@ export default {
         var hash = window.location.hash || ''
         var isHome = hash.indexOf('#/pages/index/index') === 0 || hash === '' || hash === '#/' || hash.indexOf('#/?') === 0
         var isQimen = hash.indexOf('#/pages/qimen/index') === 0
+        var isBaziTool = hash.indexOf('#/pages/bazi-index/index') === 0
+        var compactToolRoutes = [
+          '#/pages/qimen/index',
+          '#/pages/liuyao/index',
+          '#/pages/meihua/index',
+          '#/pages/ziwei/index',
+          '#/pages/zeji/index',
+          '#/pages/calendar/index',
+          '#/pages/tarot/index'
+        ]
+        var isCompactTool = compactToolRoutes.some(function(route) { return hash.indexOf(route) === 0 })
         var isAppHome = isHome && _hasAppHomeFlag()
         var isMarketingHome = isHome && !isAppHome
 
         // app 首页是固定工作台，外层不参与滚动；长对话只在消息区内部滚动。
         _setPageClass('home-fixed-page', isAppHome && !isMarketingHome)
         _setPageClass('qimen-page-active', isQimen)
+        _setPageClass('tool-compact-page', isCompactTool)
+        _setPageClass('bazi-tool-page', isBaziTool)
         if (!isHome || isMarketingHome) _setPageClass('marketing-page', isMarketingHome)
       } catch(_) {}
     }
@@ -61,7 +74,7 @@ export default {
     window.addEventListener('wheel', function(e) {
       try {
         var target = e && e.target
-        if (target && target.closest && target.closest('.tarot-sidebar')) return
+        if (target && target.closest && target.closest('.tarot-sidebar, #tarotSidebarGlobal, .sidebar-content, .sidebar-group-items, .sidebar-user-panel, .nav-btn-drop-menu')) return
         var hash = window.location.hash || ''
         var isHome = hash.indexOf('#/pages/index/index') === 0 || hash === '' || hash === '#/' || hash.indexOf('#/?') === 0
         if (isHome || !e.deltaY) return
@@ -165,10 +178,24 @@ export default {
         queryStr = queryStr || ''
         var isHome = path === '/'
         var isQimen = path === '/pages/qimen/index'
+        var isBaziTool = path === '/pages/bazi-index/index'
+        var isCompactTool = [
+          '/pages/qimen/index',
+          '/pages/liuyao/index',
+          '/pages/meihua/index',
+          '/pages/ziwei/index',
+          '/pages/zeji/index',
+          '/pages/calendar/index',
+          '/pages/tarot/index'
+        ].includes(path)
         document.documentElement.classList.toggle('home-fixed-page', isHome)
         document.body.classList.toggle('home-fixed-page', isHome)
         document.documentElement.classList.toggle('qimen-page-active', isQimen)
         document.body.classList.toggle('qimen-page-active', isQimen)
+        document.documentElement.classList.toggle('tool-compact-page', isCompactTool)
+        document.body.classList.toggle('tool-compact-page', isCompactTool)
+        document.documentElement.classList.toggle('bazi-tool-page', isBaziTool)
+        document.body.classList.toggle('bazi-tool-page', isBaziTool)
 
         var container = document.querySelector('.tab-pages-container')
         if (container) container.style.display = ''
@@ -1763,5 +1790,171 @@ body.home-fixed-page:not(:has(.home-ai-console.has-chat)) .home-ai-main{
   bottom:max(18px,calc(env(safe-area-inset-bottom) + 14px))!important;
   max-height:min(128px,calc(100dvh - 120px))!important;
   overflow:hidden!important;
+}
+
+/* 工具页默认输入态：内容短时不让外层产生无意义滚动；结果和长列表仍恢复滚动 */
+@media(min-width:769px){
+  html.tool-compact-page,
+  body.tool-compact-page{
+    height:100dvh!important;
+    max-height:100dvh!important;
+    overflow:hidden!important;
+    overscroll-behavior:none!important;
+  }
+  body.tool-compact-page:not(:has(.qf-result-card)):not(:has(.ly-result-card)):not(:has(.zw-result-wrap)):not(:has(.tarot-result-area.show)):not(:has(#zejiResultSection[style*="block"])) uni-page-wrapper{
+    height:100dvh!important;
+    max-height:100dvh!important;
+    overflow-y:hidden!important;
+  }
+  body.tool-compact-page:has(.qf-result-card) uni-page-wrapper,
+  body.tool-compact-page:has(.ly-result-card) uni-page-wrapper,
+  body.tool-compact-page:has(.zw-result-wrap) uni-page-wrapper,
+  body.tool-compact-page:has(.tarot-result-area.show) uni-page-wrapper,
+  body.tool-compact-page:has(#zejiResultSection[style*="block"]) uni-page-wrapper{
+    height:100dvh!important;
+    max-height:100dvh!important;
+    overflow-y:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+  body.tool-compact-page .page-wrap,
+  body.bazi-tool-page .page-wrap{
+    min-height:calc(100dvh - 52px)!important;
+  }
+  body.tool-compact-page .tool-hero,
+  body.tool-compact-page .calendar-hero,
+  body.tool-compact-page .tarot-hero,
+  body.bazi-tool-page .tool-hero{
+    padding:12px 32px 6px!important;
+  }
+  body.tool-compact-page .tool-hero-title,
+  body.tool-compact-page .calendar-hero-title,
+  body.tool-compact-page .tarot-hero-title,
+  body.bazi-tool-page .tool-hero-title{
+    font-size:1.28rem!important;
+    line-height:1.22!important;
+    margin-bottom:4px!important;
+  }
+  body.tool-compact-page .tool-hero-desc,
+  body.tool-compact-page .calendar-hero-desc,
+  body.tool-compact-page .tarot-hero-desc,
+  body.bazi-tool-page .tool-hero-desc{
+    font-size:.76rem!important;
+    line-height:1.42!important;
+  }
+  body.tool-compact-page .section,
+  body.bazi-tool-page .section{
+    padding:6px 32px 12px!important;
+  }
+  body.tool-compact-page .tool-container,
+  body.tool-compact-page .calendar-card,
+  body.tool-compact-page .tarot-section,
+  body.bazi-tool-page .tool-container{
+    padding:14px 16px!important;
+  }
+  body.tool-compact-page .tool-tabs,
+  body.bazi-tool-page .tool-tabs{
+    margin-bottom:10px!important;
+  }
+  body.tool-compact-page .form-group,
+  body.tool-compact-page .qf-datetime-section,
+  body.tool-compact-page .ly-auto-info,
+  body.tool-compact-page .tarot-settings,
+  body.bazi-tool-page .form-group,
+  body.bazi-tool-page .wz-form-group,
+  body.bazi-tool-page .wz-advanced-box{
+    margin-bottom:8px!important;
+    padding-top:10px!important;
+    padding-bottom:10px!important;
+  }
+}
+
+@media(max-width:768px){
+  body.tool-compact-page .tool-hero,
+  body.tool-compact-page .calendar-hero,
+  body.tool-compact-page .tarot-hero,
+  body.bazi-tool-page .tool-hero{
+    padding:10px 12px 6px!important;
+  }
+  body.tool-compact-page .section,
+  body.bazi-tool-page .section{
+    padding:6px 12px 12px!important;
+  }
+  body.tool-compact-page .tool-container,
+  body.tool-compact-page .calendar-card,
+  body.tool-compact-page .tarot-section,
+  body.bazi-tool-page .tool-container{
+    padding:12px!important;
+  }
+  body.tool-compact-page .tool-hero-title,
+  body.tool-compact-page .calendar-hero-title,
+  body.tool-compact-page .tarot-hero-title,
+  body.bazi-tool-page .tool-hero-title{
+    font-size:1.04rem!important;
+    line-height:1.24!important;
+    letter-spacing:1px!important;
+    margin-bottom:3px!important;
+  }
+  body.tool-compact-page .tool-hero-desc,
+  body.tool-compact-page .calendar-hero-desc,
+  body.tool-compact-page .tarot-hero-desc,
+  body.bazi-tool-page .tool-hero-desc{
+    font-size:.7rem!important;
+    line-height:1.34!important;
+  }
+  body.tool-compact-page .section-tag,
+  body.bazi-tool-page .section-tag{
+    margin-bottom:5px!important;
+    padding:2px 9px!important;
+    font-size:.58rem!important;
+  }
+  body.tool-compact-page .tool-tabs,
+  body.tool-compact-page .method-switch,
+  body.bazi-tool-page .tool-tabs{
+    margin-bottom:8px!important;
+  }
+  body.tool-compact-page .spread-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:7px!important;
+  }
+  body.tool-compact-page .spread-card{
+    min-height:44px!important;
+    padding:6px 8px!important;
+  }
+  body.tool-compact-page .spread-card-desc{
+    -webkit-line-clamp:1!important;
+  }
+  body.tool-compact-page .submit-btn,
+  body.tool-compact-page .wz-submit-btn,
+  body.tool-compact-page .tarot-draw-btn,
+  body.tool-compact-page .tarot-btn-primary,
+  body.tool-compact-page .zeji-submit,
+  body.bazi-tool-page .submit-btn,
+  body.bazi-tool-page .wz-submit-btn{
+    position:static!important;
+    bottom:auto!important;
+  }
+  body.tool-compact-page:not(:has(.qf-result-card)):not(:has(.ly-result-card)):not(:has(.zw-result-wrap)):not(:has(.tarot-result-area.show)):not(:has(#zejiResultSection[style*="block"])) uni-page-wrapper,
+  body.bazi-tool-page:has(#baziTabFree.active) uni-page-wrapper{
+    height:100dvh!important;
+    max-height:100dvh!important;
+    overflow-y:hidden!important;
+  }
+  body.tool-compact-page:has(.qf-result-card) uni-page-wrapper,
+  body.tool-compact-page:has(.ly-result-card) uni-page-wrapper,
+  body.tool-compact-page:has(.zw-result-wrap) uni-page-wrapper,
+  body.tool-compact-page:has(.tarot-result-area.show) uni-page-wrapper,
+  body.tool-compact-page:has(#zejiResultSection[style*="block"]) uni-page-wrapper,
+  body.bazi-tool-page:has(#baziTabRecords.active) uni-page-wrapper{
+    height:100dvh!important;
+    max-height:100dvh!important;
+    overflow-y:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+}
+
+@media(max-width:360px){
+  body.tool-compact-page .spread-grid{
+    grid-template-columns:1fr!important;
+  }
 }
 </style>

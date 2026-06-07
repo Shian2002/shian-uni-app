@@ -1927,4 +1927,121 @@ function _checkTarotRestore() {
   white-space:nowrap;
 }
 
+/* 手机端塔罗：减少白色块感，压缩到首屏可操作 */
+.tarot-section {
+  position: relative;
+  overflow: hidden;
+}
+.tarot-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .72;
+  background:
+    radial-gradient(circle at 18% 10%, rgba(178,149,93,.16), transparent 28%),
+    linear-gradient(120deg, transparent 0 42%, rgba(178,149,93,.07) 42% 43%, transparent 43% 100%);
+}
+.tarot-section > * {
+  position: relative;
+  z-index: 1;
+}
+[data-theme="light"] .tarot-section {
+  background:
+    linear-gradient(145deg, rgba(255,251,242,.78), rgba(237,226,204,.42)),
+    rgba(246,239,226,.72);
+  box-shadow: 0 12px 30px rgba(78,54,20,.08), inset 0 1px 0 rgba(255,255,255,.44);
+}
+[data-theme="light"] .spread-card,
+[data-theme="light"] .tarot-settings {
+  background: rgba(255,252,246,.48);
+  border-color: rgba(128,90,32,.16);
+}
+
+@media (max-width: 768px) {
+  .tarot-hero-icon {
+    display: none;
+  }
+  .tarot-hero {
+    padding-top: 8px !important;
+  }
+  .tarot-section-title {
+    font-size: .92rem;
+    margin-bottom: 8px;
+  }
+  .spread-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 7px;
+  }
+  .spread-card {
+    min-height: 46px !important;
+    padding: 6px 8px !important;
+    border-radius: 9px;
+  }
+  .spread-card-name {
+    font-size: .76rem;
+  }
+  .spread-card-count {
+    font-size: .58rem;
+    padding: 1px 6px;
+  }
+  .spread-card-desc {
+    font-size: .64rem;
+    line-height: 1.18;
+    -webkit-line-clamp: 1;
+  }
+  .tarot-settings {
+    margin-top: 8px;
+    padding: 9px;
+    gap: 8px;
+  }
+  .tarot-setting-label {
+    font-size: .76rem;
+  }
+  .tarot-toggle {
+    width: 38px;
+    height: 22px;
+  }
+  .tarot-toggle-knob {
+    width: 16px;
+    height: 16px;
+  }
+  .tarot-toggle.on .tarot-toggle-knob {
+    transform: translateX(16px);
+  }
+  .tarot-question-input {
+    min-width: 100%;
+    padding: 8px 10px;
+    min-height: 38px;
+  }
+  .tarot-btn-row {
+    margin-top: 8px;
+    gap: 8px;
+  }
+  .tarot-draw-btn {
+    max-width: none;
+    padding: 11px 14px !important;
+    font-size: .88rem;
+    letter-spacing: 1px;
+  }
+}
+
+@media (max-width: 390px) {
+  .spread-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .spread-card {
+    min-height: 44px !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .spread-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .spread-card {
+    min-height: 48px !important;
+  }
+}
+
 </style>

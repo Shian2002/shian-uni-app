@@ -297,8 +297,19 @@ onMounted(() => {
   .tool-hero-title { font-size: 1.5rem; }
   .tool-container { padding: 20px 16px; }
   .section { padding: 24px 16px 36px; }
-  .form-row-2col { flex-direction: column; gap: 0; }
-  .form-row-2col .form-group { margin-bottom: 14px; }
+  .card-header { padding: 9px 14px; }
+  .card-body { padding: 12px; }
+  .form-group { margin-bottom: 8px; }
+  .form-label { font-size: 0.72rem; margin-bottom: 4px; }
+  .form-row-2col { flex-direction: column; gap: 8px; margin-bottom: 8px; }
+  .form-row-2col .form-group { margin-bottom: 0; }
+  .wz-datetime-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .wz-datetime-select,
+  .form-input { min-height: 34px; padding-top: 6px; padding-bottom: 6px; font-size: 0.76rem; }
+  .btn-row { margin-top: 8px; gap: 8px; }
+  .zeji-submit { flex: 1; padding: 10px 14px; font-size: 0.84rem; }
+  .zeji-clear { flex: 0 0 76px; padding: 10px 12px; font-size: 0.74rem; }
+  .compliance-notice { margin-top: 8px; padding: 7px 10px; font-size: 0.66rem; line-height: 1.35; }
 
 }
 </style>
