@@ -1892,12 +1892,12 @@ onUnmounted(function() {
   .submit-btn { font-size: 0.875rem; padding: 12px 16px; letter-spacing: 1px; }
   .zw-result-wrap { overflow-x: visible; max-width: 100%; }
   .zw-result :deep(.zw-result-wrap) { overflow-x: visible; max-width: 100%; }
-  .zw-chart-scroll { width: 100%; overflow-x: auto; overflow-y: hidden; margin: 0 -4px 4px; padding: 0 4px 8px; overscroll-behavior-x: contain; }
-  .zw-result :deep(.zw-chart-scroll) { width: 100%; overflow-x: auto; overflow-y: hidden; margin: 0 -4px 4px; padding: 0 4px 8px; overscroll-behavior-x: contain; }
+  .zw-chart-scroll { width: 100%; overflow: visible; margin: 0 0 4px; padding: 0; }
+  .zw-result :deep(.zw-chart-scroll) { width: 100%; overflow: visible; margin: 0 0 4px; padding: 0; }
   .zw-chart-legend { flex-wrap: nowrap; overflow-x: auto; margin-bottom: 8px; padding: 7px 8px; font-size: 0.62rem; }
   .zw-result :deep(.zw-chart-legend) { flex-wrap: nowrap; overflow-x: auto; margin-bottom: 8px; padding: 7px 8px; font-size: 0.62rem; }
-  .legend-swipe-hint { display: inline-flex !important; padding-left: 4px; }
-  .zw-result :deep(.legend-swipe-hint) { display: inline-flex !important; padding-left: 4px; }
+  .legend-swipe-hint { display: none !important; }
+  .zw-result :deep(.legend-swipe-hint) { display: none !important; }
   .zw-palace-grid { grid-template-columns: repeat(4, 1fr); gap: 3px; }
   .zw-result :deep(.zw-palace-grid) { grid-template-columns: repeat(4, 1fr); gap: 3px; }
   .zw-palace-cell { min-height: 70px; padding: 5px; }
@@ -1946,22 +1946,22 @@ onUnmounted(function() {
   .zw-result :deep(.zw-mutagen) { font-size: 0.5rem; padding: 1px 2px; }
   .zw-result :deep(.zw-pro-header) { flex-direction: column; gap: 8px; padding: 12px; }
   .zw-result :deep(.zw-pro-pill) { align-self: flex-start; white-space: normal; }
-  .zw-pro-grid { min-width: 760px; width: 760px; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
-  .zw-result :deep(.zw-pro-grid) { min-width: 760px; width: 760px; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
-  .zw-result :deep(.zw-pro-grid .zw-palace-cell) { min-height: 150px; padding: 7px; border-radius: 6px; }
-  .zw-result :deep(.zw-pro-grid .zw-palace-header) { padding-right: 26px; margin-bottom: 4px; gap: 4px; }
-  .zw-result :deep(.zw-pro-grid .zw-palace-name) { font-size: 0.8rem; }
-  .zw-result :deep(.zw-pro-grid .zw-palace-ganzhi) { font-size: 0.66rem; }
+  .zw-pro-grid { min-width: 0; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: stretch; }
+  .zw-result :deep(.zw-pro-grid) { min-width: 0; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: stretch; }
+  .zw-result :deep(.zw-pro-grid .zw-palace-cell) { min-height: 154px; padding: 8px; border-radius: 8px; }
+  .zw-result :deep(.zw-pro-grid .zw-palace-header) { padding-right: 24px; margin-bottom: 4px; gap: 4px; }
+  .zw-result :deep(.zw-pro-grid .zw-palace-name) { font-size: 0.78rem; }
+  .zw-result :deep(.zw-pro-grid .zw-palace-ganzhi) { font-size: 0.62rem; }
   .zw-result :deep(.zw-pro-grid .zw-palace-badge) { font-size: 0.52rem; padding: 1px 4px; top: 5px; right: 5px; }
-  .zw-result :deep(.zw-pro-grid .zw-star-major) { font-size: 0.74rem; }
-  .zw-result :deep(.zw-pro-grid .zw-star-minor) { font-size: 0.66rem; }
-  .zw-result :deep(.zw-pro-grid .zw-star-adj) { font-size: 0.58rem; }
-  .zw-result :deep(.zw-pro-grid .zw-star-major em), .zw-result :deep(.zw-pro-grid .zw-star-minor em), .zw-result :deep(.zw-pro-grid .zw-star-adj em) { font-size: 0.52rem; }
+  .zw-result :deep(.zw-pro-grid .zw-star-major) { font-size: 0.7rem; }
+  .zw-result :deep(.zw-pro-grid .zw-star-minor) { font-size: 0.63rem; }
+  .zw-result :deep(.zw-pro-grid .zw-star-adj) { font-size: 0.55rem; }
+  .zw-result :deep(.zw-pro-grid .zw-star-major em), .zw-result :deep(.zw-pro-grid .zw-star-minor em), .zw-result :deep(.zw-pro-grid .zw-star-adj em) { font-size: 0.5rem; }
   .zw-result :deep(.zw-pro-grid .zw-mutagen) { min-width: 13px; height: 13px; font-size: 0.52rem; padding: 0 3px; }
-  .zw-result :deep(.zw-palace-support) { font-size: 0.54rem; line-height: 1.28; margin-top: 3px; }
-  .zw-result :deep(.zw-pro-grid .zw-palace-decadal) { font-size: 0.58rem; margin-top: 4px; padding-top: 3px; }
-  .zw-result :deep(.zw-palace-ages) { font-size: 0.5rem; }
-  .zw-result :deep(.zw-pro-grid .zw-center-info) { min-height: 302px; padding: 12px; border-radius: 6px; }
+  .zw-result :deep(.zw-palace-support) { font-size: 0.52rem; line-height: 1.28; margin-top: 3px; }
+  .zw-result :deep(.zw-pro-grid .zw-palace-decadal) { font-size: 0.55rem; margin-top: 4px; padding-top: 3px; }
+  .zw-result :deep(.zw-palace-ages) { font-size: 0.48rem; }
+  .zw-result :deep(.zw-pro-grid .zw-center-info) { order: -1; grid-column: 1 / -1; grid-row: auto; min-height: 0; padding: 14px 12px; border-radius: 10px; }
   .zw-result :deep(.zw-center-kicker) { font-size: 0.66rem; }
   .zw-result :deep(.zw-pro-grid .zw-center-title) { font-size: 1.05rem; letter-spacing: 2px; margin: 4px 0; }
   .zw-result :deep(.zw-pro-grid .zw-center-wuxing) { font-size: 0.82rem; margin-bottom: 6px; }
