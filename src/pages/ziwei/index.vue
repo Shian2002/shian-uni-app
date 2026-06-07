@@ -1889,7 +1889,10 @@ onUnmounted(function() {
 @media (max-width: 480px) {
   .tool-tabs { overflow-x: auto; gap: 2px; }
   .tool-tab { padding: 10px 14px; font-size: 0.8125rem; white-space: nowrap; }
+  .tool-container { padding: 14px 8px; border-radius: 12px; }
   .submit-btn { font-size: 0.875rem; padding: 12px 16px; letter-spacing: 1px; }
+  .zw-result { margin-top: 12px; }
+  .zw-result-card { padding: 10px 7px; border-radius: 10px; }
   .zw-result-wrap { overflow-x: visible; max-width: 100%; }
   .zw-result :deep(.zw-result-wrap) { overflow-x: visible; max-width: 100%; }
   .zw-chart-scroll { width: 100%; overflow: visible; margin: 0 0 4px; padding: 0; }
@@ -1946,32 +1949,32 @@ onUnmounted(function() {
   .zw-result :deep(.zw-mutagen) { font-size: 0.5rem; padding: 1px 2px; }
   .zw-result :deep(.zw-pro-header) { flex-direction: column; gap: 8px; padding: 12px; }
   .zw-result :deep(.zw-pro-pill) { align-self: flex-start; white-space: normal; }
-  .zw-pro-grid { min-width: 0; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: stretch; }
-  .zw-result :deep(.zw-pro-grid) { min-width: 0; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: stretch; }
-  .zw-result :deep(.zw-pro-grid .zw-palace-cell) { min-height: 154px; padding: 8px; border-radius: 8px; }
-  .zw-result :deep(.zw-pro-grid .zw-palace-header) { padding-right: 24px; margin-bottom: 4px; gap: 4px; }
-  .zw-result :deep(.zw-pro-grid .zw-palace-name) { font-size: 0.78rem; }
-  .zw-result :deep(.zw-pro-grid .zw-palace-ganzhi) { font-size: 0.62rem; }
-  .zw-result :deep(.zw-pro-grid .zw-palace-badge) { font-size: 0.52rem; padding: 1px 4px; top: 5px; right: 5px; }
-  .zw-result :deep(.zw-pro-grid .zw-star-major) { font-size: 0.7rem; }
-  .zw-result :deep(.zw-pro-grid .zw-star-minor) { font-size: 0.63rem; }
-  .zw-result :deep(.zw-pro-grid .zw-star-adj) { font-size: 0.55rem; }
-  .zw-result :deep(.zw-pro-grid .zw-star-major em), .zw-result :deep(.zw-pro-grid .zw-star-minor em), .zw-result :deep(.zw-pro-grid .zw-star-adj em) { font-size: 0.5rem; }
-  .zw-result :deep(.zw-pro-grid .zw-mutagen) { min-width: 13px; height: 13px; font-size: 0.52rem; padding: 0 3px; }
-  .zw-result :deep(.zw-palace-support) { font-size: 0.52rem; line-height: 1.28; margin-top: 3px; }
-  .zw-result :deep(.zw-pro-grid .zw-palace-decadal) { font-size: 0.55rem; margin-top: 4px; padding-top: 3px; }
-  .zw-result :deep(.zw-palace-ages) { font-size: 0.48rem; }
-  .zw-result :deep(.zw-pro-grid .zw-center-info) { order: -1; grid-column: 1 / -1; grid-row: auto; min-height: 0; padding: 14px 12px; border-radius: 10px; }
-  .zw-result :deep(.zw-center-kicker) { font-size: 0.66rem; }
-  .zw-result :deep(.zw-pro-grid .zw-center-title) { font-size: 1.05rem; letter-spacing: 2px; margin: 4px 0; }
-  .zw-result :deep(.zw-pro-grid .zw-center-wuxing) { font-size: 0.82rem; margin-bottom: 6px; }
-  .zw-result :deep(.zw-center-line) { grid-template-columns: 58px minmax(0,1fr); gap: 5px; font-size: 0.64rem; margin: 2px 0; }
-  .zw-result :deep(.zw-center-line strong) { font-size: 0.68rem; }
-  .zw-result :deep(.zw-center-two) { gap: 6px; margin: 6px 0 4px; font-size: 0.66rem; }
-  .zw-result :deep(.zw-center-flow) { gap: 4px; margin: 4px 0; }
-  .zw-result :deep(.zw-center-flow span) { font-size: 0.58rem; padding: 3px 4px; }
-  .zw-result :deep(.zw-center-error) { font-size: 0.55rem; margin: 2px auto 3px; }
-  .zw-result :deep(.zw-flow-badge) { font-size: 0.5rem; padding: 1px 3px; }
+  .zw-pro-grid { min-width: 0; width: 100%; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; align-items: stretch; }
+  .zw-result :deep(.zw-pro-grid) { min-width: 0; width: 100%; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; align-items: stretch; }
+  .zw-result :deep(.zw-pro-grid .zw-palace-cell) { min-height: 110px; padding: 4px 3px; border-radius: 4px; overflow: hidden; }
+  .zw-result :deep(.zw-pro-grid .zw-palace-header) { padding-right: 14px; margin-bottom: 2px; gap: 2px; }
+  .zw-result :deep(.zw-pro-grid .zw-palace-name) { font-size: 0.56rem; }
+  .zw-result :deep(.zw-pro-grid .zw-palace-ganzhi) { font-size: 0.44rem; }
+  .zw-result :deep(.zw-pro-grid .zw-palace-badge) { font-size: 0.36rem; padding: 0 2px; top: 3px; right: 3px; }
+  .zw-result :deep(.zw-pro-grid .zw-star-major) { font-size: 0.48rem; }
+  .zw-result :deep(.zw-pro-grid .zw-star-minor) { font-size: 0.43rem; }
+  .zw-result :deep(.zw-pro-grid .zw-star-adj) { font-size: 0.39rem; }
+  .zw-result :deep(.zw-pro-grid .zw-star-major em), .zw-result :deep(.zw-pro-grid .zw-star-minor em), .zw-result :deep(.zw-pro-grid .zw-star-adj em) { font-size: 0.36rem; }
+  .zw-result :deep(.zw-pro-grid .zw-mutagen) { min-width: 9px; height: 9px; font-size: 0.34rem; padding: 0 1px; }
+  .zw-result :deep(.zw-palace-support) { font-size: 0.37rem; line-height: 1.18; margin-top: 2px; }
+  .zw-result :deep(.zw-pro-grid .zw-palace-decadal) { font-size: 0.38rem; margin-top: 2px; padding-top: 2px; line-height: 1.16; }
+  .zw-result :deep(.zw-palace-ages) { font-size: 0.35rem; line-height: 1.12; }
+  .zw-result :deep(.zw-pro-grid .zw-center-info) { order: 0; grid-column: 2 / 4; grid-row: 2 / 4; min-height: 222px; padding: 6px 4px; border-radius: 5px; }
+  .zw-result :deep(.zw-center-kicker) { font-size: 0.46rem; }
+  .zw-result :deep(.zw-pro-grid .zw-center-title) { font-size: 0.7rem; letter-spacing: 1px; margin: 2px 0; }
+  .zw-result :deep(.zw-pro-grid .zw-center-wuxing) { font-size: 0.56rem; margin-bottom: 3px; }
+  .zw-result :deep(.zw-center-line) { grid-template-columns: 36px minmax(0,1fr); gap: 2px; font-size: 0.4rem; margin: 1px 0; }
+  .zw-result :deep(.zw-center-line strong) { font-size: 0.42rem; }
+  .zw-result :deep(.zw-center-two) { gap: 3px; margin: 3px 0 2px; font-size: 0.43rem; }
+  .zw-result :deep(.zw-center-flow) { grid-template-columns: 1fr; gap: 2px; margin: 2px 0; }
+  .zw-result :deep(.zw-center-flow span) { font-size: 0.38rem; padding: 1px 2px; }
+  .zw-result :deep(.zw-center-error) { font-size: 0.38rem; margin: 1px auto 2px; }
+  .zw-result :deep(.zw-flow-badge) { font-size: 0.34rem; padding: 0 2px; }
   .zw-result :deep(.zw-palace-flow) { gap: 2px; margin-top: 2px; }
   .zw-result :deep(.zw-mode-chip) { font-size: 0.45rem; padding: 2px 4px; }
   .zw-result :deep(.zw-flow-row) { grid-template-columns: 40px minmax(0,1fr); gap: 5px; }
