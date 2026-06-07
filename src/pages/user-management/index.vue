@@ -539,7 +539,14 @@ function deleteProfile(profile) {
     success: async function(res) {
       if (!res.confirm) return
       try {
-        await uni.request({ url: `/api/profiles/${profile.id}`, method: 'DELETE' })
+        const deleteRes = await uni.request({ url: `/api/profiles/${profile.id}`, method: 'DELETE' })
+        const data = deleteRes.data || {}
+        if ((deleteRes.statusCode && deleteRes.statusCode >= 400) || data.error) {
+          throw new Error(data.error || 'delete profile failed')
+        }
+        profiles.value = profiles.value.filter(item => item.id !== profile.id)
+        activeMobileActionsId.value = null
+        profilesLoadedAt.value = 0
         await loadProfiles(true)
         uni.showToast({ title: '已删除', icon: 'none' })
       } catch (_) {

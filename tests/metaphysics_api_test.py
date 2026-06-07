@@ -829,6 +829,44 @@ def test_profiles_list_backfills_existing_bazi_records(app_module, user_factory)
     assert synced["meta"]["birthLng"] == 116.4074
 
 
+def test_delete_backfilled_bazi_profile_removes_source_record(app_module, user_factory):
+    user = user_factory("profile-delete-backfill-user")
+    with app_module.app.app_context():
+        record = app_module.BaziRecord(
+            user_id=user.id,
+            name="待删除八字记录",
+            gender="女",
+            cal_type="公历",
+            birth_time="199608251647",
+            birth_addr="广州",
+            pillars="丙子丙申甲午壬申",
+            record_type="paipan",
+            params_json=json.dumps({"birthLng": 113.2644, "useSolarTime": True}, ensure_ascii=False),
+        )
+        app_module.db.session.add(record)
+        app_module.db.session.commit()
+        record_id = record.id
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+      sess["_user_id"] = str(user.id)
+      sess["_fresh"] = True
+
+    profiles_response = client.get("/api/profiles?sort=last_used")
+    assert profiles_response.status_code == 200
+    synced = next(p for p in profiles_response.get_json()["profiles"] if p["sourceRecordId"] == record_id)
+
+    delete_response = client.delete(f"/api/profiles/{synced['id']}")
+    assert delete_response.status_code == 200
+    assert delete_response.get_json()["deletedSourceRecord"] is True
+
+    refreshed = client.get("/api/profiles?sort=last_used")
+    assert refreshed.status_code == 200
+    assert all(p["sourceRecordId"] != record_id for p in refreshed.get_json()["profiles"])
+    with app_module.app.app_context():
+        assert app_module.db.session.get(app_module.BaziRecord, record_id) is None
+
+
 def test_profiles_update_preserves_owner_and_serializes_meta(app_module, user_factory):
     user = user_factory("profile-edit-user")
     with app_module.app.app_context():

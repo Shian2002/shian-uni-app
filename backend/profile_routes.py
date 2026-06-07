@@ -234,9 +234,15 @@ def register_profile_routes(app, db):
         p = db.session.get(UserProfile, pid)
         if not p or p.user_id != current_user.id:
             return jsonify({'error': '无权操作'}), 403
+        deleted_source_record = False
+        if p.source == 'bazi_record' and p.source_record_id:
+            record = db.session.get(BaziRecord, p.source_record_id)
+            if record and record.user_id == current_user.id:
+                db.session.delete(record)
+                deleted_source_record = True
         db.session.delete(p)
         db.session.commit()
-        return jsonify({'ok': True})
+        return jsonify({'ok': True, 'deletedSourceRecord': deleted_source_record})
 
     @app.route('/api/profiles/<int:pid>/touch', methods=['POST'])
     @login_required
