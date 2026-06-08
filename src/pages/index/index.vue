@@ -600,7 +600,7 @@
         <view class="send-confirm-list">
           <view><text>命盘</text><text>{{ selectedProfileName || '未选择' }}</text></view>
           <view><text>术数</text><text>{{ selectedToolSummary }}</text></view>
-          <view><text>模型</text><text>{{ selectedLlmModel.name || '基础模型' }}</text></view>
+          <view><text>模型</text><text>{{ selectedLlmModel.name || '时安基础模型' }}</text></view>
           <view><text>模式</text><text>{{ selectedReadingMode.name || '标准' }} · {{ estimatedCost }}积分</text></view>
         </view>
         <view class="send-confirm-check" :class="{ active: sendConfirmDontRemind }" @tap="sendConfirmDontRemind = !sendConfirmDontRemind">
@@ -1185,7 +1185,7 @@ const readingModes = ref([
   { id: 'standard', name: '标准', cost_delta: 0, display_cost: 2 },
   { id: 'deep', name: '深度', cost_delta: 2, display_cost: 4 },
 ])
-const llmModels = ref([{ id: 'basic', name: '基础模型', cost_base: 2, cost_multiplier: 0, followup_cost: 2 }])
+const llmModels = ref([{ id: 'basic', name: '时安基础模型', cost_base: 2, cost_multiplier: 0, followup_cost: 2 }])
 const toolModels = ref([
   { id: 'qimen', name: '奇门遁甲', cost: 3 },
   { id: 'bazi', name: '八字', cost: 2 },
@@ -1226,7 +1226,7 @@ const COMPREHENSIVE_DRAFT_SAVE_MS = 320
 const COMPREHENSIVE_DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000
 
 const selectedLlmModel = computed(() => llmModels.value[llmModelIdx.value] || llmModels.value[0] || {})
-const llmModelNames = computed(() => llmModels.value.map(m => m.name || '基础模型'))
+const llmModelNames = computed(() => llmModels.value.map(m => m.name || '时安基础模型'))
 const selectedReadingMode = computed(() => readingModes.value.find(m => m.id === readingMode.value) || readingModes.value[1] || {})
 const readingModeNames = computed(() => readingModes.value.map(m => m.name))
 const readingModeLabels = computed(() => readingModes.value.map(m => {
@@ -1238,7 +1238,7 @@ const comprehensivePlaceholder = computed(() => comprehensiveMessages.value.leng
 const homeAiContextSummary = computed(() => {
   const profileText = selectedProfileName.value || '未选择命盘'
   const toolText = selectedToolSummary.value === '选择术数' ? '未选择术数' : selectedToolSummary.value
-  const modelText = selectedLlmModel.value.name || '基础模型'
+  const modelText = selectedLlmModel.value.name || '时安基础模型'
   const costText = estimatedCost.value + '积分'
   return profileText + ' · ' + toolText + ' · ' + modelText + ' · ' + costText
 })

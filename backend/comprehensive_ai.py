@@ -5,7 +5,7 @@ import json
 COMPREHENSIVE_LLM_MODELS = [
     {
         "id": "basic",
-        "name": "基础模型",
+        "name": "时安基础模型",
         "cost_base": 2,
         "cost_multiplier": 0,
         "followup_cost": 2,
@@ -13,7 +13,7 @@ COMPREHENSIVE_LLM_MODELS = [
     },
     {
         "id": "advanced",
-        "name": "高级模型",
+        "name": "时安高级模型",
         "cost_base": 4,
         "cost_multiplier": 0,
         "followup_cost": 4,
@@ -21,7 +21,7 @@ COMPREHENSIVE_LLM_MODELS = [
     },
     {
         "id": "expert",
-        "name": "专家模型",
+        "name": "时安专家模型",
         "cost_base": 8,
         "cost_multiplier": 0,
         "followup_cost": 8,
