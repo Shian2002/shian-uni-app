@@ -1208,14 +1208,15 @@ const genderOptions = ['男', '女']
 const calTypeOptions = ['公历', '农历']
 const profileQuickFormOpen = ref(false)
 const quickNow = new Date()
+const quickDefaultBirth = { year: 2000, month: 6, day: 15 }
 const quickProfileForm = reactive({
   name: '',
   profileType: 'self',
   gender: '男',
   calType: '公历',
-  birthYear: '',
-  birthMonth: '',
-  birthDay: '',
+  birthYear: quickDefaultBirth.year,
+  birthMonth: quickDefaultBirth.month,
+  birthDay: quickDefaultBirth.day,
   birthHour: quickNow.getHours(),
   birthMinute: quickNow.getMinutes(),
   birthProvince: '',
@@ -1714,9 +1715,9 @@ function resetQuickProfileForm() {
   quickProfileForm.profileType = 'self'
   quickProfileForm.gender = '男'
   quickProfileForm.calType = '公历'
-  quickProfileForm.birthYear = ''
-  quickProfileForm.birthMonth = ''
-  quickProfileForm.birthDay = ''
+  quickProfileForm.birthYear = quickDefaultBirth.year
+  quickProfileForm.birthMonth = quickDefaultBirth.month
+  quickProfileForm.birthDay = quickDefaultBirth.day
   quickProfileForm.birthHour = quickNow.getHours()
   quickProfileForm.birthMinute = quickNow.getMinutes()
   quickProfileForm.birthProvince = ''
