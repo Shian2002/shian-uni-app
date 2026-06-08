@@ -1214,9 +1214,9 @@ const quickProfileForm = reactive({
   profileType: 'self',
   gender: '男',
   calType: '公历',
-  birthYear: quickDefaultBirth.year,
-  birthMonth: quickDefaultBirth.month,
-  birthDay: quickDefaultBirth.day,
+  birthYear: '',
+  birthMonth: '',
+  birthDay: '',
   birthHour: quickNow.getHours(),
   birthMinute: quickNow.getMinutes(),
   birthProvince: '',
@@ -1367,14 +1367,14 @@ const quickYearOptions = computed(() => {
   const current = new Date().getFullYear()
   const years = []
   for (let y = current - 120; y <= current + 10; y++) years.push(y)
-  return years
+  return rotateOptionsAroundAnchor(years, quickDefaultBirth.year)
 })
-const quickMonthOptions = computed(() => Array.from({ length: 12 }, (_, i) => i + 1))
+const quickMonthOptions = computed(() => rotateOptionsAroundAnchor(Array.from({ length: 12 }, (_, i) => i + 1), quickDefaultBirth.month))
 const quickDayOptions = computed(() => {
-  const year = Number(quickProfileForm.birthYear || new Date().getFullYear())
-  const month = Number(quickProfileForm.birthMonth || 1)
+  const year = Number(quickProfileForm.birthYear || quickDefaultBirth.year)
+  const month = Number(quickProfileForm.birthMonth || quickDefaultBirth.month)
   const maxDay = new Date(year, month, 0).getDate()
-  return Array.from({ length: maxDay }, (_, i) => i + 1)
+  return rotateOptionsAroundAnchor(Array.from({ length: maxDay }, (_, i) => i + 1), quickDefaultBirth.day)
 })
 const quickHourOptions = computed(() => Array.from({ length: 24 }, (_, i) => i))
 const quickMinuteOptions = computed(() => Array.from({ length: 60 }, (_, i) => i))
@@ -1715,9 +1715,9 @@ function resetQuickProfileForm() {
   quickProfileForm.profileType = 'self'
   quickProfileForm.gender = '男'
   quickProfileForm.calType = '公历'
-  quickProfileForm.birthYear = quickDefaultBirth.year
-  quickProfileForm.birthMonth = quickDefaultBirth.month
-  quickProfileForm.birthDay = quickDefaultBirth.day
+  quickProfileForm.birthYear = ''
+  quickProfileForm.birthMonth = ''
+  quickProfileForm.birthDay = ''
   quickProfileForm.birthHour = quickNow.getHours()
   quickProfileForm.birthMinute = quickNow.getMinutes()
   quickProfileForm.birthProvince = ''
@@ -1736,6 +1736,12 @@ function quickBirthTime() {
   const h = quickProfileForm.timeUnknown ? '12' : String(quickProfileForm.birthHour || 0).padStart(2, '0')
   const minute = quickProfileForm.timeUnknown ? '00' : String(quickProfileForm.birthMinute || 0).padStart(2, '0')
   return y + m + d + h + minute
+}
+
+function rotateOptionsAroundAnchor(list, anchor) {
+  const idx = list.indexOf(anchor)
+  if (idx <= 0) return list
+  return list.slice(idx).concat(list.slice(0, idx))
 }
 
 function normalizeQuickBirthDay() {

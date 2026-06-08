@@ -469,7 +469,7 @@ const baziCatIdx = ref(0)
 const baziGender = ref('男')
 const baziCalType = ref('公历')
 const baziDate = ref('')
-const baziDefaultBirth = { year: 2000, month: 6, day: 15 }
+const baziBirthOptionAnchor = { year: 2000, month: 6, day: 15 }
 const baziHourIdx = ref(12)
 const baziMinuteIdx = ref(0)
 const instantPillars = ref('')
@@ -2305,6 +2305,17 @@ function fillBaziSelect(id, options, selectedVal, onChange) {
   }
 }
 
+function rotateBaziOptionsAroundAnchor(options, anchor) {
+  var idx = -1
+  for (var i = 0; i < options.length; i++) {
+    var item = options[i]
+    var value = typeof item === 'object' && item !== null ? item.value : item
+    if (String(value) === String(anchor)) { idx = i; break }
+  }
+  if (idx <= 0) return options
+  return options.slice(idx).concat(options.slice(0, idx))
+}
+
 // ── 模式C: 年月日联动 ──
 function getDaysInMonth(year, month) {
   return new Date(year, month, 0).getDate()
@@ -2317,16 +2328,25 @@ function refillBaziDaySelect() {
   var mEl = document.getElementById('baziMonth')
   var dEl = document.getElementById('baziDay')
   if (!yEl || !mEl || !dEl) return
-  var y = parseInt(yEl.value)
-  var m = parseInt(mEl.value)
+  var y = parseInt(yEl.value) || baziBirthOptionAnchor.year
+  var m = parseInt(mEl.value) || baziBirthOptionAnchor.month
   var maxDay = getDaysInMonth(y, m)
   var curDay = parseInt(dEl.value)
   dEl.innerHTML = ''
+  var emptyOpt = document.createElement('option')
+  emptyOpt.value = ''
+  emptyOpt.text = '日'
+  dEl.appendChild(emptyOpt)
+  var dayValues = []
   for (var i = 1; i <= maxDay; i++) {
+    dayValues.push(i)
+  }
+  dayValues = rotateBaziOptionsAroundAnchor(dayValues, baziBirthOptionAnchor.day)
+  for (var j = 0; j < dayValues.length; j++) {
     var opt = document.createElement('option')
-    opt.value = i
-    opt.text = i + '日'
-    if (i === curDay) opt.selected = true
+    opt.value = dayValues[j]
+    opt.text = dayValues[j] + '日'
+    if (dayValues[j] === curDay) opt.selected = true
     dEl.appendChild(opt)
   }
   if (curDay > maxDay) {
@@ -2341,13 +2361,20 @@ function refillBaziDaySelect() {
     var yAi = parseInt(yElAi.value) || y
     var mAi = parseInt(mElAi.value) || m
     var maxDayAi = getDaysInMonth(yAi, mAi)
-    var curDayAi = parseInt(dElAi.value) || curDay
+    var curDayAi = parseInt(dElAi.value)
     dElAi.innerHTML = ''
-    for (var i = 1; i <= maxDayAi; i++) {
+    var emptyOptAi = document.createElement('option')
+    emptyOptAi.value = ''
+    emptyOptAi.text = '日'
+    dElAi.appendChild(emptyOptAi)
+    var dayValuesAi = []
+    for (var k = 1; k <= maxDayAi; k++) dayValuesAi.push(k)
+    dayValuesAi = rotateBaziOptionsAroundAnchor(dayValuesAi, baziBirthOptionAnchor.day)
+    for (var i = 0; i < dayValuesAi.length; i++) {
       var optAi = document.createElement('option')
-      optAi.value = i
-      optAi.text = i + '日'
-      if (i === curDayAi) optAi.selected = true
+      optAi.value = dayValuesAi[i]
+      optAi.text = dayValuesAi[i] + '日'
+      if (dayValuesAi[i] === curDayAi) optAi.selected = true
       dElAi.appendChild(optAi)
     }
     if (curDayAi > maxDayAi) {
@@ -2363,7 +2390,7 @@ function updateBaziDate() {
   var y = document.getElementById('baziYear') ? document.getElementById('baziYear').value : ''
   var m = document.getElementById('baziMonth') ? String(document.getElementById('baziMonth').value).padStart(2, '0') : ''
   var d = document.getElementById('baziDay') ? String(document.getElementById('baziDay').value).padStart(2, '0') : ''
-  baziDate.value = y + '-' + m + '-' + d
+  baziDate.value = y && m && d ? y + '-' + m + '-' + d : ''
   syncBaziBirthInputFromSelects()
 }
 
@@ -2479,7 +2506,7 @@ onMounted(() => {
     if (q) { sessionStorage.removeItem('_nav_query'); applyNavQuery(q) }
   } catch(_) {}
   const now = new Date()
-  baziDate.value = `${baziDefaultBirth.year}-${String(baziDefaultBirth.month).padStart(2,'0')}-${String(baziDefaultBirth.day).padStart(2,'0')}`
+  baziDate.value = ''
   baziHourIdx.value = now.getHours()
   baziMinuteIdx.value = now.getMinutes()
 
@@ -2549,7 +2576,9 @@ onMounted(() => {
   for (var y = curYear - 120; y <= curYear + 10; y++) {
     yearOpts.push({ value: y, label: y + '年' })
   }
-  fillBaziSelect('baziYear', yearOpts, baziDefaultBirth.year, function() {
+  yearOpts = rotateBaziOptionsAroundAnchor(yearOpts, baziBirthOptionAnchor.year)
+  yearOpts.unshift({ value: '', label: '年' })
+  fillBaziSelect('baziYear', yearOpts, '', function() {
     if (baziCalType.value === '农历') { wzUpdateLunarMonthDay() } else { refillBaziDaySelect() }
   })
   // 月
@@ -2557,7 +2586,9 @@ onMounted(() => {
   for (var i = 1; i <= 12; i++) {
     monthOpts.push({ value: i, label: i + '月' })
   }
-  fillBaziSelect('baziMonth', monthOpts, baziDefaultBirth.month, function() {
+  monthOpts = rotateBaziOptionsAroundAnchor(monthOpts, baziBirthOptionAnchor.month)
+  monthOpts.unshift({ value: '', label: '月' })
+  fillBaziSelect('baziMonth', monthOpts, '', function() {
     if (baziCalType.value === '农历' && _lunarMonthsData) {
       // 农历模式：根据选中月份更新日期
       var mEl = document.getElementById('baziMonth')
@@ -2579,12 +2610,14 @@ onMounted(() => {
     }
   })
   // 日
-  var maxDay = getDaysInMonth(baziDefaultBirth.year, baziDefaultBirth.month)
+  var maxDay = getDaysInMonth(baziBirthOptionAnchor.year, baziBirthOptionAnchor.month)
   var dayOpts = []
   for (var i = 1; i <= maxDay; i++) {
     dayOpts.push({ value: i, label: i + '日' })
   }
-  fillBaziSelect('baziDay', dayOpts, baziDefaultBirth.day, function() { updateBaziDate() })
+  dayOpts = rotateBaziOptionsAroundAnchor(dayOpts, baziBirthOptionAnchor.day)
+  dayOpts.unshift({ value: '', label: '日' })
+  fillBaziSelect('baziDay', dayOpts, '', function() { updateBaziDate() })
   // 时
   var hourOpts = []
   for (var i = 0; i < 24; i++) {
@@ -2605,10 +2638,10 @@ onMounted(() => {
   // #endif
   
   // 立即填充 AI Tab 的日期时间 select
-  fillBaziSelect('baziYearAi', yearOpts, baziDefaultBirth.year, function() {
+  fillBaziSelect('baziYearAi', yearOpts, '', function() {
     if (baziCalType.value === '农历') { wzUpdateLunarMonthDay() } else { refillBaziDaySelect() }
   })
-  fillBaziSelect('baziMonthAi', monthOpts, baziDefaultBirth.month, function() {
+  fillBaziSelect('baziMonthAi', monthOpts, '', function() {
     if (baziCalType.value === '农历' && _lunarMonthsData) {
       var mEl = document.getElementById('baziMonthAi')
       var selVal = mEl ? mEl.value : ''
@@ -2628,12 +2661,14 @@ onMounted(() => {
       refillBaziDaySelect()
     }
   })
-  var maxDay = getDaysInMonth(baziDefaultBirth.year, baziDefaultBirth.month)
+  var maxDay = getDaysInMonth(baziBirthOptionAnchor.year, baziBirthOptionAnchor.month)
   var dayOpts = []
   for (var i = 1; i <= maxDay; i++) {
     dayOpts.push({ value: i, label: i + '日' })
   }
-  fillBaziSelect('baziDayAi', dayOpts, baziDefaultBirth.day, function() { updateBaziDate() })
+  dayOpts = rotateBaziOptionsAroundAnchor(dayOpts, baziBirthOptionAnchor.day)
+  dayOpts.unshift({ value: '', label: '日' })
+  fillBaziSelect('baziDayAi', dayOpts, '', function() { updateBaziDate() })
   fillBaziSelect('baziHourAi', hourOpts, now.getHours(), function(val) {
     baziHourIdx.value = parseInt(val)
   })
