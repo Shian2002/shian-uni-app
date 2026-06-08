@@ -87,9 +87,11 @@
                   </view>
                   <view class="agent-handoff-btn" @tap="sendQimenToAgent">去解读</view>
                 </view>
+              </view>
+              <view class="qf-result-body">
+                <view class="qf-result" v-html="qfResult"></view>
                 <view v-if="qfResult && qfJsonCopyAllowed" class="btn btn-ghost qf-json-copy-btn" @tap="copyQimenJson">复制 JSON</view>
               </view>
-              <view class="qf-result" v-html="qfResult"></view>
             </view>
           </view>
 
@@ -1257,7 +1259,8 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .qf-pantype-select:focus { border-color: var(--accent); }
 .qf-options-row { display: flex; gap: 10px; align-items: flex-end; }
 .qf-result-shell { margin-top: 16px; }
-.qf-result-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; gap: 12px; margin-bottom: 12px; }
+.qf-result-actions { margin-bottom: 12px; }
+.qf-result-body { display: grid; grid-template-columns: minmax(0, 1fr) 136px; align-items: start; gap: 12px; }
 .agent-handoff-bar { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(178,149,93,0.22); background: var(--accent-glow); }
 .agent-handoff-title { display: block; color: var(--text-1); font-size: 0.86rem; font-weight: 700; }
 .agent-handoff-sub { display: block; margin-top: 3px; color: var(--text-3); font-size: 0.72rem; }
@@ -1266,7 +1269,8 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 110px;
+  width: 100%;
+  min-height: 64px;
   padding: 9px 16px;
   border-radius: 18px;
   font-size: 0.78rem;
@@ -1391,8 +1395,8 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   .section { padding: 24px 16px 36px; }
   .qf-datetime-row { flex-wrap: wrap; }
   .qf-dt-col { flex: 1 1 calc(33% - 8px); min-width: 60px; }
-  .qf-result-actions { grid-template-columns: 1fr; }
-  .qf-json-copy-btn { width: 100%; min-height: 42px; }
+  .qf-result-body { grid-template-columns: 1fr; }
+  .qf-json-copy-btn { min-height: 42px; }
   .qf-result :deep(.qm-scale-shell) { --qm-grid-size: clamp(280px, 92vw, 560px); }
   .qf-loading-card { min-height: 320px; }
 }
