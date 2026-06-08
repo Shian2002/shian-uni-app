@@ -10,14 +10,32 @@ SERVER="${SERVER_USER}@119.29.128.18"
 SSH_KEY="$HOME/.ssh/deploy_key"
 SSH_CMD="ssh -i $SSH_KEY"
 RSYNC_CMD="rsync -avz --progress -e \"ssh -i $SSH_KEY\""
-LOCAL_DIR="$(dirname "$0")"
+LOCAL_DIR="$(cd "$(dirname "$0")" && pwd)"
 LIVE_DB="/home/lighthouse/tianji/flask-source/backend/tianji.db"
 DATABASE_URL="sqlite:////home/lighthouse/tianji/flask-source/backend/tianji.db"
 DB_BACKUP_DIR="/home/lighthouse/backups/xuan-cet/db"
 
+require_clean_backend_python() {
+    if ! git -C "$LOCAL_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        echo "[ERROR] 当前目录不是 Git 工作树，停止部署以避免同步未受版本控制的后端代码"
+        exit 1
+    fi
+
+    local dirty_backend
+    dirty_backend="$(git -C "$LOCAL_DIR" status --porcelain -- 'backend/*.py')"
+    if [ -n "$dirty_backend" ]; then
+        echo "[ERROR] 检测到未提交的后端 Python 改动，停止部署以避免线上代码和 Git 不一致"
+        echo "$dirty_backend"
+        echo "请先提交、暂存到其他分支，或明确处理这些改动后再部署。"
+        exit 1
+    fi
+}
+
 echo "============================================"
 echo " 时安解忧屋 - 部署到服务器"
 echo "============================================"
+
+require_clean_backend_python
 
 if [ "${SKIP_PREFLIGHT:-0}" = "1" ]; then
     echo "[0/5] 已按 SKIP_PREFLIGHT=1 跳过部署前检查"

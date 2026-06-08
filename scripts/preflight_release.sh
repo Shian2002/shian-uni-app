@@ -16,6 +16,12 @@ section() {
 
 section "Git 状态"
 git status --short
+DIRTY_BACKEND="$(git status --porcelain -- 'backend/*.py')"
+if [ -n "$DIRTY_BACKEND" ]; then
+  echo "[FAIL] 检测到未提交的后端 Python 改动，停止发布检查以避免线上代码和 Git 不一致。"
+  printf '%s\n' "$DIRTY_BACKEND"
+  exit 1
+fi
 
 section "Shell 脚本语法"
 bash -n deploy-to-server.sh scripts/*.sh

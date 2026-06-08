@@ -547,7 +547,7 @@
             <view class="quick-grid">
               <label class="quick-field">
                 <text>姓名</text>
-                <input v-model="quickProfileForm.name" placeholder="例如：自己、妈妈、楚桉" />
+                <input v-model="quickProfileForm.name" placeholder="请输入名称" />
               </label>
               <label class="quick-field">
                 <text>关系</text>
@@ -577,7 +577,7 @@
               </label>
               <label class="quick-field quick-field-wide">
                 <text>出生地</text>
-                <input v-model="quickProfileForm.birthAddr" placeholder="省市区，可后续补充" />
+                <input v-model="quickProfileForm.birthAddr" placeholder="请输入出生地" />
               </label>
             </view>
             <view class="quick-row">
