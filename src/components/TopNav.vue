@@ -1779,6 +1779,30 @@ function isCurrent(pathPrefix) {
 
 // ── 按钮栏溢出检测（处理所有 TopNav 实例） ──
 function updateNavOverflow() {
+  function appendMoreItem(moreMenu, more, label, href) {
+    var clone = document.createElement('view')
+    clone.className = 'nav-btn-drop-item'
+    if (href) clone.setAttribute('data-href', href)
+    clone.textContent = label
+    clone.onclick = function(e) {
+      var targetHref = clone.getAttribute('data-href')
+      if (window._xc_dropItemGo) {
+        window._xc_dropItemGo(e, targetHref)
+      } else {
+        e.stopPropagation()
+        more.classList.remove('open')
+        if (targetHref) goAsync(targetHref, e)
+      }
+    }
+    moreMenu.appendChild(clone)
+  }
+
+  function getTopLevelNavText(btn) {
+    var copy = btn.cloneNode(true)
+    copy.querySelectorAll('.nav-btn-drop-menu').forEach(function(menu) { menu.remove() })
+    return copy.textContent.replace(' ▾','').trim()
+  }
+
   document.querySelectorAll('#navBtnBar').forEach(function(bar, idx) {
     var more = bar.querySelector('#navBtnMore')
     var moreMenu = bar.querySelector('#navBtnMoreMenu')
@@ -1812,24 +1836,18 @@ function updateNavOverflow() {
     if (overflow.length > 0) {
       overflow.forEach(function(btn) {
         btn.style.display = 'none'
-        var clone = document.createElement('view')
-        clone.className = 'nav-btn-drop-item'
-        clone.setAttribute('data-href', btn.getAttribute('data-href'))
-        clone.textContent = btn.textContent.replace(' ▾','').trim()
-        clone.style.cssText = 'display:block;padding:8px 16px;font-size:0.78rem;color:var(--text-1);cursor:pointer;white-space:nowrap;transition:background 0.15s,color 0.15s'
-        clone.onmouseenter = function() { this.style.background = 'var(--accent-glow)'; this.style.color = 'var(--accent)' }
-        clone.onmouseleave = function() { this.style.background = ''; this.style.color = 'var(--text-1)' }
-        clone.onclick = function(e) {
-          var href = clone.getAttribute('data-href')
-          if (window._xc_dropItemGo) {
-            window._xc_dropItemGo(e, href)
-          } else {
-            e.stopPropagation()
-            more.classList.remove('open')
-            if (href) goAsync(href, e)
-          }
+        var nestedMenu = btn.querySelector('.nav-btn-drop-menu')
+        if (nestedMenu) {
+          var section = document.createElement('view')
+          section.className = 'nav-btn-drop-section'
+          section.textContent = getTopLevelNavText(btn)
+          moreMenu.appendChild(section)
+          nestedMenu.querySelectorAll('.nav-btn-drop-item').forEach(function(item) {
+            appendMoreItem(moreMenu, more, item.textContent.trim(), item.getAttribute('data-href'))
+          })
+        } else {
+          appendMoreItem(moreMenu, more, getTopLevelNavText(btn), btn.getAttribute('data-href'))
         }
-        moreMenu.appendChild(clone)
       })
       more.style.display = ''
     } else {
@@ -2413,6 +2431,15 @@ onMounted(() => {
 .nav-btn-drop-item:hover { background: var(--accent-glow); color: var(--accent); }
 .nav-btn-drop-item.current,
 .nav-btn-drop-item.menu-active { color: var(--accent); font-weight: 600; }
+.nav-btn-drop-section {
+  display: block;
+  padding: 8px 16px 4px;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  color: var(--accent);
+  cursor: default;
+  white-space: nowrap;
+}
 
 /* "更多"按钮 */
 .nav-btn-more { position: relative; }
@@ -2555,6 +2582,18 @@ body > #navBtnMoreMenu.nav-btn-drop-menu {
   .nav-btn-drop-item,
   .avatar-dropdown-item {
     color: rgba(246,241,232,0.96) !important;
+  }
+  .nav-btn-more .nav-btn-drop-menu,
+  body > #navBtnMoreMenu.nav-btn-drop-menu {
+    width: min(300px, calc(100vw - 40px)) !important;
+  }
+  .nav-btn-more .nav-btn-drop-item,
+  body > #navBtnMoreMenu.nav-btn-drop-menu .nav-btn-drop-item {
+    white-space: normal !important;
+    line-height: 1.35 !important;
+  }
+  .nav-btn-drop-section {
+    color: var(--accent) !important;
   }
   .nav-btn-drop-item:hover,
   .avatar-dropdown-item:hover {
