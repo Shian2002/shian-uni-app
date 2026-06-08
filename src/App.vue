@@ -8,7 +8,12 @@ export default {
       try { saved = uni ? uni.getStorageSync('xc_theme') : '' } catch(_) {}
     }
     if (!saved) {
-      try { saved = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark' } catch(_) { saved = 'dark' }
+      try {
+        var ua = navigator.userAgent || ''
+        var isAndroidWeChat = /Android/i.test(ua) && /MicroMessenger/i.test(ua)
+        // Android 微信 XWeb 在深色模式下偶发首屏黑屏，未手动选择主题时默认浅色。
+        saved = isAndroidWeChat ? 'light' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+      } catch(_) { saved = 'light' }
     }
     try {
       localStorage.setItem('xc_theme', saved)
@@ -305,7 +310,8 @@ export default {
 html, body {
   margin: 0;
   padding: 0;
-  background: #161a2a;
+  background: var(--bg-grad-1);
+  color-scheme: light;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;

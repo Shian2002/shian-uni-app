@@ -7,6 +7,7 @@
 - `addyosmani-*`：来自 `addyosmani/agent-skills`，共 23 个工程生命周期技能，覆盖需求、计划、增量实现、TDD、评审、安全、性能、CI/CD、发布等。
 - `graphify-codebase`：来自 `safishamsi/graphify`，用于把代码、文档、数据库 schema 和部署脚本整理成可查询图谱。CLI 已安装在 `~/.codex/tools/graphify-venv/`。
 - `ui-ux-pro-max`：来自 `nextlevelbuilder/ui-ux-pro-max-skill`，用于 UI/UX、移动端 H5、Vue/uni-app 页面设计和可访问性检查。
+- `taste-skill`：来自 `Leonxlnx/taste-skill`，用于落地页、作品集、重设计等偏视觉表达的前端页面，重点是避免模板化、AI 味重的设计输出。
 - `wshobson-agent-marketplace`：来自 `wshobson/agents`，作为专用 agent/plugin 的目录来源，只按需挑选，不整包启用。
 - `agent-rules-books`：来自 `ciembor/agent-rules-books`，用于代码评审、重构、架构边界、数据可靠性和发布检查。
 
@@ -14,6 +15,7 @@
 
 - 涉及生产、数据库、部署、账号积分时，仍以 `docs/ops-runbook.md`、部署脚本和线上验活为最高优先级。
 - 前端页面改版时优先结合 `ui-ux-pro-max`，但最终必须跑本项目现有构建和页面验活。
+- 偏营销页、首页视觉、品牌表达或重设计任务可结合 `taste-skill`；后台、表格、数据密集型运营页面不要套用它的高表现力规则。
 - 代码结构、数据库关系或部署链路不清时，优先用 `graphify-codebase` 建图或查询。
 - 复杂功能改动可组合使用 `addyosmani-spec-driven-development`、`addyosmani-planning-and-task-breakdown`、`addyosmani-incremental-implementation` 和 `addyosmani-test-driven-development`。
 - 合并或发布前可用 `addyosmani-code-review-and-quality`、`addyosmani-security-and-hardening`、`addyosmani-ci-cd-and-automation`、`addyosmani-shipping-and-launch` 做补充检查。
