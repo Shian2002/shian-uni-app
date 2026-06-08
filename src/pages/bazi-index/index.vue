@@ -73,14 +73,7 @@
 
               <!-- 出生时间（公历/农历模式）（:class/v-show已移除，由DOM操作控制） -->
               <view class="wz-form-group" id="baziDateSection">
-                <view class="wz-label-row">
-                  <text class="wz-form-label">出生时间</text>
-                  <text class="wz-time-format">可输入 YYYYMMDDHHmm</text>
-                </view>
-                <view class="wz-date-input-row">
-                  <input id="baziBirthInput" class="wz-form-input wz-date-input" placeholder="例如 199003270255" @input="onBaziBirthInput" />
-                  <view class="wz-date-apply" @tap="applyBaziBirthInput">确定</view>
-                </view>
+                <text class="wz-form-label">出生时间</text>
                 <!-- 年月日 -->
                 <view class="wz-datetime-row wz-datetime-row-date">
                   <view class="wz-dt-col">
@@ -177,6 +170,7 @@
                   </view>
                   <view class="wz-switch-row">
                     <text class="wz-switch-label">子时换日</text>
+                    <text class="wz-help" @tap.stop="showBaziHelp('zi')">?</text>
                     <view id="baziSwitchZi" class="wz-switch" :class="{ active: nightZi }" @tap="toggleBaziZi">
                       <view class="wz-switch-slider"></view>
                     </view>
@@ -184,6 +178,7 @@
                   </view>
                   <view class="wz-switch-row">
                     <text class="wz-switch-label">保存案例</text>
+                    <text class="wz-help" @tap.stop="showBaziHelp('save')">?</text>
                     <view id="baziSwitchSave" class="wz-switch" :class="{ active: saveCase }" @tap="toggleBaziSave">
                       <view class="wz-switch-slider"></view>
                     </view>
@@ -193,8 +188,13 @@
                 <text class="wz-form-hint">真太阳时默认开启，选择出生地后按经度校正时辰；夏令时只在确认为夏令时出生时开启。</text>
               </view>
 
-              <view class="wz-submit-btn" @tap="baziFreePaipan">📜 免费排盘</view>
-              <text class="wz-form-hint" style="text-align:center;display:block;">基础命盘结果，不含 AI 解读。深度解读请回首页选择八字或自动选术数。</text>
+              <view class="wz-action-block">
+                <view class="wz-submit-btn" @tap="baziFreePaipan">
+                  <text class="wz-submit-title">免费排盘</text>
+                  <text class="wz-submit-sub">生成基础命盘</text>
+                </view>
+                <text class="wz-form-hint">基础命盘结果，不含 AI 解读。深度解读请回首页选择八字或自动选术数。</text>
+              </view>
             </view>
           </view>
 
@@ -573,6 +573,22 @@ function showBaziHelp(type) {
     uni.showModal({
       title: '夏令时',
       content: '夏令时表示当年官方时钟拨快了1小时。中国大陆主要在1986-1991年部分时段实行过。建议：只有确定出生证明/家人口述时间是夏令时期间的钟表时间，才打开；不确定就先关闭。',
+      showCancel: false,
+    })
+    return
+  }
+  if (type === 'zi') {
+    uni.showModal({
+      title: '子时换日',
+      content: '子时是23:00到00:59。不同流派对23点后是否算第二天有差异。若你的老师或常用排盘习惯按23点后换日，可打开；不确定时先保持默认，再结合结果核对。',
+      showCancel: false,
+    })
+    return
+  }
+  if (type === 'save') {
+    uni.showModal({
+      title: '保存案例',
+      content: '打开后，本次排盘会保存到排盘记录，之后可以在记录里查看、复用，或带入时安agent解读。关闭则只生成当前结果，不额外保存为案例。',
       showCancel: false,
     })
   }
@@ -2960,7 +2976,12 @@ onMounted(() => {
 .wz-switch.active .wz-switch-slider { transform: translateX(18px); }
 .wz-switch-hint { font-size: 0.72rem; color: var(--text-3); }
 
-.wz-submit-btn { width: 100%; padding: 12px; border-radius: 30px; border: none; background: hsl(35, 38%, 52%); color: #fff; font-size: 0.95rem; font-weight: 600; cursor: pointer; letter-spacing: 2px; margin-top: 8px; text-align: center; box-sizing: border-box; }
+.wz-action-block { display: grid; gap: 7px; justify-items: center; }
+.wz-action-block .wz-form-hint { text-align: center; display: block; margin-top: 0; max-width: 560px; }
+.wz-submit-btn { width: min(360px, 100%); min-height: 52px; padding: 9px 18px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.34); background: linear-gradient(135deg, hsl(38, 43%, 55%), hsl(31, 36%, 42%)); color: #fff; cursor: pointer; letter-spacing: 0; margin-top: 4px; text-align: center; box-sizing: border-box; display: grid; place-items: center; gap: 2px; box-shadow: 0 14px 32px rgba(120,82,34,0.22), inset 0 1px 0 rgba(255,255,255,0.28); transition: transform .18s ease, box-shadow .18s ease; }
+.wz-submit-btn:hover { transform: translateY(-1px); box-shadow: 0 18px 38px rgba(120,82,34,0.26), inset 0 1px 0 rgba(255,255,255,0.32); }
+.wz-submit-title { font-size: 0.96rem; font-weight: 800; line-height: 1.1; }
+.wz-submit-sub { font-size: 0.66rem; opacity: 0.82; line-height: 1.1; }
 
 /* AI tab datetime selects (matches qimen pattern) */
 .qf-datetime-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
@@ -3391,6 +3412,7 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   .tool-tab-content .wz-form > .wz-form-row,
   .tool-tab-content .wz-form > .wz-form-group,
   .tool-tab-content .wz-form > .wz-instant-row,
+  .tool-tab-content .wz-form > .wz-action-block,
   .tool-tab-content .wz-form > .wz-submit-btn,
   .tool-tab-content .wz-form > .wz-form-hint {
     margin: 0;
@@ -3423,6 +3445,7 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   }
 
   .tool-tab-content .wz-form > .wz-submit-btn,
+  .tool-tab-content .wz-form > .wz-action-block,
   .tool-tab-content .wz-form > .wz-form-hint:last-child {
     grid-column: 1 / -1;
   }
@@ -3623,6 +3646,7 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   .tool-tab-content .wz-form > .wz-form-group,
   .tool-tab-content .wz-form > .wz-instant-row,
   .tool-tab-content .wz-form > .wz-advanced-box,
+  .tool-tab-content .wz-form > .wz-action-block,
   .tool-tab-content .wz-form > .wz-submit-btn,
   .tool-tab-content .wz-form > .wz-form-hint {
     grid-column: 1 / -1;
