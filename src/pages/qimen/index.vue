@@ -80,6 +80,13 @@
             </view>
             <view class="qf-result-shell" v-if="qfResult">
               <view v-if="qfResult && qfJsonCopyAllowed" class="btn btn-ghost qf-json-copy-btn" @tap="copyQimenJson">复制 JSON</view>
+              <view v-if="qfRawResult" class="agent-handoff-bar">
+                <view>
+                  <text class="agent-handoff-title">用时安agent解读此盘</text>
+                  <text class="agent-handoff-sub">带入完整奇门盘面和当前起局参数</text>
+                </view>
+                <view class="agent-handoff-btn" @tap="sendQimenToAgent">去解读</view>
+              </view>
               <view class="qf-result" v-html="qfResult"></view>
             </view>
           </view>
@@ -352,6 +359,25 @@ function copyQimenJson() {
     success: function() { uni.showToast({ title: 'JSON已复制', icon: 'success' }) },
     fail: function() { uni.showToast({ title: '复制失败', icon: 'none' }) },
   })
+}
+
+function sendQimenToAgent() {
+  if (!qfRawResult.value) return uni.showToast({ title: '请先完成排盘', icon: 'none' })
+  try {
+    uni.setStorageSync('xc_agent_handoff_v1', JSON.stringify({
+      source: 'qimen_free',
+      tool_models: ['qimen'],
+      question: '请结合这个奇门遁甲盘，围绕我的问题进行判断。',
+      paipan: { qimen: qfRawResult.value },
+    }))
+  } catch (_) {}
+  // #ifdef H5
+  try {
+    window.location.hash = '#/?app=1'
+    return
+  } catch (_) {}
+  // #endif
+  uni.reLaunch({ url: '/pages/index/index?app=1' })
 }
 
 // ═══ 九宫格渲染（1:1复刻Flask home.js renderQimenPalaceGrid）═══
@@ -1229,6 +1255,10 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .qf-pantype-select:focus { border-color: var(--accent); }
 .qf-options-row { display: flex; gap: 10px; align-items: flex-end; }
 .qf-result-shell { position: relative; margin-top: 16px; }
+.agent-handoff-bar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 12px; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(178,149,93,0.22); background: var(--accent-glow); }
+.agent-handoff-title { display: block; color: var(--text-1); font-size: 0.86rem; font-weight: 700; }
+.agent-handoff-sub { display: block; margin-top: 3px; color: var(--text-3); font-size: 0.72rem; }
+.agent-handoff-btn { flex-shrink: 0; min-width: 74px; text-align: center; padding: 9px 14px; border-radius: 999px; background: hsl(35, 38%, 52%); color: #fff; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
 .qf-json-copy-btn {
   position: absolute;
   top: clamp(14px, 2.2vw, 24px);
@@ -1372,6 +1402,8 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   .tool-tab { padding: 8px 10px; font-size: 0.75rem; }
   .submit-btn { font-size: 0.875rem; padding: 12px 16px; }
   .btn-row { flex-direction: column; }
+  .agent-handoff-bar { align-items: stretch; flex-direction: column; gap: 10px; }
+  .agent-handoff-btn { text-align: center; }
   .qf-result :deep(.qf-result-card) { padding: 12px; }
   .qf-result :deep(.qm-scale-shell) { --qm-grid-size: clamp(260px, 92vw, 420px); }
   .qf-loading-card { min-height: 280px; }

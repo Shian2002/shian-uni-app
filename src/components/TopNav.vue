@@ -7,15 +7,18 @@
       <view class="nav-btn-bar" id="navBtnBar">
         <view class="nav-btn" data-href="#/?app=1" @click="goAsync('#/?app=1', $event)">时安agent</view>
 
-        <view class="nav-btn" data-href="#/pages/qimen/index?tab=free" onclick="return window.__topNavGoAsync(event, '#/pages/qimen/index?tab=free')">奇门遁甲</view>
-
-        <view class="nav-btn" data-href="#/pages/bazi-index/index?tab=free" onclick="return window.__topNavGoAsync(event, '#/pages/bazi-index/index?tab=free')">八字排盘</view>
-
-        <view class="nav-btn" data-href="#/pages/liuyao/index" @click="goAsync('#/pages/liuyao/index', $event)">六爻排盘</view>
-        <view class="nav-btn" data-href="#/pages/meihua/index" @click="goAsync('#/pages/meihua/index', $event)">梅花易数</view>
-        <view class="nav-btn" data-href="#/pages/ziwei/index" @click="goAsync('#/pages/ziwei/index', $event)">紫微斗数</view>
-        <view class="nav-btn" data-href="#/pages/tarot/index" @click="goAsync('#/pages/tarot/index', $event)">塔罗牌</view>
-        <view class="nav-btn" data-href="#/pages/zeji/index" @click="goAsync('#/pages/zeji/index', $event)">择吉工具</view>
+        <view class="nav-btn nav-btn-has-drop" onclick="window._xc_toggleDrop(event)">
+          术数工具 ▾
+          <view class="nav-btn-drop-menu">
+            <view class="nav-btn-drop-item" data-href="#/pages/qimen/index?tab=free" onclick="return window.__topNavGoAsync(event, '#/pages/qimen/index?tab=free')">奇门遁甲</view>
+            <view class="nav-btn-drop-item" data-href="#/pages/bazi-index/index?tab=free" onclick="return window.__topNavGoAsync(event, '#/pages/bazi-index/index?tab=free')">八字排盘</view>
+            <view class="nav-btn-drop-item" data-href="#/pages/liuyao/index" @click="goAsync('#/pages/liuyao/index', $event)">六爻排盘</view>
+            <view class="nav-btn-drop-item" data-href="#/pages/meihua/index" @click="goAsync('#/pages/meihua/index', $event)">梅花易数</view>
+            <view class="nav-btn-drop-item" data-href="#/pages/ziwei/index" @click="goAsync('#/pages/ziwei/index', $event)">紫微斗数</view>
+            <view class="nav-btn-drop-item" data-href="#/pages/tarot/index" @click="goAsync('#/pages/tarot/index', $event)">塔罗牌</view>
+            <view class="nav-btn-drop-item" data-href="#/pages/zeji/index" @click="goAsync('#/pages/zeji/index', $event)">择吉工具</view>
+          </view>
+        </view>
         <view class="nav-btn" data-href="#/pages/calendar/index" @click="goAsync('#/pages/calendar/index', $event)">专属日历</view>
         <view class="nav-btn" data-href="#/pages/user-management/index" @click="goAsync('#/pages/user-management/index', $event)">档案列表</view>
         <view class="nav-btn" data-href="#/pages/community/index" @click="goAsync('#/pages/community/index', $event)">社区</view>
@@ -2388,6 +2391,12 @@ onMounted(() => {
   opacity: 1;
   pointer-events: auto;
   transform: translateX(-50%) translateY(2px);
+}
+.nav-btn-has-drop:hover .nav-btn-drop-menu,
+.nav-btn-has-drop.open .nav-btn-drop-menu {
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
 }
 .nav-btn-drop-item {
   display: block;

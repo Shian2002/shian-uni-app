@@ -396,11 +396,11 @@ export default {
     },
     showFooterInfo(type) {
       const infoMap = {
-        contact: '联系方式：请通过社区留言或邮件联系',
-        terms: '用户协议：使用本站即表示同意遵守相关条款',
-        privacy: '隐私政策：所有数据本地处理，不上传服务器',
-        disclaimer: '免责声明：本站内容仅为民俗文化参考',
-        copyright: '版权信息：© 2026 时安解忧屋 版权所有',
+        contact: '联系方式：可通过站内社区留言反馈问题与建议。涉及账号、积分、订单、内容纠错时，请尽量提供登录手机号、发生时间、页面名称和截图，便于核验处理。',
+        terms: '用户协议：使用本站即表示你理解并同意，本平台提供的是传统民俗文化、命理排盘与解读参考服务。你应自行判断内容适用性，不得利用本站内容从事违法违规、诈骗、恐吓、诱导交易或损害他人权益的行为。',
+        privacy: '隐私政策：本站仅在提供排盘、保存命盘、社区互动、积分与订单服务时处理必要信息。出生信息、命盘档案、提问内容会用于生成解读和历史记录展示；你可以在用户管理中自行维护或删除相关资料。',
+        disclaimer: '完整免责声明：本站所有排盘、解读、择吉、日历、社区案例均为传统民俗文化参考，不构成医疗、法律、投资、婚恋、人事或其他现实决策建议。重大事项请结合现实证据与专业人士意见独立判断。',
+        copyright: '版权信息：© 2026 时安解忧屋 版权所有。本站页面设计、排盘展示、原创文案、解读模板与社区内容受相关法律保护；未经许可不得批量抓取、复制、镜像或用于商业再分发。',
       }
       uni.showModal({ title: '提示', content: infoMap[type] || '', showCancel: false })
     },
@@ -619,28 +619,33 @@ export default {
   .feature-grid { grid-template-columns: repeat(2, 1fr); }
   .scenario-grid { grid-template-columns: repeat(3, 1fr); }
   .edu-grid { grid-template-columns: 1fr; }
-  .footer-grid { grid-template-columns: 1fr; gap: 24px; }
-  .site-footer { padding: 24px 16px; }
 }
 
 @media (max-width: 480px) {
-  .footer-grid { grid-template-columns: 1fr 1fr; }
-  .footer-col:nth-child(3) { grid-column: 1 / -1; }
-  .footer-bottom { flex-direction: column; gap: 8px; text-align: center; }
 }
 
 /* 页脚 */
-.site-footer { background: var(--nav-bg); border-top: 1px solid var(--card-border); padding: 24px 32px 24px; margin-top: 0; }
+.site-footer { background: var(--nav-bg); border-top: 1px solid var(--card-border); padding: 24px 32px 24px; margin-top: 0; text-align: center; }
 .footer-disclaimer { max-width: var(--max-w); margin: 0 auto 32px; padding: 14px 20px; border-radius: 10px; background: rgba(215,125,110,0.08); border: 1px solid rgba(215,125,110,0.15); font-size: 0.75rem; color: var(--danger); line-height: 1.6; text-align: center; }
-.footer-grid { max-width: var(--max-w); margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; }
+.footer-grid { max-width: 860px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; justify-items: center; text-align: center; }
+.footer-col { width: 100%; min-width: 0; }
 .footer-col-title { font-size: 0.8125rem; color: var(--text-2); margin-bottom: 12px; letter-spacing: 1px; }
-.footer-col navigator, .footer-col .footer-link { display: block; font-size: 0.75rem; color: var(--text-3); text-decoration: none; padding: 3px 0; cursor: pointer; }
+.footer-col navigator, .footer-col .footer-link { display: block; width: 100%; font-size: 0.75rem; color: var(--text-3); text-decoration: none; padding: 3px 0; cursor: pointer; text-align: center; }
 .footer-icp { font-size: 0.6875rem; color: var(--text-3); margin-top: 8px; }
 .footer-icp-link { cursor: pointer; text-decoration: none; }
 .footer-icp-link:hover { color: var(--accent); }
-.footer-bottom { max-width: var(--max-w); margin: 24px auto 0; padding-top: 16px; border-top: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center; }
+.footer-bottom { max-width: 860px; margin: 24px auto 0; padding-top: 16px; border-top: 1px solid var(--card-border); display: flex; justify-content: center; align-items: center; gap: 18px; flex-wrap: wrap; text-align: center; }
 .footer-bottom-text { font-size: 0.6875rem; color: var(--text-3); }
 .btn-clear-data { font-size: 0.6875rem; padding: 4px 10px; border-radius: 6px; background: transparent; border: 1px solid var(--danger); color: var(--danger); cursor: pointer; }
+
+@media (max-width: 768px) {
+  .site-footer { padding: 24px 16px; }
+  .footer-grid { grid-template-columns: 1fr; gap: 24px; max-width: 420px; }
+}
+
+@media (max-width: 480px) {
+  .footer-bottom { flex-direction: column; gap: 8px; }
+}
 
 /* 弹窗 */
 .modal-overlay { display: none; position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.55); backdrop-filter: blur(8px); align-items: center; justify-content: center; }

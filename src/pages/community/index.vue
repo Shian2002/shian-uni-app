@@ -74,6 +74,9 @@
             </view>
             <view class="post-title">{{ post.title }}</view>
             <view class="post-content" v-if="post.content">{{ post.content }}</view>
+            <view class="post-tags" v-if="post.tags && post.tags.length">
+              <text class="post-tag" v-for="tag in post.tags.slice(0, 4)" :key="tag">#{{ tag }}</text>
+            </view>
             <view class="post-thumb" v-if="post.imageUrl">
               <image :src="post.imageUrl" mode="widthFix" class="post-thumb-img" />
             </view>
@@ -1136,19 +1139,22 @@ onShow(function() {
 
 .ci-like-btn { font-size: 0.6875rem; color: var(--text-3); cursor: pointer; margin-left: auto; padding: 2px 6px; border-radius: 4px; }
 .ci-like-btn.liked { color: var(--accent); background: var(--accent-glow); }
-.post-list { display: grid; gap: 16px; }
+.post-list { display: grid; gap: 12px; max-width: 920px; margin: 0 auto; }
 
-.community-post-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md); padding: 24px; backdrop-filter: blur(16px); transition: all 0.25s var(--ease); }
-.community-post-card:hover { border-color: var(--card-border-hover); transform: translateY(-2px); box-shadow: var(--card-shadow); }
-.post-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-.post-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--accent-glow); display: flex; align-items: center; justify-content: center; font-size: 1rem; }
-.post-user-info { flex: 1; }
-.post-username { font-size: 0.875rem; font-weight: 500; color: var(--text-1); }
-.post-meta { font-size: 0.6875rem; color: var(--text-3); }
-.post-badge { margin-left: auto; padding: 3px 10px; border-radius: 12px; font-size: 0.625rem; background: var(--accent-glow); color: var(--accent); border: 1px solid var(--accent); }
-.post-title { font-size: 1rem; margin-bottom: 8px; color: var(--text-1); font-weight: 500; }
-.post-content { font-size: 0.8125rem; color: var(--text-3); line-height: 1.6; margin-bottom: 12px; }
-.post-actions { display: flex; gap: 16px; font-size: 0.75rem; color: var(--text-3); }
+.community-post-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md); padding: 18px 20px !important; backdrop-filter: blur(16px); transition: all 0.25s var(--ease); cursor: pointer; }
+.community-post-card:hover { border-color: var(--card-border-hover); transform: translateY(-1px); box-shadow: var(--card-shadow); }
+.post-header { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 10px; margin-bottom: 10px; }
+.post-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--accent-glow); display: flex; align-items: center; justify-content: center; font-size: 1rem; border: 1px solid rgba(178,149,93,0.20); }
+.post-user-info { min-width: 0; }
+.post-username { font-size: 0.86rem; font-weight: 700; color: var(--text-1); }
+.post-meta { font-size: 0.68rem; color: var(--text-3); margin-top: 2px; }
+.post-badge { margin-left: 0; padding: 3px 9px; border-radius: 999px; font-size: 0.62rem; background: var(--accent-glow); color: var(--accent); border: 1px solid var(--accent); justify-self: end; }
+.post-title { font-size: 1.02rem; line-height: 1.45; margin-bottom: 7px; color: var(--text-1); font-weight: 700; }
+.post-content { font-size: 0.84rem; color: var(--text-2); line-height: 1.72; margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.post-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.post-tag { padding: 3px 8px; border-radius: 999px; border: 1px solid rgba(178,149,93,0.18); background: rgba(178,149,93,0.08); color: var(--accent); font-size: 0.68rem; }
+.post-actions { display: flex; gap: 8px; padding-top: 11px; border-top: 1px solid rgba(178,149,93,0.12); font-size: 0.75rem; color: var(--text-3); }
+.post-actions text { min-width: 64px; padding: 4px 9px; border-radius: 999px; background: rgba(255,255,255,0.035); text-align: center; }
 .community-hint { text-align: center; margin-top: 32px; font-size: 0.8125rem; color: var(--text-3); }
 .com-loading { text-align: center; padding: 32px; font-size: 0.8125rem; color: var(--text-3); }
 .com-empty { text-align: center; padding: 48px 24px; font-size: 0.875rem; color: var(--text-3); }
@@ -1208,7 +1214,12 @@ onShow(function() {
 @media (max-width: 768px) {
   .section { padding: 48px 16px; }
   .search-row { flex-direction: column; }
-
+  .post-list { max-width: none; }
+  .community-post-card { padding: 16px !important; }
+  .post-header { grid-template-columns: 38px minmax(0, 1fr); }
+  .post-badge { justify-self: start; grid-column: 2; }
+  .post-actions { overflow-x: auto; scrollbar-width: none; }
+  .post-actions::-webkit-scrollbar { display: none; }
 }
 
 .header-icons { display: flex; align-items: center; gap: 12px; margin-left: auto; }

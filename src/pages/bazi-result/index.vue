@@ -21,6 +21,13 @@
           </view>
           <!-- 结果内容 -->
           <view v-else-if="baziData">
+            <view class="agent-handoff-bar">
+              <view>
+                <text class="agent-handoff-title">用时安agent解读此盘</text>
+                <text class="agent-handoff-sub">带入完整八字盘面、出生参数和当前设置</text>
+              </view>
+              <view class="agent-handoff-btn" @tap="sendBaziToAgent">去解读</view>
+            </view>
             <!-- Tab布局 -->
             <view class="tab-layout">
               <!-- 侧边栏 -->
@@ -797,6 +804,8 @@ const showTMS = ref(false)
 const sharePanelOpen = ref(false)
 const wzProData = ref(null)
 const wzProLoading = ref(false)
+const baziSourceParams = ref(null)
+const agentHandoffStorageKey = 'xc_agent_handoff_v1'
 
 // Tab
 const activeTab = ref(uni.getStorageSync('xc_bazi_activeTab') || 'wzpro')
@@ -865,6 +874,46 @@ function rememberLastBaziParams(params) {
     localStorage.setItem('xc_bazi_last_params', raw)
   } catch (_) {}
   // #endif
+}
+
+function sendBaziToAgent() {
+  if (!baziData.value) return uni.showToast({ title: '请先完成排盘', icon: 'none' })
+  const params = baziSourceParams.value || readBaziParamsFromStorage() || {}
+  const handoff = {
+    source: 'bazi_free',
+    tool_models: ['bazi'],
+    question: '请结合这个八字命盘，围绕我的问题进行解读。',
+    paipan: {
+      bazi: {
+        form: {
+          name: params.name || baziData.value.name || '',
+          gender: params.gender || baziData.value.gender || '',
+          calType: params.calType || '公历',
+          birthTime: params.birthTime || '',
+          birthDate: params.birthDate || '',
+          birthHour: params.birthHour || '',
+          birthMinute: params.birthMinute || '',
+          birthAddr: params.birthAddr || '',
+          birthLng: params.birthLng || 0,
+          birthLat: params.birthLat || 0,
+          nightZiMode: params.nightZiMode || settings.nightZiMode,
+          useSolarTime: params.useSolarTime !== false,
+          isLeapMonth: !!params.isLeapMonth,
+        },
+        pan: baziData.value,
+      }
+    }
+  }
+  try {
+    uni.setStorageSync(agentHandoffStorageKey, JSON.stringify(handoff))
+  } catch (_) {}
+  // #ifdef H5
+  try {
+    window.location.hash = '#/?app=1'
+    return
+  } catch (_) {}
+  // #endif
+  uni.reLaunch({ url: '/pages/index/index?app=1' })
 }
 
 async function loadWzProData() {
@@ -2623,6 +2672,8 @@ onMounted(async () => {
     } catch (e) {}
   }
 
+  baziSourceParams.value = params
+
   // 构建排盘请求
   let birthTime = ''
   let siziPillars = null
@@ -2664,6 +2715,7 @@ onMounted(async () => {
     const data = r.data
     if (data && data.success) {
       baziData.value = data
+      baziSourceParams.value = params
       rememberLastBaziParams(params)
       // 更新导航信息
       const fp = data.four_pillars || {}
@@ -2769,6 +2821,10 @@ onMounted(async () => {
 
 /* 结果容器 */
 .result-container { max-width: var(--max-w); margin: 0 auto; padding: 16px 16px 48px; }
+.agent-handoff-bar { margin: 0 0 14px; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(178,149,93,0.30); background: linear-gradient(135deg, rgba(178,149,93,0.13), rgba(110,195,135,0.08)); display: flex; align-items: center; justify-content: space-between; gap: 14px; box-sizing: border-box; }
+.agent-handoff-title { display: block; color: var(--text-1); font-size: 0.9rem; font-weight: 700; letter-spacing: 0.5px; }
+.agent-handoff-sub { display: block; color: var(--text-3); font-size: 0.72rem; margin-top: 2px; line-height: 1.45; }
+.agent-handoff-btn { flex: 0 0 auto; padding: 8px 18px; border-radius: 999px; color: #fff; background: linear-gradient(135deg, #9a6b2f, #c49a46); font-size: 0.82rem; font-weight: 700; cursor: pointer; box-shadow: 0 8px 18px rgba(154,107,47,0.20); }
 
 /* 加载/错误状态 */
 .loading-state { text-align: center; padding: 80px 20px; color: var(--text-3); }
@@ -3089,6 +3145,8 @@ onMounted(async () => {
 }
 @media (max-width: 640px) {
   .result-container { padding: 8px 8px 36px; }
+  .agent-handoff-bar { align-items: stretch; flex-direction: column; gap: 10px; }
+  .agent-handoff-btn { text-align: center; }
   .tab-panel { padding: 12px; }
   .pillar-cell.gan-cell, .pillar-cell.zhi-cell { font-size: 1.05rem; }
   .pillar-cell.label-cell { flex: 0 0 40px; max-width: 40px; font-size: 0.68rem; }

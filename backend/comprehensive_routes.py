@@ -282,9 +282,22 @@ def register_comprehensive_routes(app, db, services):
     def build_zeji_context_from_question(question=''):
         q = str(question or '')
         zeji_type = '择吉'
-        for item in ['婚嫁', '开业', '搬家', '出行', '签约', '动土', '入宅', '领证', '装修']:
+        zeji_aliases = [
+            ('乔迁', '搬家'), ('入宅', '搬家'), ('搬家', '搬家'),
+            ('开市', '开业'), ('上新', '开业'), ('发布', '开业'), ('开业', '开业'),
+            ('婚嫁', '婚嫁'), ('订婚', '订婚'), ('领证', '领证'), ('纳采', '订婚'),
+            ('签约', '签约'), ('交易', '签约'), ('谈判', '谈判'),
+            ('动土', '动土'), ('装修', '装修'), ('开工', '开工'), ('上梁', '动土'),
+            ('安床', '安床'), ('出行', '出行'), ('远行', '出行'), ('拜访', '拜访'),
+            ('求财', '求财'), ('求职', '求职'), ('入职', '求职'), ('面试', '面试'),
+            ('考试', '考试'), ('拜师', '拜师'), ('求医', '求医'), ('疗养', '疗养'),
+            ('剖腹产', '剖腹产'), ('取名', '取名'), ('安葬', '安葬'), ('立碑', '安葬'),
+            ('迁坟', '安葬'), ('祭祀', '祭祀'), ('祈福', '祈福'), ('安香', '祭祀'),
+            ('会议', '会议'),
+        ]
+        for item, normalized in zeji_aliases:
             if item in q:
-                zeji_type = '搬家' if item == '入宅' else item
+                zeji_type = normalized
                 break
         start_dt = datetime.now()
         days = []
@@ -683,7 +696,8 @@ def register_comprehensive_routes(app, db, services):
                 paipan_context, existing_artifacts = _unwrap_comprehensive_paipan(data.get('paipan') or {})
                 need_yun = _question_needs_yun(question)
                 refresh = _question_force_refresh(question, force_refresh)
-                needs_paipan = (not is_followup) or refresh or not paipan_context or (need_yun and not _paipan_context_has_tool(paipan_context, 'bazi'))
+                has_selected_tool_context = bool(paipan_context) and all(_paipan_context_has_tool(paipan_context, tool) for tool in tool_models)
+                needs_paipan = refresh or not has_selected_tool_context or (need_yun and not _paipan_context_has_tool(paipan_context, 'bazi'))
                 if needs_paipan:
                     if profile_count == 1:
                         p = profiles[0]

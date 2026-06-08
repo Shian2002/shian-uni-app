@@ -424,6 +424,10 @@
                     <text class="home-ai-stage-note" v-if="msg.stage">正在按所选命盘和术数生成，可继续停留在当前页</text>
                   </view>
                 </view>
+                <view class="home-ai-context-chip" v-if="msg.role === 'assistant' && msg.contextSummary">
+                  <text>{{ msg.contextNotice || '当前使用' }}</text>
+                  <text>{{ msg.contextSummary }}</text>
+                </view>
                 <view class="home-ai-step-row" v-if="msg.stage && !msg.content">
                   <text>读取资料</text>
                   <text>排盘核对</text>
@@ -446,6 +450,7 @@
                       <view>
                         <text class="home-tool-card-title">{{ currentArtifactForMessage(msg, idx).title }}</text>
                         <text class="home-tool-card-sub">{{ artifactSummary(currentArtifactForMessage(msg, idx)) }}</text>
+                        <text class="home-tool-card-feed" v-if="artifactFeedSummary(currentArtifactForMessage(msg, idx))">{{ artifactFeedSummary(currentArtifactForMessage(msg, idx)) }}</text>
                       </view>
                     </view>
                     <view class="home-tool-card-body">
@@ -1162,6 +1167,7 @@ const comprehensiveDraftStorageKey = 'xc_home_comprehensive_draft_v1'
 const selectedProfilesStorageKey = 'xc_home_selected_profiles_v1'
 const selectedToolsStorageKey = 'xc_home_selected_tools_v1'
 const sendConfirmSkipStorageKey = 'xc_home_send_confirm_skip_v1'
+const agentHandoffStorageKey = 'xc_agent_handoff_v1'
 const profileTypeQuickLabels = ['自己', '家人', '朋友', '伴侣', '客户', '名人', '收藏', '其他']
 const profileTypeQuickValues = ['self', 'family', 'friend', 'partner', 'customer', 'celebrity', 'collect', 'other']
 const genderOptions = ['男', '女']
@@ -1273,6 +1279,42 @@ const selectedProfileMeta = computed(() => {
   if (!p) return ''
   return (p.gender || '') + ' · ' + formatBirthTime(p.birthTime || p.birth_time)
 })
+
+function comprehensiveContextSnapshot() {
+  const profileIds = (selectedProfiles.value || []).map(function(p) {
+    return String(p.id || p.birthTime || p.birth_time || p.name || '')
+  })
+  const toolIds = (selectedToolModels.value || []).slice()
+  const modelId = selectedLlmModel.value.id || 'basic'
+  const modeId = selectedReadingMode.value.id || 'standard'
+  const profileText = selectedProfileName.value || '未选择命盘'
+  const toolText = selectedToolSummary.value === '选择术数' ? '未选择术数' : selectedToolSummary.value
+  const modelText = selectedLlmModel.value.name || '时安基础模型'
+  const modeText = selectedReadingMode.value.name || '标准'
+  return {
+    profileIds,
+    toolIds,
+    modelId,
+    modeId,
+    summary: profileText + ' · ' + toolText + ' · ' + modelText + ' · ' + modeText,
+  }
+}
+
+function lastAssistantContextSnapshot() {
+  for (let i = comprehensiveMessages.value.length - 1; i >= 0; i--) {
+    const msg = comprehensiveMessages.value[i]
+    if (msg && msg.role === 'assistant' && msg.contextSnapshot) return msg.contextSnapshot
+  }
+  return null
+}
+
+function sameComprehensiveContext(a, b) {
+  if (!a || !b) return false
+  return a.modelId === b.modelId
+    && a.modeId === b.modeId
+    && JSON.stringify(a.profileIds || []) === JSON.stringify(b.profileIds || [])
+    && JSON.stringify(a.toolIds || []) === JSON.stringify(b.toolIds || [])
+}
 const quickProfileTypeIndex = computed(() => Math.max(0, profileTypeQuickValues.indexOf(quickProfileForm.profileType)))
 const quickGenderIndex = computed(() => Math.max(0, genderOptions.indexOf(quickProfileForm.gender)))
 const quickCalTypeIndex = computed(() => Math.max(0, calTypeOptions.indexOf(quickProfileForm.calType)))
@@ -1501,9 +1543,54 @@ async function loadProfiles() {
     profiles.value = profileList
     const appliedPending = applyPendingAgentProfile(profileList)
     if (!appliedPending) restoreSavedAgentSelection(profileList)
+    applyPendingAgentHandoff(profileList)
   } catch (_) {
     profiles.value = []
   }
+}
+
+function applyPendingAgentHandoff(profileList) {
+  let handoff = null
+  try {
+    const raw = uni.getStorageSync(agentHandoffStorageKey)
+    handoff = typeof raw === 'string' ? JSON.parse(raw) : raw
+    if (!handoff || typeof handoff !== 'object') return false
+    uni.removeStorageSync(agentHandoffStorageKey)
+  } catch (_) {
+    try { uni.removeStorageSync(agentHandoffStorageKey) } catch (__) {}
+    return false
+  }
+
+  const tools = Array.isArray(handoff.tool_models) ? handoff.tool_models.filter(Boolean) : []
+  if (tools.length) {
+    autoSelectTools.value = false
+    selectedToolModels.value = tools
+    saveSelectedToolModels()
+  }
+
+  const list = profileList || profiles.value || []
+  const profileId = handoff.profile_id || (handoff.profile && handoff.profile.id)
+  let selected = profileId ? list.find(p => String(p.id) === String(profileId)) : null
+  if (!selected && handoff.profile && (handoff.profile.name || handoff.profile.birthTime || handoff.profile.birth_time)) {
+    selected = Object.assign({ source: 'profile' }, handoff.profile)
+  }
+  if (selected) {
+    selectedProfiles.value = [Object.assign({ source: selected.source || 'profile' }, selected)]
+    saveSelectedProfiles()
+  }
+
+  if (handoff.paipan && typeof handoff.paipan === 'object') {
+    currentPaipanContext.value = Object.assign({}, currentPaipanContext.value || {}, handoff.paipan)
+  }
+  if (handoff.artifacts && typeof handoff.artifacts === 'object') {
+    currentArtifacts.value = Object.assign({}, currentArtifacts.value || {}, handoff.artifacts)
+  }
+  if (handoff.question && !comprehensiveQuestion.value.trim()) {
+    comprehensiveQuestion.value = String(handoff.question)
+  }
+  saveComprehensiveDraftNow()
+  uni.showToast({ title: '已带入盘面，可直接解读', icon: 'none' })
+  return true
 }
 
 function applyPendingAgentProfile(profileList) {
@@ -1838,6 +1925,84 @@ function artifactSummary(artifact) {
   if (artifact.key === 'tarot.cards') return (data.spread && data.spread.name) || data.spread_name || '抽牌翻牌结果'
   if (artifact.key === 'zeji.days') return (data.best_days || []).length + ' 个候选日'
   return artifact.title || ''
+}
+
+function compactValue(value) {
+  if (value === undefined || value === null || value === '') return ''
+  if (Array.isArray(value)) return value.length ? value.join('/') : ''
+  if (typeof value === 'object') return ''
+  return String(value)
+}
+
+function compactParts(parts) {
+  return parts.map(function(item) {
+    const value = compactValue(item.value)
+    return value ? item.label + ' ' + value : ''
+  }).filter(Boolean).join(' · ')
+}
+
+function artifactFeedSummary(artifact) {
+  const data = artifact && artifact.data ? artifact.data : {}
+  const key = artifact && artifact.key
+  if (!key) return ''
+  if (key === 'bazi.basic' || key === 'bazi.yun') {
+    const fp = data.four_pillars || {}
+    return '喂给模型：' + compactParts([
+      { label: '出生', value: data.birth_input || data.birth_solar || data.birthTime },
+      { label: '真太阳时', value: data.true_solar_time },
+      { label: '四柱', value: [pillarText(fp.year), pillarText(fp.month), pillarText(fp.day), pillarText(fp.hour)].filter(Boolean) },
+      { label: '起运', value: data.qi_yun_detail && data.qi_yun_detail.text },
+    ])
+  }
+  if (key === 'qimen.pan') {
+    const fp = data.fourPillars || data.four_pillars || {}
+    return '喂给模型：' + compactParts([
+      { label: '起局', value: data.paipanTime || data.paipan_time || data.solar_date || data.time },
+      { label: '局数', value: data.ju || data.ju_name },
+      { label: '四柱', value: [fp.year, fp.month, fp.day, fp.hour].filter(Boolean) },
+      { label: '问题', value: data.question },
+    ])
+  }
+  if (key === 'ziwei.pan') {
+    const form = data.form || data.birth || {}
+    return '喂给模型：' + compactParts([
+      { label: '出生', value: [form.year, form.month, form.day].filter(Boolean).join('-') || data.solar_date || data.birth_date },
+      { label: '时分', value: [form.hour, form.minute].filter(v => v !== undefined && v !== '').join(':') },
+      { label: '性别', value: form.gender || data.gender },
+      { label: '宫数', value: ((data.twelve_palaces || data.palaces || []).length || '') },
+    ])
+  }
+  if (key === 'liuyao.pan') {
+    return '喂给模型：' + compactParts([
+      { label: '起卦', value: data.timestamp || data.time || data.created_at },
+      { label: '方式', value: data.method || data.qigua_method },
+      { label: '本卦', value: data.ben_gua },
+      { label: '变卦', value: data.bian_gua },
+    ])
+  }
+  if (key === 'meihua.pan') {
+    return '喂给模型：' + compactParts([
+      { label: '起卦', value: data.timestamp || data.time },
+      { label: '本卦', value: data.ben_gua || data.main_gua },
+      { label: '互卦', value: data.hu_gua },
+      { label: '变卦', value: data.bian_gua || data.changed_gua },
+    ])
+  }
+  if (key === 'tarot.cards') {
+    const cards = (data.cards || []).map(function(card) { return card.name || card.title || card.card }).filter(Boolean)
+    return '喂给模型：' + compactParts([
+      { label: '牌阵', value: (data.spread && data.spread.name) || data.spread_name },
+      { label: '牌面', value: cards.slice(0, 5) },
+    ])
+  }
+  if (key === 'zeji.days') {
+    return '喂给模型：' + compactParts([
+      { label: '事项', value: data.zeji_type || data.type },
+      { label: '日期', value: data.start_date && data.end_date ? data.start_date + ' 至 ' + data.end_date : data.date },
+      { label: '候选', value: (data.best_days || []).length ? (data.best_days || []).length + '天' : '' },
+    ])
+  }
+  return ''
 }
 
 function renderKV(label, value) {
@@ -3042,11 +3207,23 @@ async function startComprehensiveAsk() {
   if (!confirmed) return
 
   const history = normalizeMessageHistory()
+  const contextSnapshot = comprehensiveContextSnapshot()
+  const previousContext = lastAssistantContextSnapshot()
+  const contextNotice = previousContext
+    ? (sameComprehensiveContext(previousContext, contextSnapshot) ? '当前使用' : '已切换为')
+    : '本次使用'
   comprehensiveLoading.value = true
   comprehensiveMessages.value.push({ role: 'user', content: question })
   comprehensiveQuestion.value = ''
   const aiIndex = comprehensiveMessages.value.length
-  comprehensiveMessages.value.push({ role: 'assistant', content: '', stage: '正在连接综合解读服务' })
+  comprehensiveMessages.value.push({
+    role: 'assistant',
+    content: '',
+    stage: '正在连接综合解读服务',
+    contextSummary: contextSnapshot.summary,
+    contextNotice,
+    contextSnapshot,
+  })
   scheduleComprehensiveDraftSave()
   startComprehensiveProgressTimer(aiIndex)
   shouldAutoFollowChat.value = true
@@ -6415,6 +6592,9 @@ onBeforeUnmount(() => {
 .home-ai-stage-logo { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; animation: stage-spin 1.8s linear infinite; }
 .home-ai-stage-texts { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .home-ai-stage-note { color: var(--text-3); font-size: 0.68rem; line-height: 1.35; }
+.home-ai-context-chip { display: flex; align-items: center; gap: 8px; margin: -2px 0 10px 34px; padding: 7px 10px; border-radius: 999px; border: 1px solid rgba(178,149,93,0.16); background: rgba(178,149,93,0.075); color: var(--text-3); font-size: 0.68rem; line-height: 1.35; }
+.home-ai-context-chip text:first-child { flex: 0 0 auto; color: var(--accent); font-weight: 700; }
+.home-ai-context-chip text:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .home-ai-step-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 10px 0 8px; }
 .home-ai-step-row text { min-width: 0; padding: 5px 6px; border-radius: 999px; color: var(--text-3); background: rgba(178,149,93,0.08); border: 1px solid rgba(178,149,93,0.10); text-align: center; font-size: 0.64rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; }
 .home-ai-step-row text:nth-child(1) { color: var(--accent); border-color: rgba(178,149,93,0.26); }
@@ -6435,6 +6615,7 @@ onBeforeUnmount(() => {
 .home-tool-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; cursor: default; }
 .home-tool-card-title { display: block; color: var(--text-1); font-size: 0.84rem; font-weight: 700; }
 .home-tool-card-sub { display: block; margin-top: 3px; color: var(--text-3); font-size: 0.68rem; line-height: 1.35; }
+.home-tool-card-feed { display: block; margin-top: 5px; color: var(--text-3); font-size: 0.64rem; line-height: 1.45; word-break: break-word; }
 .home-tool-card-toggle { display: none; }
 .home-tool-card-body { min-width: 0; padding: 0 12px 12px; display: grid; gap: 12px; overflow: visible; }
 .home-artifact-render { width: 100%; min-height: 0; overflow-x: visible; overflow-y: visible; border-radius: 12px; contain: layout; }
@@ -6914,6 +7095,8 @@ onBeforeUnmount(() => {
   .home-ai-chat-head { align-items: flex-start; padding: 9px 10px; gap: 8px; }
   .home-ai-chat-sub { max-width: calc(100vw - 148px); font-size: 0.66rem; }
   .home-ai-new-chat { height: 28px; padding: 0 10px; font-size: 0.68rem; }
+  .home-ai-context-chip { margin-left: 0; border-radius: 12px; align-items: flex-start; }
+  .home-ai-context-chip text:last-child { white-space: normal; }
   .home-ai-step-row { gap: 4px; }
   .home-ai-step-row text { padding: 4px 3px; font-size: 0.56rem; }
   .home-tool-card-head { padding: 9px 10px; }

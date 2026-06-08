@@ -1058,6 +1058,51 @@ def test_comprehensive_new_conversation_returns_full_bazi_artifact(app_module, u
     assert set(seen_model_ids) == {"advanced"}
 
 
+def test_comprehensive_uses_frontend_handoff_paipan_without_rebuilding(app_module, user_factory, monkeypatch):
+    user = user_factory("handoff-paipan-user")
+
+    def fake_stream(*args, **kwargs):
+        return iter([("已按传入盘面解读。", None)])
+
+    monkeypatch.setattr(app_module, "get_reading_stream", fake_stream)
+    with app_module.app.app_context():
+        app_module.add_points(user.id, "admin_add", 100, "测试积分")
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+      sess["_user_id"] = str(user.id)
+      sess["_fresh"] = True
+
+    handoff_qimen = {
+        "handoff_sentinel": "frontend-qimen-pan",
+        "paipanTime": "2026-06-08 10:30",
+        "ju": "阳遁一局",
+        "fourPillars": {"year": "丙午", "month": "甲午", "day": "癸丑", "hour": "丁巳"},
+    }
+    response = client.post("/api/comprehensive/ask/stream", json={
+        "question": "请解读这个奇门盘",
+        "profile": {
+            "name": "奇门样例",
+            "gender": "男",
+            "calType": "公历",
+            "birthTime": "199001271030",
+            "birthAddr": "北京",
+        },
+        "tool_models": ["qimen"],
+        "auto_select_tools": False,
+        "paipan": {"paipan": {"qimen": handoff_qimen}, "artifacts": {}},
+        "reading_mode": "standard",
+    })
+
+    assert response.status_code == 200
+    paipan_done = next(p for p in _sse_payloads(response) if p.get("stage") == "paipan_done")
+    assert paipan_done["paipan"]["qimen"]["handoff_sentinel"] == "frontend-qimen-pan"
+    qimen_artifact = paipan_done["artifacts"]["qimen.pan"]
+    assert qimen_artifact["data"]["handoff_sentinel"] == "frontend-qimen-pan"
+    assert qimen_artifact["data"]["paipanTime"] == "2026-06-08 10:30"
+    assert paipan_done["artifact_actions"]["added"] == ["qimen.pan"]
+
+
 def test_comprehensive_stream_passes_reading_mode_to_model_provider(app_module, user_factory, monkeypatch):
     user = user_factory("artifact-reading-mode-user")
     seen = []

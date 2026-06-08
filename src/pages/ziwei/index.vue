@@ -89,6 +89,13 @@
             </view>
             <view class="submit-btn" @click="ziweiFreePan">⭐ 免费排盘</view>
             <text class="form-hint" style="text-align:center;display:block;margin-top:12px;">基于 Shian 精确排盘，展示十二宫、主星辅星与三合命盘。深度解读请回首页选择紫微斗数或自动选术数。</text>
+            <view v-if="zwPanData" class="agent-handoff-bar">
+              <view>
+                <text class="agent-handoff-title">用时安agent解读此盘</text>
+                <text class="agent-handoff-sub">带入完整紫微命盘和出生参数</text>
+              </view>
+              <view class="agent-handoff-btn" @tap="sendZiweiToAgent">去解读</view>
+            </view>
             <view class="zw-result" v-if="zwPanResult" v-html="zwPanResult"></view>
           </view>
           <!-- AI解读面板 -->
@@ -487,6 +494,41 @@ async function ziweiFreePan() {
 function rerenderZiweiPan() {
   if (!zwPanData.value) return
   zwPanResult.value = renderZiweiPan(zwPanData.value)
+}
+
+function sendZiweiToAgent() {
+  if (!zwPanData.value) return uni.showToast({ title: '请先完成排盘', icon: 'none' })
+  try {
+    uni.setStorageSync('xc_agent_handoff_v1', JSON.stringify({
+      source: 'ziwei_free',
+      tool_models: ['ziwei'],
+      question: '请结合这个紫微斗数命盘，围绕我的问题进行解读。',
+      paipan: {
+        ziwei: {
+          form: {
+            year: zwForm.year,
+            month: zwForm.month,
+            day: zwForm.day,
+            hour: zwForm.hour,
+            minute: zwForm.minute,
+            gender: ['男', '女'][zwForm.genderIdx],
+            date_type: ['solar', 'lunar'][zwForm.dateTypeIdx],
+            chartName: zwForm.chartName,
+            birthAddr: zwForm.birthAddr,
+            longitude: zwForm.longitude,
+          },
+          pan: zwPanData.value,
+        },
+      },
+    }))
+  } catch (_) {}
+  // #ifdef H5
+  try {
+    window.location.hash = '#/?app=1'
+    return
+  } catch (_) {}
+  // #endif
+  uni.reLaunch({ url: '/pages/index/index?app=1' })
 }
 
 function findZiweiFlowTarget(target) {
@@ -1522,6 +1564,10 @@ onUnmounted(function() {
 .btn-row { display: flex; gap: 10px; justify-content: center; margin-top: 12px; }
 .btn-row .submit-btn { flex: 1; margin-top: 0; }
 .btn-ghost { background: transparent; border: 1px solid var(--card-border); color: var(--text-3); padding: 7px 18px; border-radius: 10px; font-size: 0.8125rem; }
+.agent-handoff-bar { margin: 14px 0 4px; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(178,149,93,0.30); background: linear-gradient(135deg, rgba(178,149,93,0.13), rgba(110,195,135,0.08)); display: flex; align-items: center; justify-content: space-between; gap: 14px; box-sizing: border-box; }
+.agent-handoff-title { display: block; color: var(--text-1); font-size: 0.9rem; font-weight: 700; letter-spacing: 0.5px; }
+.agent-handoff-sub { display: block; color: var(--text-3); font-size: 0.72rem; margin-top: 2px; line-height: 1.45; }
+.agent-handoff-btn { flex: 0 0 auto; padding: 8px 18px; border-radius: 999px; color: #fff; background: linear-gradient(135deg, #9a6b2f, #c49a46); font-size: 0.82rem; font-weight: 700; cursor: pointer; box-shadow: 0 8px 18px rgba(154,107,47,0.20); }
 .privacy-note { margin-top: 8px; padding: 8px 12px; border-radius: 10px; background: rgba(110,195,135,0.08); border: 1px solid rgba(110,195,135,0.15); font-size: 0.72rem; color: var(--success); text-align: center; }
 .zw-form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 .zw-birth-time-group { grid-column: 1 / -1; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--card-border); background: var(--section-alt); margin-bottom: 2px; }
@@ -1901,6 +1947,8 @@ onUnmounted(function() {
   .tool-tab { padding: 10px 14px; font-size: 0.8125rem; white-space: nowrap; }
   .tool-container { padding: 14px 8px; border-radius: 12px; }
   .submit-btn { font-size: 0.875rem; padding: 12px 16px; letter-spacing: 1px; }
+  .agent-handoff-bar { align-items: stretch; flex-direction: column; gap: 10px; }
+  .agent-handoff-btn { text-align: center; }
   .zw-result { margin-top: 12px; }
   .zw-result-card { padding: 10px 7px; border-radius: 10px; }
   .zw-result-wrap { overflow-x: visible; max-width: 100%; }
