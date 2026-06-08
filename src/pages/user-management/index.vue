@@ -781,6 +781,8 @@ onShow(function() {
 }
 .search-wrap {
   position: relative;
+  box-sizing: border-box;
+  height: 38px;
   min-height: 38px;
   display: flex;
   align-items: center;
@@ -835,12 +837,16 @@ onShow(function() {
 }
 .search-input {
   flex: 1;
+  align-self: center;
   min-width: 0;
   width: 100%;
   height: 38px;
   padding: 0;
   border: 0;
   outline: none;
+  display: flex;
+  align-items: center;
+  transform: translateY(5px);
   background: transparent;
   box-shadow: none;
   color: var(--text-1);
@@ -1345,6 +1351,7 @@ onShow(function() {
   }
   .search-wrap {
     grid-column: 1 / -1;
+    height: 36px;
     min-height: 36px;
     border-radius: 999px;
     padding-left: 10px;
