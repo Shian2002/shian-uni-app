@@ -117,6 +117,100 @@ def calculate_cost(model_id, tool_models, is_followup=False, profile_count=1, re
     return max(0, int(round(int(model.get("cost_base", 0)) + tools_cost * count * multiplier + mode_delta)))
 
 
+def _birth_time_parts(value):
+    digits = ''.join(ch for ch in str(value or '') if ch.isdigit())
+    parts = {}
+    if len(digits) >= 4:
+        parts["birth_year"] = digits[:4]
+    if len(digits) >= 6:
+        parts["birth_month"] = digits[4:6]
+    if len(digits) >= 8:
+        parts["birth_day"] = digits[6:8]
+    if len(digits) >= 10:
+        parts["birth_hour"] = digits[8:10]
+    if len(digits) >= 12:
+        parts["birth_minute"] = digits[10:12]
+    return parts
+
+
+def _normalise_pillar_value(value):
+    if isinstance(value, dict):
+        return value.get("gan_zhi") or ((value.get("gan") or "") + (value.get("zhi") or ""))
+    return value
+
+
+def _extract_four_pillars(meta):
+    if not isinstance(meta, dict):
+        return {}
+    four_pillars = meta.get("four_pillars") or meta.get("fourPillars") or {}
+    if not isinstance(four_pillars, dict):
+        return {}
+    return {
+        key: _normalise_pillar_value(four_pillars.get(key))
+        for key in ("year", "month", "day", "hour")
+        if four_pillars.get(key)
+    }
+
+
+def _split_ganzhi(value):
+    text = str(value or "")
+    if len(text) >= 2:
+        return text[0], text[1]
+    return "", ""
+
+
+def _build_user_chart_context(profile):
+    if isinstance(profile, list):
+        return {"profiles": [_build_user_chart_context(item) for item in profile if isinstance(item, dict)]}
+    if not isinstance(profile, dict):
+        return {}
+    meta = profile.get("meta") if isinstance(profile.get("meta"), dict) else {}
+    birth_time = profile.get("birth_time") or profile.get("birthTime") or ""
+    birth_parts = _birth_time_parts(birth_time)
+    four_pillars = _extract_four_pillars(meta)
+    birth_year_pillar = four_pillars.get("year") or meta.get("pillars", "")[:2]
+    birth_year_gan, birth_year_zhi = _split_ganzhi(birth_year_pillar)
+    context = {
+        "profile_id": profile.get("id"),
+        "name": profile.get("name") or "未命名",
+        "gender": profile.get("gender") or meta.get("gender") or "",
+        "relationship": profile.get("profile_type") or profile.get("profileType") or "self",
+        "source": profile.get("source") or "manual",
+        "source_record_id": profile.get("source_record_id"),
+        "birth_input": {
+            "calendar": profile.get("cal_type") or profile.get("calType") or "公历",
+            "birth_time_raw": birth_time,
+            **birth_parts,
+            "birth_addr": profile.get("birth_addr") or profile.get("birthAddr") or "",
+        },
+        "qimen_relevant_user_inputs": {
+            "birth_year": birth_parts.get("birth_year") or "",
+            "birth_year_pillar": birth_year_pillar or "",
+            "birth_year_gan": birth_year_gan,
+            "birth_year_zhi": birth_year_zhi,
+            "year_ming_reference": birth_year_pillar or birth_parts.get("birth_year") or "",
+        },
+        "location_and_time_options": {
+            "birth_lng": meta.get("birthLng") or meta.get("lng") or meta.get("longitude"),
+            "birth_lat": meta.get("birthLat") or meta.get("lat") or meta.get("latitude"),
+            "use_true_solar_time": meta.get("useSolarTime", True),
+            "is_dst": bool(meta.get("isDst", False)),
+            "night_zi_mode": meta.get("nightZiMode") or meta.get("night_zi_mode") or "",
+            "is_leap_month": bool(meta.get("isLeapMonth", False)),
+        },
+        "birth_conversion": {
+            "birth_solar": meta.get("birth_solar") or meta.get("birthSolar") or "",
+            "birth_lunar": meta.get("birth_lunar") or meta.get("birthLunar") or "",
+            "sizi_pillars": meta.get("siziPillars") or meta.get("sizi_pillars") or "",
+        },
+        "birth_four_pillars": four_pillars,
+        "birth_year_pillar": birth_year_pillar,
+        "birth_day_master": meta.get("day_master") or meta.get("dayMaster") or "",
+        "bazi_profile_meta_full": meta,
+    }
+    return context
+
+
 def build_comprehensive_messages(question, profile, tool_models, paipan_context, history=None):
     system = """你是时安解忧屋的综合命理答疑助手。
 你必须基于后端已经生成的排盘数据进行分析，不要自行编造出生信息、干支、宫位、星曜或卦象。
@@ -157,23 +251,25 @@ def build_tool_analysis_messages(question, profile, tool, tool_data, history=Non
         "zeji": "择吉工具",
     }
     system = """你是时安解忧屋的单项术数解读助手。
-你会收到用户问题、命盘档案和后端生成的完整术数盘面参数。
+你会收到用户问题、用户出生命盘上下文、命盘档案和后端生成的完整术数盘面参数。
 请以这些参数为事实来源，自主确定分析方法、用神取法和判断权重。
 输出要求：
 1. 围绕当前给出的一个术数盘面解读，不要跳到其他术数；
-2. 结论和依据必须来自当前盘面参数，不要自行编造出生信息、干支、宫位、星曜、卦象或牌面；
+2. 结论和依据必须来自用户出生命盘上下文和当前盘面参数，不要自行编造出生信息、干支、宫位、星曜、卦象或牌面；
 3. 可以按你的专业判断选择表达结构，但需要让用户看懂关键依据和行动建议；
 4. 不要逐字段复述 JSON，也不要输出 snake_case 内部键名，八字关系字段改用中文术语，例如 zhi_liu_chong 说成“地支六冲”。
 """
+    user_chart_context = _build_user_chart_context(profile)
     messages = [{"role": "system", "content": system}]
     for item in history or []:
         if item.get("role") in ("user", "assistant"):
             messages.append({"role": item["role"], "content": str(item.get("content", ""))[:2000]})
     messages.append({
         "role": "user",
-        "content": "用户问题：%s\n\n当前术数：%s\n\n命盘档案：\n%s\n\n当前术数盘面数据：\n%s" % (
+        "content": "用户问题：%s\n\n当前术数：%s\n\n用户出生命盘上下文：\n%s\n\n命盘档案原始数据：\n%s\n\n当前术数盘面完整数据：\n%s" % (
             question,
             tool_names.get(tool, tool),
+            json.dumps(user_chart_context, ensure_ascii=False, indent=2),
             json.dumps(profile or {}, ensure_ascii=False, indent=2),
             json.dumps(tool_data or {}, ensure_ascii=False, indent=2),
         ),

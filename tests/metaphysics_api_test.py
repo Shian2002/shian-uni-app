@@ -762,6 +762,74 @@ def test_comprehensive_options_hide_provider_details(app_module, user_factory):
     assert all("strength" not in m for m in models)
 
 
+def test_qimen_tool_messages_include_birth_year_and_full_pan(app_module):
+    from comprehensive_ai import build_tool_analysis_messages
+
+    profile = {
+        "name": "楚桉",
+        "gender": "女",
+        "cal_type": "农历",
+        "birth_time": "200611042319",
+        "birth_addr": "广西省 贵港 平南县",
+        "profile_type": "self",
+        "source": "bazi_record",
+        "meta": {
+            "birthLng": 110.393,
+            "birthLat": 23.5399,
+            "useSolarTime": True,
+            "isDst": True,
+            "nightZiMode": "夜子时换日",
+            "birth_solar": "2006-12-23 21:41",
+            "birth_lunar": "丙戌年冬月初四 亥时",
+            "pillars": "丙戌庚子丙戌己亥",
+            "four_pillars": {
+                "year": {"gan_zhi": "丙戌", "gan": "丙", "zhi": "戌"},
+                "month": {"gan_zhi": "庚子", "gan": "庚", "zhi": "子"},
+                "day": {"gan_zhi": "丙戌", "gan": "丙", "zhi": "戌"},
+                "hour": {"gan_zhi": "己亥", "gan": "己", "zhi": "亥"},
+            },
+        },
+    }
+    qimen = {
+        "solarDate": "2026年6月8日 02时49分",
+        "fourPillars": {"year": "丙午", "month": "甲午", "day": "癸丑", "hour": "癸丑"},
+        "ju": "阳遁六局上元",
+        "xunKong": {"day": "寅卯", "hour": "寅卯"},
+        "zhiFu": "值符天蓬落坤二宫(西南)",
+        "zhiShi": "值使休门落坎一宫(北)",
+        "palaces": [
+            {
+                "name": "坤二宫(西南)",
+                "gong": 2,
+                "menFull": "死门",
+                "xingFull": "天蓬",
+                "shenFull": "值符",
+                "tianGan": "壬",
+                "diGan": ["癸", "乙"],
+            }
+        ],
+    }
+
+    content = build_tool_analysis_messages(
+        "今天下午的ai课程能逃课吗，会不会点名什么的",
+        profile,
+        "qimen",
+        qimen,
+    )[-1]["content"]
+
+    assert "用户出生命盘上下文" in content
+    assert '"birth_year": "2006"' in content
+    assert '"birth_year_pillar": "丙戌"' in content
+    assert '"birth_year_gan": "丙"' in content
+    assert '"birth_year_zhi": "戌"' in content
+    assert '"use_true_solar_time": true' in content
+    assert '"is_dst": true' in content
+    assert '"birth_lng": 110.393' in content
+    assert "当前术数盘面完整数据" in content
+    assert "坤二宫(西南)" in content
+    assert '"diGan": [' in content
+
+
 def test_bazi_paipan_syncs_logged_in_profile_with_extended_meta(app_module, user_factory):
     user = user_factory("profile-sync-user")
     client = app_module.app.test_client()
