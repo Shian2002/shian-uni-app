@@ -845,6 +845,7 @@ onShow(function() {
   box-shadow: none;
   color: var(--text-1);
   font-size: 0.88rem;
+  line-height: 38px;
 }
 .search-input :deep(.uni-input-wrapper),
 .search-input :deep(.uni-input-form),
@@ -852,6 +853,8 @@ onShow(function() {
   width: 100%;
   height: 38px;
   line-height: 38px;
+  display: flex;
+  align-items: center;
   color: var(--text-1);
   font-size: 0.88rem;
   letter-spacing: 0;
@@ -859,7 +862,9 @@ onShow(function() {
 .search-input :deep(.uni-input-placeholder) {
   height: 38px;
   line-height: 38px;
-  color: var(--text-4);
+  display: flex;
+  align-items: center;
+  color: var(--text-3);
   pointer-events: none;
 }
 .filter-tabs {
