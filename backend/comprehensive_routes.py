@@ -63,6 +63,9 @@ def register_comprehensive_routes(app, db, services):
 
     def _profile_to_comprehensive_dict(profile):
         meta = _json_loads_safe(getattr(profile, 'meta_json', ''), {})
+        if isinstance(meta, dict):
+            meta = dict(meta)
+            meta['gender'] = profile.gender
         return {
             'id': profile.id,
             'name': profile.name,
@@ -88,6 +91,10 @@ def register_comprehensive_routes(app, db, services):
             return _profile_to_comprehensive_dict(prof)
 
         profile = data.get('profile') or {}
+        meta = profile.get('meta') or {}
+        if isinstance(meta, dict):
+            meta = dict(meta)
+            meta['gender'] = profile.get('gender') or meta.get('gender') or '男'
         return {
             'name': profile.get('name') or '未命名',
             'gender': profile.get('gender') or '男',
@@ -95,7 +102,7 @@ def register_comprehensive_routes(app, db, services):
             'birth_time': profile.get('birth_time') or profile.get('birthTime') or '',
             'birth_addr': profile.get('birth_addr') or profile.get('birthAddr') or '',
             'profile_type': profile.get('profile_type') or profile.get('profileType') or 'self',
-            'meta': profile.get('meta') or {},
+            'meta': meta,
         }
 
 

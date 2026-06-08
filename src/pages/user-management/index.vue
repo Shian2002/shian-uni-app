@@ -222,8 +222,8 @@ const sourceTabs = [
   { key: 'customer', label: '客户' },
 ]
 const sortLabels = ['最近使用', '默认优先', '姓名排序']
-const profileTypeLabels = ['用户', '客户', '收藏']
-const profileTypeValues = ['self', 'customer', 'collect']
+const profileTypeLabels = ['自己', '家人', '朋友', '伴侣', '客户', '名人', '收藏', '其他']
+const profileTypeValues = ['self', 'family', 'friend', 'partner', 'customer', 'celebrity', 'collect', 'other']
 
 const form = reactive({
   name: '',
@@ -345,15 +345,26 @@ function avatarText(profile) {
 }
 
 function profileTypeName(type) {
+  if (type === 'self') return '自己'
+  if (type === 'family') return '家人'
+  if (type === 'friend') return '朋友'
+  if (type === 'partner') return '伴侣'
   if (type === 'customer') return '客户'
+  if (type === 'celebrity') return '名人'
   if (type === 'collect') return '收藏'
-  return '用户'
+  if (type === 'other') return '其他'
+  return '档案'
 }
 
 function relationLabel(profile) {
   const type = (profile && profile.profileType) || 'self'
   if (type === 'customer') return '客户'
   if (type === 'collect') return '案例'
+  if (type === 'family') return '家人'
+  if (type === 'friend') return '朋友'
+  if (type === 'partner') return '伴侣'
+  if (type === 'celebrity') return '名人'
+  if (type === 'other') return '其他'
   if (sourceKey(profile || {}) === 'bazi') return '八字'
   if (sourceKey(profile || {}) === 'ziwei') return '紫微'
   return '自己'

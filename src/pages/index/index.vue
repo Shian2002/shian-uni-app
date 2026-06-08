@@ -512,7 +512,10 @@
           <view v-for="tab in profileTabs" :key="tab" :class="{ active: profileTab === tab }" @tap="profileTab = tab">{{ tab }}</view>
         </view>
         <view class="profile-options">
-          <view v-if="profileGroups[profileTab].length === 0" class="profile-empty">暂无命盘档案</view>
+          <view v-if="profileGroups[profileTab].length === 0" class="profile-empty">
+            <text>暂无命盘档案</text>
+            <text class="profile-empty-sub">可先新增一个常用命盘，再用于八字、紫微和时安agent。</text>
+          </view>
           <view
             class="profile-option"
             v-for="p in profileGroups[profileTab]"
@@ -530,9 +533,83 @@
             </view>
           </view>
         </view>
+        <view class="profile-quick-create">
+          <view class="profile-quick-toggle" @tap="toggleQuickProfileForm">
+            <text>{{ profileQuickFormOpen ? '收起新增命盘' : '+ 新增命盘' }}</text>
+            <text class="profile-quick-hint">不知道具体时分也可以先保存</text>
+          </view>
+          <view class="profile-quick-form" v-if="profileQuickFormOpen">
+            <view class="quick-grid">
+              <label class="quick-field">
+                <text>姓名</text>
+                <input v-model="quickProfileForm.name" placeholder="例如：自己、妈妈、楚桉" />
+              </label>
+              <label class="quick-field">
+                <text>关系</text>
+                <picker :range="profileTypeQuickLabels" :value="quickProfileTypeIndex" @change="onQuickProfileTypeChange">
+                  <view class="quick-picker">{{ profileTypeLabel(quickProfileForm.profileType) }}</view>
+                </picker>
+              </label>
+              <label class="quick-field">
+                <text>性别</text>
+                <picker :range="genderOptions" :value="quickGenderIndex" @change="onQuickGenderChange">
+                  <view class="quick-picker">{{ quickProfileForm.gender }}</view>
+                </picker>
+              </label>
+              <label class="quick-field">
+                <text>历法</text>
+                <picker :range="calTypeOptions" :value="quickCalTypeIndex" @change="onQuickCalTypeChange">
+                  <view class="quick-picker">{{ quickProfileForm.calType }}</view>
+                </picker>
+              </label>
+              <label class="quick-field">
+                <text>出生日期</text>
+                <input v-model="quickProfileForm.birthDate" type="date" placeholder="YYYY-MM-DD" />
+              </label>
+              <label class="quick-field" :class="{ disabled: quickProfileForm.timeUnknown }">
+                <text>出生时间</text>
+                <input v-model="quickProfileForm.birthClock" type="time" :disabled="quickProfileForm.timeUnknown" />
+              </label>
+              <label class="quick-field quick-field-wide">
+                <text>出生地</text>
+                <input v-model="quickProfileForm.birthAddr" placeholder="省市区，可后续补充" />
+              </label>
+            </view>
+            <view class="quick-row">
+              <view class="quick-check" :class="{ active: quickProfileForm.timeUnknown }" @tap="quickProfileForm.timeUnknown = !quickProfileForm.timeUnknown">
+                <text class="quick-check-dot">{{ quickProfileForm.timeUnknown ? '✓' : '' }}</text>
+                <text>不清楚具体时分</text>
+              </view>
+              <view class="quick-save" @tap="createQuickProfile">保存并选中</view>
+            </view>
+            <view class="quick-note">八字和紫微需要较准确的出生时间；信息不全时，时安agent会优先建议用奇门或先补充资料。</view>
+          </view>
+        </view>
         <view class="sheet-actions">
           <view class="sheet-btn sheet-btn-secondary" @tap="cancelProfileSelection">取消</view>
           <view class="sheet-btn sheet-btn-primary" @tap="confirmProfileSelection">确认</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="send-confirm-sheet" v-if="sendConfirmOpen">
+      <view class="send-confirm-mask" @tap="resolveSendConfirm(false)"></view>
+      <view class="send-confirm-panel">
+        <view class="send-confirm-title">发送前确认</view>
+        <view class="send-confirm-desc">请确认本次解读使用的命盘和参数。</view>
+        <view class="send-confirm-list">
+          <view><text>命盘</text><text>{{ selectedProfileName || '未选择' }}</text></view>
+          <view><text>术数</text><text>{{ selectedToolSummary }}</text></view>
+          <view><text>模型</text><text>{{ selectedLlmModel.name || '基础模型' }}</text></view>
+          <view><text>模式</text><text>{{ selectedReadingMode.name || '标准' }} · {{ estimatedCost }}积分</text></view>
+        </view>
+        <view class="send-confirm-check" :class="{ active: sendConfirmDontRemind }" @tap="sendConfirmDontRemind = !sendConfirmDontRemind">
+          <text class="quick-check-dot">{{ sendConfirmDontRemind ? '✓' : '' }}</text>
+          <text>下次不再提醒</text>
+        </view>
+        <view class="sheet-actions">
+          <view class="sheet-btn sheet-btn-secondary" @tap="resolveSendConfirm(false)">再看看</view>
+          <view class="sheet-btn sheet-btn-primary" @tap="resolveSendConfirm(true)">开始解读</view>
         </view>
       </view>
     </view>
@@ -1040,10 +1117,12 @@ function toggleSubmenu(key) { submenuOpen[key] = !submenuOpen[key] }
 const isLoggedIn = ref(!!uni.getStorageSync('xc_token'))
 function resetHomeAuthState() {
   marketingPendingEnterAfterLogin = false
+  clearHomeAgentSelectionStorage()
   currentPoints.value = 0
   profiles.value = []
   selectedProfiles.value = []
   startNewComprehensiveConversation()
+  clearHomeAgentSelectionStorage()
   showMarketingHome()
 }
 window.addEventListener('xc-session-expired', function() {
@@ -1080,6 +1159,27 @@ const profileTabs = ['全部', '客户', '用户']
 const readingModeStorageKey = 'xc_home_reading_mode_v1'
 const artifactCollapseStorageKey = 'xc_home_artifact_collapse_v1'
 const comprehensiveDraftStorageKey = 'xc_home_comprehensive_draft_v1'
+const selectedProfilesStorageKey = 'xc_home_selected_profiles_v1'
+const selectedToolsStorageKey = 'xc_home_selected_tools_v1'
+const sendConfirmSkipStorageKey = 'xc_home_send_confirm_skip_v1'
+const profileTypeQuickLabels = ['自己', '家人', '朋友', '伴侣', '客户', '名人', '收藏', '其他']
+const profileTypeQuickValues = ['self', 'family', 'friend', 'partner', 'customer', 'celebrity', 'collect', 'other']
+const genderOptions = ['男', '女']
+const calTypeOptions = ['公历', '农历']
+const profileQuickFormOpen = ref(false)
+const quickProfileForm = reactive({
+  name: '',
+  profileType: 'self',
+  gender: '男',
+  calType: '公历',
+  birthDate: '',
+  birthClock: '12:00',
+  birthAddr: '',
+  timeUnknown: false,
+})
+const sendConfirmOpen = ref(false)
+const sendConfirmDontRemind = ref(false)
+let pendingSendConfirmResolve = null
 const readingModes = ref([
   { id: 'concise', name: '简约', cost_delta: -1, display_cost: 1 },
   { id: 'standard', name: '标准', cost_delta: 0, display_cost: 2 },
@@ -1173,6 +1273,9 @@ const selectedProfileMeta = computed(() => {
   if (!p) return ''
   return (p.gender || '') + ' · ' + formatBirthTime(p.birthTime || p.birth_time)
 })
+const quickProfileTypeIndex = computed(() => Math.max(0, profileTypeQuickValues.indexOf(quickProfileForm.profileType)))
+const quickGenderIndex = computed(() => Math.max(0, genderOptions.indexOf(quickProfileForm.gender)))
+const quickCalTypeIndex = computed(() => Math.max(0, calTypeOptions.indexOf(quickProfileForm.calType)))
 const profileGroups = computed(() => {
   const list = profiles.value || []
   return {
@@ -1209,8 +1312,14 @@ function openMiitBeian() {
 }
 
 function profileTypeLabel(type) {
+  if (type === 'self') return '自己'
+  if (type === 'family') return '家人'
+  if (type === 'friend') return '朋友'
+  if (type === 'partner') return '伴侣'
   if (type === 'customer') return '客户'
+  if (type === 'celebrity') return '名人'
   if (type === 'collect') return '收藏'
+  if (type === 'other') return '其他'
   if (type === 'bazi_record') return '八字记录'
   return '用户'
 }
@@ -1239,12 +1348,70 @@ function profileKey(p) {
   return (p.source || 'profile') + ':' + String(p.recordId || p.id || '')
 }
 
+function currentUserScopedStorageKey(base) {
+  let userKey = 'guest'
+  try {
+    const raw = uni.getStorageSync('xc_user')
+    const user = typeof raw === 'string' ? JSON.parse(raw) : raw
+    userKey = String((user && (user.id || user.username || user.phone)) || 'guest')
+  } catch (_) {}
+  return base + ':' + userKey
+}
+
+function clearHomeAgentSelectionStorage() {
+  ;[selectedProfilesStorageKey, selectedToolsStorageKey, sendConfirmSkipStorageKey].forEach(function(base) {
+    try { uni.removeStorageSync(currentUserScopedStorageKey(base)) } catch (_) {}
+  })
+}
+
 function saveSelectedProfiles() {
-  // 命盘选择只属于当前这次提问。不要写入本地缓存，否则刷新后会误恢复上次选中的客户。
+  if (!isLoggedIn.value) return
+  const payload = selectedProfiles.value.map(function(p) {
+    return {
+      id: p.id,
+      name: p.name,
+      gender: p.gender,
+      calType: p.calType || p.cal_type,
+      birthTime: p.birthTime || p.birth_time,
+      birthAddr: p.birthAddr || p.birth_addr,
+      profileType: p.profileType || p.profile_type,
+      source: p.source || 'profile',
+      meta: p.meta || {},
+    }
+  })
+  writeStorageJson(currentUserScopedStorageKey(selectedProfilesStorageKey), payload)
 }
 
 function saveSelectedToolModels() {
-  // 术数模型选择也只属于当前这次提问。刷新和新对话都回到自动选术数。
+  if (!isLoggedIn.value) return
+  writeStorageJson(currentUserScopedStorageKey(selectedToolsStorageKey), {
+    auto: !!autoSelectTools.value,
+    tools: selectedToolModels.value.slice(),
+  })
+}
+
+function restoreSavedAgentSelection(profileList) {
+  if (!isLoggedIn.value) return
+  const list = profileList || profiles.value || []
+  const savedProfiles = readStorageJson(currentUserScopedStorageKey(selectedProfilesStorageKey), [])
+  if (!selectedProfiles.value.length && Array.isArray(savedProfiles) && savedProfiles.length) {
+    const restored = savedProfiles.map(function(saved) {
+      return list.find(p => String(p.id) === String(saved.id)) || saved
+    }).filter(function(p) { return p && (p.id || p.name) })
+    if (restored.length) selectedProfiles.value = restored.map(p => Object.assign({ source: 'profile' }, p))
+  }
+  if (!selectedProfiles.value.length && list.length) {
+    const defaultProfile = list.find(p => p.isDefault) || list.find(p => (p.profileType || p.profile_type) === 'self') || list[0]
+    if (defaultProfile) {
+      selectedProfiles.value = [Object.assign({ source: 'profile' }, defaultProfile)]
+      saveSelectedProfiles()
+    }
+  }
+  const savedTools = readStorageJson(currentUserScopedStorageKey(selectedToolsStorageKey), null)
+  if (savedTools && typeof savedTools === 'object') {
+    autoSelectTools.value = savedTools.auto !== false
+    selectedToolModels.value = Array.isArray(savedTools.tools) ? savedTools.tools.slice() : []
+  }
 }
 
 function isProfileSelected(p) {
@@ -1305,6 +1472,7 @@ function toggleToolModel(id) {
 function toggleAutoSelectTools() {
   autoSelectTools.value = !autoSelectTools.value
   if (autoSelectTools.value) selectedToolModels.value = []
+  saveSelectedToolModels()
 }
 
 async function loadComprehensiveOptions() {
@@ -1331,7 +1499,8 @@ async function loadProfiles() {
       return Object.assign({ source: 'profile' }, p)
     })
     profiles.value = profileList
-    applyPendingAgentProfile(profileList)
+    const appliedPending = applyPendingAgentProfile(profileList)
+    if (!appliedPending) restoreSavedAgentSelection(profileList)
   } catch (_) {
     profiles.value = []
   }
@@ -1340,7 +1509,7 @@ async function loadProfiles() {
 function applyPendingAgentProfile(profileList) {
   try {
     const pendingId = uni.getStorageSync('xc_agent_profile_autoselect')
-    if (!pendingId) return
+    if (!pendingId) return false
     const list = profileList || profiles.value || []
     let selected = list.find(p => String(p.id) === String(pendingId))
     if (!selected) {
@@ -1349,9 +1518,86 @@ function applyPendingAgentProfile(profileList) {
     }
     if (selected && selected.name) {
       selectedProfiles.value = [Object.assign({ source: 'profile' }, selected)]
+      saveSelectedProfiles()
     }
     uni.removeStorageSync('xc_agent_profile_autoselect')
-  } catch (_) {}
+    return !!(selected && selected.name)
+  } catch (_) {
+    return false
+  }
+}
+
+function toggleQuickProfileForm() {
+  profileQuickFormOpen.value = !profileQuickFormOpen.value
+}
+
+function onQuickProfileTypeChange(e) {
+  const idx = Number(e.detail.value || 0)
+  quickProfileForm.profileType = profileTypeQuickValues[idx] || 'self'
+}
+
+function onQuickGenderChange(e) {
+  const idx = Number(e.detail.value || 0)
+  quickProfileForm.gender = genderOptions[idx] || '男'
+}
+
+function onQuickCalTypeChange(e) {
+  const idx = Number(e.detail.value || 0)
+  quickProfileForm.calType = calTypeOptions[idx] || '公历'
+}
+
+function resetQuickProfileForm() {
+  quickProfileForm.name = ''
+  quickProfileForm.profileType = 'self'
+  quickProfileForm.gender = '男'
+  quickProfileForm.calType = '公历'
+  quickProfileForm.birthDate = ''
+  quickProfileForm.birthClock = '12:00'
+  quickProfileForm.birthAddr = ''
+  quickProfileForm.timeUnknown = false
+}
+
+function quickBirthTime() {
+  const date = String(quickProfileForm.birthDate || '').replace(/-/g, '')
+  const clock = quickProfileForm.timeUnknown ? '1200' : String(quickProfileForm.birthClock || '12:00').replace(':', '')
+  return date + clock
+}
+
+async function createQuickProfile() {
+  const name = quickProfileForm.name.trim()
+  const birthDate = String(quickProfileForm.birthDate || '').trim()
+  if (!name) return uni.showToast({ title: '请填写姓名', icon: 'none' })
+  if (!birthDate || birthDate.replace(/-/g, '').length !== 8) return uni.showToast({ title: '请填写出生日期', icon: 'none' })
+  try {
+    const payload = {
+      name,
+      gender: quickProfileForm.gender,
+      calType: quickProfileForm.calType,
+      birthTime: quickBirthTime(),
+      birthAddr: quickProfileForm.birthAddr.trim(),
+      profileType: quickProfileForm.profileType,
+      isDefault: quickProfileForm.profileType === 'self' && !(profiles.value || []).some(p => p.isDefault),
+      source: 'manual',
+      meta: {
+        source: 'manual',
+        createdFrom: 'home_agent_profile_picker',
+        birthTimePrecision: quickProfileForm.timeUnknown ? 'date_unknown_time' : 'datetime',
+      },
+    }
+    const res = await uni.request({ url: '/api/profiles', method: 'POST', data: payload })
+    const created = res.data || {}
+    if (created.error) throw new Error(created.error)
+    await loadProfiles()
+    const selected = (profiles.value || []).find(p => String(p.id) === String(created.id)) || Object.assign({ source: 'profile' }, created)
+    selectedProfiles.value = [selected]
+    draftSelectedProfiles.value = [selected]
+    saveSelectedProfiles()
+    profileQuickFormOpen.value = false
+    resetQuickProfileForm()
+    uni.showToast({ title: '已添加命盘', icon: 'none' })
+  } catch (_) {
+    uni.showToast({ title: '添加失败，请稍后重试', icon: 'none' })
+  }
 }
 
 function comprehensiveProfilePayload(p) {
@@ -2789,7 +3035,11 @@ async function startComprehensiveAsk() {
       if (Array.isArray(d.tool_models) && d.tool_models.length) selectedToolModels.value = d.tool_models
     } catch (_) {}
   }
+  const precisionOk = await confirmBirthPrecisionForTools()
+  if (!precisionOk) return
   if (currentPoints.value < estimatedCost.value) return uni.showToast({ title: '积分不足', icon: 'none' })
+  const confirmed = await confirmComprehensiveSend()
+  if (!confirmed) return
 
   const history = normalizeMessageHistory()
   comprehensiveLoading.value = true
@@ -2905,6 +3155,45 @@ async function startComprehensiveAsk() {
     stopComprehensiveProgressTimer()
     saveComprehensiveDraftNow()
   }
+}
+
+function profileHasUnknownBirthTime(profile) {
+  const meta = (profile && profile.meta) || {}
+  return meta.birthTimePrecision === 'date_unknown_time' || meta.birthTimePrecision === 'month_only' || meta.birthTimePrecision === 'year_month'
+}
+
+function confirmBirthPrecisionForTools() {
+  const needsExactTime = selectedToolModels.value.some(id => id === 'bazi' || id === 'ziwei')
+  if (!needsExactTime || !selectedProfiles.value.some(profileHasUnknownBirthTime)) return Promise.resolve(true)
+  return new Promise(function(resolve) {
+    uni.showModal({
+      title: '出生时间不完整',
+      content: '当前命盘标记为不清楚具体时分。八字和紫微对出生时辰敏感，建议补充准确时间；若暂时不知道，可以改用奇门等按提问时刻起局的方式。',
+      confirmText: '继续',
+      cancelText: '返回调整',
+      success: function(res) { resolve(!!res.confirm) },
+      fail: function() { resolve(false) },
+    })
+  })
+}
+
+function confirmComprehensiveSend() {
+  if (readStorageJson(currentUserScopedStorageKey(sendConfirmSkipStorageKey), false)) return Promise.resolve(true)
+  return new Promise(function(resolve) {
+    pendingSendConfirmResolve = resolve
+    sendConfirmDontRemind.value = false
+    sendConfirmOpen.value = true
+  })
+}
+
+function resolveSendConfirm(confirmed) {
+  if (confirmed && sendConfirmDontRemind.value) {
+    writeStorageJson(currentUserScopedStorageKey(sendConfirmSkipStorageKey), true)
+  }
+  sendConfirmOpen.value = false
+  const resolve = pendingSendConfirmResolve
+  pendingSendConfirmResolve = null
+  if (resolve) resolve(!!confirmed)
 }
 
 function onComprehensiveInputKeydown(e) {
@@ -3024,10 +3313,7 @@ function startNewComprehensiveConversation() {
   stopComprehensiveAssistantUpdateQueue()
   comprehensiveQuestion.value = ''
   comprehensiveMessages.value = []
-  selectedProfiles.value = []
-  draftSelectedProfiles.value = []
-  selectedToolModels.value = []
-  autoSelectTools.value = true
+  draftSelectedProfiles.value = selectedProfiles.value.slice()
   currentComprehensiveConvId.value = null
   currentPaipanContext.value = {}
   currentArtifacts.value = {}
@@ -3037,6 +3323,7 @@ function startNewComprehensiveConversation() {
   pendingComprehensiveId = ''
   try { sessionStorage.removeItem('xc_comprehensive_resume_id') } catch(_) {}
   clearComprehensiveDraft()
+  restoreSavedAgentSelection(profiles.value || [])
   scrollComprehensiveChatToBottom('auto', true)
 }
 
@@ -6477,12 +6764,38 @@ onBeforeUnmount(() => {
 .profile-option-side { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .profile-option-type { color: var(--accent); font-size: 0.72rem; white-space: nowrap; }
 .profile-option-check { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--card-border); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700; }
-.profile-empty { padding: 28px; text-align: center; color: var(--text-3); font-size: 0.84rem; }
+.profile-empty { padding: 22px; text-align: center; color: var(--text-3); font-size: 0.84rem; display: grid; gap: 6px; }
+.profile-empty-sub { font-size: 0.72rem; color: var(--text-4); }
+.profile-quick-create { margin-top: 10px; border-top: 1px solid rgba(178,149,93,0.12); padding-top: 10px; flex-shrink: 0; }
+.profile-quick-toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 38px; border-radius: 12px; padding: 0 12px; background: rgba(178,149,93,0.10); color: var(--accent); font-size: 0.82rem; cursor: pointer; }
+.profile-quick-hint { color: var(--text-4); font-size: 0.7rem; }
+.profile-quick-form { margin-top: 10px; padding: 12px; border-radius: 14px; border: 1px solid rgba(178,149,93,0.16); background: rgba(255,255,255,0.04); }
+.quick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.quick-field { min-width: 0; display: grid; gap: 5px; color: var(--text-3); font-size: 0.72rem; }
+.quick-field-wide { grid-column: 1 / -1; }
+.quick-field.disabled { opacity: 0.62; }
+.quick-field input, .quick-picker { width: 100%; height: 36px; border-radius: 10px; border: 1px solid rgba(178,149,93,0.16); background: var(--input-bg); color: var(--text-1); padding: 0 10px; box-sizing: border-box; display: flex; align-items: center; font-size: 0.8rem; outline: none; }
+.quick-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
+.quick-check, .send-confirm-check { display: inline-flex; align-items: center; gap: 8px; color: var(--text-3); font-size: 0.76rem; cursor: pointer; }
+.quick-check-dot { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(178,149,93,0.32); display: inline-flex; align-items: center; justify-content: center; color: var(--accent); font-size: 0.68rem; }
+.quick-check.active .quick-check-dot, .send-confirm-check.active .quick-check-dot { background: var(--accent); border-color: var(--accent); color: #fff; }
+.quick-save { flex-shrink: 0; height: 34px; padding: 0 14px; border-radius: 999px; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.78rem; cursor: pointer; }
+.quick-note { margin-top: 8px; color: var(--text-4); font-size: 0.68rem; line-height: 1.55; }
 .sheet-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 12px; margin-top: 12px; border-top: 1px solid rgba(178,149,93,0.14); flex-shrink: 0; }
 .sheet-btn { min-width: 88px; height: 38px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 0.82rem; cursor: pointer; border: 1px solid rgba(178,149,93,0.18); box-sizing: border-box; transition: transform .18s ease, border-color .18s ease; }
 .sheet-btn:hover { transform: translateY(-1px); border-color: rgba(178,149,93,0.45); }
 .sheet-btn-secondary { color: var(--text-2); background: var(--input-bg); }
 .sheet-btn-primary { color: #fff; background: var(--accent); border-color: var(--accent); }
+.send-confirm-sheet { position: fixed; inset: 0; z-index: 430; }
+.send-confirm-mask { position: absolute; inset: 0; background: rgba(20,16,10,0.52); backdrop-filter: blur(10px); }
+.send-confirm-panel { position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); width: min(460px, calc(100vw - 28px)); border-radius: 18px; border: 1px solid rgba(178,149,93,0.22); background: rgba(31,29,24,0.94); box-shadow: 0 24px 80px rgba(0,0,0,0.34); padding: 18px; box-sizing: border-box; }
+[data-theme="light"] .send-confirm-panel { background: rgba(255,253,248,0.98); box-shadow: 0 24px 80px rgba(60,40,15,0.14); }
+.send-confirm-title { color: var(--text-1); font-family: var(--font-serif); font-size: 1rem; letter-spacing: 2px; }
+.send-confirm-desc { margin-top: 5px; color: var(--text-3); font-size: 0.76rem; }
+.send-confirm-list { display: grid; gap: 8px; margin: 14px 0; }
+.send-confirm-list view { display: flex; justify-content: space-between; gap: 12px; padding: 9px 10px; border-radius: 10px; border: 1px solid rgba(178,149,93,0.12); background: rgba(255,255,255,0.035); color: var(--text-2); font-size: 0.78rem; }
+.send-confirm-list text:first-child { color: var(--text-4); flex-shrink: 0; }
+.send-confirm-list text:last-child { text-align: right; color: var(--text-1); }
 /* ═══ 页脚 ═══ */
 .site-footer { background: var(--nav-bg); border-top: 1px solid var(--card-border); padding: 24px 32px 24px; margin-top: 0; }
 .footer-disclaimer { max-width: var(--max-w); margin: 0 auto 32px; padding: 14px 20px; border-radius: 10px; background: rgba(215,125,110,0.08); border: 1px solid rgba(215,125,110,0.15); font-size: 0.75rem; color: var(--danger); line-height: 1.6; text-align: center; }

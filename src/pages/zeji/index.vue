@@ -96,7 +96,12 @@ const isLoggedIn = ref(!!uni.getStorageSync('xc_token'))
 window.addEventListener('xc-session-expired', function() { isLoggedIn.value = false })
 
 // ── 择吉表单 ──
-const zejiTypes = ['婚嫁', '开业', '搬家', '出行', '签约', '动土']
+const zejiTypes = [
+  '婚嫁', '订婚', '领证', '开业', '开工', '签约',
+  '搬家', '入宅', '安床', '出行', '求财', '求职',
+  '考试', '面试', '拜访', '谈判', '动土', '装修',
+  '安葬', '祭祀', '祈福', '剖腹产', '疗养', '开市',
+]
 const zejiTypeIdx = ref(0)
 const zejiStart = ref('')
 const zejiEnd = ref('')

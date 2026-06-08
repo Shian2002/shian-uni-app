@@ -1408,6 +1408,20 @@ function applyLogoutState() {
   try { uni.$emit('xc-auth-changed', { type: 'logout', loggedIn: false }) } catch(_) {}
 }
 
+function clearHomeAgentSessionPrefs() {
+  const bases = ['xc_home_selected_profiles_v1', 'xc_home_selected_tools_v1', 'xc_home_send_confirm_skip_v1']
+  let userKey = 'guest'
+  try {
+    const raw = uni.getStorageSync('xc_user')
+    const user = typeof raw === 'string' ? JSON.parse(raw) : raw
+    userKey = String((user && (user.id || user.username || user.phone)) || 'guest')
+  } catch (_) {}
+  bases.forEach(function(base) {
+    try { uni.removeStorageSync(base + ':' + userKey) } catch (_) {}
+    try { uni.removeStorageSync(base + ':guest') } catch (_) {}
+  })
+}
+
 function showMarketingHomeAfterAuthChange() {
   // 退出账号后统一回到营销页，避免停留在需要登录态的应用页导致空白。
   try {
@@ -1455,10 +1469,12 @@ function openLoginFromNav() {
 
 function performLogout() {
   uni.request({ url: '/api/logout', method: 'POST' }).then(function() {
+    clearHomeAgentSessionPrefs()
     uni.removeStorageSync('xc_token'); uni.removeStorageSync('xc_user'); uni.removeStorageSync('xc_has_password'); uni.removeStorageSync('xc_avatar')
     applyLogoutState()
     showMarketingHomeAfterAuthChange()
   }).catch(function() {
+    clearHomeAgentSessionPrefs()
     uni.removeStorageSync('xc_token'); uni.removeStorageSync('xc_user'); uni.removeStorageSync('xc_has_password'); uni.removeStorageSync('xc_avatar')
     applyLogoutState()
     showMarketingHomeAfterAuthChange()

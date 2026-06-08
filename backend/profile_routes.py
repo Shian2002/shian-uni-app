@@ -12,7 +12,7 @@ from models import BaziRecord, UserProfile
 
 logger = logging.getLogger('xuancetai')
 
-PROFILE_TYPES = ('self', 'customer', 'collect')
+PROFILE_TYPES = ('self', 'family', 'friend', 'partner', 'customer', 'celebrity', 'collect', 'other')
 PROFILE_SOURCES = ('manual', 'bazi_record', 'ziwei_pan')
 
 
@@ -66,7 +66,11 @@ def _apply_profile_payload(profile, data):
     profile.is_default = bool(data.get('isDefault', False))
     profile.profile_type = _profile_type_from_payload(data)
     profile.source = _source_from_payload(data, getattr(profile, 'source', 'manual'))
-    profile.meta_json = json.dumps(data.get('meta') or {}, ensure_ascii=False)
+    meta = data.get('meta') or {}
+    if isinstance(meta, dict):
+        meta = dict(meta)
+        meta['gender'] = profile.gender
+    profile.meta_json = json.dumps(meta, ensure_ascii=False)
     profile.last_used_at = datetime.utcnow()
     return ''
 
@@ -79,6 +83,7 @@ def sync_bazi_record_to_profile(db, user_id, record, params_data, paipan_result=
     meta.update({
         'source': 'bazi_record',
         'record_id': record.id,
+        'gender': record.gender or meta.get('gender') or '男',
         'pillars': record.pillars,
         'four_pillars': (paipan_result or {}).get('four_pillars') or {},
         'birth_solar': (paipan_result or {}).get('birth_solar') or '',
