@@ -100,6 +100,23 @@ RUN_PROD_SMOKE=1 bash scripts/preflight_release.sh
 
 安全值守入口见 `docs/security-duty-checklist.md`。后端、登录、充值、积分、上传、数据库、部署脚本或依赖发生改动时，先按该清单做安全复核；外部安全技能库只作为审计思路来源，不整包安装到业务仓库。
 
+积分中心支付已切换为虎皮椒支付，旧支付宝收款码/截图识别入口已停用。生产启用前在后端服务环境里配置：
+
+```bash
+HUPIJIAO_ENABLED=1
+HUPIJIAO_APPID=你的虎皮椒APPID
+HUPIJIAO_APPSECRET=你的虎皮椒APPSECRET
+PUBLIC_BASE_URL=https://你的正式域名
+# 可选：HUPIJIAO_GATEWAY_URL=https://api.xunhupay.com/payment/do.html
+```
+
+注意：
+
+- `HUPIJIAO_APPSECRET` 只能放服务器环境变量，不能提交到 Git，也不能写入前端。
+- `PUBLIC_BASE_URL` 必须是虎皮椒能公网访问的 HTTPS 域名，回调地址为 `/api/recharge/hupijiao/notify`。
+- 上线前先用测试包或一分钱订单做端到端验活，核对 `recharge_order.status`、`membership.points` / AI 次数和 `point_log` 只入账一次。
+- 虎皮椒重复回调应返回 `success`，但不能重复加积分或 AI 次数。
+
 ## 2.1 测试接手清单
 
 日常改动先按风险分层，不要每次都从头猜要跑什么。
@@ -322,6 +339,7 @@ bash deploy-to-server.sh
 
 脚本会执行这些动作：
 
+- 部署脚本自身会拦截未提交的 `backend/*.py` 改动，即使设置 `SKIP_PREFLIGHT=1` 也不会同步脏后端代码
 - 默认先运行 `scripts/preflight_release.sh`
 - 同步后端代码和 `backend/requirements.txt`
 - 重启前备份真实在线 SQLite 数据库
@@ -350,6 +368,8 @@ npm run qa:online
 ```bash
 SKIP_PREFLIGHT=1 bash deploy-to-server.sh
 ```
+
+注意：`SKIP_PREFLIGHT=1` 只跳过测试、构建和审计，不会跳过后端脏改动拦截；如有未提交的 `backend/*.py` 改动，部署仍会停止。
 
 跳过后要尽快补跑：
 

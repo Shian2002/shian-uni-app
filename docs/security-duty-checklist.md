@@ -26,6 +26,8 @@ python3 -m pytest -q
 bash scripts/preflight_release.sh
 ```
 
+`scripts/preflight_release.sh` 和 `deploy-to-server.sh` 都会拦截未提交的 `backend/*.py` 改动，避免 `rsync` 把未进入 Git 的后端代码同步到生产。
+
 上线环境只读核验：
 
 ```bash
@@ -80,6 +82,14 @@ python3 scripts/production_db_audit.py /home/lighthouse/tianji/flask-source/back
 - 未登录 `/api/me` 可以返回访客状态，但 `/api/membership` 等会员资产接口必须拒绝。
 - 积分变动要同时检查余额、`point_log` 和业务记录，不能只看接口成功。
 - 管理员操作必须写入 `admin_audit_log`，审计内容不能包含密码或完整密钥。
+
+支付回调安全：
+
+- 虎皮椒下单只允许服务端读取 `HUPIJIAO_APPSECRET`，前端不能出现真实密钥。
+- `/api/recharge/hupijiao/notify` 不依赖登录 session，只接受虎皮椒签名、`appid`、订单号和金额都匹配的回调。
+- 支付金额必须按“分”精确匹配本地订单金额，不能信任前端传入金额。
+- 回调到账必须复用 `confirm_recharge_order_once` 和 `PointLog.dedupe_key`，重复通知不能重复加积分或 AI 次数。
+- 非 `OD` 状态、错误签名、错误金额、未知订单和支付方式不匹配都不能到账。
 
 ### 5. 上传与静态资源
 

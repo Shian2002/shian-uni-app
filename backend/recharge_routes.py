@@ -4,15 +4,14 @@ import hashlib
 import json
 import logging
 import os
-import re
 import secrets
-import shutil
-import subprocess
-import tempfile
 import time
 from datetime import datetime
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from urllib import parse as urlparse
+from urllib import request as urlrequest
 
-from flask import jsonify, request
+from flask import Response, jsonify, request
 from flask_login import current_user, login_required
 from sqlalchemy.exc import IntegrityError
 
@@ -33,9 +32,133 @@ RECHARGE_PACKAGES = [
     {'id': 'ai-combo', 'name': '深度合参包', 'points': 0, 'price': 68, 'package_type': 'ai', 'ai_single_credits': 0, 'ai_combo_credits': 20, 'description': '20 次多术数合参'},
 ]
 
-RECHARGE_SMALL_AUTO_LIMIT = float(os.environ.get('RECHARGE_SMALL_AUTO_LIMIT', '29.9'))
-RECHARGE_MANUAL_MESSAGE = '付款截图已提交，大额充值每日 10:00 - 24:00 在线确认，非在线时间可能延迟到账'
+HUPIJIAO_GATEWAY_URL = os.environ.get('HUPIJIAO_GATEWAY_URL', 'https://api.xunhupay.com/payment/do.html')
+HUPIJIAO_TRADE_PREFIX = 'XC'
 
+
+def _amount_decimal(value):
+    """按人民币分规整金额，支付验签和金额比较都走 Decimal。"""
+    try:
+        amount = Decimal(str(value)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+    if amount <= 0:
+        return None
+    return amount
+
+
+def _amount_text(value):
+    amount = _amount_decimal(value)
+    if amount is None:
+        return ''
+    return format(amount, 'f')
+
+
+def _amount_cents(value):
+    amount = _amount_decimal(value)
+    if amount is None:
+        return None
+    return int(amount * 100)
+
+
+def _hupijiao_sign(params, appsecret):
+    """虎皮椒签名：非空参数按 ASCII 排序，排除 hash，末尾直接拼 APPSECRET。"""
+    pairs = []
+    for key in sorted(params):
+        if key == 'hash':
+            continue
+        value = params.get(key)
+        if value is None or value == '':
+            continue
+        pairs.append(f'{key}={value}')
+    raw = '&'.join(pairs) + appsecret
+    return hashlib.md5(raw.encode('utf-8')).hexdigest()
+
+
+def _hupijiao_config():
+    enabled = os.environ.get('HUPIJIAO_ENABLED', '').strip() == '1'
+    appid = os.environ.get('HUPIJIAO_APPID', '').strip()
+    appsecret = os.environ.get('HUPIJIAO_APPSECRET', '').strip()
+    public_base_url = os.environ.get('PUBLIC_BASE_URL', '').strip().rstrip('/')
+    gateway_url = os.environ.get('HUPIJIAO_GATEWAY_URL', HUPIJIAO_GATEWAY_URL).strip() or HUPIJIAO_GATEWAY_URL
+    missing = []
+    if not enabled:
+        missing.append('HUPIJIAO_ENABLED')
+    if not appid:
+        missing.append('HUPIJIAO_APPID')
+    if not appsecret:
+        missing.append('HUPIJIAO_APPSECRET')
+    if not public_base_url:
+        missing.append('PUBLIC_BASE_URL')
+    return {
+        'enabled': enabled,
+        'appid': appid,
+        'appsecret': appsecret,
+        'public_base_url': public_base_url,
+        'gateway_url': gateway_url,
+        'missing': missing,
+    }
+
+
+def _hupijiao_trade_order_id(order_id):
+    return f'{HUPIJIAO_TRADE_PREFIX}{int(order_id)}'
+
+
+def _order_id_from_hupijiao_trade_id(trade_order_id):
+    value = (trade_order_id or '').strip()
+    if not value.startswith(HUPIJIAO_TRADE_PREFIX):
+        return None
+    raw_id = value[len(HUPIJIAO_TRADE_PREFIX):]
+    if not raw_id.isdigit():
+        return None
+    return int(raw_id)
+
+
+def _safe_json_compact(payload):
+    return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+
+
+def _build_hupijiao_order_payload(config, order, pkg):
+    public_base_url = config['public_base_url']
+    trade_order_id = _hupijiao_trade_order_id(order.id)
+    title = f"时安解忧屋-{pkg['name']}"[:42]
+    payload = {
+        'version': '1.1',
+        'appid': config['appid'],
+        'trade_order_id': trade_order_id,
+        'total_fee': _amount_text(order.amount),
+        'title': title,
+        'time': str(int(time.time())),
+        'notify_url': f'{public_base_url}/api/recharge/hupijiao/notify',
+        'return_url': f'{public_base_url}/pages/points/index',
+        'callback_url': f'{public_base_url}/pages/points/index',
+        'plugins': 'xuan-cet-tai',
+        'attach': _safe_json_compact({'order_id': order.id, 'user_id': order.user_id, 'package_id': order.package_id}),
+        'nonce_str': secrets.token_hex(16),
+    }
+    payload['hash'] = _hupijiao_sign(payload, config['appsecret'])
+    return payload
+
+
+def _post_hupijiao_order(gateway_url, payload, timeout=10):
+    body = urlparse.urlencode(payload).encode('utf-8')
+    req = urlrequest.Request(
+        gateway_url,
+        data=body,
+        headers={'Content-Type': 'application/x-www-form-urlencoded'},
+        method='POST',
+    )
+    with urlrequest.urlopen(req, timeout=timeout) as resp:
+        raw = resp.read().decode('utf-8', errors='replace')
+    return json.loads(raw)
+
+
+def _verify_hupijiao_hash(data, appsecret):
+    expected = (data.get('hash') or '').strip().lower()
+    if not expected:
+        return False
+    actual = _hupijiao_sign(data, appsecret)
+    return secrets.compare_digest(expected, actual)
 
 def make_confirm_recharge_order_once(db, get_or_create_membership, add_points):
     """构造幂等订单确认函数，供用户端和后台共用。"""
@@ -104,128 +227,9 @@ def make_confirm_recharge_order_once(db, get_or_create_membership, add_points):
     return confirm_recharge_order_once
 
 
-def _parse_payment_amount(value):
-    """把前端识别到的付款金额规整为两位小数。"""
-    try:
-        amount = float(value)
-    except (TypeError, ValueError):
-        return None
-    if amount <= 0:
-        return None
-    return round(amount, 2)
-
-
-def _payment_amount_matches(expected, actual):
-    """按分比较金额，避免 0.01 浮点容差把差一分钱的付款放过。"""
-    if expected is None or actual is None:
-        return False
-    return int(round(float(expected) * 100)) == int(round(float(actual) * 100))
-
-
-def _extract_amounts_from_payment_text(text):
-    """从付款截图 OCR 文本中提取强可信金额，避免把时间、红包、积分识别成付款金额。"""
-    amounts = []
-    seen = set()
-    patterns = [
-        r'[¥￥]\s*([0-9]+(?:\.[0-9]{1,2})?)',
-        r'(?:支付金额|付款金额|实付金额|实际付款|实付|应付|需支付|付款)\s*[：:为是]?\s*[¥￥]?\s*([0-9]+(?:\.[0-9]{1,2})?)',
-    ]
-    for pattern in patterns:
-        for raw in re.findall(pattern, text or ''):
-            amount = _parse_payment_amount(raw)
-            if amount is None or amount > 10000:
-                continue
-            key = f'{amount:.2f}'
-            if key in seen:
-                continue
-            seen.add(key)
-            amounts.append(amount)
-    return amounts
-
-
-def _payment_text_matches_receiver(text):
-    """校验 OCR 文本是否包含本站收款名。"""
-    receiver = os.environ.get('ALIPAY_RECEIVER_NAME', '时安解忧屋').strip()
-    if not receiver:
-        return True
-    compact = re.sub(r'\s+', '', text or '')
-    return receiver in compact
-
-
-def _ocr_payment_image(path):
-    """尽量用服务器本地 tesseract 识别付款截图；不可用时返回空文本。"""
-    if not shutil.which('tesseract'):
-        return ''
-    texts = []
-
-    def run_tesseract(image_path):
-        try:
-            with tempfile.NamedTemporaryFile(suffix='.txt', delete=True) as out:
-                base = out.name[:-4]
-            cmd = ['tesseract', image_path, base, '-l', 'chi_sim+eng', '--psm', '6']
-            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=8, check=False)
-            txt_path = base + '.txt'
-            if os.path.exists(txt_path):
-                with open(txt_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    text = f.read()
-                try:
-                    os.remove(txt_path)
-                except OSError:
-                    pass
-                return text
-        except Exception as e:
-            logger.warning(f"付款截图 OCR 失败: {e}")
-        return ''
-
-    full_text = run_tesseract(path)
-    if full_text:
-        texts.append(full_text)
-
-    crop_path = ''
-    try:
-        from PIL import Image
-        with Image.open(path) as img:
-            width, height = img.size
-            if height > 0 and width > 0:
-                upper = img.crop((0, 0, width, max(1, int(height * 0.45))))
-                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as out:
-                    crop_path = out.name
-                upper.save(crop_path)
-        crop_text = run_tesseract(crop_path) if crop_path else ''
-        if crop_text:
-            texts.append(crop_text)
-    except Exception as e:
-        logger.warning(f"付款截图上半部分 OCR 失败: {e}")
-    finally:
-        if crop_path:
-            try:
-                os.remove(crop_path)
-            except OSError:
-                pass
-
-    return '\n'.join(t for t in texts if t)
-
-
-def _save_recharge_proof_file(app, validate_image_upload, file_storage):
-    """保存付款截图并返回 URL、哈希和 OCR 文本。"""
-    if not file_storage or not file_storage.filename:
-        return None, '', ''
-    ext, raw = validate_image_upload(file_storage)
-    proof_hash = hashlib.sha256(raw).hexdigest()
-    upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'recharge')
-    os.makedirs(upload_dir, exist_ok=True)
-    fname = f"{int(time.time())}_{secrets.token_hex(6)}.{ext}"
-    fpath = os.path.join(upload_dir, fname)
-    with open(fpath, 'wb') as f:
-        f.write(raw)
-    text = _ocr_payment_image(fpath)
-    return f"/static/uploads/recharge/{fname}", proof_hash, text
-
-
 def register_recharge_routes(app, db, services):
     """注册 /api/recharge/* 路由。"""
     confirm_recharge_order_once = services['confirm_recharge_order_once']
-    validate_image_upload = services['validate_image_upload']
 
     @app.route('/api/recharge/packages', methods=['GET'])
     def api_recharge_packages():
@@ -243,6 +247,11 @@ def register_recharge_routes(app, db, services):
         pkg = next((p for p in RECHARGE_PACKAGES if p['id'] == pkg_id), None)
         if not pkg:
             return jsonify({'error': '无效的套餐'}), 400
+        if pay_method != 'hupijiao':
+            return jsonify({'error': '当前仅支持虎皮椒支付'}), 400
+        config = _hupijiao_config()
+        if config['missing']:
+            return jsonify({'error': '虎皮椒支付暂未配置', 'missing': config['missing']}), 503
 
         order = RechargeOrder(
             user_id=current_user.id,
@@ -255,124 +264,98 @@ def register_recharge_routes(app, db, services):
         )
         db.session.add(order)
         db.session.commit()
+
+        payload = _build_hupijiao_order_payload(config, order, pkg)
+        try:
+            pay_result = _post_hupijiao_order(config['gateway_url'], payload)
+        except Exception as e:
+            logger.warning(f"虎皮椒下单失败: order_id={order.id} error={e}")
+            return jsonify({'error': '创建支付订单失败，请稍后重试'}), 502
+        if int(pay_result.get('errcode') or 0) != 0:
+            message = pay_result.get('errmsg') or '创建支付订单失败'
+            logger.warning(f"虎皮椒下单返回失败: order_id={order.id} err={message}")
+            return jsonify({'error': message}), 502
+
         return jsonify({
             'ok': True,
             'order_id': order.id,
+            'trade_order_id': payload['trade_order_id'],
             'points_amount': pkg['points'],
             'package_type': pkg.get('package_type', 'points'),
             'ai_single_credits': pkg.get('ai_single_credits', 0),
             'ai_combo_credits': pkg.get('ai_combo_credits', 0),
             'price': pkg['price'],
             'status': 'pending',
+            'pay_url': pay_result.get('url') or '',
+            'qrcode_url': pay_result.get('url_qrcode') or '',
         })
+
+    @app.route('/api/recharge/hupijiao/notify', methods=['POST'])
+    @csrf.exempt
+    def api_recharge_hupijiao_notify():
+        """虎皮椒异步支付回调。回调不依赖登录态，只信服务端验签结果。"""
+        data = request.form.to_dict(flat=True)
+        if not data and request.is_json:
+            data = request.get_json(silent=True) or {}
+        data = {str(k): '' if v is None else str(v) for k, v in (data or {}).items()}
+        config = _hupijiao_config()
+        if not config['appid'] or not config['appsecret']:
+            logger.warning("虎皮椒回调失败: 未配置 appid/appsecret")
+            return Response('failed', mimetype='text/plain'), 400
+        if data.get('appid') != config['appid']:
+            logger.warning("虎皮椒回调失败: appid 不匹配")
+            return Response('failed', mimetype='text/plain'), 400
+        if not _verify_hupijiao_hash(data, config['appsecret']):
+            logger.warning("虎皮椒回调失败: 签名错误")
+            return Response('failed', mimetype='text/plain'), 400
+        if data.get('status') != 'OD':
+            logger.info(f"虎皮椒回调忽略非支付成功状态: status={data.get('status')}")
+            return Response('success', mimetype='text/plain')
+
+        order_id = _order_id_from_hupijiao_trade_id(data.get('trade_order_id'))
+        order = db.session.get(RechargeOrder, order_id) if order_id else None
+        if not order:
+            logger.warning(f"虎皮椒回调失败: 订单不存在 trade_order_id={data.get('trade_order_id')}")
+            return Response('failed', mimetype='text/plain'), 404
+        if order.pay_method != 'hupijiao':
+            logger.warning(f"虎皮椒回调失败: 支付方式不匹配 order_id={order.id} pay_method={order.pay_method}")
+            return Response('failed', mimetype='text/plain'), 400
+        if _amount_cents(order.amount) != _amount_cents(data.get('total_fee')):
+            logger.warning(f"虎皮椒回调失败: 金额不匹配 order_id={order.id}")
+            return Response('failed', mimetype='text/plain'), 400
+        if order.status == 'paid':
+            return Response('success', mimetype='text/plain')
+
+        payment_reference = (data.get('transaction_id') or data.get('open_order_id') or data.get('trade_order_id') or '')[:120]
+        proof = {
+            'provider': 'hupijiao',
+            'trade_order_id': data.get('trade_order_id', ''),
+            'transaction_id': data.get('transaction_id', ''),
+            'open_order_id': data.get('open_order_id', ''),
+            'status': data.get('status', ''),
+            'total_fee': data.get('total_fee', ''),
+            'appid': data.get('appid', ''),
+            'time': data.get('time', ''),
+            'nonce_str': data.get('nonce_str', ''),
+            'attach': data.get('attach', ''),
+        }
+        result = confirm_recharge_order_once(order.id, {
+            'pay_method': 'hupijiao',
+            'payment_reference': payment_reference,
+            'payment_proof': json.dumps(proof, ensure_ascii=False, sort_keys=True),
+            'verified_at': datetime.utcnow(),
+        })
+        if result.get('ok') or result.get('status') == 'paid':
+            return Response('success', mimetype='text/plain')
+        logger.warning(f"虎皮椒回调入账失败: order_id={order.id} error={result.get('error')}")
+        return Response('failed', mimetype='text/plain'), 400
 
     @app.route('/api/recharge/verify-payment', methods=['POST'])
     @login_required
     @csrf.exempt
     def api_recharge_verify_payment():
-        """支付宝二维码付款后自动核验并入账。"""
-        data = request.get_json(silent=True) if request.is_json else request.form
-        data = data or {}
-        order_id = data.get('order_id', 0)
-        expected_amount = _parse_payment_amount(data.get('expected_amount') or data.get('paid_amount'))
-        payment_reference = (data.get('payment_reference') or '').strip()[:120]
-        proof_text = (data.get('payment_proof_text') or '').strip()
-        payment_proof = (data.get('payment_proof') or '').strip()[:2000]
-        proof_hash = (data.get('payment_proof_hash') or '').strip()[:120]
-        proof_url = ''
-
-        try:
-            proof_file = request.files.get('file') or request.files.get('payment_proof')
-            if proof_file:
-                proof_url, image_hash, ocr_text = _save_recharge_proof_file(app, validate_image_upload, proof_file)
-                proof_hash = proof_hash or image_hash
-                if ocr_text:
-                    proof_text = (proof_text + '\n' + ocr_text).strip()
-        except ValueError as e:
-            return jsonify({'error': str(e)}), 400
-
-        if not order_id:
-            return jsonify({'error': '缺少订单'}), 400
-        if len(payment_reference) < 4 and len(payment_proof) < 6 and len(proof_text) < 6 and not proof_hash:
-            return jsonify({'error': '请上传付款截图后再识别'}), 400
-
-        order = db.session.get(RechargeOrder, int(order_id))
-        if not order or order.user_id != current_user.id:
-            return jsonify({'error': '订单不存在'}), 404
-        if order.status != 'pending':
-            return jsonify({'error': '订单状态错误', 'status': order.status}), 400
-
-        payment_reference = proof_hash or payment_reference
-        if payment_reference:
-            reused = RechargeOrder.query.filter(
-                RechargeOrder.id != order.id,
-                RechargeOrder.payment_reference == payment_reference,
-            ).first()
-            if reused:
-                return jsonify({'error': '付款截图已提交过'}), 400
-
-        expected = round(float(order.amount), 2)
-        text_amounts = _extract_amounts_from_payment_text(proof_text)
-        paid_amount = expected_amount
-        if text_amounts:
-            matched_amount = next((a for a in text_amounts if _payment_amount_matches(expected, a)), None)
-            if matched_amount is None:
-                return jsonify({'error': '付款金额与订单金额不一致'}), 400
-            paid_amount = matched_amount
-        elif paid_amount is None:
-            paid_amount = expected
-
-        if not _payment_amount_matches(expected, paid_amount):
-            return jsonify({'error': '付款金额与订单金额不一致'}), 400
-
-        proof_detail = {
-            'text': proof_text[:1200],
-            'url': proof_url,
-            'expected_amount': expected,
-            'detected_amounts': text_amounts,
-        }
-        if payment_proof:
-            proof_detail['note'] = payment_proof
-
-        proof_update = {
-            'pay_method': 'alipay_qr',
-            'payment_reference': payment_reference,
-            'payment_proof': json.dumps(proof_detail, ensure_ascii=False),
-            'verified_at': datetime.utcnow(),
-        }
-
-        receiver_ok = _payment_text_matches_receiver(proof_text) if proof_text else False
-        small_auto_allowed = expected <= RECHARGE_SMALL_AUTO_LIMIT and receiver_ok and bool(payment_reference)
-        force_auto = os.environ.get('ALIPAY_QR_AUTO_CONFIRM') == '1'
-
-        if not force_auto and not small_auto_allowed:
-            RechargeOrder.query.filter_by(id=order.id, status='pending').update(
-                proof_update,
-                synchronize_session=False,
-            )
-            db.session.commit()
-            return jsonify({
-                'ok': True,
-                'order_id': order.id,
-                'status': 'pending',
-                'auto_confirmed': False,
-                'message': RECHARGE_MANUAL_MESSAGE,
-            })
-
-        result = confirm_recharge_order_once(order.id, {
-            **proof_update,
-        })
-        if not result.get('ok'):
-            return jsonify({'error': result.get('error', '订单状态错误'), 'status': result.get('status')}), 400
-        return jsonify({
-            'ok': True,
-            'order_id': result.get('order_id'),
-            'points': result.get('points'),
-            'added': result.get('added'),
-            'credit_type': result.get('credit_type'),
-            'status': 'paid',
-            'auto_confirmed': True,
-        })
+        """历史截图充值接口已停用，积分中心只保留虎皮椒支付。"""
+        return jsonify({'error': '支付宝截图充值已停用，请使用虎皮椒支付'}), 410
 
     @app.route('/api/recharge/orders', methods=['GET'])
     @login_required

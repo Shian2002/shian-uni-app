@@ -455,7 +455,7 @@ def migrate_db():
             db.session.rollback()
             logger.warning(f"is_admin 兼容迁移失败: {e}")
 
-        # 7. recharge_order 付款识别字段：记录用户提交的支付宝凭证，方便审计和重复核验
+        # 7. recharge_order 付款识别字段：记录支付网关回调或历史付款凭证，方便审计和重复核验
         for col, ctype in [
             ('payment_reference', 'VARCHAR(120) DEFAULT \'\''),
             ('payment_proof', 'TEXT DEFAULT \'\''),
@@ -3956,7 +3956,7 @@ from profile_routes import register_profile_routes, sync_bazi_record_to_profile
 from qimen_ask_routes import register_qimen_ask_routes
 from recharge_routes import (
     RECHARGE_PACKAGES,
-    _payment_text_matches_receiver,
+    _hupijiao_sign,
     make_confirm_recharge_order_once,
     register_recharge_routes,
 )
@@ -4164,6 +4164,8 @@ def handle_exception(e):
 @app.before_request
 def _require_api_header():
     if request.method in ('POST', 'PUT', 'DELETE', 'PATCH') and request.path.startswith('/api/'):
+        if request.path == '/api/recharge/hupijiao/notify':
+            return None
         ct = request.content_type or ''
         if 'application/x-www-form-urlencoded' in ct and not request.headers.get('X-Requested-With') and not request.headers.get('Authorization'):
             return jsonify({'success': False, 'error': 'Invalid request'}), 400
