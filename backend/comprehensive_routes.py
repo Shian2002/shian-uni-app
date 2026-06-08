@@ -66,6 +66,11 @@ def register_comprehensive_routes(app, db, services):
         if isinstance(meta, dict):
             meta = dict(meta)
             meta['gender'] = profile.gender
+            four_pillars = meta.get('four_pillars')
+            if isinstance(four_pillars, dict):
+                four_pillars = dict(four_pillars)
+                four_pillars['_gender'] = profile.gender
+                meta['four_pillars'] = four_pillars
         return {
             'id': profile.id,
             'name': profile.name,
@@ -94,7 +99,13 @@ def register_comprehensive_routes(app, db, services):
         meta = profile.get('meta') or {}
         if isinstance(meta, dict):
             meta = dict(meta)
-            meta['gender'] = profile.get('gender') or meta.get('gender') or '男'
+            profile_gender = profile.get('gender') or meta.get('gender') or '男'
+            meta['gender'] = profile_gender
+            four_pillars = meta.get('four_pillars')
+            if isinstance(four_pillars, dict):
+                four_pillars = dict(four_pillars)
+                four_pillars['_gender'] = profile_gender
+                meta['four_pillars'] = four_pillars
         return {
             'name': profile.get('name') or '未命名',
             'gender': profile.get('gender') or '男',

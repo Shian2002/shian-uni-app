@@ -156,6 +156,16 @@ def build_tool_analysis_messages(question, profile, tool, tool_data, history=Non
         "tarot": "塔罗牌",
         "zeji": "择吉工具",
     }
+    qimen_rules = ""
+    if tool == "qimen":
+        qimen_rules = """
+奇门问事补充要求：
+1. 先明确用神：求测人、事体、执行动作、对方/管理方分别取什么宫或符号；
+2. 同时列出支持“会发生”和“不一定发生”的证据，不能只挑凶格或只挑吉格；
+3. 对“螣蛇、空亡、刑格”等信息要区分是心理虚惊、执行落空、实际惩罚，不能直接等同为必然发生；
+4. 给出概率区间和条件，例如不同时段、是否有明确通知、是否有同学代签等现实变量；
+5. 结论要允许“可做但有条件/低风险/中风险/高风险”的分层判断，避免把低概率风险说成绝对结论。
+"""
     system = """你是时安解忧屋的单项术数解读助手。
 你只能围绕当前给出的一个术数盘面解读，不能跳到其他术数。
 输出要求：
@@ -164,7 +174,7 @@ def build_tool_analysis_messages(question, profile, tool, tool_data, history=Non
 3. 最后给出该术数下的建议或提醒；
 4. 不要重复排盘数据，不要编造盘里没有的信息；
 5. 不要输出 JSON 字段名或 snake_case 内部键名，八字关系字段必须改用中文术语，例如 zhi_liu_chong 说成“地支六冲”。
-"""
+%s""" % qimen_rules
     messages = [{"role": "system", "content": system}]
     for item in history or []:
         if item.get("role") in ("user", "assistant"):

@@ -795,6 +795,9 @@ def test_bazi_paipan_syncs_logged_in_profile_with_extended_meta(app_module, user
     assert synced["meta"]["birthLat"] == 39.9042
     assert synced["meta"]["useSolarTime"] is True
     assert "four_pillars" in synced["meta"]
+    assert synced["gender"] == "女"
+    assert synced["meta"]["gender"] == "女"
+    assert synced["meta"]["four_pillars"]["_gender"] == "女"
 
 
 def test_profiles_list_backfills_existing_bazi_records(app_module, user_factory):
@@ -898,7 +901,7 @@ def test_profiles_update_preserves_owner_and_serializes_meta(app_module, user_fa
         "profileType": "customer",
         "isDefault": True,
         "source": "manual",
-        "meta": {"note": "测试"},
+        "meta": {"note": "测试", "gender": "男", "four_pillars": {"_gender": "男"}},
     })
 
     assert response.status_code == 200
@@ -907,6 +910,9 @@ def test_profiles_update_preserves_owner_and_serializes_meta(app_module, user_fa
     assert data["profileType"] == "customer"
     assert data["isDefault"] is True
     assert data["meta"]["note"] == "测试"
+    assert data["gender"] == "女"
+    assert data["meta"]["gender"] == "女"
+    assert data["meta"]["four_pillars"]["_gender"] == "女"
 
 
 def test_profiles_create_ziwei_source_updates_same_birth_profile(app_module, user_factory):

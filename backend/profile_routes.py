@@ -50,6 +50,20 @@ def _source_from_payload(data, current_source='manual'):
     return source if source in PROFILE_SOURCES else 'manual'
 
 
+def _sync_profile_meta_gender(meta, gender):
+    """让档案顶层性别与 meta/four_pillars 内部性别保持一致。"""
+    if not isinstance(meta, dict):
+        return {}
+    synced = dict(meta)
+    synced['gender'] = gender
+    four_pillars = synced.get('four_pillars')
+    if isinstance(four_pillars, dict):
+        four_pillars = dict(four_pillars)
+        four_pillars['_gender'] = gender
+        synced['four_pillars'] = four_pillars
+    return synced
+
+
 def _apply_profile_payload(profile, data):
     name = (data.get('name') or '').strip()
     if not name:
@@ -66,10 +80,7 @@ def _apply_profile_payload(profile, data):
     profile.is_default = bool(data.get('isDefault', False))
     profile.profile_type = _profile_type_from_payload(data)
     profile.source = _source_from_payload(data, getattr(profile, 'source', 'manual'))
-    meta = data.get('meta') or {}
-    if isinstance(meta, dict):
-        meta = dict(meta)
-        meta['gender'] = profile.gender
+    meta = _sync_profile_meta_gender(data.get('meta') or {}, profile.gender)
     profile.meta_json = json.dumps(meta, ensure_ascii=False)
     profile.last_used_at = datetime.utcnow()
     return ''
@@ -79,17 +90,19 @@ def sync_bazi_record_to_profile(db, user_id, record, params_data, paipan_result=
     """八字排盘记录同步为通用命盘档案，供首页和其他术数共用。"""
     if not user_id or not record:
         return None
+    gender = record.gender or (params_data or {}).get('gender') or '男'
     meta = dict(params_data or {})
     meta.update({
         'source': 'bazi_record',
         'record_id': record.id,
-        'gender': record.gender or meta.get('gender') or '男',
+        'gender': gender,
         'pillars': record.pillars,
         'four_pillars': (paipan_result or {}).get('four_pillars') or {},
         'birth_solar': (paipan_result or {}).get('birth_solar') or '',
         'birth_lunar': (paipan_result or {}).get('birth_lunar') or '',
         'pillar_source': (paipan_result or {}).get('pillar_source') or '',
     })
+    meta = _sync_profile_meta_gender(meta, gender)
     profile = UserProfile.query.filter_by(
         user_id=user_id,
         source='bazi_record',
@@ -105,7 +118,7 @@ def sync_bazi_record_to_profile(db, user_id, record, params_data, paipan_result=
         )
         db.session.add(profile)
     profile.name = record.name or '未命名'
-    profile.gender = record.gender or '男'
+    profile.gender = gender
     profile.cal_type = record.cal_type or '公历'
     profile.birth_time = record.birth_time or ''
     profile.birth_addr = record.birth_addr or ''
