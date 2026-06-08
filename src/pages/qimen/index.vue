@@ -1260,17 +1260,21 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .qf-options-row { display: flex; gap: 10px; align-items: flex-end; }
 .qf-result-shell { margin-top: 16px; }
 .qf-result-actions { margin-bottom: 12px; }
-.qf-result-body { display: grid; grid-template-columns: minmax(0, 1fr) 136px; align-items: start; gap: 12px; }
+.qf-result-body { position: relative; }
 .agent-handoff-bar { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(178,149,93,0.22); background: var(--accent-glow); }
 .agent-handoff-title { display: block; color: var(--text-1); font-size: 0.86rem; font-weight: 700; }
 .agent-handoff-sub { display: block; margin-top: 3px; color: var(--text-3); font-size: 0.72rem; }
 .agent-handoff-btn { flex-shrink: 0; min-width: 74px; text-align: center; padding: 9px 14px; border-radius: 999px; background: hsl(35, 38%, 52%); color: #fff; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
 .qf-json-copy-btn {
+  position: absolute;
+  top: clamp(16px, 2.2vw, 24px);
+  right: clamp(16px, 2.2vw, 24px);
+  z-index: 2;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  min-height: 64px;
+  width: 132px;
+  min-height: 58px;
   padding: 9px 16px;
   border-radius: 18px;
   font-size: 0.78rem;
@@ -1395,8 +1399,7 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   .section { padding: 24px 16px 36px; }
   .qf-datetime-row { flex-wrap: wrap; }
   .qf-dt-col { flex: 1 1 calc(33% - 8px); min-width: 60px; }
-  .qf-result-body { grid-template-columns: 1fr; }
-  .qf-json-copy-btn { min-height: 42px; }
+  .qf-json-copy-btn { position: static; width: 100%; min-height: 42px; margin-top: 10px; }
   .qf-result :deep(.qm-scale-shell) { --qm-grid-size: clamp(280px, 92vw, 560px); }
   .qf-loading-card { min-height: 320px; }
 }
