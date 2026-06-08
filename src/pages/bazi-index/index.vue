@@ -73,7 +73,14 @@
 
               <!-- 出生时间（公历/农历模式）（:class/v-show已移除，由DOM操作控制） -->
               <view class="wz-form-group" id="baziDateSection">
-                <text class="wz-form-label">出生时间</text>
+                <view class="wz-label-row">
+                  <text class="wz-form-label">出生时间</text>
+                  <text class="wz-time-format">可输入 YYYYMMDDHHmm</text>
+                </view>
+                <view class="wz-date-input-row">
+                  <input id="baziBirthInput" class="wz-form-input wz-date-input" placeholder="例如 199003270255" @input="onBaziBirthInput" />
+                  <view class="wz-date-apply" @tap="applyBaziBirthInput">确定</view>
+                </view>
                 <!-- 年月日 -->
                 <view class="wz-datetime-row wz-datetime-row-date">
                   <view class="wz-dt-col">
@@ -154,6 +161,7 @@
                 <view class="wz-switch-grid">
                   <view class="wz-switch-row">
                     <text class="wz-switch-label">真太阳时</text>
+                    <text class="wz-help" @tap.stop="showBaziHelp('solar')">?</text>
                     <view id="baziSwitchSolar" class="wz-switch" :class="{ active: useSolarTime }" @tap="toggleBaziSolar">
                       <view class="wz-switch-slider"></view>
                     </view>
@@ -161,6 +169,7 @@
                   </view>
                   <view class="wz-switch-row">
                     <text class="wz-switch-label">夏令时</text>
+                    <text class="wz-help" @tap.stop="showBaziHelp('dst')">?</text>
                     <view id="baziSwitchDst" class="wz-switch" :class="{ active: isDst }" @tap="toggleBaziDst">
                       <view class="wz-switch-slider"></view>
                     </view>
@@ -181,7 +190,7 @@
                     <text class="wz-switch-hint">{{ saveCase ? '保存' : '不保存' }}</text>
                   </view>
                 </view>
-                <text class="wz-form-hint">夏令时：1986-1991年中国实行夏令时，时钟拨快1小时 | 子时换日：23:00后日柱是否换到次日（默认不换日）</text>
+                <text class="wz-form-hint">真太阳时默认开启，选择出生地后按经度校正时辰；夏令时只在确认为夏令时出生时开启。</text>
               </view>
 
               <view class="wz-submit-btn" @tap="baziFreePaipan">📜 免费排盘</view>
@@ -479,6 +488,95 @@ const useSolarTime = ref(true)
 const isDst = ref(false)
 const nightZi = ref(false)
 const saveCase = ref(false)
+
+function normalizeBirthInputValue(value) {
+  return String(value || '').replace(/[^\d]/g, '').slice(0, 12)
+}
+
+function syncBaziBirthInputFromSelects() {
+  try {
+    var yEl = document.getElementById('baziYear')
+    var mEl = document.getElementById('baziMonth')
+    var dEl = document.getElementById('baziDay')
+    var hEl = document.getElementById('baziHour')
+    var miEl = document.getElementById('baziMinute')
+    var input = document.getElementById('baziBirthInput')
+    if (!yEl || !mEl || !dEl || !input) return
+    var y = String(yEl.value || '').padStart(4, '0')
+    var m = String(mEl.value || '').padStart(2, '0')
+    var d = String(dEl.value || '').padStart(2, '0')
+    var h = String((hEl && hEl.value) || '0').padStart(2, '0')
+    var min = String((miEl && miEl.value) || '0').padStart(2, '0')
+    input.value = y + m + d + h + min
+  } catch (_) {}
+}
+
+function onBaziBirthInput(e) {
+  const val = normalizeBirthInputValue(e && e.detail ? e.detail.value : (e && e.target ? e.target.value : ''))
+  try {
+    const input = document.getElementById('baziBirthInput')
+    if (input && input.value !== val) input.value = val
+  } catch (_) {}
+}
+
+function applyBaziBirthInput() {
+  try {
+    var input = document.getElementById('baziBirthInput')
+    var s = normalizeBirthInputValue(input ? input.value : '')
+    if (!s || s.length < 8) return uni.showToast({ title: '请输入至少年月日', icon: 'none' })
+    var y = parseInt(s.slice(0, 4))
+    var m = parseInt(s.slice(4, 6) || '1')
+    var d = parseInt(s.slice(6, 8) || '1')
+    var h = parseInt(s.slice(8, 10) || '12')
+    var min = parseInt(s.slice(10, 12) || '0')
+    if (!y || m < 1 || m > 12 || d < 1 || d > 31 || h < 0 || h > 23 || min < 0 || min > 59) {
+      return uni.showToast({ title: '出生时间格式不正确', icon: 'none' })
+    }
+    var yEl = document.getElementById('baziYear')
+    var mEl = document.getElementById('baziMonth')
+    var dEl = document.getElementById('baziDay')
+    var hEl = document.getElementById('baziHour')
+    var miEl = document.getElementById('baziMinute')
+    if (yEl) yEl.value = y
+    if (mEl) mEl.value = String(m).padStart(2, '0')
+    if (baziCalType.value === '农历') {
+      wzUpdateLunarMonthDayWithDate(y, m, d, false, function() {
+        if (hEl) hEl.value = h
+        if (miEl) miEl.value = min
+        updateBaziDate()
+        syncBaziBirthInputFromSelects()
+      })
+    } else {
+      refillBaziDaySelectForced()
+      dEl = document.getElementById('baziDay')
+      if (dEl) dEl.value = d
+      if (hEl) hEl.value = h
+      if (miEl) miEl.value = min
+      updateBaziDate()
+      syncBaziBirthInputFromSelects()
+    }
+  } catch (_) {
+    uni.showToast({ title: '出生时间格式不正确', icon: 'none' })
+  }
+}
+
+function showBaziHelp(type) {
+  if (type === 'solar') {
+    uni.showModal({
+      title: '真太阳时',
+      content: '真太阳时会根据出生地经度，把北京时间校正到当地实际太阳经过的时间。八字时柱、临界时辰、子时附近会更敏感。建议：知道出生地时默认打开；完全不知道出生地时可以关闭或先按北京时间参考。',
+      showCancel: false,
+    })
+    return
+  }
+  if (type === 'dst') {
+    uni.showModal({
+      title: '夏令时',
+      content: '夏令时表示当年官方时钟拨快了1小时。中国大陆主要在1986-1991年部分时段实行过。建议：只有确定出生证明/家人口述时间是夏令时期间的钟表时间，才打开；不确定就先关闭。',
+      showCancel: false,
+    })
+  }
+}
 
 async function wzInstantPaipan() {
   const now = new Date()
@@ -2183,7 +2281,10 @@ function fillBaziSelect(id, options, selectedVal, onChange) {
     el.appendChild(opt)
   }
   if (onChange) {
-    el.addEventListener('change', function(e) { onChange(e.target.value, e) })
+    el.addEventListener('change', function(e) {
+      onChange(e.target.value, e)
+      setTimeout(syncBaziBirthInputFromSelects, 0)
+    })
   }
 }
 
@@ -2246,6 +2347,7 @@ function updateBaziDate() {
   var m = document.getElementById('baziMonth') ? String(document.getElementById('baziMonth').value).padStart(2, '0') : ''
   var d = document.getElementById('baziDay') ? String(document.getElementById('baziDay').value).padStart(2, '0') : ''
   baziDate.value = y + '-' + m + '-' + d
+  syncBaziBirthInputFromSelects()
 }
 
 function applySelectedProfileToBazi() {
@@ -2693,6 +2795,7 @@ onMounted(() => {
   else if (hash.includes('tab=records') || hash.includes('#records')) activeTab.value = 'records'
   // 调用 switchBaziTab 同步DOM（绕过Vue 3.4.21 render effect bug）
   nextTick(() => { switchBaziTab(activeTab.value) })
+  setTimeout(syncBaziBirthInputFromSelects, 260)
 
 })
 </script>
@@ -2807,6 +2910,12 @@ onMounted(() => {
 .wz-segment-btn.active { color: #fff; background: var(--accent); border-color: var(--accent); }
 .wz-divider { border: none; border-top: 1px solid var(--card-border); margin: 10px 0; }
 .wz-form-group { margin-bottom: 10px; }
+.wz-label-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 5px; }
+.wz-label-row .wz-form-label { margin-bottom: 0; }
+.wz-time-format { color: var(--text-3); font-size: 0.66rem; white-space: nowrap; opacity: 0.82; }
+.wz-date-input-row { display: grid; grid-template-columns: minmax(0, 1fr) 72px; gap: 8px; margin-bottom: 8px; }
+.wz-date-input { height: 38px; font-family: var(--font-sans); letter-spacing: 0.5px; }
+.wz-date-apply { height: 38px; border-radius: 10px; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700; cursor: pointer; }
 .wz-form-hint { font-size: 0.69rem; color: var(--text-3); margin-top: 5px; line-height: 1.45; }
 
 /* 日期时间行 */
@@ -2843,6 +2952,8 @@ onMounted(() => {
 .wz-switch-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
 .wz-switch-row { display: flex; align-items: center; gap: 8px; }
 .wz-switch-label { font-size: 0.82rem; color: var(--text-2); min-width: 60px; }
+.wz-help { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(178,149,93,0.28); color: var(--accent); display: inline-flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 800; cursor: pointer; background: rgba(178,149,93,0.08); flex: 0 0 auto; }
+.wz-help:hover { background: var(--accent-glow); border-color: var(--accent); }
 .wz-switch { width: 40px; height: 22px; background: var(--card-border); border-radius: 11px; position: relative; cursor: pointer; transition: background 0.3s; }
 .wz-switch.active { background: var(--accent); }
 .wz-switch-slider { width: 18px; height: 18px; background: #fff; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: transform 0.3s; }
@@ -3400,6 +3511,10 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   .wz-form-row { flex-direction: row; gap: 8px; }
   .wz-flex-1 { flex: 0 0 70px; }
   .wz-form-input, .dom-input-wrap .native-input { height: 42px; font-size: 0.8125rem; }
+  .wz-label-row { align-items: flex-start; flex-direction: column; gap: 2px; }
+  .wz-time-format { font-size: 0.6rem; }
+  .wz-date-input-row { grid-template-columns: minmax(0, 1fr) 64px; gap: 6px; }
+  .wz-date-apply { height: 36px; font-size: 0.74rem; }
   .wz-segment-box { flex-wrap: nowrap; }
   .wz-segment-btn { height: 38px; padding: 6px 12px; white-space: nowrap; font-size: 0.78rem; }
   .wz-dt-col { flex: 1 1 calc(50% - 6px); min-width: 50px; }
