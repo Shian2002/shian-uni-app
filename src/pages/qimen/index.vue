@@ -79,13 +79,15 @@
               </view>
             </view>
             <view class="qf-result-shell" v-if="qfResult">
-              <view v-if="qfResult && qfJsonCopyAllowed" class="btn btn-ghost qf-json-copy-btn" @tap="copyQimenJson">复制 JSON</view>
-              <view v-if="qfRawResult" class="agent-handoff-bar">
-                <view>
-                  <text class="agent-handoff-title">用时安agent解读此盘</text>
-                  <text class="agent-handoff-sub">带入完整奇门盘面和当前起局参数</text>
+              <view class="qf-result-actions">
+                <view v-if="qfRawResult" class="agent-handoff-bar">
+                  <view>
+                    <text class="agent-handoff-title">用时安agent解读此盘</text>
+                    <text class="agent-handoff-sub">带入完整奇门盘面和当前起局参数</text>
+                  </view>
+                  <view class="agent-handoff-btn" @tap="sendQimenToAgent">去解读</view>
                 </view>
-                <view class="agent-handoff-btn" @tap="sendQimenToAgent">去解读</view>
+                <view v-if="qfResult && qfJsonCopyAllowed" class="btn btn-ghost qf-json-copy-btn" @tap="copyQimenJson">复制 JSON</view>
               </view>
               <view class="qf-result" v-html="qfResult"></view>
             </view>
@@ -1254,22 +1256,22 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .qf-pantype-select { width: 100%; padding: 9px 12px; border: 1.5px solid var(--card-border); border-radius: 8px; font-size: 0.85rem; font-weight: 500; background: var(--card-bg); color: var(--text-1); cursor: pointer; appearance: none; -webkit-appearance: none; -moz-appearance: none; outline: none; box-sizing: border-box; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M5 7L1 3h8z' fill='%23999'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; padding-right: 24px; }
 .qf-pantype-select:focus { border-color: var(--accent); }
 .qf-options-row { display: flex; gap: 10px; align-items: flex-end; }
-.qf-result-shell { position: relative; margin-top: 16px; }
-.agent-handoff-bar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 12px; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(178,149,93,0.22); background: var(--accent-glow); }
+.qf-result-shell { margin-top: 16px; }
+.qf-result-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; gap: 12px; margin-bottom: 12px; }
+.agent-handoff-bar { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(178,149,93,0.22); background: var(--accent-glow); }
 .agent-handoff-title { display: block; color: var(--text-1); font-size: 0.86rem; font-weight: 700; }
 .agent-handoff-sub { display: block; margin-top: 3px; color: var(--text-3); font-size: 0.72rem; }
 .agent-handoff-btn { flex-shrink: 0; min-width: 74px; text-align: center; padding: 9px 14px; border-radius: 999px; background: hsl(35, 38%, 52%); color: #fff; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
 .qf-json-copy-btn {
-  position: absolute;
-  top: clamp(14px, 2.2vw, 24px);
-  right: clamp(14px, 2.2vw, 24px);
-  z-index: 3;
-  flex: 0 0 auto;
-  min-width: 116px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 110px;
   padding: 9px 16px;
   border-radius: 18px;
   font-size: 0.78rem;
   letter-spacing: 1px;
+  box-sizing: border-box;
 }
 .qf-result { margin-top: 16px; overflow-x: auto; -webkit-overflow-scrolling: touch; animation: qfResultEnter 0.38s var(--ease) both; transform-origin: top center; }
 .qf-result-shell .qf-result { margin-top: 0; }
@@ -1389,6 +1391,8 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   .section { padding: 24px 16px 36px; }
   .qf-datetime-row { flex-wrap: wrap; }
   .qf-dt-col { flex: 1 1 calc(33% - 8px); min-width: 60px; }
+  .qf-result-actions { grid-template-columns: 1fr; }
+  .qf-json-copy-btn { width: 100%; min-height: 42px; }
   .qf-result :deep(.qm-scale-shell) { --qm-grid-size: clamp(280px, 92vw, 560px); }
   .qf-loading-card { min-height: 320px; }
 }
