@@ -50,7 +50,7 @@
 
         <view class="control-band">
           <view class="search-wrap" @tap.stop="focusSearch" @click.stop="focusSearch">
-            <view class="search-icon" aria-hidden="true"></view>
+            <view class="profile-search-icon" aria-hidden="true"></view>
             <input
               ref="searchInputRef"
               class="search-input"
@@ -801,7 +801,7 @@ onShow(function() {
     radial-gradient(circle at 14% 50%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 36%);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.56), 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent), 0 10px 24px rgba(88, 66, 34, 0.08);
 }
-.search-icon {
+.profile-search-icon {
   position: relative !important;
   display: block !important;
   flex: 0 0 22px !important;
@@ -811,7 +811,7 @@ onShow(function() {
   background: color-mix(in srgb, var(--accent) 10%, var(--section-alt));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
 }
-.search-icon::before {
+.profile-search-icon::before {
   content: "";
   position: absolute;
   left: 6px;
@@ -821,7 +821,7 @@ onShow(function() {
   border: 1.6px solid var(--accent);
   border-radius: 50%;
 }
-.search-icon::after {
+.profile-search-icon::after {
   content: "";
   position: absolute;
   left: 13px;
@@ -838,6 +838,11 @@ onShow(function() {
   min-width: 0;
   width: 100%;
   height: 38px;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  box-shadow: none;
   color: var(--text-1);
   font-size: 0.88rem;
 }

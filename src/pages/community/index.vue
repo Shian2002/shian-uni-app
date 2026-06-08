@@ -20,7 +20,7 @@
         <!-- 搜索 + 发帖 -->
         <view class="search-row">
           <view class="search-box">
-            <text class="search-icon">🔍</text>
+            <text class="community-search-icon">🔍</text>
             <view id="comSearchQuery-wrap" class="dom-input-wrap"></view>
           </view>
           <view class="btn btn-accent" @tap="openPostModal" @click="openPostModal">✎ 发帖</view>
@@ -320,10 +320,15 @@ function createNativeInput(wrapId, type, placeholder) {
   inp.type = type
   inp.id = wrapId.replace('-wrap', '')
   if (placeholder) inp.placeholder = placeholder
-  inp.style.cssText = 'width:100%;padding:10px 14px;border-radius:10px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--text-1);font-size:0.875rem;outline:none;box-sizing:border-box;transition:border-color 0.2s,box-shadow 0.2s'
-  if (wrapId === 'comSearchQuery-wrap') inp.style.paddingLeft = '40px'
-  inp.onfocus = function() { this.style.borderColor = 'var(--accent)'; this.style.boxShadow = '0 0 0 2px var(--accent-glow)' }
-  inp.onblur = function() { this.style.borderColor = 'var(--input-border)'; this.style.boxShadow = 'none' }
+  if (wrapId === 'comSearchQuery-wrap') {
+    inp.style.cssText = 'width:100%;height:40px;padding:0 14px 0 40px;border-radius:10px;background:transparent;border:0;color:var(--text-1);font-size:0.875rem;outline:none;box-sizing:border-box;box-shadow:none'
+    inp.onfocus = function() { var box = wrap.closest('.search-box'); if (box) box.classList.add('focused') }
+    inp.onblur = function() { var box = wrap.closest('.search-box'); if (box) box.classList.remove('focused') }
+  } else {
+    inp.style.cssText = 'width:100%;padding:10px 14px;border-radius:10px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--text-1);font-size:0.875rem;outline:none;box-sizing:border-box;transition:border-color 0.2s,box-shadow 0.2s'
+    inp.onfocus = function() { this.style.borderColor = 'var(--accent)'; this.style.boxShadow = '0 0 0 2px var(--accent-glow)' }
+    inp.onblur = function() { this.style.borderColor = 'var(--input-border)'; this.style.boxShadow = 'none' }
+  }
   if (type === 'text') inp.setAttribute('maxlength', '100')
   if (type === 'number') { inp.min = '0'; inp.max = '999' }
   wrap.appendChild(inp)
@@ -1115,10 +1120,27 @@ onShow(function() {
 
 .compliance-notice { background: var(--accent-glow); border: 1px solid var(--card-border); border-radius: var(--radius-md); padding: 12px 18px; margin-bottom: 24px; font-size: 0.8125rem; color: var(--text-2); text-align: center; letter-spacing: 1px; }
 .search-row { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
-.search-box { flex: 1; padding: 0; display: flex; align-items: center; position: relative; min-width: 0; }
-.search-icon { position: absolute; left: 14px; z-index: 2; font-size: 0.875rem; line-height: 1; pointer-events: none; }
+.search-box {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  position: relative;
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
+  background: var(--input-bg);
+  box-sizing: border-box;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.search-box.focused {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+.community-search-icon { position: absolute; left: 14px; z-index: 2; font-size: 0.875rem; line-height: 1; pointer-events: none; }
 .search-box .dom-input-wrap { width: 100%; min-width: 0; }
-.search-box .dom-input-wrap input { padding-left: 40px !important; }
+.search-box .dom-input-wrap input { border: 0 !important; background: transparent !important; box-shadow: none !important; padding-left: 40px !important; }
 .form-input { width: 100%; padding: 9px 14px 9px 32px; border-radius: 8px; background: var(--card-bg); border: 1.5px solid var(--card-border); color: var(--text-1); font-size: 0.85rem; outline: none; box-sizing: border-box; }
 .category-tab { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
 .ctab { padding: 6px 16px; border-radius: 20px; font-size: 0.8125rem; cursor: pointer; background: transparent; color: var(--text-3); border: 1px solid var(--card-border); }
