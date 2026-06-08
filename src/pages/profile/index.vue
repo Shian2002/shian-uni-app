@@ -107,6 +107,7 @@
                     </view>
                     <view class="settings-oauth-right">
                       <text class="settings-oauth-status" v-if="item.bound" style="color:var(--success);">已绑定</text>
+                      <view class="btn btn-outline btn-sm" v-if="item.bound" @tap="unbindOAuth(item.key)">解除绑定</view>
                       <view class="btn btn-outline btn-sm" v-else @tap="bindOAuth(item.key)">绑定</view>
                     </view>
                   </view>
@@ -383,6 +384,27 @@ async function bindOAuth(provider) {
   } catch (e) {
     uni.showToast({ title: '获取授权链接失败', icon: 'none' })
   }
+}
+function unbindOAuth(provider) {
+  var item = oauthProviders.find(function(p) { return p.key === provider })
+  var name = item ? item.name : '第三方账号'
+  uni.showModal({
+    title: '解除绑定',
+    content: '确定要解除绑定' + name + '吗？解除前请确认已设置密码或绑定邮箱。',
+    success: async function(r) {
+      if (!r.confirm) return
+      try {
+        var res = await uni.request({ url: '/api/unbind/oauth', method: 'POST', data: { provider: provider } })
+        var d = res.data || {}
+        if (d.error) { uni.showToast({ title: d.error, icon: 'none' }); return }
+        uni.showToast({ title: '已解除绑定', icon: 'success' })
+        if (item) item.bound = false
+        if (window._xc_loadBindings) window._xc_loadBindings()
+      } catch(e) {
+        uni.showToast({ title: '解除绑定失败', icon: 'none' })
+      }
+    }
+  })
 }
 const asForm = reactive({ newUsername: '', currPassForUser: '', oldPass: '', newPass: '' })
 
@@ -762,6 +784,9 @@ onMounted(() => {
           document.getElementById('bindEmail').textContent = d.email || '未绑定'
           document.getElementById('bindPassword').textContent = d.has_password ? '已设置' : '未设置'
           document.getElementById('bindGitee').textContent = d.oauth_gitee ? '已绑定' : '未绑定'
+          window.__xc_emailBound = !!d.email
+          var emailSubmit = document.getElementById('asBindEmailSubmit')
+          if (emailSubmit) emailSubmit.textContent = d.email ? '换绑邮箱' : '绑定邮箱'
           var giteeItem = oauthProviders.find(function(p) { return p.key === 'gitee' })
           if (giteeItem) giteeItem.bound = !!d.oauth_gitee
           // 显示解绑按钮
@@ -806,7 +831,7 @@ onMounted(() => {
       if (!val || !code) { uni.showToast({ title: '请填写完整', icon: 'none' }); return }
       var btn = document.getElementById(config.btnId)
       if (btn) { btn.textContent = '绑定中...'; btn.style.opacity = '0.6'; btn.style.pointerEvents = 'none' }
-      var resetBtn = function() { if (btn) { btn.textContent = config.label; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' } }
+      var resetBtn = function() { if (btn) { btn.textContent = window.__xc_emailBound ? '换绑邮箱' : config.label; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' } }
       try {
         var data = {}; data[config.key] = val; data.code = code
         var res = await uni.request({ url: config.url, method: 'POST', data: data })
@@ -1001,7 +1026,7 @@ onBeforeUnmount(function() {
   font-size: 0.7rem; font-weight: 800;
 }
 .settings-oauth-label { font-size: 0.85rem; color: var(--text-2); }
-.settings-oauth-right { display: flex; align-items: center; }
+.settings-oauth-right { display: flex; align-items: center; gap: 8px; }
 .settings-oauth-status { font-size: 0.78rem; color: var(--text-3); }
 
 /* ═══ 退出登录 ═══ */

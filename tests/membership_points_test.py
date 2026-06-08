@@ -67,6 +67,53 @@ def test_visible_avatar_url_filters_missing_local_upload(app_module, tmp_path):
         assert avatar_utils.visible_avatar_url("/static/uploads/avatar_1.png") == "/static/uploads/avatar_1.png"
 
 
+def test_unbind_oauth_requires_another_login_method(app_module):
+    with app_module.app.app_context():
+        user = app_module.User(
+            username="oauth-only",
+            password_hash="",
+            has_password=False,
+            oauth_gitee="gitee-only-id",
+        )
+        app_module.db.session.add(user)
+        app_module.db.session.commit()
+        user_id = user.id
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(user_id)
+        sess["_fresh"] = True
+
+    response = client.post("/api/unbind/oauth", json={"provider": "gitee"})
+
+    assert response.status_code == 400
+    assert "请先设置密码或绑定邮箱" in response.get_json()["error"]
+    with app_module.app.app_context():
+        refreshed = app_module.db.session.get(app_module.User, user_id)
+        assert refreshed.oauth_gitee == "gitee-only-id"
+
+
+def test_unbind_oauth_clears_provider_when_password_exists(app_module, user_factory):
+    user = user_factory("oauth-with-password")
+    with app_module.app.app_context():
+        db_user = app_module.db.session.get(app_module.User, user.id)
+        db_user.oauth_gitee = "gitee-bound-id"
+        app_module.db.session.commit()
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(user.id)
+        sess["_fresh"] = True
+
+    response = client.post("/api/unbind/oauth", json={"provider": "gitee"})
+
+    assert response.status_code == 200
+    assert response.get_json()["ok"] is True
+    with app_module.app.app_context():
+        refreshed = app_module.db.session.get(app_module.User, user.id)
+        assert refreshed.oauth_gitee is None
+
+
 def test_add_points_can_participate_in_existing_transaction(app_module, user_factory):
     user = user_factory()
 

@@ -33,6 +33,20 @@ def register_auth_routes(app, db, services):
     check_rate_limit = services['check_rate_limit']
     check_code = services['check_code']
 
+    def _has_login_after_oauth_unbind(provider):
+        oauth_fields = {
+            'gitee': 'oauth_gitee',
+            'qq': 'oauth_qq',
+            'wechat': 'oauth_wechat',
+        }
+        if current_user.has_password or current_user.email or current_user.phone:
+            return True
+        return any(
+            bool(getattr(current_user, field, None))
+            for key, field in oauth_fields.items()
+            if key != provider
+        )
+
     @app.route('/api/register', methods=['POST'])
     @csrf.exempt
     def api_register():
@@ -212,6 +226,29 @@ def register_auth_routes(app, db, services):
         current_user.phone = None
         db.session.commit()
         return jsonify({'ok': True})
+
+    @app.route('/api/unbind/oauth', methods=['POST'])
+    @login_required
+    @csrf.exempt
+    def api_unbind_oauth():
+        """解绑第三方账号。"""
+        data = request.get_json(silent=True) or {}
+        provider = (data.get('provider') or '').strip().lower()
+        oauth_fields = {
+            'gitee': 'oauth_gitee',
+            'qq': 'oauth_qq',
+            'wechat': 'oauth_wechat',
+        }
+        field = oauth_fields.get(provider)
+        if not field:
+            return jsonify({'error': '不支持的第三方账号'}), 400
+        if not getattr(current_user, field, None):
+            return jsonify({'error': '该第三方账号未绑定'}), 400
+        if not _has_login_after_oauth_unbind(provider):
+            return jsonify({'error': '请先设置密码或绑定邮箱后再解除第三方账号'}), 400
+        setattr(current_user, field, None)
+        db.session.commit()
+        return jsonify({'ok': True, 'provider': provider})
 
     @app.route('/api/user/change-username', methods=['POST'])
     @csrf.exempt
