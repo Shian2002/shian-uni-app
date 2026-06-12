@@ -715,6 +715,83 @@ def test_comprehensive_recommend_tools_rules(app_module, user_factory):
         assert advanced_response.get_json()["estimated_cost"] > 0
 
 
+def test_comprehensive_guide_api_asks_then_recommends(app_module, user_factory):
+    user = user_factory("guide-user")
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+      sess["_user_id"] = str(user.id)
+      sess["_fresh"] = True
+
+    first = client.post("/api/comprehensive/guide", json={"question": "我想问这段感情还有没有机会复合"})
+    assert first.status_code == 200
+    first_data = first.get_json()
+    assert first_data["status"] == "ask"
+    assert first_data["skill"] == "关系应事判断"
+    assert "assistant_message" in first_data
+    assert "能否复合" in first_data["options"]
+
+    second = client.post("/api/comprehensive/guide", json={
+        "question": "我想问这段感情还有没有机会复合",
+        "messages": [
+            {"role": "assistant", "content": first_data["assistant_message"]},
+            {"role": "user", "content": "我更想知道对方态度和能否复合"},
+        ],
+    })
+    assert second.status_code == 200
+    second_data = second.get_json()
+    assert second_data["status"] == "ask"
+
+    third = client.post("/api/comprehensive/guide", json={
+        "question": "我想问这段感情还有没有机会复合",
+        "messages": [
+            {"role": "assistant", "content": first_data["assistant_message"]},
+            {"role": "user", "content": "我更想知道对方态度和能否复合"},
+            {"role": "assistant", "content": second_data["assistant_message"]},
+            {"role": "user", "content": "我想看短期转机和行动建议"},
+        ],
+    })
+    assert third.status_code == 200
+    second_data = third.get_json()
+    assert second_data["status"] == "recommend"
+    assert second_data["tool_models"] == ["liuyao", "meihua", "tarot"]
+    assert "对方态度" in second_data["final_question"]
+    assert second_data["estimated_cost"] >= 0
+
+
+def test_comprehensive_guide_boss_question_requires_rounds_and_profile_tools(app_module, user_factory):
+    user = user_factory("guide-boss-user")
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+      sess["_user_id"] = str(user.id)
+      sess["_fresh"] = True
+
+    first = client.post("/api/comprehensive/guide", json={"question": "我适合当老板吗"})
+    assert first.status_code == 200
+    first_data = first.get_json()
+    assert first_data["status"] == "ask"
+    assert first_data["skill"] == "事业主导力判断"
+    assert "老板命" in first_data["assistant_message"]
+
+    second = client.post("/api/comprehensive/guide", json={
+        "question": "我适合当老板吗",
+        "messages": [{"role": "user", "content": "想看自己有没有老板命"}],
+    }).get_json()
+    assert second["status"] == "ask"
+    assert "阶段" in second["assistant_message"]
+
+    third = client.post("/api/comprehensive/guide", json={
+        "question": "我适合当老板吗",
+        "messages": [
+            {"role": "user", "content": "想看自己有没有老板命"},
+            {"role": "user", "content": "还在想法阶段"},
+            {"role": "user", "content": "担心赚钱能力和抗压风险"},
+        ],
+    }).get_json()
+    assert third["status"] == "recommend"
+    assert third["tool_models"] == ["bazi", "qimen"]
+    assert "老板" in third["final_question"]
+
+
 def test_comprehensive_reading_mode_cost_delta(app_module, user_factory):
     user = user_factory("reading-mode-cost-user")
     client = app_module.app.test_client()
@@ -754,9 +831,9 @@ def test_comprehensive_options_hide_provider_details(app_module, user_factory):
     assert response.status_code == 200
     models = response.get_json()["llm_models"]
     reading_modes = response.get_json()["reading_modes"]
-    assert [m["name"] for m in models] == ["时安基础模型", "时安高级模型", "时安专家模型"]
+    assert [m["name"] for m in models] == ["GLM-5.1"]
     assert [m["name"] for m in reading_modes] == ["简约", "标准", "深度"]
-    assert [m["cost_base"] for m in models] == [2, 4, 8]
+    assert [m["cost_base"] for m in models] == [2]
     assert [m["display_cost"] for m in reading_modes] == [1, 2, 4]
     assert all("provider" not in m for m in models)
     assert all("strength" not in m for m in models)

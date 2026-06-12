@@ -13,13 +13,14 @@ from comprehensive_ai import (
     COMPREHENSIVE_READING_MODES,
     COMPREHENSIVE_TOOL_MODELS,
     TOOL_DISPLAY_ORDER,
+    build_question_guidance,
     calculate_cost,
     normalize_tool_models,
     recommend_tool_models,
     build_tool_analysis_messages,
     build_summary_messages,
 )
-from deepseek_service import get_reading_stream
+from deepseek_service import get_chat_completion, get_reading_stream
 from models import ComprehensiveConversation, UserProfile
 
 
@@ -42,6 +43,7 @@ def register_comprehensive_routes(app, db, services):
     logger = services['logger']
     get_build_one_tool_override = services.get('get_build_one_tool_override') or (lambda: None)
     get_reading_stream_func = services.get('get_reading_stream') or (lambda: get_reading_stream)
+    get_chat_completion_func = services.get('get_chat_completion') or get_chat_completion
 
     def _stream_model_reading(messages, selected_model_id, selected_reading_mode):
         stream_func = get_reading_stream_func()
@@ -131,6 +133,34 @@ def register_comprehensive_routes(app, db, services):
             if result:
                 return result
         return [resolve_comprehensive_profile(data)]
+
+    def _profile_birth_digits(profile):
+        value = ''
+        if isinstance(profile, dict):
+            value = profile.get('birth_time') or profile.get('birthTime') or ''
+        else:
+            value = getattr(profile, 'birth_time', '') or getattr(profile, 'birthTime', '')
+        return ''.join(ch for ch in str(value or '') if ch.isdigit())
+
+
+    def _profile_has_unknown_birth_time(profile):
+        meta = {}
+        if isinstance(profile, dict):
+            meta = profile.get('meta') or {}
+        precision = meta.get('birthTimePrecision') if isinstance(meta, dict) else ''
+        return precision in ('date_unknown_time', 'month_only', 'year_month')
+
+
+    def _profile_needs_birth_completion(profile):
+        return (
+            not profile
+            or len(_profile_birth_digits(profile)) < 12
+            or _profile_has_unknown_birth_time(profile)
+        )
+
+
+    def _tools_require_birth_profile(tool_models):
+        return any(tool in ('bazi', 'ziwei', 'qimen') for tool in (tool_models or []))
 
 
     def _split_birth_time(birth_time):
@@ -600,6 +630,156 @@ def register_comprehensive_routes(app, db, services):
             'estimated_cost': calculate_cost(model_id, tools, is_followup=False, profile_count=profile_count, reading_mode=reading_mode),
         })
 
+    def _extract_json_object(text):
+        raw = str(text or '').strip()
+        if raw.startswith('```'):
+            raw = raw.strip('`')
+            if raw.startswith('json'):
+                raw = raw[4:].strip()
+        start = raw.find('{')
+        end = raw.rfind('}')
+        if start < 0 or end < start:
+            return None
+        try:
+            return json.loads(raw[start:end + 1])
+        except Exception:
+            return None
+
+    def _normalize_guide_payload(payload, fallback, model_id, reading_mode, profile_count):
+        if not isinstance(payload, dict):
+            return fallback
+        status = payload.get('status')
+        skill = str(payload.get('skill') or fallback.get('skill') or '问事择法')[:40]
+        if status == 'ask':
+            message = str(payload.get('assistant_message') or '').strip()
+            if not message:
+                return fallback
+            options = payload.get('options') if isinstance(payload.get('options'), list) else []
+            return {
+                'status': 'ask',
+                'skill': skill,
+                'assistant_message': message[:260],
+                'options': [str(item)[:24] for item in options[:6] if str(item).strip()],
+                'round': payload.get('round') or fallback.get('round'),
+                'round_total': payload.get('round_total') or fallback.get('round_total'),
+                'source': 'model',
+            }
+        if status == 'recommend':
+            tools = normalize_tool_models(payload.get('tool_models') or [])
+            if not tools:
+                tools = normalize_tool_models(fallback.get('tool_models') or [])
+            final_question = str(payload.get('final_question') or fallback.get('final_question') or '').strip()
+            reason = str(payload.get('reason') or fallback.get('reason') or '').strip()
+            needs_profile = any(item.get('needs_profile') for item in COMPREHENSIVE_TOOL_MODELS if item['id'] in tools)
+            return {
+                'status': 'recommend',
+                'skill': skill,
+                'final_question': final_question[:500],
+                'tool_models': tools,
+                'needs_profile': needs_profile,
+                'reason': reason[:320],
+                'estimated_cost': calculate_cost(model_id, tools, is_followup=False, profile_count=profile_count, reading_mode=reading_mode),
+                'source': 'model',
+            }
+        return fallback
+
+    def _build_guide_with_model(question, messages, model_id, reading_mode, profile_count, fallback, allow_fallback=False):
+        clean_messages = []
+        for item in messages or []:
+            if not isinstance(item, dict):
+                continue
+            role = item.get('role')
+            content = str(item.get('content') or '').strip()
+            if role in ['assistant', 'user'] and content:
+                clean_messages.append({'role': role, 'content': content[:240]})
+        tool_catalog = [
+            {'id': item['id'], 'name': item['name'], 'needs_profile': bool(item.get('needs_profile'))}
+            for item in COMPREHENSIVE_TOOL_MODELS
+        ]
+        system_prompt = (
+            '你是时安解忧屋的问事引导 agent。你的任务不是直接解读，而是通过自然的一问一答理解用户真实所问，'
+            '再推荐适合的术数 skill。必须只输出一个 JSON 对象，不要 markdown，不要解释。\n'
+            '规则：1) 信息不足时输出 status=ask，并给出 assistant_message 和 2-5 个 options；'
+            '2) 通常需要 2-3 轮追问后才推荐，除非问题已经非常明确；'
+            '3) 推荐时输出 status=recommend、final_question、tool_models、reason；'
+            '4) 可选 tool_models 只能来自工具目录 id；'
+            '5) 八字、紫微、奇门需要出生/命盘资料；六爻、梅花、塔罗、择吉通常不需要出生资料；'
+            '6) 例如“我适合当老板吗”应先追问老板命/创业时机/单干合伙/阶段/风险点，不能直接推荐。\n'
+            '工具目录：' + json.dumps(tool_catalog, ensure_ascii=False)
+        )
+        user_prompt = json.dumps({
+            'question': question,
+            'messages': clean_messages,
+            'fallback_hint': fallback,
+            'output_schema': {
+                'ask': {'status': 'ask', 'skill': 'string', 'assistant_message': 'string', 'options': ['string'], 'round': 1, 'round_total': 3},
+                'recommend': {'status': 'recommend', 'skill': 'string', 'final_question': 'string', 'tool_models': ['bazi'], 'reason': 'string'},
+            }
+        }, ensure_ascii=False)
+        result = get_chat_completion_func([
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': user_prompt},
+        ], model_id=model_id, temperature=0.2, max_tokens=900)
+        if result.get('error'):
+            if not allow_fallback:
+                return {
+                    'status': 'error',
+                    'error': 'AI 引导服务未配置或调用失败',
+                    'detail': result.get('error')[:160],
+                    'source': 'model',
+                }
+            fallback['source'] = 'fallback'
+            fallback['model_error'] = result.get('error')[:120]
+            return fallback
+        parsed = _extract_json_object(result.get('content') or '')
+        normalized = _normalize_guide_payload(parsed, fallback, model_id, reading_mode, profile_count)
+        if normalized is fallback:
+            if not allow_fallback:
+                return {
+                    'status': 'error',
+                    'error': 'AI 引导返回格式异常',
+                    'detail': '模型没有返回可解析的 JSON',
+                    'source': 'model',
+                }
+            fallback['source'] = 'fallback'
+            fallback['model_error'] = '模型返回无法解析'
+        return normalized
+
+
+    @app.route('/api/comprehensive/guide', methods=['POST'])
+    @login_required
+    def api_comprehensive_guide():
+        data = request.get_json(silent=True) or {}
+        question = (data.get('question') or '').strip()
+        if not question:
+            return jsonify({'error': 'question required'}), 400
+        model_id = data.get('llm_model') or 'basic'
+        reading_mode = data.get('reading_mode') or 'standard'
+        profile_count = max(1, int(data.get('profile_count') or 1))
+        messages = data.get('messages') or []
+        fallback = build_question_guidance(
+            question,
+            messages=messages,
+            model_id=model_id,
+            reading_mode=reading_mode,
+            profile_count=profile_count,
+        )
+        if app.config.get('TESTING') and not data.get('use_model'):
+            fallback['source'] = 'fallback'
+            return jsonify(fallback)
+        ai_payload = _build_guide_with_model(
+            question,
+            messages,
+            model_id,
+            reading_mode,
+            profile_count,
+            fallback,
+            allow_fallback=bool(app.config.get('TESTING') or data.get('allow_fallback')),
+        )
+        if ai_payload.get('status') == 'error':
+            return jsonify(ai_payload), 503
+        return jsonify(ai_payload)
+
 
     @app.route('/api/comprehensive/conversations', methods=['GET'])
     @login_required
@@ -691,6 +871,11 @@ def register_comprehensive_routes(app, db, services):
                 mark_ai_run_running(ai_run.id)
                 yield _event({'run_id': ai_run.id, 'stage': 'profile', 'message': '正在读取命盘档案'})
                 profiles = resolve_comprehensive_profiles(data)
+                if _tools_require_birth_profile(tool_models) and (not bool(data.get('profile_confirmed')) or any(_profile_needs_birth_completion(p) for p in profiles)):
+                    message = '所选术数需要先填写完整出生信息'
+                    mark_ai_run_failed(ai_run.id, message, {'tool_models': tool_models})
+                    yield _event({'error': message, 'need_profile_completion': True})
+                    return
                 profile_count = len(profiles)
                 profile = profiles[0] if profile_count == 1 else profiles
                 paipan_context, existing_artifacts = _unwrap_comprehensive_paipan(data.get('paipan') or {})

@@ -8,7 +8,7 @@
       :placeholder="placeholder"
       @keydown="$emit('keydown', $event)"
     />
-    <view class="home-ai-toolbar">
+    <view class="home-ai-toolbar" :class="{ 'no-llm': hideLlmPicker }">
       <view class="home-ai-toolbar-left">
         <view class="profile-picker" @tap="$emit('open-profile')">
           <text class="profile-plus">＋</text>
@@ -29,7 +29,7 @@
             <text class="reading-mode-caret">⌄</text>
           </view>
         </view>
-        <view class="ai-select-wrap">
+        <view v-if="!hideLlmPicker" class="ai-select-wrap">
           <view ref="llmPickerRef" class="llm-picker" :class="{ active: openMenu === 'llm' }" @tap="toggleMenu('llm')">
             <text class="llm-name">{{ compactLlmName }}</text>
             <text class="llm-points">{{ llmCostText }}</text>
@@ -117,6 +117,7 @@ const props = defineProps({
   selectedLlmModel: { type: Object, default: () => ({}) },
   estimatedCost: { type: Number, default: 0 },
   currentPoints: { type: Number, default: 0 },
+  hideLlmPicker: { type: Boolean, default: false },
 })
 
 const emit = defineEmits([
@@ -386,6 +387,7 @@ onBeforeUnmount(() => {
   .home-ai-main { bottom: 8px; width: calc(100vw - 18px); border-radius: 16px; padding: 9px 10px; gap: 6px; }
   .home-ai-input { min-height: 40px; max-height: 58px; font-size: 0.88rem; }
   .home-ai-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr) 72px 72px 30px; align-items: center; gap: 4px; flex-wrap: nowrap !important; overflow: visible; box-sizing: border-box; }
+  .home-ai-toolbar.no-llm { grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr) 72px 30px; }
   .home-ai-toolbar-left, .home-ai-toolbar-right { display: contents; }
   .profile-picker, .tool-picker, .reading-mode-picker, .llm-picker { width: 100%; min-width: 0; max-width: none; height: 30px; min-height: 30px; padding: 0 7px; flex-direction: row; align-items: center; justify-content: flex-start; gap: 4px; overflow: hidden; }
   .ai-select-wrap { width: 100%; min-width: 0; }
@@ -404,6 +406,7 @@ onBeforeUnmount(() => {
   .home-ai-main { padding: 7px 9px; gap: 4px; border-radius: 15px; }
   .home-ai-input { min-height: 34px; max-height: 50px; font-size: 0.84rem; padding: 3px 4px 0; }
   .home-ai-toolbar { grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr) 72px 72px 28px; gap: 3px; overflow: visible; box-sizing: border-box; }
+  .home-ai-toolbar.no-llm { grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr) 72px 28px; }
   .profile-picker, .tool-picker, .reading-mode-picker, .llm-picker { height: 28px; min-height: 28px; padding: 0 5px; gap: 3px; }
   .ai-select-popover { min-width: 124px; padding: 5px; }
   .llm-popover { min-width: 134px; }

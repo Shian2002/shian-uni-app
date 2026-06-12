@@ -37,12 +37,33 @@ export const BAZI_RELATION_LABELS = {
   zhi_san_hui: '地支三会',
 }
 
-export function sanitizeArtifactAnalysisText(text) {
+function normalizeArtifactAnalysisText(text, trimResult) {
   let result = String(text || '')
   Object.keys(BAZI_RELATION_LABELS).forEach(function(key) {
     result = result.replace(new RegExp(key, 'g'), BAZI_RELATION_LABELS[key])
   })
-  return result
+  result = result
+    .replace(/\r\n/g, '\n')
+    .replace(/^\s*#{1,6}\s*/gm, '')
+    .replace(/^\s*[-*_]{3,}\s*$/gm, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/__(.*?)__/g, '$1')
+    .replace(/(^|[^\w])\*(?!\s)([^*\n]+?)\*(?!\w)/g, '$1$2')
+    .replace(/(^|[^\w])_(?!\s)([^_\n]+?)_(?!\w)/g, '$1$2')
+    .replace(/^\s*[-*+]\s+/gm, '')
+    .replace(/^\s*\d+\.\s+/gm, '')
+    .replace(/`{1,3}/g, '')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+  return trimResult ? result.trim() : result
+}
+
+export function sanitizeArtifactAnalysisText(text) {
+  return normalizeArtifactAnalysisText(text, true)
+}
+
+export function sanitizeArtifactAnalysisChunk(text) {
+  return normalizeArtifactAnalysisText(text, false)
 }
 
 export function pillarText(pillar) {

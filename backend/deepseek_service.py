@@ -56,11 +56,12 @@ def _model_config(model_id):
             "thinking_type": "disabled",
         }
     return {
-        "provider": "deepseek",
-        "api_key": _first_env("BASIC_AI_API_KEY", "DEEPSEEK_API_KEY"),
-        "base_url": _first_env("BASIC_AI_BASE_URL", "DEEPSEEK_BASE_URL") or "https://api.deepseek.com",
-        "model": _first_env("BASIC_AI_MODEL", "DEEPSEEK_MODEL_FLASH") or "deepseek-v4-flash",
-        "supports_thinking": False,
+        "provider": "zhipu" if _first_env("BASIC_AI_API_KEY", "ZAI_API_KEY", "ZHIPU_API_KEY") else "siliconflow",
+        "api_key": _first_env("BASIC_AI_API_KEY", "ZAI_API_KEY", "ZHIPU_API_KEY", "SILICONFLOW_API_KEY"),
+        "base_url": _first_env("BASIC_AI_BASE_URL", "ZAI_BASE_URL", "ZHIPU_BASE_URL", "SILICONFLOW_BASE_URL") or "https://open.bigmodel.cn/api/paas/v4/",
+        "model": _first_env("BASIC_AI_MODEL", "ZAI_MODEL_BASIC", "ZAI_MODEL_EXPERT", "ZHIPU_MODEL_EXPERT", "DEEPSEEK_MODEL_NORMAL") or "glm-5.1",
+        "supports_thinking": bool(_first_env("BASIC_AI_API_KEY", "ZAI_API_KEY", "ZHIPU_API_KEY")),
+        "thinking_type": "disabled",
     }
 
 
@@ -293,3 +294,28 @@ def get_reading_stream(messages: list, model_name: str = None, model_id: str = N
             yield None, "请求太频繁，请稍后再试"
         else:
             yield None, f"AI 服务异常：{error_msg[:100]}"
+
+
+def get_chat_completion(messages: list, model_id: str = "basic", temperature: float = 0.3, max_tokens: int = 1200):
+    """非流式通用模型调用，供低延迟结构化任务使用。"""
+    config = _model_config(model_id)
+    client = _get_model_client(config)
+    if not client:
+        return {"error": "未配置 %s 模型 API Key" % config["provider"], "content": "", "model": config["model"]}
+    try:
+        params = {
+            "model": config["model"],
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": False,
+        }
+        if config.get("supports_thinking"):
+            params["extra_body"] = {"thinking": {"type": config.get("thinking_type", "disabled")}}
+        response = client.chat.completions.create(**params)
+        content = ""
+        if response.choices and response.choices[0].message:
+            content = response.choices[0].message.content or ""
+        return {"content": content, "model": config["model"], "error": None}
+    except Exception as e:
+        return {"error": str(e), "content": "", "model": config["model"]}

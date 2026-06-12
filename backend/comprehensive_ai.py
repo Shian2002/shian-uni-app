@@ -5,29 +5,32 @@ import json
 COMPREHENSIVE_LLM_MODELS = [
     {
         "id": "basic",
-        "name": "时安基础模型",
+        "name": "GLM-5.1",
         "cost_base": 2,
         "cost_multiplier": 0,
         "followup_cost": 2,
         "enabled": True,
-    },
-    {
+    }
+]
+
+_LEGACY_LLM_MODEL_CONFIG = {
+    "advanced": {
         "id": "advanced",
         "name": "时安高级模型",
         "cost_base": 4,
         "cost_multiplier": 0,
         "followup_cost": 4,
-        "enabled": True,
+        "enabled": False,
     },
-    {
+    "expert": {
         "id": "expert",
         "name": "时安专家模型",
         "cost_base": 8,
         "cost_multiplier": 0,
         "followup_cost": 8,
-        "enabled": True,
-    }
-]
+        "enabled": False,
+    },
+}
 
 COMPREHENSIVE_READING_MODES = [
     {"id": "concise", "name": "简约", "cost_delta": -1, "display_cost": 1},
@@ -37,7 +40,7 @@ COMPREHENSIVE_READING_MODES = [
 
 
 COMPREHENSIVE_TOOL_MODELS = [
-    {"id": "qimen", "name": "奇门遁甲", "cost": 3, "needs_profile": False},
+    {"id": "qimen", "name": "奇门遁甲", "cost": 3, "needs_profile": True},
     {"id": "bazi", "name": "八字", "cost": 2, "needs_profile": True},
     {"id": "liuyao", "name": "六爻", "cost": 2, "needs_profile": False},
     {"id": "meihua", "name": "梅花易数", "cost": 2, "needs_profile": False},
@@ -53,6 +56,8 @@ def get_llm_model(model_id):
     for model in COMPREHENSIVE_LLM_MODELS:
         if model["id"] == model_id and model.get("enabled"):
             return model
+    if model_id in _LEGACY_LLM_MODEL_CONFIG:
+        return _LEGACY_LLM_MODEL_CONFIG[model_id]
     return COMPREHENSIVE_LLM_MODELS[0]
 
 
@@ -82,6 +87,7 @@ def recommend_tool_models(question):
     return_kw = ["回来", "复合", "还会不会", "联系我", "想我", "感情状态", "心理", "暧昧", "分手"]
     concrete_kw = ["成败", "应期", "能不能", "是否", "靠谱吗", "合作", "官司", "失物", "找回", "结果", "面试"]
     decision_kw = ["跳槽", "换工作", "投资", "项目", "决策", "方向", "选择", "现在", "当下", "要不要"]
+    boss_kw = ["老板", "创业", "做生意", "开公司", "合伙人", "管理者", "领导"]
     career_base_kw = ["适合什么工作", "适合做什么", "职业", "事业方向", "工作方向", "适合行业"]
     long_kw = ["命局", "事业", "财运", "格局", "长期", "人生", "未来几年", "大运", "流年"]
 
@@ -93,6 +99,8 @@ def recommend_tool_models(question):
         return ["bazi", "ziwei"], "婚恋时间和长期关系适合八字结合紫微。"
     if any(k in text for k in return_kw):
         return ["liuyao", "meihua", "tarot"], "具体情感应事以六爻、梅花为主，可补塔罗看状态。"
+    if any(k in text for k in boss_kw):
+        return ["bazi", "qimen"], "是否适合当老板，先用八字看底层性格、财官结构和长期承压能力，再用奇门看当下局势与行动窗口。"
     if any(k in text for k in concrete_kw):
         if "合作" in text or "靠谱吗" in text:
             return ["qimen", "liuyao"], "合作决策适合奇门看局势、六爻看成败。"
@@ -102,6 +110,146 @@ def recommend_tool_models(question):
     if any(k in text for k in long_kw) or any(k in lower for k in ["career", "life"]):
         return ["bazi", "ziwei"], "长期命局和阶段趋势适合八字结合紫微。"
     return ["bazi", "qimen"], "无法明确归类时，默认八字看底盘、奇门看当下。"
+
+
+def _question_intent(question):
+    text = str(question or "").strip()
+    if any(k in text for k in ["复合", "回来", "分手", "暧昧", "联系我", "想我", "感情", "关系"]):
+        return {
+            "skill": "关系应事判断",
+            "questions": [
+                {
+                    "question": "这段关系现在最卡住的是对方态度、现实阻碍，还是你要不要继续等？",
+                    "options": ["对方态度", "能否复合", "现实阻碍", "还要不要等"],
+                },
+                {
+                    "question": "你更想看短期有没有转机，还是看这段关系长期能不能稳定？",
+                    "options": ["短期转机", "长期稳定", "对方心理", "行动建议"],
+                },
+            ],
+        }
+    if any(k in text for k in ["老板", "创业", "做生意", "开公司", "合伙人", "管理者", "领导"]):
+        return {
+            "skill": "事业主导力判断",
+            "questions": [
+                {
+                    "question": "你问“适合当老板”，更偏向想看自己有没有老板命，还是眼前有没有创业/做生意的时机？",
+                    "options": ["有没有老板命", "现在适不适合创业", "适合单干还是合伙", "想看长期事业格局"],
+                },
+                {
+                    "question": "你现在处在什么阶段？不同阶段会影响择法。",
+                    "options": ["还在想法阶段", "已有项目", "准备离职创业", "已经在经营", "正在找合伙人"],
+                },
+                {
+                    "question": "你更担心哪一块？",
+                    "options": ["赚钱能力", "管理能力", "抗压风险", "合伙关系", "行业方向"],
+                },
+            ],
+        }
+    if any(k in text for k in ["跳槽", "工作", "事业", "职业", "项目", "合作", "投资"]):
+        return {
+            "skill": "事业决策择法",
+            "questions": [
+                {
+                    "question": "你更想判断这件事能不能成，还是判断哪条路更适合你？",
+                    "options": ["能不能成", "哪条路适合", "现在时机", "风险在哪里"],
+                },
+                {
+                    "question": "这件事现在是刚有想法、已经推进，还是马上要做决定？",
+                    "options": ["刚有想法", "已经推进", "马上决定", "已经卡住"],
+                },
+            ],
+        }
+    if any(k in text for k in ["财运", "赚钱", "收入", "副业", "生意", "开业"]):
+        return {
+            "skill": "财运机会判断",
+            "questions": [
+                {
+                    "question": "你更在意短期机会、长期财运，还是某个具体生意能不能做？",
+                    "options": ["短期机会", "长期财运", "具体生意", "开业择日"],
+                },
+                {
+                    "question": "这笔钱更像工作收入、投资收益，还是经营生意？",
+                    "options": ["工作收入", "投资收益", "经营生意", "还不确定"],
+                },
+            ],
+        }
+    if any(k in text for k in ["结婚", "婚姻", "正缘", "姻缘", "对象", "伴侣"]):
+        return {
+            "skill": "婚恋阶段判断",
+            "questions": [
+                {
+                    "question": "你更想看缘分出现时间、关系稳定度，还是这段关系最终走向？",
+                    "options": ["出现时间", "稳定度", "最终走向", "相处风险"],
+                },
+                {
+                    "question": "目前是单身、暧昧、恋爱中，还是已经进入婚姻议题？",
+                    "options": ["单身", "暧昧", "恋爱中", "婚姻议题"],
+                },
+            ],
+        }
+    if any(k in text for k in ["哪天", "吉日", "择日", "搬家", "签约", "出行", "动土", "装修"]):
+        return {
+            "skill": "择日择时",
+            "questions": [
+                {
+                    "question": "这件事有没有已经定好的时间范围？",
+                    "options": ["已有时间范围", "还没定日期", "只看最近", "要避风险"],
+                }
+            ],
+        }
+    return {
+        "skill": "综合问事择法",
+        "questions": [
+            {
+                "question": "这件事你最想先知道结果、原因、时机，还是下一步怎么做？",
+                "options": ["看结果", "看原因", "看时机", "看行动建议"],
+            },
+            {
+                "question": "它现在处在刚开始、推进中、卡住，还是快要做决定的阶段？",
+                "options": ["刚开始", "推进中", "卡住", "快要决定"],
+            },
+        ],
+    }
+
+
+def build_question_guidance(question, messages=None, model_id="basic", reading_mode="standard", profile_count=1):
+    base_question = str(question or "").strip()
+    clean_messages = []
+    for item in messages or []:
+        if not isinstance(item, dict):
+            continue
+        role = item.get("role")
+        content = str(item.get("content") or "").strip()
+        if role in ["assistant", "user"] and content:
+            clean_messages.append({"role": role, "content": content[:240]})
+
+    intent = _question_intent(base_question)
+    user_replies = [item["content"] for item in clean_messages if item["role"] == "user"]
+    questions = intent.get("questions") or [{"question": intent.get("question", "你更想看哪一层答案？"), "options": intent.get("options", [])}]
+    if len(user_replies) < len(questions):
+        current = questions[len(user_replies)]
+        return {
+            "status": "ask",
+            "skill": intent["skill"],
+            "assistant_message": "我先按「{}」来理解。{}".format(intent["skill"], current.get("question", "")),
+            "options": current.get("options", []),
+            "round": len(user_replies) + 1,
+            "round_total": len(questions),
+        }
+
+    final_question = "；".join([base_question] + user_replies)
+    tools, reason = recommend_tool_models(final_question)
+    needs_profile = any(item.get("needs_profile") for item in COMPREHENSIVE_TOOL_MODELS if item["id"] in tools)
+    return {
+        "status": "recommend",
+        "skill": intent["skill"],
+        "final_question": final_question,
+        "tool_models": tools,
+        "needs_profile": needs_profile,
+        "reason": "已按「{}」理解你的问题。{}".format(intent["skill"], reason),
+        "estimated_cost": calculate_cost(model_id, tools, is_followup=False, profile_count=profile_count, reading_mode=reading_mode),
+    }
 
 
 def calculate_cost(model_id, tool_models, is_followup=False, profile_count=1, reading_mode='standard'):
@@ -220,6 +368,7 @@ def build_comprehensive_messages(question, profile, tool_models, paipan_context,
 3. 汇总不同术数之间一致和冲突的地方；
 4. 给出可执行建议；
 5. 明确提示内容仅为民俗文化参考，不构成现实决策承诺。
+排版要求：不要使用 Markdown 标记，不要输出星号、井号、反引号或 --- 分隔线；用自然段和中文小标题组织内容。
 """
     context = {
         "profile": profile or {},
@@ -258,6 +407,7 @@ def build_tool_analysis_messages(question, profile, tool, tool_data, history=Non
 2. 结论和依据必须来自用户出生命盘上下文和当前盘面参数，不要自行编造出生信息、干支、宫位、星曜、卦象或牌面；
 3. 可以按你的专业判断选择表达结构，但需要让用户看懂关键依据和行动建议；
 4. 不要逐字段复述 JSON，也不要输出 snake_case 内部键名，八字关系字段改用中文术语，例如 zhi_liu_chong 说成“地支六冲”。
+5. 不要使用 Markdown 标记，不要输出星号、井号、反引号或 --- 分隔线；用自然段和中文小标题组织内容。
 """
     user_chart_context = _build_user_chart_context(profile)
     messages = [{"role": "system", "content": system}]
@@ -286,6 +436,7 @@ def build_summary_messages(question, profile, tool_models, tool_analyses, histor
 3. 标出冲突或需要谨慎看的地方；
 4. 给出用户接下来可以执行的建议；
 5. 明确内容仅为民俗文化参考，不构成现实决策承诺。
+排版要求：不要使用 Markdown 标记，不要输出星号、井号、反引号或 --- 分隔线；用自然段和中文小标题组织内容。
 """
     messages = [{"role": "system", "content": system}]
     for item in history or []:

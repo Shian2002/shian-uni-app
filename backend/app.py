@@ -17,7 +17,7 @@ from flask_login import login_required, current_user
 from sqlalchemy import event, or_
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import OperationalError
-from deepseek_service import get_tarot_reading_stream, get_tarot_followup_stream, get_reading_stream, is_available as deepseek_available
+from deepseek_service import get_chat_completion, get_tarot_reading_stream, get_tarot_followup_stream, get_reading_stream, is_available as deepseek_available
 import urllib.parse
 
 # 结构化日志配置
@@ -4029,6 +4029,7 @@ register_comprehensive_routes(app, db, {
     'logger': logger,
     'get_build_one_tool_override': lambda: _build_one_tool if callable(_build_one_tool) else None,
     'get_reading_stream': lambda: get_reading_stream,
+    'get_chat_completion': get_chat_completion,
 })
 register_ziwei_routes(app, {
     'has_ziwei': HAS_ZIWEI,

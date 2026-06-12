@@ -384,12 +384,12 @@
       <section class="hero-home" :class="{ 'chat-active': comprehensiveMessages.length, 'reading-active': comprehensiveLoading }">
         <view class="hero-home-content">
           <!-- LOGO 和品牌 -->
-          <view class="hero-brand">
-            <view class="hero-brand-icon-wrap"><img class="hero-brand-icon" src="/static/images/logo.webp?v=3" alt="时安解忧屋" /></view>
-            <view class="hero-brand-name">时安解忧屋</view>
-            <view class="hero-brand-divider"></view>
-            <view class="hero-brand-slogan">八字定终身格局 · 奇门断当下决策</view>
-            <view class="hero-brand-sub">看得懂用得上的民俗命理参考平台</view>
+            <view class="hero-brand">
+              <view class="hero-brand-icon-wrap"><img class="hero-brand-icon" src="/static/images/logo.webp?v=3" alt="时安解忧屋" /></view>
+              <view class="hero-brand-name">时安解忧屋</view>
+              <view class="hero-brand-divider"></view>
+            <view class="hero-brand-slogan">一念起，便可问</view>
+            <view class="hero-brand-sub">心有所感，自有其路。我会先帮你理清所问，再为你择法解读。</view>
           </view>
 
           <view class="home-ai-console" :class="{ 'has-chat': comprehensiveMessages.length }">
@@ -410,18 +410,18 @@
                 <text class="home-ai-role" v-if="msg.role === 'user'">你</text>
                 <view
                   class="home-ai-agent-head"
-                  v-else-if="msg.stage || msg.content || visibleArtifactList(msg).length"
+                  v-else-if="msg.stage || msg.content || msg.guideLoading || visibleArtifactList(msg).length"
                 >
                   <img
                     class="home-ai-agent-logo"
-                    :class="msg.stage ? 'spinning' : 'idle'"
+                    :class="(msg.stage || msg.guideLoading) ? 'spinning' : 'idle'"
                     src="/static/images/logo.webp?v=3"
                     alt="时安解忧屋"
                   />
                   <view class="home-ai-agent-texts">
                     <text class="home-ai-agent-name">时安 agent</text>
-                    <text class="home-ai-agent-sub">{{ msg.stage || '已完成解读' }}</text>
-                    <text class="home-ai-stage-note" v-if="msg.stage">正在按所选命盘和术数生成，可继续停留在当前页</text>
+                    <text class="home-ai-agent-sub">{{ msg.stage || msg.guideLoadingText || '已完成解读' }}</text>
+                    <text class="home-ai-stage-note" v-if="msg.stage || msg.guideLoading">{{ msg.guideLoading ? '正在理解你的来意，并为你择法' : '正在按所选命盘和术数生成，可继续停留在当前页' }}</text>
                   </view>
                 </view>
                 <view class="home-ai-context-chip" v-if="msg.role === 'assistant' && msg.contextSummary">
@@ -464,11 +464,46 @@
                 </view>
                 <text class="home-ai-content" v-if="msg.role === 'user' && msg.content">{{ msg.content }}</text>
                 <view class="home-ai-summary-panel" v-if="msg.role === 'assistant' && (msg.content || msg._streaming) && (!visibleArtifactList(msg).length || isSummaryActive(msg, idx))">
-                  <view class="home-artifact-analysis-title">综合结论</view>
+                  <view class="home-artifact-analysis-title">{{ msg.isGuide ? '问事引导' : '综合结论' }}</view>
+                  <view class="home-guide-thinking" v-if="msg.guideLoading">
+                    <text>{{ msg.guideLoadingText || '正在理清所问' }}</text>
+                    <view class="home-guide-dots">
+                      <text></text>
+                      <text></text>
+                      <text></text>
+                    </view>
+                  </view>
                   <view
+                    v-else
                     class="home-ai-content home-ai-stream-text"
                     :data-home-ai-stream-key="'summary-' + idx"
                   >{{ msg.content }}</view>
+                  <view class="home-guide-options" v-if="msg.guideOptions && msg.guideOptions.length">
+                    <view
+                      v-for="option in msg.guideOptions"
+                      :key="option"
+                      class="home-guide-option"
+                      @tap="submitQuestionGuideAnswer(option)"
+                    >{{ option }}</view>
+                  </view>
+                  <view class="home-guide-recommend" v-if="msg.guideRecommendation">
+                    <view class="home-guide-recommend-title">建议选择：{{ toolSummaryForIds(msg.guideRecommendation.tool_models) }}</view>
+                    <view class="home-guide-recommend-meta" v-if="toolsNeedProfile(msg.guideRecommendation.tool_models)">需要先填写出生信息后排盘</view>
+                    <view class="home-guide-loading" v-if="msg.guideApplying">
+                      <view class="home-guide-spinner"></view>
+                      <text>正在择法...</text>
+                    </view>
+                    <view
+                      v-else-if="!msg.guideRecommendation.applied"
+                      class="home-guide-primary"
+                      @tap="applyGuideRecommendationFromMessage(msg.guideRecommendation, msg)"
+                    >一键选择术数</view>
+                    <view
+                      v-else
+                      class="home-guide-primary"
+                      @tap="startGuidedRecommendationReading(msg.guideRecommendation)"
+                    >{{ guideRecommendationReady(msg.guideRecommendation) ? '开始解读' : '填写出生信息' }}</view>
+                  </view>
                 </view>
               </view>
             </view>
@@ -491,6 +526,7 @@
               :selected-llm-model="selectedLlmModel"
               :estimated-cost="estimatedCost"
               :current-points="currentPoints"
+              :hide-llm-picker="true"
               @open-profile="openProfilePicker"
               @tool-auto-toggle="toggleAutoSelectTools"
               @tool-model-toggle="toggleToolModel"
@@ -499,6 +535,10 @@
               @send="startComprehensiveAsk"
               @keydown="onComprehensiveInputKeydown"
             />
+            <view class="home-guidance-note" v-if="showGuidanceHint">
+              <text>问事前会先帮你理清所问，并为你推荐适合的解读方式。</text>
+              <text class="home-guidance-note-action" @tap="disableQuestionGuidance">以后直接解读</text>
+            </view>
           </view>
         </view>
 
@@ -639,7 +679,7 @@
         <view class="send-confirm-list">
           <view><text>命盘</text><text>{{ selectedProfileName || '未选择' }}</text></view>
           <view><text>术数</text><text>{{ selectedToolSummary }}</text></view>
-          <view><text>模型</text><text>{{ selectedLlmModel.name || '时安基础模型' }}</text></view>
+          <view><text>模型</text><text>GLM-5.1</text></view>
           <view><text>模式</text><text>{{ selectedReadingMode.name || '标准' }} · {{ estimatedCost }}积分</text></view>
         </view>
         <view class="send-confirm-check" :class="{ active: sendConfirmDontRemind }" @tap="sendConfirmDontRemind = !sendConfirmDontRemind">
@@ -649,6 +689,81 @@
         <view class="sheet-actions">
           <view class="sheet-btn sheet-btn-secondary" @tap="resolveSendConfirm(false)">再看看</view>
           <view class="sheet-btn sheet-btn-primary" @tap="resolveSendConfirm(true)">开始解读</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="question-guide-sheet" v-if="questionGuideOpen">
+      <view class="send-confirm-mask" @tap="closeQuestionGuide"></view>
+      <view class="question-guide-panel">
+        <view class="question-guide-kicker">问事引导</view>
+        <view class="send-confirm-title">{{ questionGuideSkill || '先理清所问' }}</view>
+        <view class="send-confirm-desc">时安会先理解你的问题，再像调用 skill 一样为你择法。</view>
+        <view class="question-guide-origin">
+          <text>起问</text>
+          <text>{{ questionGuideDraft.question }}</text>
+        </view>
+        <view class="question-guide-chat">
+          <view
+            v-for="(message, idx) in questionGuideMessages"
+            :key="'qg-' + idx"
+            class="question-guide-message"
+            :class="'question-guide-message-' + message.role"
+          >
+            <text>{{ message.content }}</text>
+          </view>
+          <view class="question-guide-message question-guide-message-assistant" v-if="questionGuideLoading">
+            <text>正在理解你的问题...</text>
+          </view>
+        </view>
+        <view class="question-guide-chips">
+          <view
+            v-for="option in questionGuideOptions"
+            :key="option"
+            class="question-guide-chip"
+            @tap="submitQuestionGuideAnswer(option)"
+          >{{ option }}</view>
+        </view>
+        <textarea
+          class="question-guide-input"
+          v-model="questionGuideInput"
+          auto-height
+          maxlength="180"
+          placeholder="也可以直接补充一句，比如：我更想知道对方现在怎么想。"
+        />
+        <view class="question-guide-progress">
+          <text>AI 理解后会自动择法并勾选</text>
+          <text>GLM-5.1</text>
+        </view>
+        <view class="sheet-actions">
+          <view class="sheet-btn sheet-btn-secondary" @tap="closeQuestionGuide">取消</view>
+          <view class="sheet-btn sheet-btn-primary" @tap="submitQuestionGuideAnswer()">{{ questionGuideLoading ? '理解中...' : '发送给时安' }}</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="question-guide-sheet" v-if="toolRecommendOpen">
+      <view class="send-confirm-mask" @tap="resolveToolRecommendation(false)"></view>
+      <view class="question-guide-panel">
+        <view class="question-guide-kicker">已为你择定解读方式</view>
+        <view class="send-confirm-title">已自动勾选 {{ selectedToolSummary }}</view>
+        <view class="send-confirm-desc">{{ toolRecommendReason || '根据你的问题，建议先从最贴近当下的一种解读开始。' }}</view>
+        <view class="question-guide-origin">
+          <text>整理后所问</text>
+          <text>{{ questionGuideDraft.finalQuestion || questionGuideDraft.question }}</text>
+        </view>
+        <view class="send-confirm-list">
+          <view><text>解读方式</text><text>{{ selectedToolSummary }}</text></view>
+          <view><text>解读深度</text><text>{{ selectedReadingMode.name || '标准' }} · {{ estimatedCost }}积分</text></view>
+          <view><text>模型</text><text>GLM-5.1</text></view>
+        </view>
+        <view class="send-confirm-check" :class="{ active: keepQuestionGuidance }" @tap="keepQuestionGuidance = !keepQuestionGuidance">
+          <text class="quick-check-dot">{{ keepQuestionGuidance ? '✓' : '' }}</text>
+          <text>以后继续开启问事引导</text>
+        </view>
+        <view class="sheet-actions">
+          <view class="sheet-btn sheet-btn-secondary" @tap="resolveToolRecommendation(false)">再看看</view>
+          <view class="sheet-btn sheet-btn-primary" @tap="resolveToolRecommendation(true)">开始解读</view>
         </view>
       </view>
     </view>
@@ -674,6 +789,7 @@ import {
   htmlEscape,
   pillarText,
   readStorageJson,
+  sanitizeArtifactAnalysisChunk,
   sanitizeArtifactAnalysisText,
   writeStorageJson,
 } from './homeAiUtils.js'
@@ -1192,6 +1308,7 @@ const comprehensiveLoading = ref(false)
 const profiles = ref([])
 const selectedProfiles = ref([])
 const draftSelectedProfiles = ref([])
+const profileSelectionConfirmed = ref(false)
 const profileSheetOpen = ref(false)
 const profileTab = ref('全部')
 const profileTabs = ['全部', '客户', '用户']
@@ -1201,6 +1318,7 @@ const comprehensiveDraftStorageKey = 'xc_home_comprehensive_draft_v1'
 const selectedProfilesStorageKey = 'xc_home_selected_profiles_v1'
 const selectedToolsStorageKey = 'xc_home_selected_tools_v1'
 const sendConfirmSkipStorageKey = 'xc_home_send_confirm_skip_v1'
+const questionGuidanceEnabledStorageKey = 'xc_home_question_guidance_enabled_v1'
 const agentHandoffStorageKey = 'xc_agent_handoff_v1'
 const profileTypeQuickLabels = ['自己', '家人', '朋友', '伴侣', '客户', '名人', '收藏', '其他']
 const profileTypeQuickValues = ['self', 'family', 'friend', 'partner', 'customer', 'celebrity', 'collect', 'other']
@@ -1231,20 +1349,38 @@ const quickCityData = ref([])
 const sendConfirmOpen = ref(false)
 const sendConfirmDontRemind = ref(false)
 let pendingSendConfirmResolve = null
+const questionGuidanceEnabled = ref(readStorageJson(currentUserScopedStorageKey(questionGuidanceEnabledStorageKey), true) !== false)
+const questionGuideOpen = ref(false)
+const toolRecommendOpen = ref(false)
+const toolRecommendReason = ref('')
+const keepQuestionGuidance = ref(true)
+const questionGuideInput = ref('')
+const questionGuideLoading = ref(false)
+const questionGuideSkill = ref('')
+const questionGuideOptions = ref([])
+const questionGuideMessages = ref([])
+const questionGuideInChat = ref(false)
+const pendingGuideRecommendation = ref(null)
+const questionGuideDraft = reactive({
+  question: '',
+  finalQuestion: '',
+})
+let pendingToolRecommendResolve = null
+let questionGuideLoadingMessageIndex = -1
 const readingModes = ref([
   { id: 'concise', name: '简约', cost_delta: -1, display_cost: 1 },
   { id: 'standard', name: '标准', cost_delta: 0, display_cost: 2 },
   { id: 'deep', name: '深度', cost_delta: 2, display_cost: 4 },
 ])
-const llmModels = ref([{ id: 'basic', name: '时安基础模型', cost_base: 2, cost_multiplier: 0, followup_cost: 2 }])
+const llmModels = ref([{ id: 'basic', name: 'GLM-5.1', cost_base: 2, cost_multiplier: 0, followup_cost: 2 }])
 const toolModels = ref([
-  { id: 'qimen', name: '奇门遁甲', cost: 3 },
-  { id: 'bazi', name: '八字', cost: 2 },
-  { id: 'liuyao', name: '六爻', cost: 2 },
-  { id: 'meihua', name: '梅花易数', cost: 2 },
-  { id: 'ziwei', name: '紫微斗数', cost: 3 },
-  { id: 'tarot', name: '塔罗牌', cost: 2 },
-  { id: 'zeji', name: '择吉工具', cost: 2 },
+  { id: 'qimen', name: '奇门遁甲', cost: 3, needs_profile: true },
+  { id: 'bazi', name: '八字', cost: 2, needs_profile: true },
+  { id: 'liuyao', name: '六爻', cost: 2, needs_profile: false },
+  { id: 'meihua', name: '梅花易数', cost: 2, needs_profile: false },
+  { id: 'ziwei', name: '紫微斗数', cost: 3, needs_profile: true },
+  { id: 'tarot', name: '塔罗牌', cost: 2, needs_profile: false },
+  { id: 'zeji', name: '择吉工具', cost: 2, needs_profile: false },
 ])
 const llmModelIdx = ref(0)
 const selectedToolModels = ref([])
@@ -1260,6 +1396,7 @@ const currentArtifacts = ref({})
 const readingMode = ref(readStorageJson(readingModeStorageKey, 'standard'))
 const shouldAutoFollowChat = ref(true)
 let pendingComprehensiveId = ''
+let lastComprehensiveScrollTop = 0
 let comprehensiveProgressTimer = null
 let comprehensiveTypeTimer = null
 let comprehensiveScrollTimer = null
@@ -1268,16 +1405,27 @@ let comprehensiveTypeFrame = null
 let comprehensivePendingAssistantUpdate = null
 let comprehensiveArtifactAnalysisTimers = {}
 let comprehensiveTypeStates = {}
+let artifactHtmlCache = new WeakMap()
 const COMPREHENSIVE_TYPE_FRAME_MS = HOME_AI_STREAM_DEFAULTS.frameMs
 const COMPREHENSIVE_TYPE_MAX_FRAME_CHARS = HOME_AI_STREAM_DEFAULTS.maxFrameChars
 const COMPREHENSIVE_REACTIVE_SYNC_MS = HOME_AI_STREAM_DEFAULTS.reactiveSyncMs
-const COMPREHENSIVE_ARTIFACT_FLUSH_MS = 120
+const COMPREHENSIVE_ARTIFACT_STREAM_OPTIONS = {
+  baseCps: 76,
+  maxCps: 96,
+  maxFrameChars: 2,
+}
+const COMPREHENSIVE_HEAVY_ARTIFACT_STREAM_OPTIONS = {
+  baseCps: 96,
+  maxCps: 132,
+  maxFrameChars: 6,
+}
+const COMPREHENSIVE_HEAVY_ARTIFACT_KEYS = ['bazi.basic', 'bazi.yun', 'ziwei.pan']
 const HOME_AI_NEAR_BOTTOM_PX = 140
 const COMPREHENSIVE_DRAFT_SAVE_MS = 320
 const COMPREHENSIVE_DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000
 
 const selectedLlmModel = computed(() => llmModels.value[llmModelIdx.value] || llmModels.value[0] || {})
-const llmModelNames = computed(() => llmModels.value.map(m => m.name || '时安基础模型'))
+const llmModelNames = computed(() => llmModels.value.map(m => m.name || 'GLM-5.1'))
 const selectedReadingMode = computed(() => readingModes.value.find(m => m.id === readingMode.value) || readingModes.value[1] || {})
 const readingModeNames = computed(() => readingModes.value.map(m => m.name))
 const readingModeLabels = computed(() => readingModes.value.map(m => {
@@ -1285,13 +1433,15 @@ const readingModeLabels = computed(() => readingModes.value.map(m => {
   return cost > 0 ? `${m.name}（${cost}积分）` : m.name
 }))
 const readingModeIdx = computed(() => Math.max(0, readingModes.value.findIndex(m => m.id === selectedReadingMode.value.id)))
-const comprehensivePlaceholder = computed(() => comprehensiveMessages.value.length ? '请继续输入你想问的问题' : '输入你的问题，选择术数模型后开始综合解读')
+const comprehensivePlaceholder = computed(() => comprehensiveMessages.value.length ? '请继续输入你想问的问题' : '此刻最牵动你的，是哪一件事？')
+const showGuidanceHint = computed(() => {
+  return questionGuidanceEnabled.value && !comprehensiveMessages.value.length && !comprehensiveLoading.value
+})
 const homeAiContextSummary = computed(() => {
   const profileText = selectedProfileName.value || '未选择命盘'
   const toolText = selectedToolSummary.value === '选择术数' ? '未选择术数' : selectedToolSummary.value
-  const modelText = selectedLlmModel.value.name || '时安基础模型'
   const costText = estimatedCost.value + '积分'
-  return profileText + ' · ' + toolText + ' · ' + modelText + ' · ' + costText
+  return profileText + ' · ' + toolText + ' · GLM-5.1 · ' + costText
 })
 const estimatedCost = computed(() => {
   if (comprehensiveMessages.value.length > 0) return Math.max(0, (selectedLlmModel.value.followup_cost || 0) + modeCostDelta())
@@ -1334,7 +1484,7 @@ function comprehensiveContextSnapshot() {
   const modeId = selectedReadingMode.value.id || 'standard'
   const profileText = selectedProfileName.value || '未选择命盘'
   const toolText = selectedToolSummary.value === '选择术数' ? '未选择术数' : selectedToolSummary.value
-  const modelText = selectedLlmModel.value.name || '时安基础模型'
+  const modelText = 'GLM-5.1'
   const modeText = selectedReadingMode.value.name || '标准'
   return {
     profileIds,
@@ -1497,39 +1647,45 @@ function saveSelectedProfiles() {
       meta: p.meta || {},
     }
   })
-  writeStorageJson(currentUserScopedStorageKey(selectedProfilesStorageKey), payload)
+  writeStorageJson(currentUserScopedStorageKey(selectedProfilesStorageKey), {
+    profiles: payload,
+    confirmed: !!profileSelectionConfirmed.value,
+  })
 }
 
 function saveSelectedToolModels() {
-  if (!isLoggedIn.value) return
-  writeStorageJson(currentUserScopedStorageKey(selectedToolsStorageKey), {
-    auto: !!autoSelectTools.value,
-    tools: selectedToolModels.value.slice(),
-  })
+  try { uni.removeStorageSync(currentUserScopedStorageKey(selectedToolsStorageKey)) } catch (_) {}
+}
+
+function resetSelectedToolModels() {
+  selectedToolModels.value = []
+  autoSelectTools.value = true
+  saveSelectedToolModels()
 }
 
 function restoreSavedAgentSelection(profileList) {
   if (!isLoggedIn.value) return
   const list = profileList || profiles.value || []
-  const savedProfiles = readStorageJson(currentUserScopedStorageKey(selectedProfilesStorageKey), [])
+  const savedProfileState = readStorageJson(currentUserScopedStorageKey(selectedProfilesStorageKey), [])
+  const savedProfiles = Array.isArray(savedProfileState) ? savedProfileState : (savedProfileState && savedProfileState.profiles) || []
   if (!selectedProfiles.value.length && Array.isArray(savedProfiles) && savedProfiles.length) {
     const restored = savedProfiles.map(function(saved) {
       return list.find(p => String(p.id) === String(saved.id)) || saved
     }).filter(function(p) { return p && (p.id || p.name) })
-    if (restored.length) selectedProfiles.value = restored.map(p => Object.assign({ source: 'profile' }, p))
+    if (restored.length) {
+      selectedProfiles.value = restored.map(p => Object.assign({ source: 'profile' }, p))
+      profileSelectionConfirmed.value = !Array.isArray(savedProfileState) && savedProfileState.confirmed !== false
+    }
   }
   if (!selectedProfiles.value.length && list.length) {
     const defaultProfile = list.find(p => p.isDefault) || list.find(p => (p.profileType || p.profile_type) === 'self') || list[0]
     if (defaultProfile) {
       selectedProfiles.value = [Object.assign({ source: 'profile' }, defaultProfile)]
+      profileSelectionConfirmed.value = false
       saveSelectedProfiles()
     }
   }
-  const savedTools = readStorageJson(currentUserScopedStorageKey(selectedToolsStorageKey), null)
-  if (savedTools && typeof savedTools === 'object') {
-    autoSelectTools.value = savedTools.auto !== false
-    selectedToolModels.value = Array.isArray(savedTools.tools) ? savedTools.tools.slice() : []
-  }
+  saveSelectedToolModels()
 }
 
 function isProfileSelected(p) {
@@ -1553,8 +1709,16 @@ function toggleProfileSelection(p) {
 
 function confirmProfileSelection() {
   selectedProfiles.value = draftSelectedProfiles.value.slice()
+  profileSelectionConfirmed.value = true
   saveSelectedProfiles()
-  profileSheetOpen.value = false
+  if (selectedProfilesNeedBirthCompletion()) {
+    uni.showToast({ title: '请补全出生时间后再解读', icon: 'none' })
+    profileQuickFormOpen.value = true
+    loadQuickCityData()
+  } else {
+    profileSheetOpen.value = false
+    uni.showToast({ title: '命盘已选，可开始解读', icon: 'none' })
+  }
 }
 
 function cancelProfileSelection() {
@@ -1652,6 +1816,7 @@ function applyPendingAgentHandoff(profileList) {
   }
   if (selected) {
     selectedProfiles.value = [Object.assign({ source: selected.source || 'profile' }, selected)]
+    profileSelectionConfirmed.value = true
     saveSelectedProfiles()
   }
 
@@ -1663,6 +1828,8 @@ function applyPendingAgentHandoff(profileList) {
   }
   if (handoff.question && !comprehensiveQuestion.value.trim()) {
     comprehensiveQuestion.value = String(handoff.question)
+    questionGuideDraft.question = String(handoff.question)
+    questionGuideDraft.finalQuestion = String(handoff.question)
   }
   saveComprehensiveDraftNow()
   uni.showToast({ title: '已带入盘面，可直接解读', icon: 'none' })
@@ -1681,6 +1848,7 @@ function applyPendingAgentProfile(profileList) {
     }
     if (selected && selected.name) {
       selectedProfiles.value = [Object.assign({ source: 'profile' }, selected)]
+      profileSelectionConfirmed.value = true
       saveSelectedProfiles()
     }
     uni.removeStorageSync('xc_agent_profile_autoselect')
@@ -1820,6 +1988,7 @@ async function createQuickProfile() {
     const selected = (profiles.value || []).find(p => String(p.id) === String(created.id)) || Object.assign({ source: 'profile' }, created)
     selectedProfiles.value = [selected]
     draftSelectedProfiles.value = [selected]
+    profileSelectionConfirmed.value = true
     saveSelectedProfiles()
     profileQuickFormOpen.value = false
     resetQuickProfileForm()
@@ -1979,20 +2148,101 @@ function revealArtifact(aiIndex, artifactKey) {
     })
   })
   setActiveArtifact(aiIndex, artifactKey)
-  updateComprehensiveAssistant(aiIndex, { artifacts }, { shouldFollow: isComprehensiveChatNearBottom() })
+  updateComprehensiveAssistant(aiIndex, { artifacts }, { shouldFollow: shouldAutoFollowChat.value && isComprehensiveChatNearBottom() })
 }
 
 function artifactAnalysisQueueKey(aiIndex, artifactKey) {
   return String(aiIndex) + ':' + String(artifactKey)
 }
 
+function cleanArtifactAnalysisChunk(text) {
+  return sanitizeArtifactAnalysisChunk(text)
+}
+
+function artifactStreamOptions(artifactKey) {
+  return COMPREHENSIVE_HEAVY_ARTIFACT_KEYS.includes(artifactKey)
+    ? COMPREHENSIVE_HEAVY_ARTIFACT_STREAM_OPTIONS
+    : COMPREHENSIVE_ARTIFACT_STREAM_OPTIONS
+}
+
+function cancelArtifactAnalysisFrame(state) {
+  if (!state) return
+  // #ifdef H5
+  if (state.frame) cancelAnimationFrame(state.frame)
+  state.frame = null
+  // #endif
+  // #ifndef H5
+  if (state.timer) clearTimeout(state.timer)
+  state.timer = null
+  // #endif
+}
+
+function scheduleArtifactAnalysisFrame(state) {
+  if (!state || state.frame || state.timer) return
+  // #ifdef H5
+  state.frame = requestAnimationFrame(function(now) {
+    state.frame = null
+    pumpArtifactAnalysis(state.aiIndex, state.artifactKey, now)
+  })
+  // #endif
+  // #ifndef H5
+  state.timer = setTimeout(function() {
+    state.timer = null
+    pumpArtifactAnalysis(state.aiIndex, state.artifactKey, Date.now())
+  }, COMPREHENSIVE_TYPE_FRAME_MS)
+  // #endif
+}
+
+function appendArtifactAnalysisChunk(aiIndex, artifactKey, chunk) {
+  const shouldFollow = shouldAutoFollowChat.value && isComprehensiveChatNearBottom()
+  const current = comprehensiveMessages.value[aiIndex]
+  if (!current || !artifactKey || !chunk) return
+  const cleanedChunk = cleanArtifactAnalysisChunk(chunk)
+  if (!cleanedChunk) return
+  const artifacts = (current.artifacts || []).map(function(artifact) {
+    if (artifact.key !== artifactKey) return artifact
+    return Object.assign({}, artifact, {
+      visible: true,
+      analysis: (artifact.analysis || '') + cleanedChunk,
+    })
+  })
+  updateComprehensiveAssistant(aiIndex, { artifacts }, { shouldFollow })
+}
+
+function pumpArtifactAnalysis(aiIndex, artifactKey, now) {
+  const queueKey = artifactAnalysisQueueKey(aiIndex, artifactKey)
+  const state = comprehensiveArtifactAnalysisTimers[queueKey]
+  const current = comprehensiveMessages.value[aiIndex]
+  if (!state || !current || !artifactKey) {
+    if (state) delete comprehensiveArtifactAnalysisTimers[queueKey]
+    return
+  }
+  if (!state.queue.length) {
+    delete comprehensiveArtifactAnalysisTimers[queueKey]
+    return
+  }
+  const lastAt = state.lastTypeAt || now
+  const elapsed = Math.max(COMPREHENSIVE_TYPE_FRAME_MS, Math.min(48, now - lastAt))
+  state.lastTypeAt = now
+  const streamOptions = artifactStreamOptions(artifactKey)
+  state.charBudget = (state.charBudget || 0) + (elapsed / 1000) * smoothTextSpeed(state.queue.length, streamOptions)
+  const nextChunk = takeSmoothTextChunk(state.queue, Math.floor(state.charBudget), streamOptions.maxFrameChars)
+  if (nextChunk.chunk) {
+    state.charBudget = Math.max(0, (state.charBudget || 0) - nextChunk.count)
+    state.queue = nextChunk.rest
+    appendArtifactAnalysisChunk(aiIndex, artifactKey, nextChunk.chunk)
+  }
+  if (state.queue.length) scheduleArtifactAnalysisFrame(state)
+  else delete comprehensiveArtifactAnalysisTimers[queueKey]
+}
+
 function flushArtifactAnalysis(aiIndex, artifactKey) {
-  const shouldFollow = isComprehensiveChatNearBottom()
+  const shouldFollow = shouldAutoFollowChat.value && isComprehensiveChatNearBottom()
   const current = comprehensiveMessages.value[aiIndex]
   const queueKey = artifactAnalysisQueueKey(aiIndex, artifactKey)
   const state = comprehensiveArtifactAnalysisTimers[queueKey]
   if (!state) return
-  if (state.timer) clearTimeout(state.timer)
+  cancelArtifactAnalysisFrame(state)
   delete comprehensiveArtifactAnalysisTimers[queueKey]
   if (!current || !artifactKey || !state.queue) return
   const artifacts = (current.artifacts || []).map(function(artifact) {
@@ -2015,7 +2265,7 @@ function flushPendingArtifactAnalyses() {
 function stopPendingArtifactAnalysisTimers() {
   Object.keys(comprehensiveArtifactAnalysisTimers).forEach(function(key) {
     const state = comprehensiveArtifactAnalysisTimers[key]
-    if (state && state.timer) clearTimeout(state.timer)
+    cancelArtifactAnalysisFrame(state)
   })
   comprehensiveArtifactAnalysisTimers = {}
 }
@@ -2028,15 +2278,14 @@ function appendArtifactAnalysis(aiIndex, artifactKey, content) {
     aiIndex,
     artifactKey,
     queue: '',
+    frame: null,
     timer: null,
+    charBudget: 0,
+    lastTypeAt: 0,
   }
   state.queue += content
-  if (!state.timer) {
-    state.timer = setTimeout(function() {
-      flushArtifactAnalysis(aiIndex, artifactKey)
-    }, COMPREHENSIVE_ARTIFACT_FLUSH_MS)
-  }
   comprehensiveArtifactAnalysisTimers[queueKey] = state
+  scheduleArtifactAnalysisFrame(state)
 }
 
 function artifactTitle(key, tool) {
@@ -2916,16 +3165,26 @@ function renderZejiArtifact(data) {
   return '<div class="artifact-panel"><div class="artifact-line-list">' + days + '</div></div>'
 }
 
+function cachedArtifactHtml(artifact, cacheKey, render) {
+  const data = artifact && artifact.data
+  if (!data || typeof data !== 'object') return render()
+  const current = artifactHtmlCache.get(data) || {}
+  if (current[cacheKey]) return current[cacheKey]
+  const html = render()
+  artifactHtmlCache.set(data, Object.assign({}, current, { [cacheKey]: html }))
+  return html
+}
+
 function renderArtifactHtml(artifact) {
   const data = artifact && artifact.data ? artifact.data : {}
-  if (artifact.key === 'bazi.basic') return renderBaziBasicArtifact(data)
-  if (artifact.key === 'bazi.yun') return renderBaziYunArtifact(data, artifact.analysis || '')
-  if (artifact.key === 'qimen.pan') return renderQimenArtifact(data)
-  if (artifact.key === 'liuyao.pan') return renderLiuyaoArtifact(data)
-  if (artifact.key === 'meihua.pan') return renderMeihuaArtifact(data)
-  if (artifact.key === 'ziwei.pan') return renderZiweiArtifact(data, artifact.analysis || '')
-  if (artifact.key === 'tarot.cards') return renderTarotArtifact(data)
-  if (artifact.key === 'zeji.days') return renderZejiArtifact(data)
+  if (artifact.key === 'bazi.basic') return cachedArtifactHtml(artifact, 'bazi.basic', function() { return renderBaziBasicArtifact(data) })
+  if (artifact.key === 'bazi.yun') return cachedArtifactHtml(artifact, 'bazi.yun', function() { return renderBaziYunArtifact(data, '') })
+  if (artifact.key === 'qimen.pan') return cachedArtifactHtml(artifact, 'qimen.pan', function() { return renderQimenArtifact(data) })
+  if (artifact.key === 'liuyao.pan') return cachedArtifactHtml(artifact, 'liuyao.pan', function() { return renderLiuyaoArtifact(data) })
+  if (artifact.key === 'meihua.pan') return cachedArtifactHtml(artifact, 'meihua.pan', function() { return renderMeihuaArtifact(data) })
+  if (artifact.key === 'ziwei.pan') return cachedArtifactHtml(artifact, 'ziwei.pan', function() { return renderZiweiArtifact(data, '') })
+  if (artifact.key === 'tarot.cards') return cachedArtifactHtml(artifact, 'tarot.cards', function() { return renderTarotArtifact(data) })
+  if (artifact.key === 'zeji.days') return cachedArtifactHtml(artifact, 'zeji.days', function() { return renderZejiArtifact(data) })
   return '<div class="artifact-panel"><pre>' + htmlEscape(JSON.stringify(data, null, 2)) + '</pre></div>'
 }
 
@@ -2958,8 +3217,8 @@ function comprehensiveDraftPayload() {
     paipan: currentPaipanContext.value || {},
     artifacts: currentArtifacts.value || {},
     selectedProfiles: selectedProfiles.value || [],
-    selectedToolModels: selectedToolModels.value || [],
-    autoSelectTools: !!autoSelectTools.value,
+    selectedToolModels: [],
+    autoSelectTools: true,
     llmModelId: selectedLlmModel.value.id || 'basic',
     readingMode: readingMode.value,
     activeArtifacts: Object.assign({}, activeArtifactKeyByMessage),
@@ -2972,8 +3231,8 @@ function applyComprehensiveDraft(draft) {
     currentPaipanContext.value = draft.paipan || {}
     currentArtifacts.value = draft.artifacts || {}
     selectedProfiles.value = Array.isArray(draft.selectedProfiles) ? draft.selectedProfiles : []
-    selectedToolModels.value = Array.isArray(draft.selectedToolModels) ? draft.selectedToolModels : []
-    autoSelectTools.value = draft.autoSelectTools !== false
+    selectedToolModels.value = []
+    autoSelectTools.value = true
     if (draft.readingMode) readingMode.value = draft.readingMode
     const mid = draft.llmModelId || 'basic'
     const mi = llmModels.value.findIndex(m => m.id === mid)
@@ -3077,17 +3336,7 @@ function onHomeVisibilityChange() {
 }
 
 function stripComprehensiveMarkdown(text) {
-  if (!text) return ''
-  return String(text)
-    .replace(/\r\n/g, '\n')
-    .replace(/^\s*#{1,6}\s*/gm, '')
-    .replace(/\*\*(.*?)\*\*/g, '$1')
-    .replace(/\*\*/g, '')
-    .replace(/^\s*[-*+]\s+/gm, '')
-    .replace(/^\s*\d+\.\s+/gm, '')
-    .replace(/`{1,3}/g, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(/^\s+/, '')
+  return sanitizeArtifactAnalysisText(text)
 }
 
 function comprehensiveSummaryOnly(text) {
@@ -3104,7 +3353,7 @@ function scheduleComprehensiveAssistantUpdate(aiIndex, patch, options) {
   const opts = options || {}
   const shouldFollow = Object.prototype.hasOwnProperty.call(opts, 'shouldFollow')
     ? !!opts.shouldFollow
-    : isComprehensiveChatNearBottom()
+    : shouldAutoFollowChat.value && isComprehensiveChatNearBottom()
   if (comprehensivePendingAssistantUpdate && comprehensivePendingAssistantUpdate.aiIndex !== aiIndex) {
     flushComprehensiveAssistantUpdate()
   }
@@ -3218,7 +3467,7 @@ function startComprehensiveTypewriter(aiIndex, state) {
       state.started = true
       state.lastReactiveSyncAt = now
       updateComprehensiveAssistant(aiIndex, { stage: '', _streaming: true }, {
-        shouldFollow: isComprehensiveChatNearBottom()
+        shouldFollow: shouldAutoFollowChat.value && isComprehensiveChatNearBottom()
       })
       comprehensiveTypeFrame = requestAnimationFrame(tick)
       return
@@ -3269,7 +3518,7 @@ function updateComprehensiveAssistant(aiIndex, patch, options) {
   const opts = options || {}
   const shouldFollow = Object.prototype.hasOwnProperty.call(opts, 'shouldFollow')
     ? !!opts.shouldFollow
-    : isComprehensiveChatNearBottom()
+    : shouldAutoFollowChat.value && isComprehensiveChatNearBottom()
   Object.keys(patch || {}).forEach(function(key) {
     current[key] = patch[key]
   })
@@ -3324,12 +3573,278 @@ function startComprehensiveProgressTimer(aiIndex) {
   }, 1200)
 }
 
-async function startComprehensiveAsk() {
+function disableQuestionGuidance() {
+  questionGuidanceEnabled.value = false
+  writeStorageJson(currentUserScopedStorageKey(questionGuidanceEnabledStorageKey), false)
+  uni.showToast({ title: '已关闭问事引导，可在设置中开启', icon: 'none' })
+}
+
+function resetQuestionGuide(question) {
+  questionGuideDraft.question = question
+  questionGuideDraft.finalQuestion = ''
+  questionGuideInput.value = ''
+  questionGuideSkill.value = ''
+  questionGuideOptions.value = []
+  questionGuideMessages.value = []
+  questionGuideInChat.value = false
+  pendingGuideRecommendation.value = null
+  questionGuideLoadingMessageIndex = -1
+}
+
+function closeQuestionGuide() {
+  questionGuideOpen.value = false
+  questionGuideInput.value = ''
+  questionGuideLoading.value = false
+}
+
+function showQuestionGuideLoadingMessage(text) {
+  const message = {
+    role: 'assistant',
+    content: '',
+    stage: '',
+    _streaming: true,
+    isGuide: true,
+    guideLoading: true,
+    guideLoadingText: text || '正在理清所问',
+  }
+  comprehensiveMessages.value.push(message)
+  questionGuideLoadingMessageIndex = comprehensiveMessages.value.length - 1
+  shouldAutoFollowChat.value = true
+  scrollComprehensiveChatToBottom('smooth', true)
+}
+
+function resolveQuestionGuideLoadingMessage(patch) {
+  const idx = questionGuideLoadingMessageIndex
+  questionGuideLoadingMessageIndex = -1
+  const next = Object.assign({
+    role: 'assistant',
+    content: '',
+    stage: '',
+    _streaming: false,
+    isGuide: true,
+    guideLoading: false,
+    guideLoadingText: '',
+  }, patch || {})
+  if (idx >= 0 && comprehensiveMessages.value[idx] && comprehensiveMessages.value[idx].guideLoading) {
+    comprehensiveMessages.value.splice(idx, 1, Object.assign({}, comprehensiveMessages.value[idx], next))
+  } else {
+    comprehensiveMessages.value.push(next)
+  }
+  shouldAutoFollowChat.value = true
+  scrollComprehensiveChatToBottom('smooth', true)
+}
+
+async function openQuestionGuide(question) {
+  resetQuestionGuide(question)
+  questionGuideInChat.value = true
+  comprehensiveMessages.value.push({ role: 'user', content: question, isGuide: true })
+  comprehensiveQuestion.value = ''
+  shouldAutoFollowChat.value = true
+  scrollComprehensiveChatToBottom('smooth', true)
+  await requestQuestionGuidance()
+}
+
+async function submitQuestionGuideAnswer(answer) {
+  if (questionGuideLoading.value) return
+  const content = String(answer || comprehensiveQuestion.value || questionGuideInput.value || '').trim()
+  if (!content) return uni.showToast({ title: '先补充一句，或点一个方向', icon: 'none' })
+  questionGuideMessages.value.push({ role: 'user', content })
+  comprehensiveMessages.value.push({ role: 'user', content, isGuide: true })
+  comprehensiveQuestion.value = ''
+  questionGuideInput.value = ''
+  shouldAutoFollowChat.value = true
+  scrollComprehensiveChatToBottom('smooth', true)
+  await requestQuestionGuidance()
+}
+
+async function requestQuestionGuidance() {
+  questionGuideLoading.value = true
+  questionGuideOptions.value = []
+  showQuestionGuideLoadingMessage('正在理清所问')
+  try {
+    const response = await uni.request({
+      url: '/api/comprehensive/guide',
+      method: 'POST',
+      data: {
+        question: questionGuideDraft.question,
+        messages: questionGuideMessages.value,
+        llm_model: selectedLlmModel.value.id || 'basic',
+        reading_mode: selectedReadingMode.value.id || 'standard',
+        profile_count: Math.max(1, selectedProfiles.value.length),
+      }
+    })
+    const d = response.data || {}
+    if (response.statusCode && response.statusCode >= 400) {
+      throw new Error(d.error || 'AI 引导服务暂不可用')
+    }
+    if (d.status === 'error') {
+      throw new Error(d.error || 'AI 引导服务暂不可用')
+    }
+    questionGuideSkill.value = d.skill || questionGuideSkill.value || '先理清所问'
+    if (d.status === 'recommend') {
+      await applyGuidedRecommendation(d)
+      return
+    }
+    const assistantMessage = d.assistant_message || '我再确认一个关键点，再为你择法。'
+    questionGuideMessages.value.push({ role: 'assistant', content: assistantMessage })
+    questionGuideOptions.value = Array.isArray(d.options) ? d.options : []
+    resolveQuestionGuideLoadingMessage({
+      content: assistantMessage,
+      stage: '',
+      guideOptions: questionGuideOptions.value.slice(),
+    })
+  } catch (_) {
+    resolveQuestionGuideLoadingMessage({
+      content: 'AI 问事引导暂时不可用，请先检查后端模型 API Key 配置后再试。',
+      stage: '',
+    })
+  } finally {
+    questionGuideLoading.value = false
+  }
+}
+
+async function applyGuidedRecommendation(data) {
+  const finalQuestion = data.final_question || questionGuideDraft.question
+  questionGuideDraft.finalQuestion = finalQuestion
+  comprehensiveQuestion.value = ''
+  const recommendation = {
+    final_question: finalQuestion,
+    tool_models: Array.isArray(data.tool_models) ? data.tool_models : [],
+    reason: data.reason || '',
+  }
+  pendingGuideRecommendation.value = recommendation
+  questionGuideInChat.value = false
+  questionGuideLoading.value = false
+  toolRecommendReason.value = recommendation.reason
+  resolveQuestionGuideLoadingMessage({
+    content: recommendation.reason || '我已根据你的回答整理好所问，并推荐了适合的术数。',
+    stage: '',
+    guideRecommendation: recommendation,
+  })
+}
+
+function toolSummaryForIds(ids) {
+  const names = toolModels.value.filter(t => (ids || []).includes(t.id)).map(t => t.name)
+  if (!names.length) return '暂未选择'
+  if (names.length <= 2) return names.join(' + ')
+  return names.slice(0, 2).join(' + ') + ' 等' + names.length + '项'
+}
+
+function toolsNeedProfile(ids) {
+  const selected = ids || selectedToolModels.value || []
+  return toolModels.value.some(t => selected.includes(t.id) && t.needs_profile)
+}
+
+function selectedToolsNeedProfile() {
+  return toolsNeedProfile(selectedToolModels.value)
+}
+
+function profileBirthDigits(profile) {
+  return String((profile && (profile.birthTime || profile.birth_time)) || '').replace(/\D/g, '')
+}
+
+function isPlaceholderProfileName(name) {
+  const text = String(name || '').trim()
+  return !text || text === '未命名' || text === '默认'
+}
+
+function profileNeedsBirthCompletion(profile) {
+  if (!profile) return true
+  const meta = profile.meta || {}
+  if (profileHasUnknownBirthTime(profile)) return true
+  if (profileBirthDigits(profile).length < 12) return true
+  if (meta && meta.requiresBirthConfirmation) return true
+  return false
+}
+
+function selectedProfilesNeedBirthCompletion() {
+  if (!selectedToolsNeedProfile()) return false
+  return !profileSelectionConfirmed.value || !selectedProfiles.value.length || selectedProfiles.value.some(profileNeedsBirthCompletion)
+}
+
+function openBirthProfileCompletion() {
+  draftSelectedProfiles.value = selectedProfiles.value.slice()
+  profileQuickFormOpen.value = true
+  loadQuickCityData()
+  openProfilePicker()
+}
+
+function ensureSelectedProfilesReadyForTools(message) {
+  if (!selectedProfilesNeedBirthCompletion()) return true
+  uni.showToast({ title: message || '请先填写出生信息', icon: 'none' })
+  openBirthProfileCompletion()
+  return false
+}
+
+function guideRecommendationReady(recommendation) {
+  const tools = recommendation && Array.isArray(recommendation.tool_models) ? recommendation.tool_models : []
+  if (!toolsNeedProfile(tools)) return true
+  return !!profileSelectionConfirmed.value && !!selectedProfiles.value.length && !selectedProfiles.value.some(profileNeedsBirthCompletion)
+}
+
+async function applyGuideRecommendationFromMessage(recommendation, message) {
+  const tools = recommendation && Array.isArray(recommendation.tool_models) ? recommendation.tool_models : []
+  if (!tools.length) return uni.showToast({ title: '暂无可选择的术数', icon: 'none' })
+  if (message) message.guideApplying = true
+  await new Promise(function(resolve) { setTimeout(resolve, 420) })
+  selectedToolModels.value = tools
+  autoSelectTools.value = false
+  saveSelectedToolModels()
+  if (recommendation.final_question) {
+    questionGuideDraft.finalQuestion = recommendation.final_question
+  }
+  comprehensiveQuestion.value = ''
+  writeStorageJson(currentUserScopedStorageKey(questionGuidanceEnabledStorageKey), !!questionGuidanceEnabled.value)
+  if (recommendation) recommendation.applied = true
+  if (message) message.guideApplying = false
+  if (toolsNeedProfile(tools) && !ensureSelectedProfilesReadyForTools('已勾选术数，请先填写出生信息')) {
+    return
+  }
+  uni.showToast({ title: '已一键选择术数，点击开始解读', icon: 'none' })
+}
+
+function startGuidedRecommendationReading(recommendation) {
+  const tools = recommendation && Array.isArray(recommendation.tool_models) ? recommendation.tool_models : []
+  if (tools.length) {
+    selectedToolModels.value = tools
+    autoSelectTools.value = false
+    saveSelectedToolModels()
+  }
+  if (!ensureSelectedProfilesReadyForTools('所选术数需要出生信息，请先填写命盘')) return
+  const finalQuestion = (recommendation && recommendation.final_question) || questionGuideDraft.finalQuestion || questionGuideDraft.question
+  comprehensiveQuestion.value = ''
+  startComprehensiveAsk(finalQuestion)
+}
+
+function confirmToolRecommendation() {
+  toolRecommendOpen.value = true
+  return new Promise(function(resolve) {
+    pendingToolRecommendResolve = resolve
+  })
+}
+
+function resolveToolRecommendation(ok) {
+  toolRecommendOpen.value = false
+  if (pendingToolRecommendResolve) {
+    pendingToolRecommendResolve(!!ok)
+    pendingToolRecommendResolve = null
+  }
+}
+
+async function startComprehensiveAsk(forcedQuestion) {
   if (comprehensiveLoading.value) return
   if (!isLoggedIn.value) return uni.showToast({ title: '请先登录', icon: 'none' })
-  const question = comprehensiveQuestion.value.trim()
+  const question = (typeof forcedQuestion === 'string' ? forcedQuestion : comprehensiveQuestion.value).trim()
   if (!question) return uni.showToast({ title: '请输入问题', icon: 'none' })
-  if (!selectedProfiles.value.length) return uni.showToast({ title: '请先选择命盘', icon: 'none' })
+  if (questionGuideInChat.value) {
+    submitQuestionGuideAnswer(question)
+    return
+  }
+  if (questionGuidanceEnabled.value && !comprehensiveMessages.value.length && questionGuideDraft.finalQuestion !== question) {
+    openQuestionGuide(question)
+    return
+  }
+  if (!ensureSelectedProfilesReadyForTools('所选术数需要出生信息，请先填写命盘')) return
   if (!autoSelectTools.value && !selectedToolModels.value.length) return uni.showToast({ title: '请至少选择一个术数模型', icon: 'none' })
   if (autoSelectTools.value && !comprehensiveMessages.value.length) {
     try {
@@ -3342,6 +3857,7 @@ async function startComprehensiveAsk() {
       if (Array.isArray(d.tool_models) && d.tool_models.length) selectedToolModels.value = d.tool_models
     } catch (_) {}
   }
+  if (!ensureSelectedProfilesReadyForTools('推荐术数需要出生信息，请先填写命盘')) return
   const precisionOk = await confirmBirthPrecisionForTools()
   if (!precisionOk) return
   if (currentPoints.value < estimatedCost.value) return uni.showToast({ title: '积分不足', icon: 'none' })
@@ -3378,6 +3894,7 @@ async function startComprehensiveAsk() {
       profile_id: selectedProfiles.value.length === 1 && selectedProfiles.value[0].source === 'profile' ? selectedProfiles.value[0].id : undefined,
       profile: selectedProfiles.value.length === 1 ? comprehensiveProfilePayload(selectedProfiles.value[0]) : undefined,
       profiles: selectedProfiles.value.map(comprehensiveProfilePayload),
+      profile_confirmed: !!profileSelectionConfirmed.value,
       llm_model: selectedLlmModel.value.id || 'basic',
       tool_models: selectedToolModels.value,
       auto_select_tools: autoSelectTools.value && !history.length,
@@ -3482,12 +3999,12 @@ function profileHasUnknownBirthTime(profile) {
 }
 
 function confirmBirthPrecisionForTools() {
-  const needsExactTime = selectedToolModels.value.some(id => id === 'bazi' || id === 'ziwei')
+  const needsExactTime = selectedToolModels.value.some(id => id === 'bazi' || id === 'ziwei' || id === 'qimen')
   if (!needsExactTime || !selectedProfiles.value.some(profileHasUnknownBirthTime)) return Promise.resolve(true)
   return new Promise(function(resolve) {
     uni.showModal({
       title: '出生时间不完整',
-      content: '当前命盘标记为不清楚具体时分。八字和紫微对出生时辰敏感，建议补充准确时间；若暂时不知道，可以改用奇门等按提问时刻起局的方式。',
+      content: '当前命盘标记为不清楚具体时分。八字、紫微和奇门对出生信息较敏感，建议补充准确时间；若暂时不知道，可以改用六爻、梅花或塔罗先看具体问题。',
       confirmText: '继续',
       cancelText: '返回调整',
       success: function(res) { resolve(!!res.confirm) },
@@ -3583,13 +4100,30 @@ function isComprehensiveChatNearBottom() {
   return true
 }
 
+function updateComprehensiveAutoFollowFromScroll() {
+  // #ifdef H5
+  try {
+    const el = getComprehensiveScrollTarget()
+    if (!el) return
+    const top = Number(el.scrollTop || 0)
+    const scrollingUp = top + 2 < lastComprehensiveScrollTop
+    lastComprehensiveScrollTop = top
+    if (scrollingUp) {
+      shouldAutoFollowChat.value = false
+      return
+    }
+    if (isComprehensiveChatNearBottom()) shouldAutoFollowChat.value = true
+  } catch (_) {}
+  // #endif
+}
+
 function onHomeChatScroll() {
-  shouldAutoFollowChat.value = isComprehensiveChatNearBottom()
+  updateComprehensiveAutoFollowFromScroll()
 }
 
 function onHomePageScroll() {
   if (!comprehensiveMessages.value.length) return
-  shouldAutoFollowChat.value = isComprehensiveChatNearBottom()
+  updateComprehensiveAutoFollowFromScroll()
 }
 
 function getComprehensiveScrollTarget() {
@@ -3612,7 +4146,10 @@ function scrollComprehensiveChatToBottom(behavior, force) {
     comprehensiveScrollTimer = null
     try {
       const el = getComprehensiveScrollTarget()
-      if (el) el.scrollTo({ top: el.scrollHeight, behavior: behavior || 'auto' })
+      if (el) {
+        el.scrollTo({ top: el.scrollHeight, behavior: behavior || 'auto' })
+        lastComprehensiveScrollTop = Number(el.scrollHeight || 0)
+      }
     } catch(_) {}
   })
   // #endif
@@ -3632,17 +4169,21 @@ function startNewComprehensiveConversation() {
   stopComprehensiveAssistantUpdateQueue()
   comprehensiveQuestion.value = ''
   comprehensiveMessages.value = []
+  resetQuestionGuide('')
   draftSelectedProfiles.value = selectedProfiles.value.slice()
   currentComprehensiveConvId.value = null
   currentPaipanContext.value = {}
   currentArtifacts.value = {}
   comprehensiveTypeStates = {}
+  artifactHtmlCache = new WeakMap()
+  resetSelectedToolModels()
   Object.keys(activeArtifactKeyByMessage).forEach(function(key) { delete activeArtifactKeyByMessage[key] })
   shouldAutoFollowChat.value = true
   pendingComprehensiveId = ''
   try { sessionStorage.removeItem('xc_comprehensive_resume_id') } catch(_) {}
   clearComprehensiveDraft()
   restoreSavedAgentSelection(profiles.value || [])
+  resetSelectedToolModels()
   scrollComprehensiveChatToBottom('auto', true)
 }
 
@@ -3733,6 +4274,7 @@ onHide(() => {
 // ── 视频加载超时处理（H5 only）──
 onMounted(() => {
   refreshMarketingMode()
+  resetSelectedToolModels()
   loadComprehensiveOptions()
   loadProfiles()
   // #ifdef H5
@@ -7129,6 +7671,42 @@ onBeforeUnmount(() => {
 .send-confirm-list view { display: flex; justify-content: space-between; gap: 12px; padding: 9px 10px; border-radius: 10px; border: 1px solid rgba(178,149,93,0.12); background: rgba(255,255,255,0.035); color: var(--text-2); font-size: 0.78rem; }
 .send-confirm-list text:first-child { color: var(--text-4); flex-shrink: 0; }
 .send-confirm-list text:last-child { text-align: right; color: var(--text-1); }
+.home-guidance-note { width: min(920px, calc(100vw - 40px)); margin: 0 auto; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--text-3); font-size: 0.72rem; text-align: center; pointer-events: auto; }
+.home-guidance-note-action { color: var(--accent); cursor: pointer; white-space: nowrap; }
+.question-guide-sheet { position: fixed; inset: 0; z-index: 435; }
+.question-guide-panel { position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); width: min(500px, calc(100vw - 28px)); border-radius: 20px; border: 1px solid rgba(178,149,93,0.22); background: rgba(31,29,24,0.95); box-shadow: 0 24px 80px rgba(0,0,0,0.36); padding: 18px; box-sizing: border-box; backdrop-filter: blur(28px) saturate(145%); }
+[data-theme="light"] .question-guide-panel { background: rgba(255,253,248,0.98); box-shadow: 0 24px 80px rgba(60,40,15,0.14); }
+.question-guide-kicker { display: inline-flex; align-items: center; height: 24px; padding: 0 9px; margin-bottom: 8px; border-radius: 999px; background: var(--accent-glow); color: var(--accent); font-size: 0.68rem; font-weight: 700; letter-spacing: 1px; }
+.question-guide-origin { display: grid; gap: 5px; margin: 12px 0; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(178,149,93,0.14); background: rgba(255,255,255,0.035); }
+.question-guide-origin text:first-child { color: var(--text-4); font-size: 0.68rem; }
+.question-guide-origin text:last-child { color: var(--text-1); font-size: 0.8rem; line-height: 1.5; }
+.question-guide-chat { display: grid; gap: 8px; margin: 12px 0; max-height: 190px; overflow-y: auto; }
+.question-guide-message { max-width: 88%; padding: 10px 12px; border-radius: 14px; font-size: 0.8rem; line-height: 1.55; box-sizing: border-box; }
+.question-guide-message-assistant { justify-self: start; border: 1px solid rgba(178,149,93,0.16); background: rgba(255,255,255,0.045); color: var(--text-1); border-bottom-left-radius: 6px; }
+.question-guide-message-user { justify-self: end; background: var(--accent-glow); color: var(--accent); border: 1px solid rgba(178,149,93,0.22); border-bottom-right-radius: 6px; }
+[data-theme="light"] .question-guide-message-assistant { background: rgba(255,251,242,0.8); }
+.question-guide-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.question-guide-chip { min-height: 32px; padding: 0 11px; border-radius: 999px; border: 1px solid rgba(178,149,93,0.18); background: rgba(255,255,255,0.04); color: var(--text-2); display: inline-flex; align-items: center; justify-content: center; font-size: 0.76rem; cursor: pointer; box-sizing: border-box; }
+.question-guide-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); box-shadow: inset 0 0 0 1px rgba(178,149,93,0.12); }
+.question-guide-input { width: 100%; min-height: 44px; max-height: 88px; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(178,149,93,0.16); background: rgba(255,255,255,0.04); color: var(--text-1); font-size: 0.8rem; line-height: 1.45; box-sizing: border-box; outline: none; }
+[data-theme="light"] .question-guide-input { background: rgba(255,251,242,0.78); }
+.question-guide-progress { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0 2px; color: var(--text-4); font-size: 0.68rem; }
+.home-guide-options { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.home-guide-option { min-height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(178,149,93,0.22); background: rgba(255,255,255,0.045); color: var(--text-2); display: inline-flex; align-items: center; justify-content: center; font-size: 0.76rem; cursor: pointer; box-sizing: border-box; }
+.home-guide-option:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+.home-guide-recommend { display: grid; gap: 8px; margin-top: 12px; padding: 12px; border-radius: 12px; border: 1px solid rgba(178,149,93,0.16); background: rgba(255,255,255,0.04); }
+.home-guide-recommend-title { color: var(--text-1); font-size: 0.82rem; font-weight: 700; }
+.home-guide-recommend-meta { color: var(--text-4); font-size: 0.72rem; }
+.home-guide-primary { min-height: 36px; padding: 0 14px; border-radius: 999px; background: var(--accent); color: #1f1d18; display: inline-flex; align-items: center; justify-content: center; justify-self: start; font-size: 0.78rem; font-weight: 800; cursor: pointer; }
+.home-guide-loading { min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid rgba(178,149,93,0.22); background: rgba(178,149,93,0.10); color: var(--accent); display: inline-flex; align-items: center; justify-content: center; justify-self: start; gap: 8px; font-size: 0.78rem; font-weight: 800; }
+.home-guide-thinking { min-height: 42px; display: inline-flex; align-items: center; gap: 9px; padding: 10px 12px; margin-top: 4px; border-radius: 14px; border: 1px solid rgba(178,149,93,0.16); background: linear-gradient(135deg, rgba(178,149,93,0.10), rgba(255,255,255,0.035)); color: var(--text-2); font-size: 0.82rem; line-height: 1.4; box-sizing: border-box; }
+.home-guide-spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(178,149,93,0.24); border-top-color: var(--accent); animation: guideSpin .8s linear infinite; box-sizing: border-box; }
+.home-guide-dots { display: inline-flex; gap: 4px; align-items: center; padding-left: 1px; }
+.home-guide-dots text { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); opacity: .35; animation: guideDotPulse 1.1s ease-in-out infinite; }
+.home-guide-dots text:nth-child(2) { animation-delay: .16s; }
+.home-guide-dots text:nth-child(3) { animation-delay: .32s; }
+@keyframes guideSpin { to { transform: rotate(360deg); } }
+@keyframes guideDotPulse { 0%, 80%, 100% { opacity: .28; transform: translateY(0); } 40% { opacity: .95; transform: translateY(-2px); } }
 /* ═══ 页脚 ═══ */
 .site-footer { background: var(--nav-bg); border-top: 1px solid var(--card-border); padding: 24px 32px 24px; margin-top: 0; }
 .footer-disclaimer { max-width: var(--max-w); margin: 0 auto 32px; padding: 14px 20px; border-radius: 10px; background: rgba(215,125,110,0.08); border: 1px solid rgba(215,125,110,0.15); font-size: 0.75rem; color: var(--danger); line-height: 1.6; text-align: center; }
@@ -7411,5 +7989,12 @@ onBeforeUnmount(() => {
   .footer-col:nth-child(3) { grid-column: 1 / -1; }
   .site-footer { padding: 32px 16px 24px; margin-top: 0; }
   .footer-bottom { flex-direction: column; gap: 8px; text-align: center; }
+}
+
+@media (max-width: 520px) {
+  .home-guidance-note { width: calc(100vw - 24px); flex-direction: column; gap: 4px; font-size: 0.68rem; }
+  .question-guide-panel { bottom: max(10px, env(safe-area-inset-bottom)); max-height: calc(100dvh - 22px); overflow-y: auto; padding: 16px; }
+  .question-guide-progress { align-items: flex-start; flex-direction: column; gap: 3px; }
+  .question-guide-chip { min-height: 30px; font-size: 0.72rem; }
 }
 </style>

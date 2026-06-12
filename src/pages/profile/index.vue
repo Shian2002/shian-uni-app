@@ -116,6 +116,22 @@
             </view>
           </view>
 
+          <view class="settings-group" v-if="isLoggedIn">
+            <view class="settings-group-title">问事体验</view>
+            <view class="settings-list">
+              <view class="settings-item guidance-setting-item" @tap="toggleQuestionGuidance">
+                <text class="settings-item-icon settings-icon-oauth">问</text>
+                <view class="settings-item-main">
+                  <text class="settings-item-label">问事引导</text>
+                  <text class="settings-item-desc">开启后，每次解读前会先通过几轮对话帮你理清所问，并自动推荐适合的解读方式。</text>
+                </view>
+                <view class="settings-switch" :class="{ active: questionGuidanceEnabled }">
+                  <text></text>
+                </view>
+              </view>
+            </view>
+          </view>
+
           <!-- 退出登录 -->
           <view class="settings-logout" v-if="isLoggedIn" @tap="doLogout">
             <text class="settings-logout-text">退出登录</text>
@@ -151,8 +167,37 @@ function toggleTheme() {
 const isLoggedIn = ref(!!uni.getStorageSync('xc_token'))
 window.addEventListener('xc-session-expired', function() { resetProfileSessionState() })
 const hasPassword = ref(uni.getStorageSync('xc_has_password') === '1')
+const questionGuidanceStorageKey = 'xc_home_question_guidance_enabled_v1'
+const questionGuidanceEnabled = ref(readQuestionGuidanceEnabled())
 const accordionOpen = ref('')
 const accordionInputsCreated = {}
+
+function currentUserScopedStorageKey(base) {
+  let userKey = 'guest'
+  try {
+    const raw = uni.getStorageSync('xc_user')
+    const user = typeof raw === 'string' ? JSON.parse(raw) : raw
+    userKey = String((user && (user.id || user.username || user.phone)) || 'guest')
+  } catch (_) {}
+  return base + ':' + userKey
+}
+
+function readQuestionGuidanceEnabled() {
+  try {
+    const raw = uni.getStorageSync(currentUserScopedStorageKey(questionGuidanceStorageKey))
+    if (raw === '' || raw === null || typeof raw === 'undefined') return true
+    if (typeof raw === 'boolean') return raw
+    return JSON.parse(raw) !== false
+  } catch(_) {
+    return true
+  }
+}
+
+function toggleQuestionGuidance() {
+  questionGuidanceEnabled.value = !questionGuidanceEnabled.value
+  uni.setStorageSync(currentUserScopedStorageKey(questionGuidanceStorageKey), JSON.stringify(questionGuidanceEnabled.value))
+  uni.showToast({ title: questionGuidanceEnabled.value ? '已开启问事引导' : '已关闭问事引导', icon: 'none' })
+}
 function normalizeAvatarUrl(src) {
   const value = String(src || '').trim()
   if (!value || value.includes('/static/images/logo.') || value.includes('/logo.webp')) return ''
@@ -938,6 +983,7 @@ onMounted(() => {
 })
 
 onShow(function() {
+  questionGuidanceEnabled.value = readQuestionGuidanceEnabled()
   refreshProfileSessionState()
 })
 
@@ -1005,8 +1051,16 @@ onBeforeUnmount(function() {
 .settings-icon-phone { font-size: 0.54rem; }
 .settings-icon-oauth { font-size: 0.82rem; }
 .settings-item-label { flex: 1; font-size: 0.875rem; color: var(--text-1); }
+.settings-item-main { flex: 1; display: grid; gap: 4px; min-width: 0; }
+.settings-item-main .settings-item-label { flex: none; }
+.settings-item-desc { color: var(--text-3); font-size: 0.72rem; line-height: 1.5; }
 .settings-item-value { font-size: 0.78rem; color: var(--text-3); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings-item-arrow { font-size: 0.85rem; color: var(--text-3); flex-shrink: 0; margin-left: 4px; transition: transform 0.2s; }
+.guidance-setting-item { align-items: flex-start; }
+.settings-switch { width: 42px; height: 24px; border-radius: 999px; padding: 2px; background: rgba(255,255,255,0.12); border: 1px solid var(--card-border); box-sizing: border-box; flex-shrink: 0; transition: background .18s ease, border-color .18s ease; }
+.settings-switch text { display: block; width: 18px; height: 18px; border-radius: 50%; background: var(--text-3); transition: transform .18s ease, background .18s ease; }
+.settings-switch.active { background: var(--accent-glow); border-color: rgba(178,149,93,0.45); }
+.settings-switch.active text { transform: translateX(18px); background: var(--accent); }
 
 /* ═══ Accordion 展开区 ═══ */
 .settings-accordion { border-top: 1px solid var(--card-border); background: rgba(0,0,0,0.08); }

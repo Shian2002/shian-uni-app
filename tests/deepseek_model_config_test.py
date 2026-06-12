@@ -40,9 +40,9 @@ def test_home_model_provider_mapping(monkeypatch):
     advanced = service._model_config("advanced")
     expert = service._model_config("expert")
 
-    assert basic["provider"] == "deepseek"
-    assert basic["model"] == "deepseek-v4-flash"
-    assert basic["supports_thinking"] is False
+    assert basic["provider"] == "zhipu"
+    assert basic["model"] == "glm-5.1"
+    assert basic["thinking_type"] == "disabled"
 
     assert advanced["provider"] == "zhipu"
     assert advanced["thinking_type"] == "disabled"
@@ -63,4 +63,4 @@ def test_home_model_thinking_flags_are_fixed_by_tier(monkeypatch):
 
     assert seen[0]["extra_body"] == {"thinking": {"type": "disabled"}}
     assert seen[1]["extra_body"] == {"thinking": {"type": "enabled"}}
-    assert "extra_body" not in seen[2]
+    assert seen[2]["extra_body"] == {"thinking": {"type": "disabled"}}
