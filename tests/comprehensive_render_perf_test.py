@@ -53,14 +53,22 @@ def test_comprehensive_stream_rendering_is_batched():
     assert "maxCps: 72" in stream_source
     assert "maxFrameChars: 1" in stream_source
     assert "reactiveSyncMs: 420" in stream_source
-    assert "const COMPREHENSIVE_ARTIFACT_FLUSH_MS = 120" in source
+    assert "const COMPREHENSIVE_ARTIFACT_STREAM_OPTIONS" in source
+    assert "const COMPREHENSIVE_HEAVY_ARTIFACT_STREAM_OPTIONS" in source
+    assert "const COMPREHENSIVE_HEAVY_ARTIFACT_KEYS = ['bazi.basic', 'bazi.yun', 'ziwei.pan']" in source
     assert "let comprehensiveRenderFrame = null" in source
     assert "let comprehensiveTypeFrame = null" in source
     assert "let comprehensiveTypeStates = {}" in source
+    assert "let artifactHtmlCache = new WeakMap()" in source
     assert "function scheduleComprehensiveAssistantUpdate" in source
     assert "function flushComprehensiveAssistantUpdate" in source
     assert "function flushPendingArtifactAnalyses()" in source
     assert "flushPendingArtifactAnalyses()" in source
+    assert "function scheduleArtifactAnalysisFrame(state)" in source
+    assert "function pumpArtifactAnalysis(aiIndex, artifactKey, now)" in source
+    assert "function cachedArtifactHtml(artifact, cacheKey, render)" in source
+    assert "cachedArtifactHtml(artifact, 'bazi.yun'" in source
+    assert "cachedArtifactHtml(artifact, 'ziwei.pan'" in source
 
     typewriter = re.search(
         r"function startComprehensiveTypewriter\(aiIndex, state\) \{(?P<body>.*?)\n\}",
@@ -93,7 +101,7 @@ def test_comprehensive_stream_rendering_is_batched():
     assert "current[key] = patch[key]" in update_body
     assert "comprehensiveMessages.value[aiIndex] = Object.assign" not in update_body
 
-    assert "async function startComprehensiveAsk()" in source
+    assert "async function startComprehensiveAsk(forcedQuestion)" in source
     assert "scheduleComprehensiveAssistantUpdate(aiIndex, { stage: data.message" in source
     assert "if (data.summary_start)" in source
     assert "setActiveArtifact(aiIndex, '__summary__')" in source

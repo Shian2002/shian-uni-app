@@ -871,7 +871,8 @@ def register_comprehensive_routes(app, db, services):
                 mark_ai_run_running(ai_run.id)
                 yield _event({'run_id': ai_run.id, 'stage': 'profile', 'message': '正在读取命盘档案'})
                 profiles = resolve_comprehensive_profiles(data)
-                if _tools_require_birth_profile(tool_models) and (not bool(data.get('profile_confirmed')) or any(_profile_needs_birth_completion(p) for p in profiles)):
+                profile_confirmation_missing = data.get('profile_confirmed') is False
+                if _tools_require_birth_profile(tool_models) and (profile_confirmation_missing or any(_profile_needs_birth_completion(p) for p in profiles)):
                     message = '所选术数需要先填写完整出生信息'
                     mark_ai_run_failed(ai_run.id, message, {'tool_models': tool_models})
                     yield _event({'error': message, 'need_profile_completion': True})
