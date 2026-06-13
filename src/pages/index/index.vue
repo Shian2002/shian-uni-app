@@ -679,7 +679,7 @@
         <view class="send-confirm-list">
           <view><text>命盘</text><text>{{ selectedProfileName || '未选择' }}</text></view>
           <view><text>术数</text><text>{{ selectedToolSummary }}</text></view>
-          <view><text>模型</text><text>GLM-5.1</text></view>
+          <view><text>模型</text><text>时安模型</text></view>
           <view><text>模式</text><text>{{ selectedReadingMode.name || '标准' }} · {{ estimatedCost }}积分</text></view>
         </view>
         <view class="send-confirm-check" :class="{ active: sendConfirmDontRemind }" @tap="sendConfirmDontRemind = !sendConfirmDontRemind">
@@ -733,7 +733,7 @@
         />
         <view class="question-guide-progress">
           <text>AI 理解后会自动择法并勾选</text>
-          <text>GLM-5.1</text>
+          <text>时安模型</text>
         </view>
         <view class="sheet-actions">
           <view class="sheet-btn sheet-btn-secondary" @tap="closeQuestionGuide">取消</view>
@@ -755,7 +755,7 @@
         <view class="send-confirm-list">
           <view><text>解读方式</text><text>{{ selectedToolSummary }}</text></view>
           <view><text>解读深度</text><text>{{ selectedReadingMode.name || '标准' }} · {{ estimatedCost }}积分</text></view>
-          <view><text>模型</text><text>GLM-5.1</text></view>
+          <view><text>模型</text><text>时安模型</text></view>
         </view>
         <view class="send-confirm-check" :class="{ active: keepQuestionGuidance }" @tap="keepQuestionGuidance = !keepQuestionGuidance">
           <text class="quick-check-dot">{{ keepQuestionGuidance ? '✓' : '' }}</text>
@@ -1372,7 +1372,7 @@ const readingModes = ref([
   { id: 'standard', name: '标准', cost_delta: 0, display_cost: 2 },
   { id: 'deep', name: '深度', cost_delta: 2, display_cost: 4 },
 ])
-const llmModels = ref([{ id: 'basic', name: 'GLM-5.1', cost_base: 2, cost_multiplier: 0, followup_cost: 2 }])
+const llmModels = ref([{ id: 'basic', name: '时安模型', cost_base: 2, cost_multiplier: 0, followup_cost: 2 }])
 const toolModels = ref([
   { id: 'qimen', name: '奇门遁甲', cost: 3, needs_profile: true },
   { id: 'bazi', name: '八字', cost: 2, needs_profile: true },
@@ -1425,7 +1425,7 @@ const COMPREHENSIVE_DRAFT_SAVE_MS = 320
 const COMPREHENSIVE_DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000
 
 const selectedLlmModel = computed(() => llmModels.value[llmModelIdx.value] || llmModels.value[0] || {})
-const llmModelNames = computed(() => llmModels.value.map(m => m.name || 'GLM-5.1'))
+const llmModelNames = computed(() => llmModels.value.map(m => m.name || '时安模型'))
 const selectedReadingMode = computed(() => readingModes.value.find(m => m.id === readingMode.value) || readingModes.value[1] || {})
 const readingModeNames = computed(() => readingModes.value.map(m => m.name))
 const readingModeLabels = computed(() => readingModes.value.map(m => {
@@ -1441,7 +1441,7 @@ const homeAiContextSummary = computed(() => {
   const profileText = selectedProfileName.value || '未选择命盘'
   const toolText = selectedToolSummary.value === '选择术数' ? '未选择术数' : selectedToolSummary.value
   const costText = estimatedCost.value + '积分'
-  return profileText + ' · ' + toolText + ' · GLM-5.1 · ' + costText
+  return profileText + ' · ' + toolText + ' · 时安模型 · ' + costText
 })
 const estimatedCost = computed(() => {
   if (comprehensiveMessages.value.length > 0) return Math.max(0, (selectedLlmModel.value.followup_cost || 0) + modeCostDelta())
@@ -1484,7 +1484,7 @@ function comprehensiveContextSnapshot() {
   const modeId = selectedReadingMode.value.id || 'standard'
   const profileText = selectedProfileName.value || '未选择命盘'
   const toolText = selectedToolSummary.value === '选择术数' ? '未选择术数' : selectedToolSummary.value
-  const modelText = 'GLM-5.1'
+  const modelText = '时安模型'
   const modeText = selectedReadingMode.value.name || '标准'
   return {
     profileIds,
@@ -2303,7 +2303,7 @@ function artifactFeedSummary(artifact) {
   if (!key) return ''
   if (key === 'bazi.basic' || key === 'bazi.yun') {
     const fp = data.four_pillars || {}
-    return '喂给模型：' + compactParts([
+    return '合参资料：' + compactParts([
       { label: '出生', value: data.birth_input || data.birth_solar || data.birthTime },
       { label: '真太阳时', value: data.true_solar_time },
       { label: '四柱', value: [pillarText(fp.year), pillarText(fp.month), pillarText(fp.day), pillarText(fp.hour)].filter(Boolean) },
@@ -2312,7 +2312,7 @@ function artifactFeedSummary(artifact) {
   }
   if (key === 'qimen.pan') {
     const fp = data.fourPillars || data.four_pillars || {}
-    return '喂给模型：' + compactParts([
+    return '合参资料：' + compactParts([
       { label: '起局', value: data.paipanTime || data.paipan_time || data.solar_date || data.time },
       { label: '局数', value: data.ju || data.ju_name },
       { label: '四柱', value: [fp.year, fp.month, fp.day, fp.hour].filter(Boolean) },
@@ -2321,7 +2321,7 @@ function artifactFeedSummary(artifact) {
   }
   if (key === 'ziwei.pan') {
     const form = data.form || data.birth || {}
-    return '喂给模型：' + compactParts([
+    return '合参资料：' + compactParts([
       { label: '出生', value: [form.year, form.month, form.day].filter(Boolean).join('-') || data.solar_date || data.birth_date },
       { label: '时分', value: [form.hour, form.minute].filter(v => v !== undefined && v !== '').join(':') },
       { label: '性别', value: form.gender || data.gender },
@@ -2329,7 +2329,7 @@ function artifactFeedSummary(artifact) {
     ])
   }
   if (key === 'liuyao.pan') {
-    return '喂给模型：' + compactParts([
+    return '合参资料：' + compactParts([
       { label: '起卦', value: data.timestamp || data.time || data.created_at },
       { label: '方式', value: data.method || data.qigua_method },
       { label: '本卦', value: data.ben_gua },
@@ -2337,7 +2337,7 @@ function artifactFeedSummary(artifact) {
     ])
   }
   if (key === 'meihua.pan') {
-    return '喂给模型：' + compactParts([
+    return '合参资料：' + compactParts([
       { label: '起卦', value: data.timestamp || data.time },
       { label: '本卦', value: data.ben_gua || data.main_gua },
       { label: '互卦', value: data.hu_gua },
@@ -2346,13 +2346,13 @@ function artifactFeedSummary(artifact) {
   }
   if (key === 'tarot.cards') {
     const cards = (data.cards || []).map(function(card) { return card.name || card.title || card.card }).filter(Boolean)
-    return '喂给模型：' + compactParts([
+    return '合参资料：' + compactParts([
       { label: '牌阵', value: (data.spread && data.spread.name) || data.spread_name },
       { label: '牌面', value: cards.slice(0, 5) },
     ])
   }
   if (key === 'zeji.days') {
-    return '喂给模型：' + compactParts([
+    return '合参资料：' + compactParts([
       { label: '事项', value: data.zeji_type || data.type },
       { label: '日期', value: data.start_date && data.end_date ? data.start_date + ' 至 ' + data.end_date : data.date },
       { label: '候选', value: (data.best_days || []).length ? (data.best_days || []).length + '天' : '' },
@@ -3662,7 +3662,7 @@ async function requestQuestionGuidance() {
     })
   } catch (_) {
     resolveQuestionGuideLoadingMessage({
-      content: 'AI 问事引导暂时不可用，请先检查后端模型 API Key 配置后再试。',
+      content: '时安问事引导暂时不可用，请稍后再试。',
       stage: '',
     })
   } finally {
