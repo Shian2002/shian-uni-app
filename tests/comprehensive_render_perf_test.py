@@ -321,6 +321,43 @@ def test_home_liuyao_keeps_visual_center_on_mobile():
     assert ".home-artifact-render :deep(.ly-row-divider) { width: 100%; height: 1px; }" not in source
 
 
+def test_home_liuyao_agent_artifact_fits_mobile_without_losing_left_right_layout():
+    source = _source()
+
+    assert ".home-artifact-render :deep(.ly-result-wrap) { max-width: 760px; margin: 0 auto; overflow: hidden;" in source
+    assert ".home-artifact-render :deep(.ly-ben-bian-box) { max-width: 100%; overflow: hidden;" in source
+    assert "grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr)" in source
+    assert "grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr)" in source
+    assert "grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr)" in source
+    assert "--ly-side-width: 138px; --ly-marker-width: 20px; --ly-yao-width: 42px; --ly-yao-bar: 36px;" in source
+    assert ".home-artifact-render :deep(.ly-row-ben-side) { grid-column: 1; }" in source
+    assert ".home-artifact-render :deep(.ly-row-divider) { grid-column: 2; display: block;" in source
+    assert ".home-artifact-render :deep(.ly-row-bian-side) { grid-column: 3; }" in source
+    assert ".home-artifact-render :deep(.ly-paired-info),\n.home-artifact-render :deep(.ly-paired-bian-info)" in source
+    assert ".home-artifact-render :deep(.ly-ben-bian-body) { gap: 3px; }" in source
+    assert "gap: 2px; padding: 3px 2px; border-radius: 8px;" in source
+    assert "min-height: 13px; padding: 0 2px; border-radius: 3px; font-size: .43rem;" in source
+    assert "width: 1em; font-size: .5rem; line-height: 1.05; text-align: center; white-space: normal;" in source
+    assert "display: grid; grid-template-columns: auto 1fr; justify-items: center; align-content: center; column-gap: 3px; row-gap: 1px;" in source
+    assert "grid-column: 1; grid-row: 1 / 4; align-self: center;" in source
+    assert ".home-artifact-render :deep(.ly-paired-info .ly-tag),\n  .home-artifact-render :deep(.ly-paired-bian-info .ly-tag)" in source
+    assert "grid-column: 2; min-height: auto; padding: 0; border-radius: 0; background: transparent; font-size: .5rem; line-height: 1.05;" in source
+    assert ".home-artifact-render :deep(.ly-paired-row.has-bian) { grid-template-columns: 1fr;" not in source
+    assert ".home-artifact-render :deep(.ly-row-divider) { display: none;" not in source
+
+
+def test_home_liuyao_trigram_badges_fall_back_to_hexagram_name():
+    source = _source()
+
+    assert "function liuyaoTrigramBadge(data, natureKey, trigramKey, guaName, fallbackIndex)" in source
+    assert "const trigramChar = name.length >= 2 ? name.charAt(fallbackIndex) : ''" in source
+    assert "return trigramChar ? trigramChar + '卦' : ''" in source
+    assert "const benUpperBadge = liuyaoTrigramBadge(data, 'upper_nature', 'upper_trigram', benName, 0)" in source
+    assert "const benLowerBadge = liuyaoTrigramBadge(data, 'lower_nature', 'lower_trigram', benName, 1)" in source
+    assert "const bianUpperBadge = liuyaoTrigramBadge(data, 'bian_upper_nature', 'bian_upper_trigram', bianName, 0)" in source
+    assert "const bianLowerBadge = liuyaoTrigramBadge(data, 'bian_lower_nature', 'bian_lower_trigram', bianName, 1)" in source
+
+
 def test_home_qimen_grid_scales_with_available_width():
     source = _source()
 

@@ -2972,6 +2972,15 @@ function renderYaoGraphic(isYang) {
   return isYang ? '<div class="ly-yang-bar"></div>' : '<div class="ly-yin-bars"><div class="ly-yin-seg"></div><div class="ly-yin-seg"></div></div>'
 }
 
+function liuyaoTrigramBadge(data, natureKey, trigramKey, guaName, fallbackIndex) {
+  const nature = data[natureKey] || ''
+  const trigram = data[trigramKey] || ''
+  if (nature || trigram) return [nature, trigram].filter(Boolean).join(' ')
+  const name = String(guaName || '')
+  const trigramChar = name.length >= 2 ? name.charAt(fallbackIndex) : ''
+  return trigramChar ? trigramChar + '卦' : ''
+}
+
 function renderLiuyaoArtifact(data) {
   const details = data.details || data.lines || []
   const bianDetails = data.bian_details || data.changed_details || []
@@ -2979,9 +2988,13 @@ function renderLiuyaoArtifact(data) {
   const bianName = data['变卦'] || data.bian_gua || ''
   const hasBian = !!bianName || bianDetails.length
   const movingCount = details.filter(function(x) { return x && x.is_moving }).length
+  const benUpperBadge = liuyaoTrigramBadge(data, 'upper_nature', 'upper_trigram', benName, 0)
+  const benLowerBadge = liuyaoTrigramBadge(data, 'lower_nature', 'lower_trigram', benName, 1)
+  const bianUpperBadge = liuyaoTrigramBadge(data, 'bian_upper_nature', 'bian_upper_trigram', bianName, 0)
+  const bianLowerBadge = liuyaoTrigramBadge(data, 'bian_lower_nature', 'bian_lower_trigram', bianName, 1)
   let html = '<div class="ly-result-wrap"><div class="ly-ben-bian-box">'
-  html += '<div class="ly-ben-bian-top"><div class="ly-ben-bian-name-block"><div class="ly-ben-bian-label">本 卦</div><div class="ly-ben-bian-name-text">' + htmlEscape(benName) + '</div><div class="ly-ben-bian-trigrams"><span class="ly-trigram-badge">' + htmlEscape([data.upper_nature, data.upper_trigram].filter(Boolean).join(' ')) + '</span><span class="ly-trigram-badge">' + htmlEscape([data.lower_nature, data.lower_trigram].filter(Boolean).join(' ')) + '</span></div></div>'
-  if (hasBian) html += '<div class="ly-ben-bian-top-arrow">→</div><div class="ly-ben-bian-name-block"><div class="ly-ben-bian-label">变 卦</div><div class="ly-ben-bian-name-text">' + htmlEscape(bianName) + '</div><div class="ly-ben-bian-trigrams"><span class="ly-trigram-badge">' + htmlEscape([data.bian_upper_nature, data.bian_upper_trigram].filter(Boolean).join(' ')) + '</span><span class="ly-trigram-badge">' + htmlEscape([data.bian_lower_nature, data.bian_lower_trigram].filter(Boolean).join(' ')) + '</span></div></div>'
+  html += '<div class="ly-ben-bian-top"><div class="ly-ben-bian-name-block"><div class="ly-ben-bian-label">本 卦</div><div class="ly-ben-bian-name-text">' + htmlEscape(benName) + '</div><div class="ly-ben-bian-trigrams"><span class="ly-trigram-badge">' + htmlEscape(benUpperBadge) + '</span><span class="ly-trigram-badge">' + htmlEscape(benLowerBadge) + '</span></div></div>'
+  if (hasBian) html += '<div class="ly-ben-bian-top-arrow">→</div><div class="ly-ben-bian-name-block"><div class="ly-ben-bian-label">变 卦</div><div class="ly-ben-bian-name-text">' + htmlEscape(bianName) + '</div><div class="ly-ben-bian-trigrams"><span class="ly-trigram-badge">' + htmlEscape(bianUpperBadge) + '</span><span class="ly-trigram-badge">' + htmlEscape(bianLowerBadge) + '</span></div></div>'
   html += '</div><div class="ly-ben-bian-body">'
   for (let i = details.length - 1; i >= 0; i--) {
     const ben = details[i] || {}
@@ -7364,6 +7377,7 @@ onBeforeUnmount(() => {
 .home-artifact-render :deep(.mh-result-wrap),
 .home-artifact-render :deep(.qm-result-wrap),
 .home-artifact-render :deep(.ly-result-wrap) { width: 100%; color: var(--text-2); box-sizing: border-box; }
+.home-artifact-render :deep(.ly-result-wrap) { max-width: 760px; margin: 0 auto; overflow: hidden; }
 .home-artifact-render :deep(.mh-summary),
 .home-artifact-render :deep(.qm-summary) { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 0.8125rem; color: var(--text-2); padding: 12px 16px; background: rgba(255,255,255,0.035); border-radius: 10px; border: 1px solid var(--card-border); margin-bottom: 16px; }
 .home-artifact-render :deep(.mh-summary b),
@@ -7461,21 +7475,23 @@ onBeforeUnmount(() => {
 .home-artifact-render :deep(.qm-legend .purple) { color: #9B59B6; }
 .home-artifact-render :deep(.qm-legend .brown) { color: #8B4513; }
 
-.home-artifact-render :deep(.ly-ben-bian-box) { border: 1px solid var(--card-border); border-radius: 14px; background: rgba(255,255,255,.035); padding: 16px; }
-.home-artifact-render :deep(.ly-ben-bian-top) { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; margin-bottom: 14px; }
-.home-artifact-render :deep(.ly-ben-bian-name-block) { min-height: 98px; text-align: center; border: 1px solid rgba(178,149,93,.16); border-radius: 12px; padding: 10px; background: rgba(255,255,255,.035); display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box; }
+.home-artifact-render :deep(.ly-ben-bian-box) { max-width: 100%; overflow: hidden; border: 1px solid var(--card-border); border-radius: 14px; background: rgba(255,255,255,.035); padding: 16px; box-sizing: border-box; }
+.home-artifact-render :deep(.ly-ben-bian-top) { display: grid; grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 14px; }
+.home-artifact-render :deep(.ly-ben-bian-name-block) { min-width: 0; min-height: 98px; text-align: center; border: 1px solid rgba(178,149,93,.16); border-radius: 12px; padding: 10px; background: rgba(255,255,255,.035); display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box; }
 .home-artifact-render :deep(.ly-ben-bian-label) { font-size: .66rem; color: var(--text-3); letter-spacing: 2px; }
-.home-artifact-render :deep(.ly-ben-bian-name-text) { margin-top: 4px; font-family: var(--font-serif); font-size: 1.1rem; font-weight: 800; color: var(--accent); letter-spacing: 2px; }
+.home-artifact-render :deep(.ly-ben-bian-name-text) { max-width: 100%; margin-top: 4px; font-family: var(--font-serif); font-size: clamp(.92rem, 3.8vw, 1.1rem); font-weight: 800; color: var(--accent); letter-spacing: 1px; overflow-wrap: anywhere; }
 .home-artifact-render :deep(.ly-ben-bian-trigrams) { width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 .home-artifact-render :deep(.ly-ben-bian-top-arrow) { color: var(--accent); font-size: 1.2rem; font-weight: 800; }
-.home-artifact-render :deep(.ly-ben-bian-body) { --ly-side-width: 250px; --ly-marker-width: 38px; --ly-yao-width: 74px; --ly-yao-bar: 64px; display: grid; gap: 7px; }
-.home-artifact-render :deep(.ly-paired-row) { display: grid; grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr); gap: 8px; align-items: center; width: 100%; padding: 8px; border-radius: 10px; background: rgba(255,255,255,.035); border: 1px solid rgba(178,149,93,.10); box-sizing: border-box; }
+.home-artifact-render :deep(.ly-ben-bian-body) { --ly-side-width: 250px; --ly-marker-width: 38px; --ly-yao-width: 74px; --ly-yao-bar: 64px; display: grid; gap: 7px; max-width: 100%; }
+.home-artifact-render :deep(.ly-paired-row) { display: grid; grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr); gap: 8px; align-items: center; justify-items: stretch; width: 100%; max-width: 100%; padding: 8px; border-radius: 10px; background: rgba(255,255,255,.035); border: 1px solid rgba(178,149,93,.10); box-sizing: border-box; }
 .home-artifact-render :deep(.ly-paired-row.has-ben-only) { grid-template-columns: minmax(0, 1fr); }
 .home-artifact-render :deep(.ly-paired-row.moving) { background: rgba(215,125,110,.08); border-color: rgba(215,125,110,.22); }
 .home-artifact-render :deep(.ly-row-ben-side),
-.home-artifact-render :deep(.ly-row-bian-side) { position: relative; min-width: 0; display: flex; justify-content: center; box-sizing: border-box; }
-.home-artifact-render :deep(.ly-visual-side) { position: relative; display: grid; grid-template-columns: var(--ly-marker-width) var(--ly-yao-width) minmax(0, 1fr); gap: 8px; align-items: center; width: min(var(--ly-side-width), 100%); min-width: 0; }
-.home-artifact-render :deep(.ly-row-divider) { width: 1px; align-self: stretch; background: rgba(178,149,93,.18); }
+.home-artifact-render :deep(.ly-row-bian-side) { position: relative; min-width: 0; width: 100%; display: flex; justify-content: center; box-sizing: border-box; }
+.home-artifact-render :deep(.ly-row-ben-side) { grid-column: 1; }
+.home-artifact-render :deep(.ly-row-bian-side) { grid-column: 3; }
+.home-artifact-render :deep(.ly-visual-side) { position: relative; display: grid; grid-template-columns: var(--ly-marker-width) var(--ly-yao-width) minmax(0, 1fr); gap: 8px; align-items: center; width: min(var(--ly-side-width), 100%); max-width: 100%; min-width: 0; }
+.home-artifact-render :deep(.ly-row-divider) { grid-column: 2; display: block; width: 1px; align-self: stretch; background: rgba(178,149,93,.18); }
 .home-artifact-render :deep(.ly-yao-tags-left) { min-width: 0; display: flex; gap: 4px; justify-content: flex-start; flex-wrap: wrap; }
 .home-artifact-render :deep(.ly-tag) { display: inline-flex; align-items: center; justify-content: center; min-height: 20px; padding: 1px 6px; border-radius: 6px; font-size: .65rem; line-height: 1; background: rgba(178,149,93,.10); color: var(--text-2); white-space: nowrap; }
 .home-artifact-render :deep(.ly-tag-shi) { color: #fff; background: #8a6319; }
@@ -7490,7 +7506,8 @@ onBeforeUnmount(() => {
 .home-artifact-render :deep(.ly-yang-bar) { width: var(--ly-yao-bar); height: 7px; border-radius: 3px; background: var(--text-1); }
 .home-artifact-render :deep(.ly-yin-bars) { width: var(--ly-yao-bar); display: flex; gap: 12px; justify-content: center; }
 .home-artifact-render :deep(.ly-yin-seg) { width: 26px; height: 7px; border-radius: 3px; background: var(--text-1); }
-.home-artifact-render :deep(.ly-paired-info) { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; min-width: 0; }
+.home-artifact-render :deep(.ly-paired-info),
+.home-artifact-render :deep(.ly-paired-bian-info) { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; min-width: 0; }
 .home-artifact-render :deep(.ly-yao-pos) { color: var(--text-1); font-weight: 700; font-size: .72rem; }
 .home-artifact-render :deep(.ly-meta-row) { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--card-border); color: var(--text-3); font-size: .72rem; }
 .home-artifact-render :deep(.ly-ben-bian-footer) { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; padding-top: 10px; margin-top: 10px; border-top: 1px solid var(--card-border); color: var(--text-3); font-size: .72rem; }
@@ -7824,11 +7841,14 @@ onBeforeUnmount(() => {
   .home-artifact-render :deep(.qm-palace) { padding: 5px; }
   .home-artifact-render :deep(.qm-star-row) { font-size: .76rem; }
   .home-artifact-render :deep(.ly-ben-bian-box) { padding: 12px; }
-  .home-artifact-render :deep(.ly-ben-bian-body) { --ly-side-width: 224px; --ly-marker-width: 32px; --ly-yao-width: 62px; --ly-yao-bar: 54px; }
-  .home-artifact-render :deep(.ly-visual-side) { gap: 6px; }
+  .home-artifact-render :deep(.ly-ben-bian-top) { grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr); gap: 6px; }
+  .home-artifact-render :deep(.ly-ben-bian-name-block) { padding: 9px 6px; }
+  .home-artifact-render :deep(.ly-ben-bian-body) { --ly-side-width: 180px; --ly-marker-width: 28px; --ly-yao-width: 52px; --ly-yao-bar: 46px; }
+  .home-artifact-render :deep(.ly-visual-side) { gap: 5px; }
+  .home-artifact-render :deep(.ly-tag) { min-height: 18px; padding: 1px 4px; border-radius: 5px; font-size: .58rem; }
   .home-artifact-render :deep(.ly-yang-bar),
-  .home-artifact-render :deep(.ly-yin-bars) { width: 54px; }
-  .home-artifact-render :deep(.ly-yin-seg) { width: 22px; }
+  .home-artifact-render :deep(.ly-yin-bars) { width: var(--ly-yao-bar); }
+  .home-artifact-render :deep(.ly-yin-seg) { width: 18px; }
   .home-artifact-render :deep(.tarot-card-slot) { max-width: 122px; }
   .home-artifact-render :deep(.tarot-card-flipper) { height: 198px; }
   .home-artifact-render :deep(.tarot-cards-display[data-count="6"]) { grid-template-columns: repeat(3, 1fr); max-width: 420px; }
@@ -7932,13 +7952,31 @@ onBeforeUnmount(() => {
   .home-artifact-render :deep(.qm-center-pillars),
   .home-artifact-render :deep(.qm-center-meta) { font-size: .44rem; }
   .home-artifact-render :deep(.qm-center-title) { font-size: .46rem; }
-  .home-artifact-render :deep(.ly-ben-bian-top) { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 6px; }
+  .home-artifact-render :deep(.ly-ben-bian-box) { padding: 9px; }
+  .home-artifact-render :deep(.ly-ben-bian-top) { grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr); gap: 4px; margin-bottom: 8px; }
+  .home-artifact-render :deep(.ly-ben-bian-name-block) { min-height: 74px; padding: 6px 5px; }
+  .home-artifact-render :deep(.ly-ben-bian-name-text) { font-size: .92rem; letter-spacing: 0; }
+  .home-artifact-render :deep(.ly-ben-bian-label) { font-size: .58rem; letter-spacing: 1px; }
+  .home-artifact-render :deep(.ly-trigram-badge) { padding: 3px 5px; font-size: .56rem; }
   .home-artifact-render :deep(.ly-ben-bian-top-arrow) { transform: none; text-align: center; }
+  .home-artifact-render :deep(.ly-ben-bian-body) { gap: 3px; }
   .home-artifact-render :deep(.ly-paired-row),
-  .home-artifact-render :deep(.ly-paired-row.has-bian) { grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr); gap: 4px; padding: 6px 4px; }
+  .home-artifact-render :deep(.ly-paired-row.has-bian) { grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr); gap: 2px; padding: 3px 2px; border-radius: 8px; }
   .home-artifact-render :deep(.ly-row-divider) { width: 1px; height: auto; }
-  .home-artifact-render :deep(.ly-ben-bian-body) { --ly-side-width: 156px; --ly-marker-width: 24px; --ly-yao-width: 48px; --ly-yao-bar: 42px; }
-  .home-artifact-render :deep(.ly-visual-side) { gap: 4px; }
+  .home-artifact-render :deep(.ly-ben-bian-body) { --ly-side-width: 138px; --ly-marker-width: 20px; --ly-yao-width: 42px; --ly-yao-bar: 36px; }
+  .home-artifact-render :deep(.ly-visual-side) { gap: 3px; }
+  .home-artifact-render :deep(.ly-yao-tags-left) { gap: 2px; }
+  .home-artifact-render :deep(.ly-tag) { min-height: 13px; padding: 0 2px; border-radius: 3px; font-size: .43rem; line-height: 1.05; }
+  .home-artifact-render :deep(.ly-yao-pos) { width: 1em; font-size: .5rem; line-height: 1.05; text-align: center; white-space: normal; }
+  .home-artifact-render :deep(.ly-paired-info),
+  .home-artifact-render :deep(.ly-paired-bian-info) { display: grid; grid-template-columns: auto 1fr; justify-items: center; align-content: center; column-gap: 3px; row-gap: 1px; }
+  .home-artifact-render :deep(.ly-paired-info .ly-yao-pos),
+  .home-artifact-render :deep(.ly-paired-bian-info .ly-yao-pos) { grid-column: 1; grid-row: 1 / 4; align-self: center; }
+  .home-artifact-render :deep(.ly-paired-info .ly-tag),
+  .home-artifact-render :deep(.ly-paired-bian-info .ly-tag) { grid-column: 2; min-height: auto; padding: 0; border-radius: 0; background: transparent; font-size: .5rem; line-height: 1.05; }
+  .home-artifact-render :deep(.ly-yang-bar),
+  .home-artifact-render :deep(.ly-yin-bars) { width: var(--ly-yao-bar); }
+  .home-artifact-render :deep(.ly-yin-seg) { width: 14px; }
   .home-artifact-render :deep(.tarot-cards-display),
   .home-artifact-render :deep(.tarot-cards-display[data-count="3"]),
   .home-artifact-render :deep(.tarot-cards-display[data-count="5"]),
