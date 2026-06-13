@@ -30,6 +30,7 @@
     "ops:baidu-backup": "bash scripts/install_baidu_offsite_backup.sh",
     "qa:local": "node scripts/local_port_check.mjs",
     "qa:online": "node scripts/online_regression.mjs",
+    "qa:staging": "QA_BASE_URL=${QA_BASE_URL:-http://119.29.128.18:8081} node scripts/online_regression.mjs",
     "qa:agent:local": "QA_MODE=local QA_BASE_URL=${QA_BASE_URL:-http://localhost:5173} node scripts/user_acceptance_full.mjs",
     "qa:agent:online": "QA_MODE=online QA_BASE_URL=${QA_BASE_URL:-http://119.29.128.18} node scripts/user_acceptance_full.mjs",
     "qa:user:all": "npm run qa:agent:local && npm run qa:agent:online"

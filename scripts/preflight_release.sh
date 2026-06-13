@@ -24,7 +24,7 @@ if [ -n "$DIRTY_BACKEND" ]; then
 fi
 
 section "Shell 脚本语法"
-bash -n deploy-to-server.sh scripts/*.sh
+bash -n deploy-to-server.sh deploy-to-staging.sh scripts/*.sh
 
 section "Python 语法"
 python3 -m py_compile backend/*.py scripts/*.py

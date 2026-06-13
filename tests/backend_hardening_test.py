@@ -15,7 +15,7 @@ def _fresh_import_app(tmp_path, monkeypatch):
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
     monkeypatch.setenv("TIANJI_SECRET_KEY", "test-hardening-secret")
     for name in list(sys.modules):
-        if name == "app" or name in {"ai_runs", "auth_channel_routes"}:
+        if name == "app" or name in {"ai_runs", "auth_channel_routes", "recharge_routes"}:
             sys.modules.pop(name, None)
     sys.path.insert(0, BACKEND_DIR)
     module = importlib.import_module("app")
@@ -135,3 +135,81 @@ def test_deploy_script_hard_checks_runtime_database_url():
     assert "systemctl show xuan-cet-flask -p Environment" in deploy_script
     assert "DATABASE_URL=sqlite:////home/lighthouse/tianji/flask-source/backend/tianji.db" in deploy_script
     assert "exit 1" in deploy_script
+
+
+def test_staging_sms_and_email_default_to_log_mode(tmp_path, monkeypatch):
+    monkeypatch.setenv("APP_ENV", "staging")
+    monkeypatch.setenv("ALIYUN_SMS_ACCESS_KEY_ID", "real-looking-key")
+    monkeypatch.setenv("ALIYUN_SMS_ACCESS_KEY_SECRET", "real-looking-secret")
+    monkeypatch.setenv("SMTP_USER", "sender@example.com")
+    monkeypatch.setenv("SMTP_PASS", "smtp-secret")
+    module = _fresh_import_app(tmp_path, monkeypatch)
+
+    class FailingSMTP:
+        def __init__(self, *args, **kwargs):
+            raise AssertionError("测试环境默认不应连接 SMTP")
+
+    auth_channel_routes = importlib.import_module("auth_channel_routes")
+    monkeypatch.setattr(auth_channel_routes.smtplib, "SMTP", FailingSMTP)
+    client = module.app.test_client()
+
+    sms_response = client.post("/api/sms/send", json={"phone": "13800000000"})
+    email_response = client.post("/api/email/send", json={"email": "tester@example.com"})
+
+    assert sms_response.status_code == 200
+    assert email_response.status_code == 200
+    with module.app.app_context():
+        assert module.VerificationCode.query.filter_by(code_key="sms_13800000000").one()
+        assert module.VerificationCode.query.filter_by(code_key="email_tester@example.com").one()
+
+
+def test_staging_recharge_records_proof_without_auto_confirm(tmp_path, monkeypatch):
+    monkeypatch.setenv("APP_ENV", "staging")
+    monkeypatch.setenv("ALIPAY_QR_AUTO_CONFIRM", "1")
+    module = _fresh_import_app(tmp_path, monkeypatch)
+
+    with module.app.app_context():
+        user = module.User(
+            username="staging-buyer",
+            password_hash="x",
+            has_password=True,
+        )
+        module.db.session.add(user)
+        module.db.session.flush()
+        order = module.RechargeOrder(
+            user_id=user.id,
+            package_id="test-cent",
+            package_name="测试包",
+            points=1,
+            amount=0.01,
+            status="pending",
+        )
+        module.db.session.add(order)
+        module.db.session.commit()
+        user_id = user.id
+        order_id = order.id
+
+    client = module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(user_id)
+        sess["_fresh"] = True
+
+    response = client.post("/api/recharge/verify-payment", json={
+        "order_id": order_id,
+        "payment_proof_text": "支付宝支付成功 收款方 时安解忧屋 支付金额 ¥0.01",
+        "payment_proof_hash": "staging-proof-hash",
+    })
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["status"] == "pending"
+    assert body["auto_confirmed"] is False
+    assert "测试环境" in body["message"]
+    with module.app.app_context():
+        refreshed = module.db.session.get(module.RechargeOrder, order_id)
+        membership = module.Membership.query.filter_by(user_id=user_id).first()
+        logs = module.PointLog.query.filter_by(user_id=user_id, action="recharge").all()
+        assert refreshed.status == "pending"
+        assert refreshed.payment_reference == "staging-proof-hash"
+        assert membership is None
+        assert logs == []

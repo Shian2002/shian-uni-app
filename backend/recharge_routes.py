@@ -35,6 +35,19 @@ RECHARGE_PACKAGES = [
 
 RECHARGE_SMALL_AUTO_LIMIT = float(os.environ.get('RECHARGE_SMALL_AUTO_LIMIT', '29.9'))
 RECHARGE_MANUAL_MESSAGE = '付款截图已提交，大额充值每日 10:00 - 24:00 在线确认，非在线时间可能延迟到账'
+RECHARGE_STAGING_MESSAGE = '测试环境已记录付款凭证，不会自动确认正式积分'
+
+
+def _app_env():
+    return os.environ.get('APP_ENV') or os.environ.get('FLASK_ENV', 'development')
+
+
+def _is_staging_env():
+    return _app_env().lower() == 'staging'
+
+
+def _staging_payment_allows_auto_confirm():
+    return os.environ.get('STAGING_PAYMENT_MODE', 'manual').lower() == 'auto_confirm'
 
 
 def make_confirm_recharge_order_once(db, get_or_create_membership, add_points):
@@ -344,6 +357,20 @@ def register_recharge_routes(app, db, services):
         receiver_ok = _payment_text_matches_receiver(proof_text) if proof_text else False
         small_auto_allowed = expected <= RECHARGE_SMALL_AUTO_LIMIT and receiver_ok and bool(payment_reference)
         force_auto = os.environ.get('ALIPAY_QR_AUTO_CONFIRM') == '1'
+
+        if _is_staging_env() and not _staging_payment_allows_auto_confirm():
+            RechargeOrder.query.filter_by(id=order.id, status='pending').update(
+                proof_update,
+                synchronize_session=False,
+            )
+            db.session.commit()
+            return jsonify({
+                'ok': True,
+                'order_id': order.id,
+                'status': 'pending',
+                'auto_confirmed': False,
+                'message': RECHARGE_STAGING_MESSAGE,
+            })
 
         if not force_auto and not small_auto_allowed:
             RechargeOrder.query.filter_by(id=order.id, status='pending').update(

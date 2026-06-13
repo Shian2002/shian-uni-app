@@ -51,6 +51,25 @@ _rate_limit_store = {}
 _rate_limit_lock = threading.Lock()
 
 
+def _app_env():
+    return os.environ.get('APP_ENV') or os.environ.get('FLASK_ENV', 'development')
+
+
+def _is_staging_env():
+    return _app_env().lower() == 'staging'
+
+
+def _split_env_set(name):
+    raw = os.environ.get(name, '')
+    return {item.strip().lower() for item in raw.split(',') if item.strip()}
+
+
+def _staging_channel_allows_real_send(channel, recipient):
+    mode = os.environ.get(f'STAGING_{channel}_MODE', 'log').lower()
+    whitelist = _split_env_set(f'STAGING_{channel}_WHITELIST')
+    return mode == 'send' and recipient.strip().lower() in whitelist
+
+
 def _check_rate_limit(key, max_count=5, window=60):
     if has_app_context():
         now_dt = datetime.utcnow()
@@ -317,6 +336,11 @@ def register_auth_channel_routes(app, db, logger):
             return jsonify({'error': '手机号格式不正确'}), 400
         if not _check_rate_limit('sms_' + phone, 3, 60) or not _check_rate_limit('sms_ip_' + request.remote_addr, 10, 60):
             return jsonify({'error': '发送过于频繁，请稍后再试'}), 429
+        if _is_staging_env() and not _staging_channel_allows_real_send('SMS', phone):
+            code = _gen_code()
+            _store_code('sms_' + phone, code)
+            logger.info(f"[SMS Staging] 手机 {phone} 验证码: {code}")
+            return jsonify({'ok': True})
         if not ALIYUN_SMS_ACCESS_KEY_ID or not ALIYUN_SMS_ACCESS_KEY_SECRET:
             code = _gen_code()
             _store_code('sms_' + phone, code)
@@ -375,11 +399,15 @@ def register_auth_channel_routes(app, db, logger):
         code = _gen_code()
         _store_code('email_' + addr, code)
         logger.info(f"[Email Debug] 邮箱 {addr} 验证码: {code}")
+        if _is_staging_env() and not _staging_channel_allows_real_send('EMAIL', addr):
+            logger.info(f"[Email Staging] 已阻止真实邮件发送，仅记录验证码。邮箱: {addr}")
+            return jsonify({'ok': True})
         if not SMTP_USER or not SMTP_PASS:
             return jsonify({'ok': True})
         try:
             msg = MIMEText(f'您的验证码为：{code}，5分钟内有效。如非本人操作请忽略。', 'plain', 'utf-8')
-            msg['Subject'] = Header(f'{SMTP_FROM_NAME} - 登录验证码', 'utf-8')
+            subject_prefix = '[STAGING] ' if _is_staging_env() else ''
+            msg['Subject'] = Header(f'{subject_prefix}{SMTP_FROM_NAME} - 登录验证码', 'utf-8')
             msg['From'] = email.utils.formataddr((SMTP_FROM_NAME, SMTP_USER))
             msg['To'] = addr
             with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
