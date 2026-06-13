@@ -2,23 +2,23 @@
 
 ## 环境边界
 
-- 正式环境：`master` 分支，对应 `deploy-to-server.sh`，使用正式数据库和正式服务。
-- 测试环境：`staging` 分支，对应 `deploy-to-staging.sh`，使用独立前端目录、独立后端服务、独立数据库副本。
+- 正式环境：GitHub 正式库 `Shian2002/shian-uni-app` 的 `master` 分支，对应 `deploy-to-server.sh`，使用正式数据库和正式服务。
+- 测试环境：GitHub 测试库 `Shian2002/shian-uni-app-staging` 的 `master` 分支，对应 `deploy-to-staging.sh`，使用独立前端目录、独立后端服务、独立数据库副本。
 - 数据库只允许从正式库单向同步到测试库；测试库的写入永远不回流正式库。
 
 ## GitHub 分支流程
 
-1. 日常开发从 `staging` 拉分支，例如 `feature/xxx`。
-2. 功能完成后合并到 `staging`，部署测试环境。
+1. 日常开发先推到测试库，例如 `staging-origin/master` 或测试库里的功能分支。
+2. 功能完成后部署测试环境。
 3. 在测试环境验收真实前后端交互。
-4. 验收通过后，把同一批提交从 `staging` 合并到 `master`。
+4. 验收通过后，把同一批提交从测试库同步到正式库 `origin/master`。
 5. 只在确认发布时运行正式部署。
 
 推荐命令：
 
 ```bash
-git checkout staging
-git pull origin staging
+git checkout master
+git pull staging-origin master
 bash scripts/sync_staging_db_from_prod.sh
 bash deploy-to-staging.sh
 QA_BASE_URL=http://119.29.128.18:8081 npm run qa:staging
@@ -29,15 +29,15 @@ QA_BASE_URL=http://119.29.128.18:8081 npm run qa:staging
 ```bash
 git checkout master
 git pull origin master
-git merge --ff-only staging
+git merge --ff-only staging-origin/master
 bash deploy-to-server.sh
 ```
 
-如果 GitHub 上还没有 `staging` 分支，第一次创建：
+如果本地还没有测试库远端，第一次添加：
 
 ```bash
-git checkout -b staging
-git push -u origin staging
+git remote add staging-origin git@github.com:Shian2002/shian-uni-app-staging.git
+git push -u staging-origin master
 ```
 
 ## 测试环境外部服务策略
