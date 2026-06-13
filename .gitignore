@@ -10,6 +10,8 @@ src/static/uploads/
 backend/venv/
 backend/.secret_key
 backend/tianji.db
+backend/tianji.db-shm
+backend/tianji.db-wal
 backend/uploads/
 server-backup/
 temp.js
