@@ -831,7 +831,7 @@ def test_comprehensive_options_hide_provider_details(app_module, user_factory):
     assert response.status_code == 200
     models = response.get_json()["llm_models"]
     reading_modes = response.get_json()["reading_modes"]
-    assert [m["name"] for m in models] == ["Shian Insight Engine"]
+    assert [m["name"] for m in models] == ["SHIAN-1.1"]
     assert all("GLM" not in m["name"] for m in models)
     assert [m["name"] for m in reading_modes] == ["简约", "标准", "深度"]
     assert [m["cost_base"] for m in models] == [2]

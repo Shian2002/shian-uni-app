@@ -5,7 +5,7 @@ import json
 COMPREHENSIVE_LLM_MODELS = [
     {
         "id": "basic",
-        "name": "Shian Insight Engine",
+        "name": "SHIAN-1.1",
         "cost_base": 2,
         "cost_multiplier": 0,
         "followup_cost": 2,
