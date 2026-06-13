@@ -104,7 +104,7 @@ const props = defineProps({
   placeholder: { type: String, default: '' },
   loading: { type: Boolean, default: false },
   selectedProfileName: { type: String, default: '' },
-  autoSelectTools: { type: Boolean, default: true },
+  autoSelectTools: { type: Boolean, default: false },
   selectedToolSummary: { type: String, default: '选择术数' },
   toolModels: { type: Array, default: () => [] },
   selectedToolModels: { type: Array, default: () => [] },

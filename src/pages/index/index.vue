@@ -1384,7 +1384,7 @@ const toolModels = ref([
 ])
 const llmModelIdx = ref(0)
 const selectedToolModels = ref([])
-const autoSelectTools = ref(true)
+const autoSelectTools = ref(false)
 const currentPoints = ref(0)
 const aiSingleCredits = ref(0)
 const aiComboCredits = ref(0)
@@ -1634,23 +1634,7 @@ function clearHomeAgentSelectionStorage() {
 
 function saveSelectedProfiles() {
   if (!isLoggedIn.value) return
-  const payload = selectedProfiles.value.map(function(p) {
-    return {
-      id: p.id,
-      name: p.name,
-      gender: p.gender,
-      calType: p.calType || p.cal_type,
-      birthTime: p.birthTime || p.birth_time,
-      birthAddr: p.birthAddr || p.birth_addr,
-      profileType: p.profileType || p.profile_type,
-      source: p.source || 'profile',
-      meta: p.meta || {},
-    }
-  })
-  writeStorageJson(currentUserScopedStorageKey(selectedProfilesStorageKey), {
-    profiles: payload,
-    confirmed: !!profileSelectionConfirmed.value,
-  })
+  try { uni.removeStorageSync(currentUserScopedStorageKey(selectedProfilesStorageKey)) } catch (_) {}
 }
 
 function saveSelectedToolModels() {
@@ -1659,32 +1643,13 @@ function saveSelectedToolModels() {
 
 function resetSelectedToolModels() {
   selectedToolModels.value = []
-  autoSelectTools.value = true
+  autoSelectTools.value = false
   saveSelectedToolModels()
 }
 
 function restoreSavedAgentSelection(profileList) {
   if (!isLoggedIn.value) return
-  const list = profileList || profiles.value || []
-  const savedProfileState = readStorageJson(currentUserScopedStorageKey(selectedProfilesStorageKey), [])
-  const savedProfiles = Array.isArray(savedProfileState) ? savedProfileState : (savedProfileState && savedProfileState.profiles) || []
-  if (!selectedProfiles.value.length && Array.isArray(savedProfiles) && savedProfiles.length) {
-    const restored = savedProfiles.map(function(saved) {
-      return list.find(p => String(p.id) === String(saved.id)) || saved
-    }).filter(function(p) { return p && (p.id || p.name) })
-    if (restored.length) {
-      selectedProfiles.value = restored.map(p => Object.assign({ source: 'profile' }, p))
-      profileSelectionConfirmed.value = !Array.isArray(savedProfileState) && savedProfileState.confirmed !== false
-    }
-  }
-  if (!selectedProfiles.value.length && list.length) {
-    const defaultProfile = list.find(p => p.isDefault) || list.find(p => (p.profileType || p.profile_type) === 'self') || list[0]
-    if (defaultProfile) {
-      selectedProfiles.value = [Object.assign({ source: 'profile' }, defaultProfile)]
-      profileSelectionConfirmed.value = false
-      saveSelectedProfiles()
-    }
-  }
+  try { uni.removeStorageSync(currentUserScopedStorageKey(selectedProfilesStorageKey)) } catch (_) {}
   saveSelectedToolModels()
 }
 
@@ -3216,9 +3181,9 @@ function comprehensiveDraftPayload() {
     messages: comprehensiveMessages.value || [],
     paipan: currentPaipanContext.value || {},
     artifacts: currentArtifacts.value || {},
-    selectedProfiles: selectedProfiles.value || [],
+    selectedProfiles: [],
     selectedToolModels: [],
-    autoSelectTools: true,
+    autoSelectTools: false,
     llmModelId: selectedLlmModel.value.id || 'basic',
     readingMode: readingMode.value,
     activeArtifacts: Object.assign({}, activeArtifactKeyByMessage),
@@ -3230,9 +3195,11 @@ function applyComprehensiveDraft(draft) {
     currentComprehensiveConvId.value = draft.conversationId || null
     currentPaipanContext.value = draft.paipan || {}
     currentArtifacts.value = draft.artifacts || {}
-    selectedProfiles.value = Array.isArray(draft.selectedProfiles) ? draft.selectedProfiles : []
+    selectedProfiles.value = []
+    draftSelectedProfiles.value = []
+    profileSelectionConfirmed.value = false
     selectedToolModels.value = []
-    autoSelectTools.value = true
+    autoSelectTools.value = false
     if (draft.readingMode) readingMode.value = draft.readingMode
     const mid = draft.llmModelId || 'basic'
     const mi = llmModels.value.findIndex(m => m.id === mid)
