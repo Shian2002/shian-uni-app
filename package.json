@@ -12,7 +12,7 @@
     "dev:check": "npm run qa:local",
     "dev:smoke": "node scripts/dev_smoke.mjs",
     "dev:h5": "uni dev",
-    "build:h5": "node scripts/patch-vue-slot.js && node scripts/patch-tab-dom.js && uni build && node scripts/patch-html-css-order.js",
+    "build:h5": "node scripts/patch-vue-slot.js && node scripts/patch-tab-dom.js && node scripts/build-h5-prod.mjs && node scripts/patch-html-css-order.js",
     "dev:mp-weixin": "uni dev -p mp-weixin",
     "build:mp-weixin": "uni build -p mp-weixin",
     "dev:mp-alipay": "uni dev -p mp-alipay",

@@ -39,7 +39,7 @@
               <view class="case-tab" id="caseTabAll" @tap="filterCases('all')">全部</view>
               <view class="case-tab" id="caseTabClassic" @tap="filterCases('classic')">经典案例</view>
               <view class="case-tab" id="caseTabReal" @tap="filterCases('real')">实战案例</view>
-              <view class="case-tab" id="caseTabCommunity" @tap="filterCases('community')">社区案例</view>
+              <view v-if="showCommunityEntry" class="case-tab" id="caseTabCommunity" @tap="filterCases('community')">社区案例</view>
             </view>
             <scroll-view scroll-x class="case-list">
               <view class="case-card" v-for="(c, i) in filteredCases" :key="i">
@@ -114,27 +114,33 @@
 <script>
 import TopNav from '@/components/TopNav.vue'
 
+const SHOW_COMMUNITY_ENTRY = import.meta.env.DEV || import.meta.env.VITE_SHOW_COMMUNITY === '1'
+
 export default {
   components: { TopNav },
   data() {
     return {
       theme: (typeof uni !== 'undefined' && uni.getStorageSync('xc_theme')) || 'dark',
       isLoggedIn: !!uni.getStorageSync('xc_token'),
+      showCommunityEntry: SHOW_COMMUNITY_ENTRY,
       caseFilter: 'all',
       cases: [
         { source: 'classic', sourceLabel: '经典', type: '事业 · 奇门遁甲', title: '求职面试能否通过', desc: '问事背景：用户面临重要面试，排盘解读结论为利东方方位、午时有利。后续果然在调整面试时间后顺利通过。', verified: '✅ 已应验' },
         { source: 'classic', sourceLabel: '经典', type: '感情 · 奇门遁甲', title: '感情复合时机判断', desc: '问事背景：用户询问与前任复合可能性，排盘显示休门临宫、逢合期在秋分后。用户反馈秋分后确实关系缓和。', verified: '✅ 已应验' },
         { source: 'real', sourceLabel: '实战', type: '财运 · 八字命理', title: '投资理财方向参考', desc: '问事背景：用户询问投资方向，八字分析显示偏财星弱、正财为主，建议稳健理财。用户采纳后避免了高风险损失。', verified: '✅ 已应验' },
         { source: 'real', sourceLabel: '实战', type: '学业 · 奇门遁甲', title: '考试发挥与结果预判', desc: '问事背景：用户询问考研结果，排盘显示景门旺相、文书有利。后续考试发挥顺利，成功上岸。', verified: '✅ 已应验' },
-        { source: 'community', sourceLabel: '社区', type: '出行 · 奇门遁甲', title: '长途出行安全预判', desc: '问事背景：用户计划远行，排盘显示驿马星动但逢冲，建议调整出行日期。用户改期后旅途顺利。', verified: '✅ 已应验' },
-        { source: 'community', sourceLabel: '社区', type: '事业 · 八字命理', title: '跳槽时机与方向选择', desc: '问事背景：社区用户分享，八字看正官逢冲流年，建议观望至下半年。实际秋季获得更好 offer。', verified: '✅ 已应验' }
+        ...(SHOW_COMMUNITY_ENTRY ? [
+          { source: 'community', sourceLabel: '社区', type: '出行 · 奇门遁甲', title: '长途出行安全预判', desc: '问事背景：用户计划远行，排盘显示驿马星动但逢冲，建议调整出行日期。用户改期后旅途顺利。', verified: '✅ 已应验' },
+          { source: 'community', sourceLabel: '社区', type: '事业 · 八字命理', title: '跳槽时机与方向选择', desc: '问事背景：社区用户分享，八字看正官逢冲流年，建议观望至下半年。实际秋季获得更好 offer。', verified: '✅ 已应验' }
+        ] : [])
       ]
     }
   },
   computed: {
     filteredCases() {
-      if (this.caseFilter === 'all') return this.cases
-      return this.cases.filter(c => c.source === this.caseFilter)
+      const visibleCases = this.showCommunityEntry ? this.cases : this.cases.filter(c => c.source !== 'community')
+      if (this.caseFilter === 'all') return visibleCases
+      return visibleCases.filter(c => c.source === this.caseFilter)
     }
   },
   onMounted() {

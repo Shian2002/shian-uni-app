@@ -21,6 +21,8 @@ const mobileViewports = [
   { width: 375, height: 812 },
 ]
 
+const showCommunityRoute = qaMode === 'local' || process.env.QA_SHOW_COMMUNITY === '1'
+
 const routes = [
   { name: '营销首页', hash: '/', texts: ['The Oriental Insight Agent', '开始解读'] },
   { name: '八字排盘', hash: '/pages/bazi-index/index?tab=free', texts: ['八字排盘', '免费'] },
@@ -31,7 +33,7 @@ const routes = [
   { name: '塔罗牌', hash: '/pages/tarot/index', texts: ['塔罗牌', '选择牌阵'] },
   { name: '择吉工具', hash: '/pages/zeji/index', texts: ['择吉'] },
   { name: '专属日历', hash: '/pages/calendar/index', texts: ['专属日历', '今天'] },
-  { name: '社区', hash: '/pages/community/index', texts: ['社区'] },
+  ...(showCommunityRoute ? [{ name: '社区', hash: '/pages/community/index', texts: ['社区'] }] : []),
   { name: '关于我们', hash: '/pages/about/index', texts: ['关于'] },
   { name: '个人中心', hash: '/pages/profile/index', texts: ['个人'] },
   { name: '积分中心', hash: '/pages/points/index', texts: ['积分'] },

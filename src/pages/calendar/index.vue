@@ -312,7 +312,8 @@ function preloadAdjacent(y, m) {
 // ═══ 页脚导航 ═══
 function go(path) {
   // 判断是否tabBar页面
-  const tabPaths = ['/pages/index/index', '/pages/qimen/index', '/pages/bazi-index/index', '/pages/tarot/index', '/pages/liuyao/index', '/pages/meihua/index', '/pages/ziwei/index', '/pages/zeji/index', '/pages/calendar/index', '/pages/community/index', '/pages/profile/index']
+  const showCommunityEntry = import.meta.env.DEV || import.meta.env.VITE_SHOW_COMMUNITY === '1'
+  const tabPaths = ['/pages/index/index', '/pages/qimen/index', '/pages/bazi-index/index', '/pages/tarot/index', '/pages/liuyao/index', '/pages/meihua/index', '/pages/ziwei/index', '/pages/zeji/index', '/pages/calendar/index'].concat(showCommunityEntry ? ['/pages/community/index'] : [], ['/pages/profile/index'])
   if (tabPaths.includes(path)) {
     uni.switchTab({ url: path })
   } else {

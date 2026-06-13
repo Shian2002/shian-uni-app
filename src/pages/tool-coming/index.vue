@@ -66,7 +66,7 @@ export default {
     showFooterInfo(type) {
       uni.showModal({
         title: type === 'contact' ? '联系方式' : '隐私政策',
-        content: type === 'contact' ? '如有问题请通过社区反馈' : '我们重视您的隐私，所有数据仅本地处理',
+        content: type === 'contact' ? '如有问题请通过站内反馈或邮件联系' : '我们重视您的隐私，所有数据仅本地处理',
         showCancel: false
       })
     }

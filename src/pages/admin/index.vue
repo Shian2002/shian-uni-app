@@ -8,7 +8,7 @@
         <view>
           <view class="section-tag">后台管理</view>
           <view class="admin-title">运营控制台</view>
-          <view class="admin-desc">用户 · 社区 · 举报 · 充值 · 审计 · 安全</view>
+          <view class="admin-desc">用户 · 内容 · 举报 · 充值 · 审计 · 安全</view>
         </view>
         <view class="admin-head-actions">
           <button class="admin-icon-btn" @click="refreshAll" title="刷新">↻</button>

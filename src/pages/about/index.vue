@@ -83,7 +83,7 @@
                 <view class="hero-card-title">专属日历</view>
               </view>
             </view>
-            <view @tap="goToPage('/pages/community/index')" class="hero-card hero-card-mini">
+            <view v-if="showCommunityEntry" @tap="goToPage('/pages/community/index')" class="hero-card hero-card-mini">
               <view class="hero-card-content">
                 <view class="hero-card-icon">💬</view>
                 <view class="hero-card-title">交流社区</view>
@@ -119,7 +119,7 @@
               <view class="case-tab" id="caseTabAll" @tap="filterCases('all')">全部</view>
               <view class="case-tab" id="caseTabClassic" @tap="filterCases('classic')">经典案例</view>
               <view class="case-tab" id="caseTabReal" @tap="filterCases('real')">实战案例</view>
-              <view class="case-tab" id="caseTabCommunity" @tap="filterCases('community')">社区案例</view>
+              <view v-if="showCommunityEntry" class="case-tab" id="caseTabCommunity" @tap="filterCases('community')">社区案例</view>
             </view>
             <view class="case-list">
               <view class="case-card" v-for="(c, i) in filteredCases" :key="i">
@@ -270,7 +270,7 @@
             <view class="footer-link" @tap="goToPage('/pages/qimen/index')">奇门遁甲</view>
             <view class="footer-link" @tap="goToPage('/pages/bazi-index/index')">八字排盘</view>
             <view class="footer-link" @tap="goToPage('/pages/calendar/index')">专属日历</view>
-            <view class="footer-link" @tap="goToPage('/pages/community/index')">社区</view>
+            <view v-if="showCommunityEntry" class="footer-link" @tap="goToPage('/pages/community/index')">社区</view>
             <navigator url="/package-info/about/index">关于我们</navigator>
           </view>
           <view class="footer-col">
@@ -294,20 +294,25 @@
 <script>
 import TopNav from '@/components/TopNav.vue'
 
+const SHOW_COMMUNITY_ENTRY = import.meta.env.DEV || import.meta.env.VITE_SHOW_COMMUNITY === '1'
+
 export default {
   components: { TopNav },
   data() {
     return {
       theme: (typeof uni !== 'undefined' && uni.getStorageSync('xc_theme')) || 'dark',
       isLoggedIn: !!uni.getStorageSync('xc_token'),
+      showCommunityEntry: SHOW_COMMUNITY_ENTRY,
       caseFilter: 'all',
       cases: [
         { source: 'classic', sourceLabel: '经典', avatar: '陈', avatarColor: 'linear-gradient(135deg,#b2955d,#d4a853)', nickname: '陈先生', date: '2025.03', type: '事业 · 奇门遁甲', question: '下周有一场重要面试，能否顺利通过？', answer: '排盘显示开门临宫，利东方方位，午时最为有利。建议调整面试时间至上午，着深色正装。', feedback: '调整时间后顺利拿到offer！', verified: '✅ 已应验' },
         { source: 'classic', sourceLabel: '经典', avatar: '林', avatarColor: 'linear-gradient(135deg,#e67e22,#f39c12)', nickname: '林女士', date: '2025.01', type: '感情 · 奇门遁甲', question: '和前任还有复合的可能吗？什么时候比较合适？', answer: '休门临宫，逢合期在秋分前后。双方暂需冷静，不宜急于联系，秋分后关系自然缓和。', feedback: '秋分后真的慢慢联系上了', verified: '✅ 已应验' },
         { source: 'real', sourceLabel: '实战', avatar: '王', avatarColor: 'linear-gradient(135deg,#27ae60,#2ecc71)', nickname: '王先生', date: '2025.04', type: '财运 · 八字命理', question: '最近有一笔投资机会，适合投入吗？', answer: '八字分析显示偏财星弱、正财为主，流年财星受制。建议稳健理财，不宜大额高风险投入。', feedback: '听劝没投，朋友投了亏了不少', verified: '✅ 已应验' },
         { source: 'real', sourceLabel: '实战', avatar: '赵', avatarColor: 'linear-gradient(135deg,#3498db,#2980b9)', nickname: '赵同学', date: '2025.02', type: '学业 · 奇门遁甲', question: '今年考研能否上岸？', answer: '景门旺相、文书星有利，考场方位利东南。用神得位，发挥正常则结果可期。', feedback: '成功上岸了！感谢', verified: '✅ 已应验' },
-        { source: 'community', sourceLabel: '社区', avatar: '周', avatarColor: 'linear-gradient(135deg,#9b59b6,#8e44ad)', nickname: '周女士', date: '2025.05', type: '出行 · 奇门遁甲', question: '计划月底长途出行，安全吗？需要注意什么？', answer: '驿马星动但逢冲，原定日期不太理想。建议推迟一周，避开冲煞日，旅途会更加顺利。', feedback: '改期后一路顺风', verified: '✅ 已应验' },
-        { source: 'community', sourceLabel: '社区', avatar: '李', avatarColor: 'linear-gradient(135deg,#e74c3c,#c0392b)', nickname: '李先生', date: '2025.03', type: '事业 · 八字命理', question: '现在跳槽时机合适吗？还是再等等？', answer: '正官逢冲流年，上半年不宜轻动。下半年印星得力，事业有贵人相助，届时机会更好。', feedback: '秋季确实拿到了更好的offer', verified: '✅ 已应验' }
+        ...(SHOW_COMMUNITY_ENTRY ? [
+          { source: 'community', sourceLabel: '社区', avatar: '周', avatarColor: 'linear-gradient(135deg,#9b59b6,#8e44ad)', nickname: '周女士', date: '2025.05', type: '出行 · 奇门遁甲', question: '计划月底长途出行，安全吗？需要注意什么？', answer: '驿马星动但逢冲，原定日期不太理想。建议推迟一周，避开冲煞日，旅途会更加顺利。', feedback: '改期后一路顺风', verified: '✅ 已应验' },
+          { source: 'community', sourceLabel: '社区', avatar: '李', avatarColor: 'linear-gradient(135deg,#e74c3c,#c0392b)', nickname: '李先生', date: '2025.03', type: '事业 · 八字命理', question: '现在跳槽时机合适吗？还是再等等？', answer: '正官逢冲流年，上半年不宜轻动。下半年印星得力，事业有贵人相助，届时机会更好。', feedback: '秋季确实拿到了更好的offer', verified: '✅ 已应验' }
+        ] : [])
       ],
       features: [
         { icon: '🔮', title: '时安深度解读', desc: '小白极简版 + 专业深度版，专业术语点击即弹出大白话释义' },
@@ -334,8 +339,9 @@ export default {
   },
   computed: {
     filteredCases() {
-      if (this.caseFilter === 'all') return this.cases
-      return this.cases.filter(c => c.source === this.caseFilter)
+      const visibleCases = this.showCommunityEntry ? this.cases : this.cases.filter(c => c.source !== 'community')
+      if (this.caseFilter === 'all') return visibleCases
+      return visibleCases.filter(c => c.source === this.caseFilter)
     }
   },
   onMounted() {
@@ -396,11 +402,11 @@ export default {
     },
     showFooterInfo(type) {
       const infoMap = {
-        contact: '联系方式：可通过站内社区留言反馈问题与建议。涉及账号、积分、订单、内容纠错时，请尽量提供登录手机号、发生时间、页面名称和截图，便于核验处理。',
+        contact: '联系方式：可通过站内反馈或邮件联系处理问题与建议。涉及账号、积分、订单、内容纠错时，请尽量提供登录手机号、发生时间、页面名称和截图，便于核验处理。',
         terms: '用户协议：使用本站即表示你理解并同意，本平台提供的是传统民俗文化、命理排盘与解读参考服务。你应自行判断内容适用性，不得利用本站内容从事违法违规、诈骗、恐吓、诱导交易或损害他人权益的行为。',
-        privacy: '隐私政策：本站仅在提供排盘、保存命盘、社区互动、积分与订单服务时处理必要信息。出生信息、命盘档案、提问内容会用于生成解读和历史记录展示；你可以在用户管理中自行维护或删除相关资料。',
-        disclaimer: '完整免责声明：本站所有排盘、解读、择吉、日历、社区案例均为传统民俗文化参考，不构成医疗、法律、投资、婚恋、人事或其他现实决策建议。重大事项请结合现实证据与专业人士意见独立判断。',
-        copyright: '版权信息：© 2026 时安解忧屋 版权所有。本站页面设计、排盘展示、原创文案、解读模板与社区内容受相关法律保护；未经许可不得批量抓取、复制、镜像或用于商业再分发。',
+        privacy: '隐私政策：本站仅在提供排盘、保存命盘、内容互动、积分与订单服务时处理必要信息。出生信息、命盘档案、提问内容会用于生成解读和历史记录展示；你可以在用户管理中自行维护或删除相关资料。',
+        disclaimer: '完整免责声明：本站所有排盘、解读、择吉、日历、案例内容均为传统民俗文化参考，不构成医疗、法律、投资、婚恋、人事或其他现实决策建议。重大事项请结合现实证据与专业人士意见独立判断。',
+        copyright: '版权信息：© 2026 时安解忧屋 版权所有。本站页面设计、排盘展示、原创文案、解读模板与互动内容受相关法律保护；未经许可不得批量抓取、复制、镜像或用于商业再分发。',
       }
       uni.showModal({ title: '提示', content: infoMap[type] || '', showCancel: false })
     },

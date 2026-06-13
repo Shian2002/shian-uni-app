@@ -300,6 +300,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import TopNav from '@/components/TopNav.vue'
 
+const showCommunityEntry = import.meta.env.DEV || import.meta.env.VITE_SHOW_COMMUNITY === '1'
 const theme = ref(uni.getStorageSync('xc_theme') || 'dark')
 function toggleTheme() {
   theme.value = theme.value === 'dark' ? 'light' : 'dark'
@@ -994,6 +995,16 @@ async function confirmDisclaimer() {
 }
 
 onMounted(async function() {
+  if (!showCommunityEntry) {
+    try {
+      uni.reLaunch({ url: '/pages/index/index' })
+      return
+    } catch (_) {
+      try { window.location.replace('/#/') } catch (_) {}
+      return
+    }
+  }
+
   // 阻止触屏设备上 @tap + @click 双重触发
   window.__xc_lastTap = 0
   document.addEventListener('touchstart', function() { window.__xc_lastTap = Date.now() }, {passive: true})

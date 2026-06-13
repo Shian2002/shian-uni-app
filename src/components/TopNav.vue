@@ -21,7 +21,7 @@
         </view>
         <view class="nav-btn" data-href="#/pages/calendar/index" @click="goAsync('#/pages/calendar/index', $event)">专属日历</view>
         <view class="nav-btn" data-href="#/pages/user-management/index" @click="goAsync('#/pages/user-management/index', $event)">档案列表</view>
-        <view class="nav-btn" data-href="#/pages/community/index" @click="goAsync('#/pages/community/index', $event)">社区</view>
+        <view v-if="showCommunityEntry" class="nav-btn" data-href="#/pages/community/index" @click="goAsync('#/pages/community/index', $event)">社区</view>
         <view class="nav-btn" data-href="#/pages/about/index" @click="goAsync('#/pages/about/index', $event)">关于我们</view>
 
         <!-- 溢出"更多"按钮（JS 控制显示） -->
@@ -124,6 +124,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['toggle-theme', 'show-login'])
+const showCommunityEntry = import.meta.env.DEV || import.meta.env.VITE_SHOW_COMMUNITY === '1'
 function normalizeAvatarUrl(src) {
   var value = (src || '').trim()
   if (!value || value.indexOf('/static/images/logo.') !== -1 || value.indexOf('/logo.webp') !== -1) return ''
@@ -1545,8 +1546,8 @@ function onToggleTheme() {
 //   Round 8: 直接设 hash + reload, 但 HASH_TO_TAB 把首页映射成 /pages/index/index → 白屏
 //   Round 9: 首页用真实路由路径 #/ (uni-app 中首页路由注册为 path:"/")
 //            其他 tabBar 页面用 #/pages/xxx/index (它们在 __uniRoutes 中 path 就是 /pages/xxx/index)
-var TAB_PATHS = ['/', '/pages/qimen/index', '/pages/bazi-index/index', '/pages/tarot/index', '/pages/liuyao/index', '/pages/meihua/index', '/pages/ziwei/index', '/pages/zeji/index', '/pages/calendar/index', '/pages/community/index', '/pages/user-management/index', '/pages/profile/index', '/pages/about/index', '/pages/points/index']
-var TAB_ROUTES = ['pages/index/index', 'pages/qimen/index', 'pages/bazi-index/index', 'pages/tarot/index', 'pages/liuyao/index', 'pages/meihua/index', 'pages/ziwei/index', 'pages/zeji/index', 'pages/calendar/index', 'pages/community/index', 'pages/user-management/index', 'pages/profile/index', 'pages/about/index', 'pages/points/index']
+var TAB_PATHS = ['/', '/pages/qimen/index', '/pages/bazi-index/index', '/pages/tarot/index', '/pages/liuyao/index', '/pages/meihua/index', '/pages/ziwei/index', '/pages/zeji/index', '/pages/calendar/index'].concat(showCommunityEntry ? ['/pages/community/index'] : [], ['/pages/user-management/index', '/pages/profile/index', '/pages/about/index', '/pages/points/index'])
+var TAB_ROUTES = ['pages/index/index', 'pages/qimen/index', 'pages/bazi-index/index', 'pages/tarot/index', 'pages/liuyao/index', 'pages/meihua/index', 'pages/ziwei/index', 'pages/zeji/index', 'pages/calendar/index'].concat(showCommunityEntry ? ['pages/community/index'] : [], ['pages/user-management/index', 'pages/profile/index', 'pages/about/index', 'pages/points/index'])
 var TAB_TITLES = {
   '/': '时安解忧屋',
   '/pages/qimen/index': '奇门遁甲',
@@ -1557,12 +1558,12 @@ var TAB_TITLES = {
   '/pages/ziwei/index': '紫微斗数',
   '/pages/zeji/index': '择吉工具',
   '/pages/calendar/index': '专属日历',
-  '/pages/community/index': '社区',
   '/pages/user-management/index': '档案列表',
   '/pages/profile/index': '个人中心',
   '/pages/about/index': '关于我们',
   '/pages/points/index': '积分中心',
 }
+if (showCommunityEntry) TAB_TITLES['/pages/community/index'] = '社区'
 function isOnTabPage() {
   try {
     var pages = getCurrentPages()

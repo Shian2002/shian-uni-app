@@ -4171,7 +4171,7 @@ function onHomeKeydown(e) {
 // ── 页脚 ──
 function showFooterInfo(type) {
   const infoMap = {
-    contact: '联系方式：请通过社区留言或邮件联系',
+    contact: '联系方式：请通过站内反馈或邮件联系',
     terms: '用户协议：使用本站即表示同意遵守相关条款',
     privacy: '隐私政策：所有数据本地处理，不上传服务器',
     disclaimer: '免责声明：本站内容仅为民俗文化参考',

@@ -726,7 +726,8 @@ function showFooterInfo(type) {
 }
 
 function goNav(url, type) {
-  var TAB_LIST = ['/pages/index/index', '/pages/qimen/index', '/pages/bazi-index/index', '/pages/tarot/index', '/pages/liuyao/index', '/pages/meihua/index', '/pages/ziwei/index', '/pages/zeji/index', '/pages/calendar/index', '/pages/community/index', '/pages/profile/index']
+  var showCommunityEntry = import.meta.env.DEV || import.meta.env.VITE_SHOW_COMMUNITY === '1'
+  var TAB_LIST = ['/pages/index/index', '/pages/qimen/index', '/pages/bazi-index/index', '/pages/tarot/index', '/pages/liuyao/index', '/pages/meihua/index', '/pages/ziwei/index', '/pages/zeji/index', '/pages/calendar/index'].concat(showCommunityEntry ? ['/pages/community/index'] : [], ['/pages/profile/index'])
   var pathOnly = url.split('?')[0]
   if (type === 'switchTab' || TAB_LIST.indexOf(pathOnly) > -1) {
     if (url.indexOf('?') > -1) {
