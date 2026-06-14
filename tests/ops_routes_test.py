@@ -47,11 +47,13 @@ def admin_user(app_module):
 def test_health_is_lightweight_and_does_not_probe_reference_api(client, monkeypatch):
     import bazi_engine
 
+    monkeypatch.delenv("SHIAN_BAZI_USE_REFERENCE_API", raising=False)
+
     def fail_if_called():
         raise AssertionError("轻量健康检查不应访问第三方 API")
 
     monkeypatch.setattr(bazi_engine, "check_reference_api_health", fail_if_called)
-    bazi_engine._REFERENCE_API_HEALTH.update({"available": True, "last_check": 123, "fail_count": 0})
+    bazi_engine._REFERENCE_API_HEALTH.update({"available": False, "last_check": 123, "fail_count": 2})
 
     response = client.get("/api/health")
 
@@ -60,16 +62,44 @@ def test_health_is_lightweight_and_does_not_probe_reference_api(client, monkeypa
     assert data["success"] is True
     assert data["status"] == "running"
     assert data["reference_api"] == {
+        "enabled": False,
         "available": True,
         "checked": False,
-        "fail_count": 0,
+        "fail_count": 2,
         "last_check": 123,
     }
 
 
-def test_deep_health_probes_reference_api_when_requested(client, monkeypatch):
+def test_deep_health_skips_optional_reference_api_by_default(client, monkeypatch):
     import bazi_engine
 
+    monkeypatch.delenv("SHIAN_BAZI_USE_REFERENCE_API", raising=False)
+
+    def fail_if_called():
+        raise AssertionError("默认关闭外部参考接口时，深度健康检查不应探测它")
+
+    monkeypatch.setattr(bazi_engine, "check_reference_api_health", fail_if_called)
+    bazi_engine._REFERENCE_API_HEALTH.update({"available": False, "last_check": 456, "fail_count": 3})
+
+    response = client.get("/api/health/deep")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["success"] is True
+    assert data["status"] == "running"
+    assert data["reference_api"] == {
+        "enabled": False,
+        "available": True,
+        "checked": False,
+        "fail_count": 3,
+        "last_check": 456,
+    }
+
+
+def test_deep_health_probes_reference_api_when_enabled(client, monkeypatch):
+    import bazi_engine
+
+    monkeypatch.setenv("SHIAN_BAZI_USE_REFERENCE_API", "1")
     called = {"value": False}
 
     def fake_check():
@@ -84,7 +114,10 @@ def test_deep_health_probes_reference_api_when_requested(client, monkeypatch):
     assert response.status_code == 200
     data = response.get_json()
     assert called["value"] is True
+    assert data["success"] is False
+    assert data["status"] == "degraded"
     assert data["reference_api"] == {
+        "enabled": True,
         "available": False,
         "checked": True,
         "fail_count": 3,
@@ -95,6 +128,7 @@ def test_deep_health_probes_reference_api_when_requested(client, monkeypatch):
 def test_deep_health_checks_database_and_upload_folder(app_module, client, monkeypatch, tmp_path):
     import bazi_engine
 
+    monkeypatch.setenv("SHIAN_BAZI_USE_REFERENCE_API", "1")
     upload_dir = tmp_path / "uploads"
     app_module.app.config["UPLOAD_FOLDER"] = str(upload_dir)
     monkeypatch.setattr(bazi_engine, "check_reference_api_health", lambda: True)

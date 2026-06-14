@@ -36,13 +36,16 @@ def register_ops_routes(app):
     @app.route('/api/health')
     def api_health():
         """健康检查端点：只做本服务轻量探活，不阻塞等待第三方 API。"""
-        from bazi_engine import _REFERENCE_API_HEALTH
+        from bazi_engine import _REFERENCE_API_HEALTH, external_reference_enabled
+
+        reference_enabled = external_reference_enabled()
 
         return jsonify({
             'success': True,
             'status': 'running',
             'reference_api': {
-                'available': _REFERENCE_API_HEALTH.get('available', True),
+                'enabled': reference_enabled,
+                'available': True if not reference_enabled else _REFERENCE_API_HEALTH.get('available', True),
                 'fail_count': _REFERENCE_API_HEALTH.get('fail_count', 0),
                 'last_check': _REFERENCE_API_HEALTH.get('last_check', 0),
                 'checked': False,
@@ -52,9 +55,10 @@ def register_ops_routes(app):
     @app.route('/api/health/deep')
     def api_health_deep():
         """深度健康检查端点：需要时主动验证参考口径 API 连通性。"""
-        from bazi_engine import check_reference_api_health, _REFERENCE_API_HEALTH
+        from bazi_engine import check_reference_api_health, _REFERENCE_API_HEALTH, external_reference_enabled
 
-        reference_ok = check_reference_api_health()
+        reference_enabled = external_reference_enabled()
+        reference_ok = check_reference_api_health() if reference_enabled else True
         database = _check_database()
         upload = _check_upload_folder(app)
         success = bool(reference_ok and database["available"] and upload["available"])
@@ -62,10 +66,11 @@ def register_ops_routes(app):
             'success': success,
             'status': 'running' if success else 'degraded',
             'reference_api': {
+                'enabled': reference_enabled,
                 'available': reference_ok,
                 'fail_count': _REFERENCE_API_HEALTH.get('fail_count', 0),
                 'last_check': _REFERENCE_API_HEALTH.get('last_check', 0),
-                'checked': True,
+                'checked': reference_enabled,
             },
             'database': database,
             'upload': upload,
