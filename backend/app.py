@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """时安解忧屋 - 八字排盘 + 天机问策 融合门户 (v6.3)
 
+Copyright (c) 2026 JunJunXu. All rights reserved.
+原始发起与核心开发：JunJunXu <904752171@qq.com>
+
 v6.3: 模块化重构 — models/engines 独立模块，CSRF安全加固
 """
 try:
@@ -775,8 +778,8 @@ def bazi_result():
 
 @app.route('/bazi-pro')
 def bazi_pro_pan():
-    """旧问真八字专业细盘页已由 H5 接管。"""
-    return _frontend_removed('问真八字专业细盘', '#/pages/bazi-result/index')
+    """旧时安八字专业细盘页已由 H5 接管。"""
+    return _frontend_removed('时安八字专业细盘', '#/pages/bazi-result/index')
 
 
 @app.route('/hepan')
@@ -2749,640 +2752,467 @@ except ImportError:
 # 八字排盘路由
 # ═══════════════════════════════════════════════════════════════
 
-@app.route('/api/bazi/wz-pro')
-def api_bazi_wz_pro():
-    """问真八字专业细盘 API — 代理调用WZ API + 本地补充计算
+def _build_local_bazi_pro_payload(local_result, year, month, day, hour, minute, sex):
+    """把时安本地八字结果转换为专业盘兼容结构。"""
+    from bazi_engine import calc_shi_shen_for_gan
 
-    GET 参数:
-        y: 出生年(如1990)
-        m: 出生月(1-12)
-        d: 出生日(1-31)
-        h: 出生时(0-23)
-        mi: 出生分(0-59), 默认0
-        s: 性别(1=男, 2=女), 默认1
+    fp = local_result.get('four_pillars') or {}
+    day_master = local_result.get('day_master') or (fp.get('day') or {}).get('gan', '')
 
-    返回: 完整的专业细盘数据，供 bazi.html 前端渲染
-    """
-    from bazi_engine import (
-        fetch_wenzhen_dayun, calc_shi_shen_for_gan,
-        calc_liu_nian, calc_liu_yue, calc_liu_ri,
-        get_jieqi_times, calc_da_yun, JIE_ORDER, JIE_ZHI, MONTH_ZHI,
-        TIAN_GAN, DI_ZHI, GAN_YINYANG,
-        NAYIN, CANG_GAN,
-        YANG_GAN_CHANG_SHENG, YIN_GAN_CHANG_SHENG, CHANG_SHENG_ORDER,
-        calc_shi_er_chang_sheng,
-        calc_hour_pillar, zhi_to_hour_name,
-    )
+    def _ss_name(value):
+        if value == '偏官':
+            return '七杀'
+        if value == '日主':
+            return '比肩'
+        return value
 
-    try:
-        year = int(request.args.get('y', 0))
-        month = int(request.args.get('m', 0))
-        day = int(request.args.get('d', 0))
-        hour = int(request.args.get('h', 0))
-        minute = int(request.args.get('mi', 0))
-        sex = int(request.args.get('s', 1))
-    except (ValueError, TypeError):
-        return jsonify({'success': False, 'error': '参数格式错误'}), 400
+    def _pillar_item(key):
+        pillar = fp.get(key) or {}
+        gan = pillar.get('gan', '')
+        zhi = pillar.get('zhi', '')
+        cg = (local_result.get('cang_gan') or {}).get(key, [])
+        cgss = (local_result.get('cang_gan_shi_shen') or {}).get(key, [])
+        return {
+            'tg': gan,
+            'dz': zhi,
+            'ss': local_result.get('day_master_label') if key == 'day' else _ss_name((local_result.get('shi_shen') or {}).get(f'{key}_gan', '')),
+            'canggan': [{'gz': item, 'ss': _ss_name(cgss[i] if i < len(cgss) else '')} for i, item in enumerate(cg)],
+            'xingyun': (local_result.get('xing_yun') or {}).get(key, ''),
+            'zizuo': (local_result.get('zi_zuo') or {}).get(key, ''),
+            'kongwang': (local_result.get('kong_wang_per_pillar') or {}).get(key, ''),
+            'nayin': pillar.get('nayin', ''),
+            'shensha': (local_result.get('shen_sha_per_pillar') or {}).get(key, []),
+        }
 
-    if not (1900 <= year <= 2100 and 1 <= month <= 12 and 1 <= day <= 31 and 0 <= hour <= 23):
-        return jsonify({'success': False, 'error': '日期范围错误'}), 400
+    def _map_yun_item(item):
+        gan = item.get('gan', '')
+        zhi = item.get('zhi', '')
+        return {
+            'year': str(item.get('start_year') or item.get('year') or ''),
+            'age': f"{item.get('start_age')}~{item.get('end_age')}岁" if item.get('start_age') and item.get('end_age') and item.get('start_age') != item.get('end_age') else (f"{item.get('start_age')}岁" if item.get('start_age') else ''),
+            'tg': gan,
+            'tgSs': _ss_name(calc_shi_shen_for_gan(day_master, gan)) if day_master and gan else '',
+            'dz': zhi,
+            'dzSs': _ss_name(calc_shi_shen_for_gan(day_master, ((item.get('cang_gan') or [''])[0]))) if day_master and item.get('cang_gan') else '',
+            'gan_zhi': item.get('gan_zhi', ''),
+            'current': bool(item.get('current')),
+            'start_age': item.get('start_age'),
+            'end_age': item.get('end_age'),
+            'start_year': item.get('start_year'),
+            'end_year': item.get('end_year'),
+            'is_pre_qiyun': bool(item.get('is_pre_qiyun')),
+        }
 
-    gender = '男' if sex == 1 else '女'
+    def _map_liunian_item(item):
+        gan = item.get('gan') or (item.get('gan_zhi') or '')[:1]
+        zhi = item.get('zhi') or (item.get('gan_zhi') or '')[1:2]
+        return {
+            'year': str(item.get('year') or ''),
+            'age': item.get('age') or '',
+            'tg': gan,
+            'tgSs': item.get('gan_shishen_abbrev') or _ss_name(item.get('shi_shen_gan') or ''),
+            'dz': zhi,
+            'dzSs': item.get('zhi_shishen_abbrev') or '',
+            'gan_zhi': item.get('gan_zhi') or (gan + zhi),
+            'current': bool(item.get('current')),
+            'xiao_yun': item.get('xiao_yun_gan_zhi', ''),
+            'shensha': item.get('shen_sha', []),
+        }
 
-    # 调用问真八字API
-    wz_data = fetch_wenzhen_dayun(year, month, day, hour, minute, gender)
+    def _map_xiaoyun_item(item):
+        gz = item.get('gan_zhi') or ''
+        gan = item.get('gan') or gz[:1]
+        zhi = item.get('zhi') or gz[1:2]
+        return {'age': item.get('age'), 'tg': gan, 'dz': zhi, 'gan_zhi': gz or (gan + zhi)}
 
-    if not wz_data:
-        return jsonify({'success': False, 'error': '问真八字API不可用，请稍后重试'}), 503
+    def _map_liuyue_item(item):
+        gz = item.get('gan_zhi') or ''
+        gan = item.get('gan') or gz[:1]
+        zhi = item.get('zhi') or gz[1:2]
+        return {
+            'jieqi': item.get('jieqi', ''),
+            'date': item.get('date', ''),
+            'month_name': item.get('month_name', ''),
+            'tg': gan,
+            'tgSs': _ss_name(item.get('shi_shen_gan') or (calc_shi_shen_for_gan(day_master, gan) if day_master and gan else '')),
+            'dz': zhi,
+            'dzSs': '',
+            'gan_zhi': gz or (gan + zhi),
+            'shensha': item.get('shen_sha', []),
+        }
 
-    # ── 解析四柱 ──
-    bz = wz_data.get('bz', {})
-    if '0' in bz:
-        year_gan, year_zhi = bz.get('0', ''), bz.get('1', '')
-        month_gan, month_zhi = bz.get('2', ''), bz.get('3', '')
-        day_gan, day_zhi = bz.get('4', ''), bz.get('5', '')
-        # 时柱：问真API的时柱不可靠（总是返回"X子"），改用本地计算
-        wz_hour_gan, wz_hour_zhi = bz.get('6', ''), bz.get('7', '')
-    elif 'year' in bz:
-        yr = bz.get('year', {})
-        mn = bz.get('month', {})
-        dy = bz.get('day', {})
-        hr = bz.get('hour', {})
-        year_gan, year_zhi = yr.get('tg', ''), yr.get('dz', '')
-        month_gan, month_zhi = mn.get('tg', ''), mn.get('dz', '')
-        day_gan, day_zhi = dy.get('tg', ''), dy.get('dz', '')
-        wz_hour_gan, wz_hour_zhi = hr.get('tg', ''), hr.get('dz', '')
-    else:
-        return jsonify({'success': False, 'error': '无法解析四柱数据'}), 500
+    def _relation_text(rel, keys):
+        parts = []
+        for key in keys:
+            for item in rel.get(key, []) or []:
+                desc = item.get('desc') if isinstance(item, dict) else str(item)
+                if desc:
+                    parts.append(desc)
+        return '、'.join(parts)
 
-    # ── 时柱本地计算（问真API的时柱数据不可靠，始终返回"X子"） ──
-    is_night_zi = (hour == 23)
-    if is_night_zi:
-        # 夜子时需要次日天干
-        from datetime import datetime as _dt, timedelta as _td
-        next_day = _dt(year, month, day) + _td(days=1)
-        from bazi_engine import calc_day_pillar as _calc_dp
-        next_day_gan, _ = _calc_dp(next_day)
-        hour_gan, hour_zhi = calc_hour_pillar(hour, day_gan, is_night_zi, next_day_gan)
-    else:
-        hour_gan, hour_zhi = calc_hour_pillar(hour, day_gan)
+    def _uniq(parts):
+        seen = set()
+        out = []
+        for part in parts:
+            if part and part not in seen:
+                seen.add(part)
+                out.append(part)
+        return out
 
-    # 修正阴历时辰显示
-    hour_zhi_name = zhi_to_hour_name(hour_zhi)
-    lunar_str = bz.get('8', '') if '0' in bz else ''
-    # 替换问真API返回的阴历时辰为本地计算的时辰
-    if lunar_str and hour_zhi_name:
-        # 格式如 "1990年四月十四 子时" → 替换最后两字
-        import re
-        lunar_str = re.sub(r'[子丑寅卯辰巳午未申酉戌亥]时$', hour_zhi_name, lunar_str)
+    def _relation_label_text(desc):
+        text = re.sub(r'\s+', '', str(desc or ''))
+        if not text:
+            return ''
+        text = re.sub(r'[（(]缺[甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥]+[）)]', '', text)
+        text = re.sub(r'缺[甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥]+', '', text)
+        chars = ''.join(re.findall(r'[甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥]', text))
+        pair = chars[:2]
+        he_pair_order = {
+            frozenset({'甲', '己'}): '甲己',
+            frozenset({'乙', '庚'}): '乙庚',
+            frozenset({'丙', '辛'}): '丙辛',
+            frozenset({'丁', '壬'}): '丁壬',
+            frozenset({'戊', '癸'}): '戊癸',
+        }
+        relation_pair_order = {
+            frozenset({'丑', '辰'}): '辰丑',
+            frozenset({'酉', '戌'}): '酉戌',
+            frozenset({'卯', '辰'}): '辰卯',
+            frozenset({'卯', '午'}): '午卯',
+            frozenset({'巳', '亥'}): '巳亥',
+            frozenset({'辰', '戌'}): '辰戌',
+            frozenset({'丑', '戌'}): '丑戌',
+        }
+        he_pair = he_pair_order.get(frozenset(pair), pair) if len(pair) == 2 else pair
+        relation_pair = relation_pair_order.get(frozenset(pair), pair) if len(pair) == 2 else pair
+        zhi_ju = {'子': '水局', '午': '火局', '卯': '木局', '酉': '金局'}
+        hui_pair_ju = {
+            frozenset({'寅', '辰'}): '木局',
+            frozenset({'巳', '未'}): '火局',
+            frozenset({'申', '戌'}): '金局',
+            frozenset({'亥', '丑'}): '水局',
+        }
+        he_pair_ju = {
+            frozenset({'申', '子'}): '水局',
+            frozenset({'子', '辰'}): '水局',
+            frozenset({'申', '辰'}): '水局',
+            frozenset({'亥', '卯'}): '木局',
+            frozenset({'卯', '未'}): '木局',
+            frozenset({'亥', '未'}): '木局',
+            frozenset({'寅', '午'}): '火局',
+            frozenset({'午', '戌'}): '火局',
+            frozenset({'寅', '戌'}): '火局',
+            frozenset({'巳', '酉'}): '金局',
+            frozenset({'酉', '丑'}): '金局',
+            frozenset({'巳', '丑'}): '金局',
+        }
+        if '合化' in text:
+            wx = re.search(r'合化([木火土金水])', text)
+            return f'{he_pair}合化{wx.group(1)}' if pair and wx else text
+        if '三会' in text:
+            ju = re.search(r'三会([木火土金水]局)', text)
+            return f'{chars[:3]}三会{ju.group(1)}' if len(chars) >= 3 and ju else text
+        if '三合' in text:
+            ju = re.search(r'三合([木火土金水]局)', text)
+            return f'{chars[:3]}三合{ju.group(1)}' if len(chars) >= 3 and ju else text
+        if '拱合' in text and pair:
+            ju = re.search(r'拱合([木火土金水]局)', text)
+            target = ju.group(1) if ju else (zhi_ju.get(chars[2]) if len(chars) >= 3 else he_pair_ju.get(frozenset(pair), ''))
+            return f'{pair}拱合{target}' if target else f'{pair}拱合'
+        if '拱会' in text and pair:
+            ju = re.search(r'拱会([木火土金水]局)', text)
+            target = ju.group(1) if ju else hui_pair_ju.get(frozenset(pair), '')
+            return f'{pair}拱会{target}' if target else f'{pair}拱会'
+        if '半合' in text and pair:
+            ju = re.search(r'半合([木火土金水]局)', text)
+            target = ju.group(1) if ju else he_pair_ju.get(frozenset(pair), '')
+            return f'{pair}半合{target}' if target else f'{pair}半合'
+        if '暗合' in text and pair:
+            return f'{relation_pair}暗合'
+        if '恃势之刑' in text or '无恩之刑' in text or '无礼之刑' in text or '三刑' in text:
+            return f'{chars[:3]}三刑' if len(chars) >= 3 else f'{pair}刑'
+        if '相刑' in text or '自刑' in text:
+            return f'{relation_pair}自刑' if len(pair) == 2 and pair[0] == pair[1] else f'{relation_pair}刑'
+        for old, new in [('相冲', '冲'), ('相害', '害'), ('相破', '破'), ('相合', '合'), ('相克', '克')]:
+            if old in text and pair:
+                return f'{relation_pair}{new}'
+        for suffix in ['冲', '害', '破', '合', '克']:
+            if text.endswith(suffix) and pair:
+                return f'{relation_pair}{suffix}'
+        return text.replace('相', '')
 
-    # 日主
-    day_master = day_gan
+    def _reference_tg_guanxi(four_pillars, rel):
+        pillars = ['year', 'month', 'day', 'hour']
+        gans = [four_pillars.get(p, {}).get('gan', '') for p in pillars]
+        gan_wx = {'甲': '木', '乙': '木', '丙': '火', '丁': '火', '戊': '土', '己': '土', '庚': '金', '辛': '金', '壬': '水', '癸': '水'}
+        gan_yinyang = {'甲': '阳', '丙': '阳', '戊': '阳', '庚': '阳', '壬': '阳', '乙': '阴', '丁': '阴', '己': '阴', '辛': '阴', '癸': '阴'}
+        wx_ke = {'木': '土', '土': '水', '水': '火', '火': '金', '金': '木'}
+        gan_he_text = {
+            frozenset({'甲', '己'}): '甲己合化土',
+            frozenset({'乙', '庚'}): '乙庚合化金',
+            frozenset({'丙', '辛'}): '丙辛合化水',
+            frozenset({'丁', '壬'}): '丁壬合化木',
+            frozenset({'戊', '癸'}): '戊癸合化火',
+        }
+        gan_he_pairs = set(gan_he_text.keys())
+        parts = []
+        for i in range(len(gans)):
+            for j in range(i + 1, len(gans)):
+                g1, g2 = gans[i], gans[j]
+                pair = frozenset({g1, g2})
+                if pair in gan_he_pairs:
+                    continue
+                wx1, wx2 = gan_wx.get(g1), gan_wx.get(g2)
+                if not wx1 or not wx2:
+                    continue
+                if gan_yinyang.get(g1) != gan_yinyang.get(g2):
+                    continue
+                if g1 == '己' and g2 == '壬':
+                    continue
+                if wx_ke.get(wx1) == wx2:
+                    parts.append(f'{g1}{g2}克')
+                elif wx_ke.get(wx2) == wx1:
+                    parts.append(f'{g2}{g1}克')
+        for i in range(len(gans)):
+            for j in range(i + 1, len(gans)):
+                text = gan_he_text.get(frozenset({gans[i], gans[j]}))
+                if text:
+                    parts.append(text)
+        parts.extend(_relation_label_text(p) for p in (_relation_text(rel, ['gan_chong']).replace('、', ',').split(',') if rel else []))
+        return ','.join(_uniq([p for p in parts if p])) or '无合冲关系'
 
-    # ── 十神 ──
-    ss_arr = wz_data.get('ss', [])
-    # ── 藏干 ──
-    cg_arr = wz_data.get('cg', [])
-    cgss_arr = wz_data.get('cgss', [])
-    # ── 空亡 ──
-    kw_arr = wz_data.get('kw', [])
-    # ── 星运 ──
-    xy_arr = wz_data.get('xy', [])
-    # ── 自坐 ──
-    zz_arr = wz_data.get('zz', [])
-    # ── 纳音 ──
-    ny_arr = wz_data.get('ny', [])
-    # ── 四柱神煞 ──
-    szshensha = wz_data.get('szshensha', [])
-    # ── 大运神煞 ──
-    dyshensha = wz_data.get('dyshensha', [])
+    def _reference_dz_guanxi(four_pillars, rel):
+        pillars = ['year', 'month', 'day', 'hour']
+        zhis = [four_pillars.get(p, {}).get('zhi', '') for p in pillars]
+        parts = []
+        liuhe = {
+            frozenset({'子', '丑'}): '合化土', frozenset({'寅', '亥'}): '合化木',
+            frozenset({'卯', '戌'}): '合化火', frozenset({'辰', '酉'}): '合化金',
+            frozenset({'巳', '申'}): '合化水', frozenset({'午', '未'}): '合化土',
+        }
+        sanhe = [
+            ({'申', '子', '辰'}, '水局', '子'),
+            ({'亥', '卯', '未'}, '木局', '卯'),
+            ({'寅', '午', '戌'}, '火局', '午'),
+            ({'巳', '酉', '丑'}, '金局', '酉'),
+        ]
+        sanhui = [
+            ({'寅', '卯', '辰'}, '木局', '卯'),
+            ({'巳', '午', '未'}, '火局', '午'),
+            ({'申', '酉', '戌'}, '金局', '酉'),
+            ({'亥', '子', '丑'}, '水局', '子'),
+        ]
+        pair_order = {
+            frozenset({'申', '子'}): '申子', frozenset({'子', '辰'}): '子辰', frozenset({'申', '辰'}): '申辰',
+            frozenset({'亥', '卯'}): '亥卯', frozenset({'卯', '未'}): '卯未', frozenset({'亥', '未'}): '亥未',
+            frozenset({'寅', '午'}): '寅午', frozenset({'午', '戌'}): '午戌', frozenset({'寅', '戌'}): '寅戌',
+            frozenset({'巳', '酉'}): '巳酉', frozenset({'酉', '丑'}): '酉丑', frozenset({'巳', '丑'}): '巳丑',
+            frozenset({'寅', '辰'}): '寅辰', frozenset({'亥', '丑'}): '亥丑', frozenset({'巳', '未'}): '巳未',
+            frozenset({'申', '戌'}): '申戌',
+        }
+        relation_pair_order = {
+            frozenset({'丑', '辰'}): '辰丑',
+            frozenset({'酉', '戌'}): '酉戌',
+            frozenset({'丑', '戌'}): '丑戌',
+            frozenset({'辰', '戌'}): '辰戌',
+            frozenset({'巳', '亥'}): '巳亥',
+        }
 
-    # ── 大运 ──
-    wz_dayun = wz_data.get('dayun', [])
-    # ── 小运 ──
-    wz_xiaoyun = wz_data.get('xiaoyun', [])
+        def _normalize_zhi_relation_desc(desc):
+            if not desc or len(desc) < 4:
+                return desc
+            desc = desc.replace(' ', '')
+            for z in ['子', '卯', '辰', '午', '酉', '亥']:
+                if desc.startswith(z + z) and ('自刑' in desc or '刑' in desc):
+                    return f'{z}{z}相刑'
+            if '恃势之刑' in desc or '无恩之刑' in desc or '无礼之刑' in desc:
+                return desc[:2] + '相刑'
+            pair = frozenset({desc[0], desc[1]})
+            ordered = relation_pair_order.get(pair)
+            if ordered:
+                return ordered + desc[2:]
+            return desc
 
-    # ── 起运信息计算 ──
-    # WZ API的qiyunarr格式：[加密值, 月, 天, 时, 年, 加密值]
-    # 优先使用WZ API返回的qiyunarr数据（与问真网站完全一致），
-    # 降级时使用本地传统算法计算起运岁数和起运时间。
-    # 传统规则：3天=1年，1天=4个月，1时辰(2小时)=10天
-    from bazi_engine import _calc_qi_yun_age, get_jieqi_times, GAN_YINYANG, JIE_ORDER
-    from datetime import datetime as _dt
-    from dateutil.relativedelta import relativedelta
-
-    year_gan_for_calc = year_gan
-    is_yang_year = GAN_YINYANG.get(year_gan_for_calc, '') == '阳'
-    is_male = (sex == 1)
-    shun = (is_yang_year and is_male) or (not is_yang_year and not is_male)
-    dt_solar_local = _dt(year, month, day, hour, minute)
-    jieqi_times_local = get_jieqi_times(year)
-
-    # ── 本地计算小运列表（基于正确的时柱） ──
-    # WZ API的xiaoyun基于错误的时柱（始终返回子时），需本地重新计算
-    # 小运规则：阳男阴女从时柱顺行，阴男阳女从时柱逆行
-    # 1岁小运=时柱下一柱（顺行+1/逆行-1），而非时柱本身
-    # 注意：必须使用60甲子循环法（gan_zhi_to_num/num_to_gan_zhi），
-    # 不能单独操作天干/地支索引，否则会产生无效组合（如甲丑）。
-    from bazi_engine import gan_zhi_to_num as _gz2num, num_to_gan_zhi as _num2gz
-    xiaoyun_local = []
-    hour_num = _gz2num(hour_gan, hour_zhi)
-    direction = 1 if shun else -1
-    for age in range(1, 121):
-        gz_num = (hour_num + direction * age) % 60
-        gz = _num2gz(gz_num)
-        xiaoyun_local.append({'age': age, 'gan': gz[0], 'zhi': gz[1], 'gan_zhi': gz})
-
-    # 1) 计算起运岁数
-    qi_yun_age = _calc_qi_yun_age(dt_solar_local, jieqi_times_local, shun)
-
-    # 2) 精确计算起运时间（本地问真算法，不使用WZ加密数据）
-    # WZ API的qiyunarr年/岁字段始终加密，不可靠，现已弃用。
-    # 使用问真对齐算法：3天=1年, 1天=4月, 1小时=5天(小时向下取整)
-    qiyun_detail = {}
-    qiyun_duration = {}  # 出生后N年M月D天H时
-
-    try:
-        import math
-        from bazi_engine import get_all_jieqi_jd, jd_to_datetime, _JIEQI_LON_MAP, JIE_ORDER
-
-        # 出生时间的 Julian Day (UTC)
-        try:
-            import swisseph as swe
-            birth_jd = swe.julday(year, month, day, hour + minute / 60.0 - 8)
-            has_swisseph = True
-        except ImportError:
-            has_swisseph = False
-
-        S = None  # 距离目标节令的天数（含小数）
-        target_jie_dt = None  # 目标节令datetime (BJ)
-
-        if has_swisseph:
-            # ── 高精度路径：Swiss Ephemeris JD ──
-            all_jie_jd = {}  # {(year, jie_name): jd}
-            for y_jie in [year - 1, year, year + 1]:
-                jds = get_all_jieqi_jd(y_jie)
-                for jie_name in JIE_ORDER:
-                    jd = jds.get(jie_name)
-                    if jd is not None:
-                        all_jie_jd[(y_jie, jie_name)] = jd
-
-            if shun:
-                for (y_jie, jie_name), jd in sorted(all_jie_jd.items(), key=lambda x: x[1]):
-                    if jd > birth_jd:
-                        S = abs(jd - birth_jd)
-                        target_jie_dt = jd_to_datetime(jd)
-                        break
-            else:
-                for (y_jie, jie_name), jd in sorted(all_jie_jd.items(), key=lambda x: x[1], reverse=True):
-                    if jd <= birth_jd:
-                        S = abs(jd - birth_jd)
-                        target_jie_dt = jd_to_datetime(jd)
-                        break
-        else:
-            # ── 降级路径：ephem 逐分钟搜索 ──
-            all_jie = []
-            for y_jie in [year - 1, year, year + 1]:
-                jq = get_jieqi_times(y_jie)
-                for jie_name in JIE_ORDER:
-                    if jie_name in jq:
-                        all_jie.append((jq[jie_name], jie_name))
-            all_jie.sort(key=lambda x: x[0])
-
-            if shun:
-                for jie_dt, jie_name in all_jie:
-                    if jie_dt > dt_solar_local:
-                        S = abs((jie_dt - dt_solar_local).total_seconds()) / 86400.0
-                        target_jie_dt = jie_dt
-                        break
-            else:
-                for jie_dt, jie_name in reversed(all_jie):
-                    if jie_dt <= dt_solar_local:
-                        S = abs((dt_solar_local - jie_dt).total_seconds()) / 86400.0
-                        target_jie_dt = jie_dt
-                        break
-
-        if S is not None:
-            # ── 问真对齐算法 ──
-            # 规则: 3天=1年, 1天=4月, 1小时=5天(先乘5再取整，保留小数精度)
-            qiyun_years = int(S / 3)                              # 年 (3天=1年)
-            remaining_days = S - qiyun_years * 3                  # 提取年后剩余天数
-            qiyun_months = int(remaining_days * 4)                # 月 (1天=4月)
-            remaining_after_months = remaining_days - qiyun_months / 4.0  # 提取月后剩余天数
-            remaining_hours = remaining_after_months * 24         # 剩余天数→小时
-            qiyun_days = int(remaining_hours * 5)                 # 天 (1小时=5天，先乘5再取整)
-            qiyun_hours = 0                                       # 小时已转换为天，剩余为0
-
-            qiyun_duration = {
-                'years': qiyun_years, 'months': qiyun_months,
-                'days': qiyun_days, 'hours': qiyun_hours,
+        def _add_dark_relations():
+            dark_parts = []
+            special_parts = []
+            zhi_counts = {z: zhis.count(z) for z in set(zhis)}
+            dark_order = ['子戌暗合', '子辰暗合', '子巳暗合', '丑寅暗合']
+            dark_pairs = {
+                frozenset({'子', '戌'}): dark_order[0],
+                frozenset({'子', '辰'}): dark_order[1],
+                frozenset({'子', '巳'}): dark_order[2],
+                frozenset({'丑', '寅'}): dark_order[3],
             }
+            for i in range(len(zhis)):
+                for j in range(i + 1, len(zhis)):
+                    z1, z2 = zhis[i], zhis[j]
+                    if z1 == z2:
+                        continue
+                    pair = frozenset({z1, z2})
+                    if pair in dark_pairs:
+                        dark_parts.append(dark_pairs[pair])
+                    if pair == frozenset({'巳', '丑'}) and zhi_counts.get('巳', 0) == 1 and '亥' in zhi_set:
+                        special_parts.append('巳丑见辛暗合')
+            ordered_dark = [item for item in dark_order if item in set(dark_parts)]
+            return special_parts, ordered_dark
 
-            # 起运日期 = 出生日期 + 起运时间
-            qiyun_dt = dt_solar_local + relativedelta(
-                years=qiyun_years, months=qiyun_months, days=qiyun_days
-            )
-            qiyun_detail = {
-                'year': qiyun_dt.year, 'month': qiyun_dt.month,
-                'day': qiyun_dt.day, 'hour': qiyun_dt.hour, 'minute': qiyun_dt.minute,
-            }
+        zhi_set = set([z for z in zhis if z])
+        full_sanhui_trios = set()
+        for trio, ju, _mid in sanhui:
+            if trio.issubset(zhi_set):
+                full_sanhui_trios.add(frozenset(trio))
+                ordered = {'木局': '寅卯辰', '火局': '巳午未', '金局': '申酉戌', '水局': '亥子丑'}[ju]
+                parts.append(f'{ordered}三会{ju}')
+        liuhe_parts = []
+        sanhe_parts = []
+        sanhui_parts = []
+        for i in range(len(zhis)):
+            for j in range(i + 1, len(zhis)):
+                z1, z2 = zhis[i], zhis[j]
+                if not z1 or not z2:
+                    continue
+                if z1 == z2:
+                    continue
+                pair = frozenset({z1, z2})
+                if pair in liuhe:
+                    liuhe_parts.append(f'{z1}{z2}{liuhe[pair]}')
+                for trio, ju, mid in sanhe:
+                    if pair.issubset(trio):
+                        if z1 != z2:
+                            label = pair_order.get(pair, f'{z1}{z2}')
+                            if mid not in pair:
+                                sanhe_parts.append(f'{label}拱合{ju}')
+                            else:
+                                sanhe_parts.append(f'{label}半合{ju}')
+                for trio, _ju, mid in sanhui:
+                    if pair.issubset(trio) and mid not in pair and frozenset(trio) not in full_sanhui_trios:
+                        sanhui_parts.append(f'{pair_order.get(pair, f"{z1}{z2}")}拱会{_ju}')
+        special_dark_parts, dark_parts = _add_dark_relations()
+        parts.extend(liuhe_parts)
+        parts.extend(special_dark_parts)
+        parts.extend(sanhe_parts)
+        parts.extend(dark_parts)
+        parts.extend(sanhui_parts)
+        if rel:
+            parts.extend(_relation_label_text(_normalize_zhi_relation_desc(p)) for p in _relation_text(rel, ['zhi_an_he', 'zhi_san_xing', 'zhi_liu_chong', 'zhi_liu_hai', 'zhi_liu_po']).replace('、', ',').split(','))
+        return ','.join(_uniq([p for p in parts if p]))
 
-            # 用问真算法重新计算 qi_yun_age（比 _calc_qi_yun_age 更准确）
-            qi_yun_age = qiyun_years + (1 if qiyun_months >= 6 else 0)
-            qi_yun_age = max(1, qi_yun_age)
-    except Exception:
-        # 降级：使用 _calc_qi_yun_age 的结果
-        if qi_yun_age:
-            qiyun_year_est = year + qi_yun_age - 1
-            qiyun_detail = {'year': qiyun_year_est, 'month': month, 'day': day}
-            qiyun_duration = {'years': qi_yun_age, 'months': 0, 'days': 0, 'hours': 0}
+    tai_ming = local_result.get('tai_ming_shen') or {}
+    tai_yuan = tai_ming.get('tai_yuan') or {}
+    ming_gong = tai_ming.get('ming_gong') or {}
+    shen_gong = tai_ming.get('shen_gong') or {}
+    kong_wang = ''.join(local_result.get('kong_wang') or [])
+    rel = local_result.get('ganzhi_relations') or {}
+    four_pillars = local_result.get('four_pillars') or {}
+    qi_yun_detail = local_result.get('qi_yun_detail') or {}
 
-    # 胎元/命宫/身宫
-    taiyuan = wz_data.get('taiyuan', '')
-    taixi = wz_data.get('taixi', '')
-    minggong = wz_data.get('minggong', '')
-    shenggong = wz_data.get('shenggong', '')
-    kongwang = wz_data.get('kongwang', '')
-
-    # ── 构建四柱数据 ──
-    pillar_names = ['year', 'month', 'day', 'hour']
-    pillar_labels = ['年柱', '月柱', '日柱', '时柱']
-    pillar_gans = [year_gan, month_gan, day_gan, hour_gan]
-    pillar_zhis = [year_zhi, month_zhi, day_zhi, hour_zhi]
-
-    sizhu = {}
-    for i, name in enumerate(pillar_names):
-        canggan_items = []
-        if i == 3:
-            # 时柱藏干：使用本地计算的时柱地支来获取藏干（问真API的时柱不可靠）
-            cg_list = CANG_GAN.get(hour_zhi, [])
-            cgss_list = [calc_shi_shen_for_gan(day_master, cg) for cg in cg_list]
-        else:
-            cg_list = cg_arr[i] if i < len(cg_arr) else []
-            cgss_list = cgss_arr[i] if i < len(cgss_arr) else []
-        for j, gz in enumerate(cg_list):
-            ss = cgss_list[j] if j < len(cgss_list) else ''
-            canggan_items.append({'gz': gz, 'ss': ss})
-
-        shensha_list = szshensha[i] if i < len(szshensha) else []
-
-        # 主星: 日柱用"元男/元女"
-        if i == 2:
-            ss_label = '元男' if sex == 1 else '元女'
-        elif i == 3:
-            # 时柱十神：使用本地计算的时柱天干来计算（问真API的时柱不可靠）
-            ss_label = calc_shi_shen_for_gan(day_master, hour_gan)
-        elif i < len(ss_arr):
-            ss_label = ss_arr[i]
-        else:
-            ss_label = ''
-
-        # 空亡: 如果是pair形式(如"戌亥"), 拆分
-        kw_str = kw_arr[i] if i < len(kw_arr) else ''
-        # 确保空亡显示为两个字
-        if len(kw_str) == 2 and kw_str[0] in '子丑寅卯辰巳午未申酉戌亥':
-            pass  # 已经是正确格式
-
-        # 时柱特殊处理：使用本地计算的时柱数据
-        if i == 3:
-            hour_nayin = ''
-            try:
-                tg_idx = TIAN_GAN.index(hour_gan)
-                dz_idx = DI_ZHI.index(hour_zhi)
-                gz_num = -1
-                for k in range(60):
-                    if k % 10 == tg_idx and k % 12 == dz_idx:
-                        gz_num = k
-                        break
-                hour_nayin = NAYIN[gz_num] if gz_num >= 0 and gz_num < len(NAYIN) else ''
-            except Exception:
-                pass
-            hour_xingyun = calc_shi_er_chang_sheng(day_master, hour_zhi) if hour_zhi else ''
-            hour_zizuo = calc_shi_er_chang_sheng(hour_gan, hour_zhi) if hour_gan and hour_zhi else ''
-            # 时柱空亡：基于日柱旬空计算
-            from bazi_engine import get_xun_kong
-            _, hour_kw = get_xun_kong(day_gan, day_zhi)
-            hour_kw_str = hour_kw if hour_kw else ''
-            # 时柱神煞：本地计算
-            from bazi_engine import _calc_shen_sha_for_ganzhi
-            hour_shensha = _calc_shen_sha_for_ganzhi(hour_gan, hour_zhi, day_master, year_gan, year_zhi, month_zhi, day_zhi, gender, '')
-
-            sizhu[name] = {
-                'tg': pillar_gans[i],
-                'dz': pillar_zhis[i],
-                'ss': ss_label,
-                'canggan': canggan_items,
-                'xingyun': hour_xingyun,
-                'zizuo': hour_zizuo,
-                'kongwang': hour_kw_str,
-                'nayin': hour_nayin,
-                'shensha': hour_shensha,
-            }
-        else:
-            sizhu[name] = {
-                'tg': pillar_gans[i],
-                'dz': pillar_zhis[i],
-                'ss': ss_label,
-                'canggan': canggan_items,
-                'xingyun': xy_arr[i] if i < len(xy_arr) else '',
-                'zizuo': zz_arr[i] if i < len(zz_arr) else '',
-                'kongwang': kw_str,
-                'nayin': ny_arr[i] if i < len(ny_arr) else '',
-                'shensha': shensha_list,
-            }
-
-    # ── 计算大运列表（含详细数据） ──
-    birth_year = year
-    current_year = datetime.now().year
-    current_age_xu = current_year - birth_year + 1  # 虚岁: 出生当年=1岁
-
-    dayun_list = []
-    # 第0项: 起运前小运（从1岁开始，到起运岁前一年为止）
-    pre_end_age = qi_yun_age if qi_yun_age > 1 else 1
-    pre_start_year = birth_year  # 虚岁1岁=出生当年
-    pre_end_year = birth_year + pre_end_age - 1  # 虚岁: age=pre_end_age 对应的年份
-    # 起运前显示出生年的小运干支（xiaoyun_local[0] = 1岁小运）
-    pre_xy_gz = xiaoyun_local[0]['gan_zhi'] if xiaoyun_local else ''
-    pre_xy_tg = pre_xy_gz[0] if len(pre_xy_gz) >= 1 else ''
-    pre_xy_dz = pre_xy_gz[1] if len(pre_xy_gz) >= 2 else ''
-    pre_xy_tgSs = calc_shi_shen_for_gan(day_master, pre_xy_tg) if pre_xy_tg else ''
-    pre_xy_dzSs = calc_shi_shen_for_gan(day_master, CANG_GAN.get(pre_xy_dz, [''])[0]) if pre_xy_dz else ''
-    dayun_list.append({
-        'year': str(pre_start_year),
-        'age': f'1~{pre_end_age}岁',
-        'tg': pre_xy_tg, 'tgSs': pre_xy_tgSs, 'dz': pre_xy_dz, 'dzSs': pre_xy_dzSs,
-        'gan_zhi': '',
-        'start_age': 1,
-        'end_age': pre_end_age,
-        'current': (1 <= current_age_xu <= pre_end_age),
-        'start_year': pre_start_year,
-        'end_year': pre_end_year,
-        'is_pre_qiyun': True,  # 标记为起运前小运期
-    })
-
-    for i, gz in enumerate(wz_dayun):
-        start_age = qi_yun_age + 1 + i * 10
-        end_age = start_age + 9
-        start_year = birth_year + start_age - 1  # 虚岁: 1岁=出生当年
-        tg = gz[0] if len(gz) >= 1 else ''
-        dz = gz[1] if len(gz) >= 2 else ''
-        tg_ss = calc_shi_shen_for_gan(day_master, tg) if tg else ''
-        dz_ss = calc_shi_shen_for_gan(day_master, CANG_GAN.get(dz, [''])[0]) if dz else ''
-
-        is_current = (start_age <= current_age_xu <= end_age)
-
-        dayun_list.append({
-            'year': str(start_year),
-            'age': f'{start_age}岁',
-            'tg': tg, 'tgSs': tg_ss, 'dz': dz, 'dzSs': dz_ss,
-            'gan_zhi': gz,
-            'current': is_current,
-            'start_age': start_age,
-            'end_age': end_age,
-            'start_year': start_year,
-            'end_year': birth_year + end_age - 1,
-        })
-
-    # ── 计算流年列表 ──
-    # 找当前大运
-    current_dayun_idx = 0
-    for i, dy in enumerate(dayun_list):
-        if dy.get('current'):
-            current_dayun_idx = i
-            break
-
-    # 当前大运对应的流年
-    current_dy = dayun_list[current_dayun_idx] if current_dayun_idx < len(dayun_list) else {}
-    dy_start_year = int(current_dy.get('year', current_year)) if current_dy.get('year') else current_year
-    dy_start_age = current_dy.get('start_age', current_age_xu)
-    dy_end_age = current_dy.get('end_age', current_age_xu + 9)
-
-    liunian_list = []
-    try:
-        import sxtwl as _sxtwl
-        # 计算流年数量：根据大运的岁数范围
-        # 第一项（起运前小运）：如 1~5岁，则流年5个
-        # 后续大运项：10年一个，流年10个
-        if current_dayun_idx == 0:
-            # 起运前小运，取 age 字段解析岁数范围
-            age_str = current_dy.get('age', '')
-            age_match = re.search(r'(\d+)~(\d+)', age_str)
-            if age_match:
-                ln_start_age = int(age_match.group(1))
-                ln_end_age = int(age_match.group(2))
-            else:
-                ln_start_age = 1
-                ln_end_age = dy_start_age if dy_start_age > 1 else 1
-        else:
-            ln_start_age = dy_start_age
-            ln_end_age = dy_end_age
-
-        for age in range(ln_start_age, ln_end_age + 1):
-            target_year = birth_year + age - 1  # 1岁=出生当年
-            if target_year < birth_year or target_year > birth_year + 120:
-                continue
-            try:
-                obj = _sxtwl.fromSolar(target_year, 6, 15)
-                gz_obj = obj.getYearGZ()
-                ln_gan = TIAN_GAN[gz_obj.tg]
-                ln_zhi = DI_ZHI[gz_obj.dz]
-            except Exception:
-                continue
-
-            ln_gan_ss = calc_shi_shen_for_gan(day_master, ln_gan)
-            ln_zhi_ss = calc_shi_shen_for_gan(day_master, CANG_GAN.get(ln_zhi, [''])[0])
-            is_current = (target_year == current_year)
-
-            # 小运干支：从问真API获取（索引=岁数-1）
-            xiao_yun = xiaoyun_local[age - 1]['gan_zhi'] if age >= 1 and age <= len(xiaoyun_local) else ''
-
-            # 神煞：本地计算
-            from bazi_engine import _calc_shen_sha_for_ganzhi as _calc_ss_for_gz
-            ln_shensha = _calc_ss_for_gz(ln_gan, ln_zhi, day_master, year_gan, year_zhi, month_zhi, day_zhi, gender, '')
-
-            liunian_list.append({
-                'year': str(target_year),
-                'age': f'{age}岁',
-                'tg': ln_gan, 'tgSs': ln_gan_ss,
-                'dz': ln_zhi, 'dzSs': ln_zhi_ss,
-                'gan_zhi': ln_gan + ln_zhi,
-                'current': is_current,
-                'xiao_yun': xiao_yun,
-                'shensha': ln_shensha,
-            })
-    except ImportError:
-        pass
-
-    # ── 计算流月列表 ──
-    # 基于当前选中的流年
-    liuyue_list = []
-    try:
-        target_year_for_month = current_year
-        month_zhi_list = ['寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥', '子', '丑']
-        # 五虎遁：年干决定月干起始 — 必须用流年的年干，不是命主的出生年干
-        # 口诀：甲己丙寅起，乙庚戊寅起，丙辛庚寅起，丁壬壬寅起，戊癸甲寅起
-        target_year_gan_idx = (target_year_for_month - 4) % 10
-        target_year_gan = TIAN_GAN[target_year_gan_idx]
-        year_gan_idx = TIAN_GAN.index(target_year_gan) if target_year_gan in TIAN_GAN else 0
-        WU_HU_DUN = [2, 4, 6, 8, 0, 2, 4, 6, 8, 0]  # 甲0→丙2, 乙1→戊4, 丙2→庚6, 丁3→壬8, 戊4→甲0, 己5→丙2...
-        month_gan_start = WU_HU_DUN[year_gan_idx]
-
-        jie_names = ['立春', '惊蛰', '清明', '立夏', '芒种', '小暑',
-                     '立秋', '白露', '寒露', '立冬', '大雪', '小寒']
-        jie_dates = ['2/4', '3/5', '4/5', '5/5', '6/5', '7/7',
-                     '8/7', '9/7', '10/8', '11/7', '12/7', '1/5']
-        month_names = ['正月', '二月', '三月', '四月', '五月', '六月',
-                       '七月', '八月', '九月', '十月', '冬月', '腊月']
-
-        for m_idx in range(12):
-            m_gan_idx = (month_gan_start + m_idx) % 10
-            m_gan = TIAN_GAN[m_gan_idx]
-            m_zhi = month_zhi_list[m_idx]
-            m_gan_ss = calc_shi_shen_for_gan(day_master, m_gan)
-            m_zhi_ss = calc_shi_shen_for_gan(day_master, CANG_GAN.get(m_zhi, [''])[0])
-            # 神煞：本地计算
-            from bazi_engine import _calc_shen_sha_for_ganzhi as _calc_ss_for_gz2
-            lm_shensha = _calc_ss_for_gz2(m_gan, m_zhi, day_master, year_gan, year_zhi, month_zhi, day_zhi, gender, '')
-
-            liuyue_list.append({
-                'jieqi': jie_names[m_idx],
-                'date': jie_dates[m_idx],
-                'month_name': month_names[m_idx],
-                'tg': m_gan, 'tgSs': m_gan_ss,
-                'dz': m_zhi, 'dzSs': m_zhi_ss,
-                'gan_zhi': m_gan + m_zhi,
-                'shensha': lm_shensha,
-            })
-    except Exception as e:
-        logger.error(f"流月计算异常: {e}")
-
-    # ── 五行统计 ──
-    wuxing_map = {'甲': '木', '乙': '木', '丙': '火', '丁': '火', '戊': '土',
-                  '己': '土', '庚': '金', '辛': '金', '壬': '水', '癸': '水',
-                  '寅': '木', '卯': '木', '巳': '火', '午': '火', '辰': '土',
-                  '丑': '土', '未': '土', '戌': '土', '申': '金', '酉': '金',
-                  '亥': '水', '子': '水'}
-    wx_count = {'金': 0, '木': 0, '水': 0, '火': 0, '土': 0}
-    all_gz = pillar_gans + pillar_zhis
-    for g in all_gz:
-        wx = wuxing_map.get(g, '')
-        if wx:
-            wx_count[wx] += 1
-
-    # 旺衰（简化：按月令判断日主旺衰）
-    month_wx = wuxing_map.get(month_zhi, '')
-    day_wx = wuxing_map.get(day_gan, '')
-    sheng_map = {'木': '火', '火': '土', '土': '金', '金': '水', '水': '木'}
-    ke_map = {'木': '土', '土': '水', '水': '火', '火': '金', '金': '木'}
-    wangshuai = {}
-    for wx_name in ['水', '木', '金', '土', '火']:
-        if wx_name == month_wx:
-            wangshuai[wx_name] = '旺'
-        elif sheng_map.get(month_wx) == wx_name:
-            wangshuai[wx_name] = '相'
-        elif sheng_map.get(wx_name) == month_wx:
-            wangshuai[wx_name] = '休'
-        elif ke_map.get(month_wx) == wx_name:
-            wangshuai[wx_name] = '囚'
-        else:
-            wangshuai[wx_name] = '死'
-
-    # ── 生肖 ──
-    shengxiao_map = {'子': '鼠', '丑': '牛', '寅': '虎', '卯': '兔', '辰': '龙',
-                     '巳': '蛇', '午': '马', '未': '羊', '申': '猴', '酉': '鸡',
-                     '戌': '狗', '亥': '猪'}
-    shengxiao = shengxiao_map.get(year_zhi, '')
-
-    # ── 天干地支关系 ──
-    tg_guanxi = _calc_ganzhi_relations_gan(pillar_gans)
-    dz_guanxi = _calc_ganzhi_relations_zhi(pillar_zhis)
-
-    # ── 大运详细数据（含十神/藏干/纳音等，用于点击切换） ──
-    dayun_details = []
-    for i, gz in enumerate(wz_dayun):
-        if len(gz) < 2:
-            continue
-        tg, dz = gz[0], gz[1]
-        dy_ss = calc_shi_shen_for_gan(day_master, tg)
-        # 藏干
-        canggan_items = []
-        cg_list_dy = CANG_GAN.get(dz, [])
-        for cg_gan in cg_list_dy:
-            cg_ss = calc_shi_shen_for_gan(day_master, cg_gan)
-            canggan_items.append({'gz': cg_gan, 'ss': cg_ss})
-        # 纳音
-        try:
-            tg_idx = TIAN_GAN.index(tg)
-            dz_idx = DI_ZHI.index(dz)
-            # 六十甲子序号
-            gz_num = -1
-            for k in range(60):
-                if k % 10 == tg_idx and k % 12 == dz_idx:
-                    gz_num = k
-                    break
-            dy_nayin = NAYIN[gz_num] if gz_num >= 0 and gz_num < len(NAYIN) else ''
-        except Exception:
-            dy_nayin = ''
-        # 星运（十二长生）
-        dy_xingyun = calc_shi_er_chang_sheng(day_master, dz) if dz else ''
-        # 自坐
-        dy_zizuo = calc_shi_er_chang_sheng(tg, dz) if tg and dz else ''
-        # 空亡
-        from bazi_engine import _calc_kong_wang_for_ganzhi
-        dy_kw = _calc_kong_wang_for_ganzhi(tg, dz) if tg and dz else ''
-        # 神煞
-        dy_ss_list = []
-        for dy_ss_item in dyshensha:
-            if isinstance(dy_ss_item, (list, tuple)) and len(dy_ss_item) >= 2:
-                if dy_ss_item[0] == gz:
-                    dy_ss_list = dy_ss_item[1]
-                    break
-
-        dayun_details.append({
-            'gan_zhi': gz, 'tg': tg, 'dz': dz,
-            'ss': dy_ss, 'canggan': canggan_items,
-            'xingyun': dy_xingyun, 'zizuo': dy_zizuo,
-            'kongwang': dy_kw, 'nayin': dy_nayin,
-            'shensha': dy_ss_list,
-        })
-
-    # ── 组装返回数据 ──
-    result = {
+    return {
         'success': True,
-        'name': f'案例{year}',
-        'shengxiao': shengxiao,
+        'source': 'shian-local-bazi',
+        'name': local_result.get('name') or f'案例{year}',
+        'shengxiao': local_result.get('sheng_xiao', ''),
         'gender_label': '乾造' if sex == 1 else '坤造',
-        'lunar_date': lunar_str,
+        'lunar_date': local_result.get('birth_lunar', ''),
         'solar_date': f'{year}年{month:02d}月{day:02d}日 {hour:02d}:{minute:02d}',
-        'qiyun_info': _build_qiyun_info(qi_yun_age, qiyun_detail, year, month, day, qiyun_duration),
-        'jiaoyun_info': f'胎元{taiyuan} 命宫{minggong} 身宫{shenggong} 空亡({kongwang})' if kongwang else f'胎元{taiyuan} 命宫{minggong} 身宫{shenggong}',
-        'tg_guanxi': tg_guanxi,
-        'dz_guanxi': dz_guanxi,
-        'sizhu': sizhu,
-        'dayun_list': dayun_list,
-        'dayun_details': dayun_details,
-        'liunian_list': liunian_list,
-        'xiaoyun_list': xiaoyun_local,
-        'liuyue_list': liuyue_list,
-        'wuxing_wangdu': wangshuai,
-        'wuxing_count': wx_count,
-        'taiyuan': taiyuan,
-        'taixi': taixi,
-        'minggong': minggong,
-        'shenggong': shenggong,
-        'kongwang': kongwang,
+        'qiyun_info': qi_yun_detail.get('text', ''),
+        'jiaoyun_text': qi_yun_detail.get('jiao_yun_text', ''),
+        'jiaoyun_info': f"胎元{tai_yuan.get('gan_zhi', '')} 命宫{ming_gong.get('gan_zhi', '')} 身宫{shen_gong.get('gan_zhi', '')} 空亡({kong_wang})",
+        'tg_guanxi': _reference_tg_guanxi(four_pillars, rel),
+        'dz_guanxi': _reference_dz_guanxi(four_pillars, rel),
+        'sizhu': {key: _pillar_item(key) for key in ['year', 'month', 'day', 'hour']},
+        'dayun_list': [_map_yun_item(item) for item in local_result.get('da_yun', [])],
+        'dayun_details': [],
+        'liunian_list': [_map_liunian_item(item) for item in local_result.get('liu_nian', [])],
+        'xiaoyun_list': [_map_xiaoyun_item(item) for item in local_result.get('xiao_yun', [])],
+        'liuyue_list': [_map_liuyue_item(item) for item in local_result.get('liu_yue', [])],
+        'wuxing_wangdu': {},
+        'wuxing_count': local_result.get('wu_xing', {}),
+        'taiyuan': tai_yuan.get('gan_zhi', ''),
+        'taixi': (local_result.get('tai_xi') or {}).get('gan_zhi', ''),
+        'minggong': ming_gong.get('gan_zhi', ''),
+        'shenggong': shen_gong.get('gan_zhi', ''),
+        'kongwang': kong_wang,
+        'cheng_gu': local_result.get('cheng_gu') or {},
         'day_master': day_master,
         'birth_params': {'y': year, 'm': month, 'd': day, 'h': hour, 'mi': minute, 's': sex},
-        'current_age_xu': current_age_xu,
-        'qi_yun_age': qi_yun_age,
-        'qi_yun_detail': qiyun_detail,
+        'current_age_xu': datetime.now().year - year + 1,
+        'qi_yun_age': local_result.get('qi_yun_age'),
+        'qi_yun_detail': qi_yun_detail,
     }
 
-    resp = jsonify(result)
-    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    resp.headers['Pragma'] = 'no-cache'
-    return resp
+@app.route('/api/bazi/shian-pro')
+def api_bazi_shian_pro():
+    """时安八字专业细盘 API。
 
+    使用时安本地算法生成专业盘兼容结构；当前发行版不内置第三方排盘接口。
+    """
+    try:
+        year = int(request.args.get("y", 0))
+        month = int(request.args.get("m", 0))
+        day = int(request.args.get("d", 0))
+        hour = int(request.args.get("h", 0))
+        minute = int(request.args.get("mi", 0))
+        sex = int(request.args.get("s", 1))
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "error": "参数格式错误"}), 400
+
+    if not (1900 <= year <= 2100 and 1 <= month <= 12 and 1 <= day <= 31 and 0 <= hour <= 23):
+        return jsonify({"success": False, "error": "日期范围错误"}), 400
+
+    gender = "男" if sex == 1 else "女"
+    birth_time = f"{year:04d}{month:02d}{day:02d}{hour:02d}{minute:02d}"
+    use_solar_time_raw = str(request.args.get("useSolarTime", request.args.get("use_solar_time", "0"))).strip().lower()
+    use_solar_time = use_solar_time_raw in ("1", "true", "yes", "on")
+    birth_addr = request.args.get("birthAddr") or request.args.get("birth_addr") or ""
+    longitude = request.args.get("lng", request.args.get("longitude", request.args.get("birthLng", "")))
+    try:
+        longitude = float(longitude) if longitude not in ("", None) else None
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "error": "经度参数格式错误"}), 400
+
+    jy_raw = (request.args.get("jy") or "").strip()
+    jy_dt = None
+    if jy_raw:
+        jy_match = re.fullmatch(r"(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})", jy_raw)
+        if not jy_match:
+            return jsonify({"success": False, "error": "交运时间参数格式错误"}), 400
+        try:
+            jy_dt = datetime(
+                int(jy_match.group(1)),
+                int(jy_match.group(2)),
+                int(jy_match.group(3)),
+                int(jy_match.group(4)),
+                int(jy_match.group(5)),
+            )
+        except ValueError:
+            return jsonify({"success": False, "error": "交运时间参数范围错误"}), 400
+
+    from bazi_engine import calc_qi_yun_detail, paipan as bazi_paipan
+
+    local_result = bazi_paipan(
+        name=f"案例{year}",
+        gender=gender,
+        birth_time=birth_time,
+        cal_type="公历",
+        birth_addr=birth_addr,
+        use_solar_time=use_solar_time,
+        longitude=longitude,
+    )
+    if not local_result.get("success"):
+        return jsonify({"success": False, "error": local_result.get("error") or "本地专业盘生成失败"}), 500
+
+    if jy_dt is not None:
+        qi_yun_detail = dict(local_result.get("qi_yun_detail") or {})
+        jy_detail = calc_qi_yun_detail(jy_dt, {}, local_result.get("four_pillars") or {}, gender)
+        if jy_detail.get("jiao_yun_text"):
+            qi_yun_detail["jiao_yun_text"] = jy_detail["jiao_yun_text"]
+            local_result["qi_yun_detail"] = qi_yun_detail
+
+    resp = jsonify(_build_local_bazi_pro_payload(local_result, year, month, day, hour, minute, sex))
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
 
 def _calc_ganzhi_relations_gan(gans):
     """计算天干关系（合、冲、克）"""
@@ -3390,20 +3220,34 @@ def _calc_ganzhi_relations_gan(gans):
     GAN_CHONG = [('甲','庚'),('乙','辛'),('丙','壬'),('丁','癸')]
     GAN_KE = {'木':'土','土':'水','水':'火','火':'金','金':'木'}
     GAN_WX = {'甲':'木','乙':'木','丙':'火','丁':'火','戊':'土','己':'土','庚':'金','辛':'金','壬':'水','癸':'水'}
+    GAN_YINYANG = {'甲':'阳','丙':'阳','戊':'阳','庚':'阳','壬':'阳','乙':'阴','丁':'阴','己':'阴','辛':'阴','癸':'阴'}
+    GAN_HE_ORDER = {
+        frozenset({'甲', '己'}): '甲己',
+        frozenset({'乙', '庚'}): '乙庚',
+        frozenset({'丙', '辛'}): '丙辛',
+        frozenset({'丁', '壬'}): '丁壬',
+        frozenset({'戊', '癸'}): '戊癸',
+    }
     rels = []
     for i in range(len(gans)):
         for j in range(i+1, len(gans)):
             g1, g2 = gans[i], gans[j]
             if not g1 or not g2: continue
+            he_pair = False
             for a, b, name in GAN_HE:
                 if (g1==a and g2==b) or (g1==b and g2==a):
-                    rels.append(f'{g1}{g2}合化{name}')
+                    rels.append(f'{GAN_HE_ORDER[frozenset({g1, g2})]}合化{name}')
+                    he_pair = True
             for a, b in GAN_CHONG:
                 if (g1==a and g2==b) or (g1==b and g2==a):
                     rels.append(f'{g1}{g2}冲')
+            if he_pair or GAN_YINYANG.get(g1) != GAN_YINYANG.get(g2):
+                continue
             wx1, wx2 = GAN_WX.get(g1,''), GAN_WX.get(g2,'')
             if wx1 and wx2 and GAN_KE.get(wx1)==wx2:
-                rels.append(f'{g1}克{g2}')
+                rels.append(f'{g1}{g2}克')
+            elif wx1 and wx2 and GAN_KE.get(wx2)==wx1:
+                rels.append(f'{g2}{g1}克')
     return ', '.join(rels)
 
 
@@ -3423,7 +3267,7 @@ def _build_qiyun_info(qi_yun_age, qiyun_detail, birth_year, birth_month, birth_d
         return ''
 
     # 优先使用传统方法计算的起运时长
-    # 格式对齐问真：只显示非零部分，hours始终为0（已转换为天）不显示
+    # 格式对齐参考口径：只显示非零部分，hours始终为0（已转换为天）不显示
     if qiyun_duration:
         y = qiyun_duration.get('years', 0)
         m = qiyun_duration.get('months', 0)
@@ -3456,25 +3300,36 @@ def _build_qiyun_info(qi_yun_age, qiyun_detail, birth_year, birth_month, birth_d
 
 def _calc_ganzhi_relations_zhi(zhis):
     """计算地支关系（冲、合、刑、害、半合、暗合、三会）"""
-    ZHI_LIUHE = [('子','丑'),('寅','亥'),('卯','戌'),('辰','酉'),('巳','申'),('午','未')]
+    ZHI_LIUHE = [('子','丑','土'),('寅','亥','木'),('卯','戌','火'),('辰','酉','金'),('巳','申','水'),('午','未','土')]
     ZHI_CHONG = [('子','午'),('丑','未'),('寅','申'),('卯','酉'),('辰','戌'),('巳','亥')]
     ZHI_XING = [('寅','巳'),('丑','戌'),('子','卯'),('辰','辰'),('午','午'),('酉','酉'),('亥','亥')]
     ZHI_HAI = [('子','未'),('丑','午'),('寅','巳'),('卯','辰'),('申','亥'),('酉','戌')]
+    RELATION_PAIR_ORDER = {
+        frozenset({'丑', '辰'}): '辰丑',
+        frozenset({'酉', '戌'}): '酉戌',
+        frozenset({'卯', '辰'}): '辰卯',
+        frozenset({'卯', '午'}): '午卯',
+        frozenset({'巳', '亥'}): '巳亥',
+        frozenset({'辰', '戌'}): '辰戌',
+        frozenset({'丑', '戌'}): '丑戌',
+    }
+    def _pair_text(z1, z2):
+        return RELATION_PAIR_ORDER.get(frozenset({z1, z2}), f'{z1}{z2}')
     # 半合
     ZHI_BANHE = [
-        ('申','子','半合金水局'),('子','辰','半合金水局'),('申','辰','半合金水局'),
-        ('亥','卯','半合木局'),('卯','未','半合木局'),('亥','未','半合木局'),
-        ('寅','午','半合火局'),('午','戌','半合火局'),('寅','戌','半合火局'),
-        ('巳','酉','半合金局'),('酉','丑','半合金局'),('巳','丑','半合金局'),
+        ('申','子','半合水局'),('子','辰','半合水局'),('申','辰','拱合水局'),
+        ('亥','卯','半合木局'),('卯','未','半合木局'),('亥','未','拱合木局'),
+        ('寅','午','半合火局'),('午','戌','半合火局'),('寅','戌','拱合火局'),
+        ('巳','酉','半合金局'),('酉','丑','半合金局'),('巳','丑','拱合金局'),
     ]
     # 暗合
     ZHI_ANHE = [('寅','丑'),('巳','酉'),('午','亥')]
     # 三会
     ZHI_SANHUI = [
-        ({'寅','卯','辰'}, '三会木局'),
-        ({'巳','午','未'}, '三会火局'),
-        ({'申','酉','戌'}, '三会金局'),
-        ({'亥','子','丑'}, '三会水局'),
+        ({'寅','卯','辰'}, '木局', '卯'),
+        ({'巳','午','未'}, '火局', '午'),
+        ({'申','酉','戌'}, '金局', '酉'),
+        ({'亥','子','丑'}, '水局', '子'),
     ]
 
     zhi_set = set(z for z in zhis if z)
@@ -3483,18 +3338,19 @@ def _calc_ganzhi_relations_zhi(zhis):
         for j in range(i+1, len(zhis)):
             z1, z2 = zhis[i], zhis[j]
             if not z1 or not z2: continue
-            for a, b in ZHI_LIUHE:
+            pair_text = _pair_text(z1, z2)
+            for a, b, wx in ZHI_LIUHE:
                 if (z1==a and z2==b) or (z1==b and z2==a):
-                    rels.append(f'{z1}{z2}合化')
+                    rels.append(f'{pair_text}合化{wx}')
             for a, b in ZHI_CHONG:
                 if (z1==a and z2==b) or (z1==b and z2==a):
-                    rels.append(f'{z1}{z2}冲')
+                    rels.append(f'{pair_text}冲')
             for a, b in ZHI_XING:
                 if (z1==a and z2==b) or (z1==b and z2==a):
-                    rels.append(f'{z1}{z2}刑')
+                    rels.append(f'{pair_text}自刑' if z1 == z2 else f'{pair_text}刑')
             for a, b in ZHI_HAI:
                 if (z1==a and z2==b) or (z1==b and z2==a):
-                    rels.append(f'{z1}{z2}害')
+                    rels.append(f'{pair_text}害')
             for a, b, desc in ZHI_BANHE:
                 if (z1==a and z2==b) or (z1==b and z2==a):
                     # 检查对应三合局是否已完整（三合优先级更高）
@@ -3508,26 +3364,25 @@ def _calc_ganzhi_relations_zhi(zhis):
                     elif '金局' in desc:
                         if {'巳','酉','丑'}.issubset(zhi_set): skip = True
                     if not skip:
-                        rels.append(f'{z1}{z2}{desc}')
+                        rels.append(f'{pair_text}{desc}')
             for a, b in ZHI_ANHE:
                 if (z1==a and z2==b) or (z1==b and z2==a):
-                    rels.append(f'{z1}{z2}暗合')
+                    rels.append(f'{pair_text}暗合')
             # 六破
             ZHI_PO = [('子','酉'),('丑','辰'),('寅','亥'),('卯','午'),('巳','申'),('未','戌')]
             for a, b in ZHI_PO:
                 if (z1==a and z2==b) or (z1==b and z2==a):
-                    rels.append(f'{z1}{z2}破')
+                    rels.append(f'{pair_text}破')
 
     # 三会局（需要至少2个地支）
-    for trio, hui_desc in ZHI_SANHUI:
+    for trio, ju, mid in ZHI_SANHUI:
         present = trio & zhi_set
         if len(present) >= 2:
             involved = [z for z in zhis if z in trio]
-            missing = trio - present
-            if missing:
-                rels.append(f'{"".join(involved)}{hui_desc}(缺{"".join(missing)})')
-            else:
-                rels.append(f'{"".join(involved)}{hui_desc}')
+            if len(present) == 3:
+                rels.append(f'{"".join(involved)}三会{ju}')
+            elif mid not in present:
+                rels.append(f'{"".join(involved)}拱会{ju}')
 
     return ', '.join(rels)
 

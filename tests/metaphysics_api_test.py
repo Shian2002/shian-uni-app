@@ -98,8 +98,8 @@ def test_bazi_and_ziwei_share_fixed_sample_four_pillars(client):
     assert bazi["success"] is True
     assert bazi_pillar_text == "己巳 丁丑 壬辰 乙巳"
     assert bazi["birth_solar"] == "1990-01-27 10:02"
-    assert bazi["birth_lunar"] == "己巳年正月初一 巳时"
-    assert bazi["pillar_source"] in ("本地计算", "问真八字")
+    assert bazi["birth_lunar"] == "庚午年正月初一 巳时"
+    assert bazi["pillar_source"] in ("时安本地算法", "外部参考")
 
     ziwei = _post_json(
         client,
@@ -150,6 +150,173 @@ def test_bazi_and_ziwei_share_fixed_sample_four_pillars(client):
     assert flow_data["horoscope"]["monthly"]["name"] == "流月"
     assert flow_data["horoscope"]["monthly"]["ganzhi"]
     assert isinstance(flow_data["horoscope"]["monthly"]["index"], int)
+
+
+def test_shian_pro_bazi_matches_reference_qiyun_and_dayun_sample(client):
+    response = client.get("/api/bazi/shian-pro?y=1990&m=1&d=27&h=10&mi=30&s=1")
+    assert response.status_code == 200
+    data = response.get_json()
+
+    assert data["success"] is True
+    assert data["source"] == "shian-local-bazi"
+    assert data["qiyun_info"] == "出生后7年1月29天17时起运"
+    assert data["jiaoyun_text"] == "逢丁、壬年 惊蛰后23天 交大运"
+    assert data["qi_yun_detail"]["text"] == data["qiyun_info"]
+    assert data["qi_yun_detail"]["jiao_yun_text"] == data["jiaoyun_text"]
+    assert data["tg_guanxi"] == "乙己克,丁壬合化木"
+    assert data["dz_guanxi"] == "巳丑拱合金局,辰丑破"
+    assert data["cheng_gu"]["weight"] == "三两二钱"
+    assert data["cheng_gu"]["poem"] == "初年运蹇事难谋，渐有财源如水流，到得中年衣食旺，那时名利一齐收"
+    assert [data["sizhu"][key]["tg"] for key in ("year", "month", "day", "hour")] == ["己", "丁", "壬", "乙"]
+    assert [data["sizhu"][key]["dz"] for key in ("year", "month", "day", "hour")] == ["巳", "丑", "辰", "巳"]
+    dayun_ganzhi = [item["gan_zhi"] for item in data["dayun_list"] if item.get("gan_zhi")]
+    assert dayun_ganzhi[:12] == [
+        "丙子", "乙亥", "甲戌", "癸酉", "壬申", "辛未",
+        "庚午", "己巳", "戊辰", "丁卯", "丙寅", "乙丑",
+    ]
+
+
+def test_shian_pro_bazi_chenggu_matches_reference_sample(client):
+    response = client.get("/api/bazi/shian-pro?y=2024&m=2&d=4&h=3&mi=0&s=1")
+    assert response.status_code == 200
+    data = response.get_json()
+
+    assert data["lunar_date"] == "癸卯年腊月廿五 寅时"
+    cheng_gu = data["cheng_gu"]
+    assert cheng_gu["weight"] == "三两九钱"
+    assert cheng_gu["poem"] == "此命终身运不通，劳劳作事尽皆空，苦心竭力成家计，到得那时在梦中"
+    assert cheng_gu["details"]["year"]["gan_zhi"] == "癸卯"
+    assert cheng_gu["details"]["month"]["lunar_month"] == 12
+    assert cheng_gu["details"]["day"]["lunar_day"] == 25
+    assert cheng_gu["details"]["hour"]["zhi"] == "寅"
+    assert cheng_gu["details"]["total_qian"] == 39
+
+
+def test_shian_pro_bazi_uses_effective_sun_time_for_reference_qiyun(client):
+    response = client.get("/api/bazi/shian-pro?y=1994&m=8&d=15&h=18&mi=47&s=2")
+    assert response.status_code == 200
+    data = response.get_json()
+
+    assert data["success"] is True
+    assert [data["sizhu"][key]["tg"] for key in ("year", "month", "day", "hour")] == ["甲", "壬", "癸", "辛"]
+    assert [data["sizhu"][key]["dz"] for key in ("year", "month", "day", "hour")] == ["戌", "申", "酉", "酉"]
+    assert data["qiyun_info"] == "出生后2年6月23天13时起运"
+    assert data["jiaoyun_text"] == "逢丁、壬年 惊蛰后5天 交大运"
+    assert data["tg_guanxi"] == "无合冲关系"
+    assert data["dz_guanxi"] == "申酉戌三会金局,酉酉自刑,酉戌害"
+    assert data["cheng_gu"]["weight"] == "四两一钱"
+    assert data["cheng_gu"]["poem"] == "此命推来一般艰，女子为人很非凡，中年逍遥多自在，晚年更比中年超"
+
+
+def test_shian_pro_bazi_keeps_original_time_for_jiaoyun_when_sun_time_crosses_hour(client):
+    response = client.get("/api/bazi/shian-pro?y=2001&m=12&d=31&h=22&mi=59&s=1&jy=200112312330")
+    assert response.status_code == 200
+    data = response.get_json()
+
+    assert data["success"] is True
+    assert [data["sizhu"][key]["tg"] for key in ("year", "month", "day", "hour")] == ["辛", "庚", "戊", "癸"]
+    assert [data["sizhu"][key]["dz"] for key in ("year", "month", "day", "hour")] == ["巳", "子", "辰", "亥"]
+    assert data["qiyun_info"] == "出生后8年2月7天12时起运"
+    assert data["jiaoyun_text"] == "逢庚、乙年 惊蛰后5天 交大运"
+    assert data["tg_guanxi"] == "戊癸合化火"
+    assert data["dz_guanxi"] == "子辰半合水局,子辰暗合,子巳暗合,巳亥冲"
+    assert data["qi_yun_detail"]["text"] == data["qiyun_info"]
+    assert data["qi_yun_detail"]["jiao_yun_text"] == data["jiaoyun_text"]
+
+
+def test_bazi_paipan_uses_sun_time_qiyun_and_original_time_jiaoyun_when_crossing_hour(client):
+    data = _post_json(
+        client,
+        "/api/bazi/paipan",
+        {
+            "name": "临界夜子本地核验",
+            "gender": "男",
+            "calType": "公历",
+            "birthTime": "200112312330",
+            "birthAddr": "广东省 广州市 荔湾区",
+            "birthLng": 113.23,
+            "birthLat": 23.13,
+            "isDst": False,
+            "nightZiMode": "夜子时不换日",
+            "useSolarTime": True,
+            "isLeapMonth": False,
+        },
+    )
+
+    assert data["success"] is True
+    assert data["birth_input"] == "2001-12-31 23:30"
+    assert data["birth_solar"] == "2001-12-31 22:59"
+    assert [data["four_pillars"][key]["gan"] for key in ("year", "month", "day", "hour")] == ["辛", "庚", "戊", "癸"]
+    assert [data["four_pillars"][key]["zhi"] for key in ("year", "month", "day", "hour")] == ["巳", "子", "辰", "亥"]
+    assert data["qi_yun_detail"]["text"] == "出生后8年2月7天12时起运"
+    assert data["qi_yun_detail"]["jiao_yun_text"] == "逢庚、乙年 惊蛰后5天 交大运"
+
+
+def test_bazi_relation_descs_use_forward_ganzhi_label_style(client):
+    data = _post_json(
+        client,
+        "/api/bazi/paipan",
+        {
+            "name": "关系格式核验",
+            "gender": "男",
+            "calType": "公历",
+            "birthTime": "200204080537",
+            "birthAddr": "",
+            "isDst": False,
+            "nightZiMode": "夜子时不换日",
+            "useSolarTime": True,
+            "isLeapMonth": False,
+        },
+    )
+
+    rel_json = json.dumps(data["ganzhi_relations"], ensure_ascii=False)
+    dayun_rel_json = json.dumps(data["da_yun"][1]["pillar_relations"], ensure_ascii=False)
+    assert "壬丙冲" in rel_json
+    assert "丙辛合化水" in rel_json
+    assert "午午自刑" in rel_json
+    assert "辰卯害" in rel_json
+    assert "午卯破" in rel_json
+    assert "三会木局" not in rel_json
+    assert "乙辛冲" in dayun_rel_json
+    assert all(old not in rel_json + dayun_rel_json for old in ["相冲", "相破", "相害", "相刑"])
+
+
+def test_legacy_ganzhi_relation_helpers_keep_forward_label_style(app_module):
+    assert app_module._calc_ganzhi_relations_gan(["辛", "丙", "甲", "戊"]) == "丙辛合化水, 甲戊克"
+
+    zhi_text = app_module._calc_ganzhi_relations_zhi(["午", "卯", "辰", "丑"])
+    assert "午卯破" in zhi_text
+    assert "辰卯害" in zhi_text
+    assert "辰丑破" in zhi_text
+    assert "辰丑" in zhi_text
+    assert "丑辰" not in zhi_text
+    assert "三会木局" not in zhi_text
+
+    self_punishment = app_module._calc_ganzhi_relations_zhi(["午", "午", "", ""])
+    assert "午午自刑" in self_punishment
+    assert "午午刑" not in self_punishment
+
+    assert app_module._calc_ganzhi_relations_zhi(["寅", "辰", "", ""]) == "寅辰拱会木局"
+
+
+def test_engine_partial_sanhui_uses_gonghui_not_unfinished_sanhui(app_module):
+    import bazi_engine
+
+    rel = bazi_engine._calc_ganzhi_relations({
+        "year": {"gan": "甲", "zhi": "寅"},
+        "month": {"gan": "丙", "zhi": "辰"},
+        "day": {"gan": "戊", "zhi": "午"},
+        "hour": {"gan": "庚", "zhi": "申"},
+    })
+    assert rel["zhi_san_hui"][0]["desc"] == "寅辰拱会木局"
+
+    adjacent_rel = bazi_engine._calc_ganzhi_relations({
+        "year": {"gan": "甲", "zhi": "辰"},
+        "month": {"gan": "丙", "zhi": "卯"},
+        "day": {"gan": "戊", "zhi": "午"},
+        "hour": {"gan": "庚", "zhi": "申"},
+    })
+    assert adjacent_rel["zhi_san_hui"] == []
 
 
 def test_qimen_meihua_and_liuyao_fixed_samples(client):
@@ -563,6 +730,7 @@ def test_ziwei_ask_stream_requires_run_id_for_get(client):
 
 def test_bazi_ask_stream_uses_split_route_and_updates_record(app_module, user_factory, monkeypatch):
     import bazi_ask_routes
+    captured_messages = {}
 
     class FakeOpenAI:
         def __init__(self, api_key=None, base_url=None):
@@ -573,6 +741,7 @@ def test_bazi_ask_stream_uses_split_route_and_updates_record(app_module, user_fa
         def create(self, **kwargs):
             assert kwargs["stream"] is True
             assert "八字" in kwargs["messages"][0]["content"]
+            captured_messages["items"] = kwargs["messages"]
             return iter([
                 SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content="八字"))]),
                 SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content="解读正文"))]),
@@ -601,8 +770,17 @@ def test_bazi_ask_stream_uses_split_route_and_updates_record(app_module, user_fa
                 "hour": {"gan_zhi": "乙巳"},
             },
             "shi_shen": {},
-            "da_yun": [{"start_age": 1, "end_age": 10, "gan_zhi": "戊辰"}],
-            "liu_nian": [{"year": 2026, "gan_zhi": "丙午"}],
+            "da_yun": [{
+                "start_age": 1,
+                "end_age": 10,
+                "gan_zhi": "戊辰",
+                "pillar_relations": {"gan_chong": [{"desc": "壬丙相冲"}]},
+            }],
+            "liu_nian": [{
+                "year": 2026,
+                "gan_zhi": "丙午",
+                "pillar_relations": {"zhi_liu_po": [{"desc": "午卯相破"}]},
+            }],
         },
     })
 
@@ -610,11 +788,23 @@ def test_bazi_ask_stream_uses_split_route_and_updates_record(app_module, user_fa
     payloads = _sse_payloads(response)
     assert {"type": "delta", "content": "八字解读正文"} in payloads
     assert {"type": "done"} in payloads
+    prompt_text = captured_messages["items"][1]["content"]
+    assert "冲合: 壬丙冲" in prompt_text
+    assert "冲合: 午卯破" in prompt_text
+    assert "相冲" not in prompt_text
+    assert "相破" not in prompt_text
+    assert "{'desc':" not in prompt_text
 
     with app_module.app.app_context():
         record = app_module.Record.query.filter_by(user_id=member.id, app_type="bazi").one()
         assert record.question == "事业如何"
         assert record.result_html == "八字解读正文"
+
+
+def test_hepan_day_relation_uses_forward_ganzhi_label_style(app_module):
+    import bazi_routes
+
+    assert bazi_routes._calc_day_gan_relation("丙", "壬")[0] == "日主丙壬冲"
 
 
 def test_bazi_ask_stream_requires_input(client):

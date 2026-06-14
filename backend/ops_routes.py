@@ -36,35 +36,35 @@ def register_ops_routes(app):
     @app.route('/api/health')
     def api_health():
         """健康检查端点：只做本服务轻量探活，不阻塞等待第三方 API。"""
-        from bazi_engine import _WZ_HEALTH
+        from bazi_engine import _REFERENCE_API_HEALTH
 
         return jsonify({
             'success': True,
             'status': 'running',
-            'wz_api': {
-                'available': _WZ_HEALTH.get('available', True),
-                'fail_count': _WZ_HEALTH.get('fail_count', 0),
-                'last_check': _WZ_HEALTH.get('last_check', 0),
+            'reference_api': {
+                'available': _REFERENCE_API_HEALTH.get('available', True),
+                'fail_count': _REFERENCE_API_HEALTH.get('fail_count', 0),
+                'last_check': _REFERENCE_API_HEALTH.get('last_check', 0),
                 'checked': False,
             },
         })
 
     @app.route('/api/health/deep')
     def api_health_deep():
-        """深度健康检查端点：需要时主动验证问真 API 连通性。"""
-        from bazi_engine import check_wz_api_health, _WZ_HEALTH
+        """深度健康检查端点：需要时主动验证参考口径 API 连通性。"""
+        from bazi_engine import check_reference_api_health, _REFERENCE_API_HEALTH
 
-        wz_ok = check_wz_api_health()
+        reference_ok = check_reference_api_health()
         database = _check_database()
         upload = _check_upload_folder(app)
-        success = bool(wz_ok and database["available"] and upload["available"])
+        success = bool(reference_ok and database["available"] and upload["available"])
         return jsonify({
             'success': success,
             'status': 'running' if success else 'degraded',
-            'wz_api': {
-                'available': wz_ok,
-                'fail_count': _WZ_HEALTH.get('fail_count', 0),
-                'last_check': _WZ_HEALTH.get('last_check', 0),
+            'reference_api': {
+                'available': reference_ok,
+                'fail_count': _REFERENCE_API_HEALTH.get('fail_count', 0),
+                'last_check': _REFERENCE_API_HEALTH.get('last_check', 0),
                 'checked': True,
             },
             'database': database,

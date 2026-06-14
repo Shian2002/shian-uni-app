@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import threading
 import time
 
@@ -21,9 +22,86 @@ _bazi_ask_current_run = 0
 _bazi_ask_lock = threading.Lock()
 
 
+def _relation_label_text(desc):
+    text = re.sub(r'\s+', '', str(desc or ''))
+    if not text:
+        return ''
+    text = re.sub(r'[（(]缺[甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥]+[）)]', '', text)
+    text = re.sub(r'缺[甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥]+', '', text)
+    chars = ''.join(re.findall(r'[甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥]', text))
+    pair = chars[:2]
+    he_pair_order = {
+        frozenset({'甲', '己'}): '甲己',
+        frozenset({'乙', '庚'}): '乙庚',
+        frozenset({'丙', '辛'}): '丙辛',
+        frozenset({'丁', '壬'}): '丁壬',
+        frozenset({'戊', '癸'}): '戊癸',
+    }
+    relation_pair_order = {
+        frozenset({'丑', '辰'}): '辰丑',
+        frozenset({'酉', '戌'}): '酉戌',
+        frozenset({'卯', '辰'}): '辰卯',
+        frozenset({'卯', '午'}): '午卯',
+        frozenset({'巳', '亥'}): '巳亥',
+        frozenset({'辰', '戌'}): '辰戌',
+        frozenset({'丑', '戌'}): '丑戌',
+    }
+    he_pair = he_pair_order.get(frozenset(pair), pair) if len(pair) == 2 else pair
+    relation_pair = relation_pair_order.get(frozenset(pair), pair) if len(pair) == 2 else pair
+    if '合化' in text:
+        wx = re.search(r'合化([木火土金水])', text)
+        return f'{he_pair}合化{wx.group(1)}' if pair and wx else text
+    if '三合' in text:
+        ju = re.search(r'三合([木火土金水]局)', text)
+        return f'{chars[:3]}三合{ju.group(1)}' if len(chars) >= 3 and ju else text
+    if '三会' in text:
+        ju = re.search(r'三会([木火土金水]局)', text)
+        return f'{chars[:3]}三会{ju.group(1)}' if len(chars) >= 3 and ju else text
+    if '拱合' in text and pair:
+        ju = re.search(r'拱合([木火土金水]局)', text)
+        return f'{pair}拱合{ju.group(1)}' if ju else text
+    if '拱会' in text and pair:
+        ju = re.search(r'拱会([木火土金水]局)', text)
+        return f'{pair}拱会{ju.group(1)}' if ju else text
+    if '半合' in text and pair:
+        ju = re.search(r'半合([木火土金水]局)', text)
+        return f'{pair}半合{ju.group(1)}' if ju else text
+    if '暗合' in text and pair:
+        return f'{relation_pair}暗合'
+    if '恃势之刑' in text or '无恩之刑' in text or '无礼之刑' in text or '三刑' in text:
+        return f'{chars[:3]}三刑' if len(chars) >= 3 else f'{pair}刑'
+    if '相刑' in text or '自刑' in text:
+        return f'{relation_pair}自刑' if len(pair) == 2 and pair[0] == pair[1] else f'{relation_pair}刑'
+    for old, new in [('相冲', '冲'), ('相害', '害'), ('相破', '破'), ('相合', '合'), ('相克', '克')]:
+        if old in text and pair:
+            return f'{relation_pair}{new}'
+    for suffix in ['冲', '害', '破', '合', '克']:
+        if text.endswith(suffix) and pair:
+            return f'{relation_pair}{suffix}'
+    return text.replace('相', '')
+
+
 def _relation_text(items):
-    text = str(items or [])
-    return text[1:-1] if text and text != '[]' else '无'
+    if not items:
+        return '无'
+    if isinstance(items, dict):
+        parts = []
+        for value in items.values():
+            text = _relation_text(value)
+            if text != '无':
+                parts.append(text)
+        return '、'.join(parts) if parts else '无'
+    if isinstance(items, list):
+        parts = []
+        for item in items:
+            if isinstance(item, dict):
+                label = _relation_label_text(item.get('desc', ''))
+            else:
+                label = _relation_label_text(item)
+            if label:
+                parts.append(label)
+        return '、'.join(parts) if parts else '无'
+    return _relation_label_text(items) or '无'
 
 
 def _build_bazi_text(pan_result, label=''):

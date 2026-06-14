@@ -75,7 +75,7 @@ def _calc_day_gan_relation(g1, g2):
             rels.append(f'日主{g1}{g2}合化{name}')
     for a, b in gan_chong_pairs:
         if (g1 == a and g2 == b) or (g1 == b and g2 == a):
-            rels.append(f'日主{g1}{g2}相冲')
+            rels.append(f'日主{g1}{g2}冲')
     wx1 = gan_wuxing.get(g1, '')
     wx2 = gan_wuxing.get(g2, '')
     if wx1 and wx2 and wx1 != wx2:

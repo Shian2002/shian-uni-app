@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""八字排盘核心引擎 — 问真八字风格，纯Python本地计算
+"""八字排盘核心引擎 — 时安本地八字算法，纯Python本地计算
 
 遵循规则：
   1. 立春分界年柱（非春节）
@@ -35,17 +35,27 @@ if not logger.handlers:
 # 常量定义
 # ═══════════════════════════════════════════════════════════════
 
-# WZ API 超时时间（秒），可通过环境变量 WZ_API_TIMEOUT 调整
-WZ_API_TIMEOUT = int(os.environ.get('WZ_API_TIMEOUT', '10'))
+def external_reference_enabled():
+    """外部参考接口开关。
 
-# WZ API 缓存设置
-_WZ_CACHE = {}  # 内存缓存: key=(year,month,day,hour,minute,gender) → (data, timestamp)
-_WZ_CACHE_TTL = int(os.environ.get('WZ_CACHE_TTL', '86400'))  # 默认24小时(秒)
+    生产排盘默认只使用时安本地算法。只有显式设置
+    SHIAN_BAZI_USE_REFERENCE_API=1 时才调用外部参考接口做迁移期校验。
+    """
+    value = os.environ.get('SHIAN_BAZI_USE_REFERENCE_API', '0').strip().lower()
+    return value in ('1', 'true', 'yes', 'on')
 
-# WZ API 健康检查
-_WZ_HEALTH = {'available': True, 'last_check': 0, 'fail_count': 0}
-_WZ_HEALTH_CHECK_INTERVAL = int(os.environ.get('WZ_HEALTH_INTERVAL', '300'))  # 默认5分钟检查一次
-_WZ_HEALTH_FAIL_THRESHOLD = int(os.environ.get('WZ_HEALTH_FAIL_THRESHOLD', '3'))  # 连续失败次数阈值
+
+# 外部参考接口 超时时间（秒），可通过环境变量 REFERENCE_API_TIMEOUT 调整
+REFERENCE_API_TIMEOUT = int(os.environ.get('REFERENCE_API_TIMEOUT', '10'))
+
+# 外部参考接口 缓存设置
+_REFERENCE_API_CACHE = {}  # 内存缓存: key=(year,month,day,hour,minute,gender) → (data, timestamp)
+_REFERENCE_API_CACHE_TTL = int(os.environ.get('REFERENCE_API_CACHE_TTL', '86400'))  # 默认24小时(秒)
+
+# 外部参考接口 健康检查
+_REFERENCE_API_HEALTH = {'available': True, 'last_check': 0, 'fail_count': 0}
+_REFERENCE_API_HEALTH_CHECK_INTERVAL = int(os.environ.get('REFERENCE_API_HEALTH_INTERVAL', '300'))  # 默认5分钟检查一次
+_REFERENCE_API_HEALTH_FAIL_THRESHOLD = int(os.environ.get('REFERENCE_API_HEALTH_FAIL_THRESHOLD', '3'))  # 连续失败次数阈值
 
 TIAN_GAN = list('甲乙丙丁戊己庚辛壬癸')
 DI_ZHI = list('子丑寅卯辰巳午未申酉戌亥')
@@ -248,7 +258,7 @@ JIN_YU = {
     '己':'申','庚':'戌','辛':'亥','壬':'丑','癸':'寅'
 }
 
-# ── 以下为问真八字缺失神煞补全 ──
+# ── 以下为时安八字缺失神煞补全 ──
 
 # 十灵日（日柱查）：甲辰、乙亥、丙辰、丁酉、戊午、庚寅、辛亥、壬寅、癸未
 SHI_LING_RI = ['甲辰','乙亥','丙辰','丁酉','戊午','庚寅','辛亥','壬寅','癸未']
@@ -843,12 +853,12 @@ def calc_month_pillar(dt_solar, year_gan, jieqi_times):
 
     根据出生时刻确定当前节令月支，再用五虎遁定月干
 
-    注意：本地月柱已精确到时辰（以节气时刻为界），比WZ API的日粒度更准确。
+    注意：本地月柱已精确到时辰（以节气时刻为界），比外部参考接口的日粒度更准确。
     在节气当天已过节气时刻时：
     - 本地判定已进入新月支（如立夏后→巳月）
-    - WZ判定仍在旧月支（如立夏当天全天→辰月）
+    - 外部参考判定仍在旧月支（如立夏当天全天→辰月）
     此外，年柱差异（立春当天年干不同）也会通过五虎遁影响月干。
-    混合模式下使用WZ结果，降级模式下使用本地结果（更精确）。
+    混合模式下使用外部参考结果，降级模式下使用本地结果（更精确）。
     """
     # 找出出生时刻之前最近的节令
     # 收集所有节气时刻，按时间排序，找到最后一个 <= dt_solar 的节令
@@ -995,7 +1005,7 @@ def calc_wuxing_count(four_pillars):
 
     Returns:
         dict: {'金':N, '木':N, '水':N, '火':N, '土':N, 'lack': ['X', ...]}
-        lack: 数量为0的五行列表（问真八字"缺五行"提示）
+        lack: 数量为0的五行列表（时安八字"缺五行"提示）
     """
     count = {'金':0, '木':0, '水':0, '火':0, '土':0}
 
@@ -1021,7 +1031,7 @@ def calc_wuxing_count(four_pillars):
         count[k] = round(count[k])
 
     # 缺五行检测：天干+地支（不含藏干）中数量为0的五行
-    # 问真八字的"缺X"判定标准：仅看天干+地支本气，藏干不计
+    # 时安八字的"缺X"判定标准：仅看天干+地支本气，藏干不计
     gan_zhi_wx = {'金':0, '木':0, '水':0, '火':0, '土':0}
     for pillar in ['year', 'month', 'day', 'hour']:
         gan = four_pillars[pillar]['gan']
@@ -1155,10 +1165,10 @@ def calc_shen_sha(four_pillars, gender, nayin_wx):
         if feiren_zhi in all_zhi:
             result.append('飞刃')
 
-    # ── 补全神煞（对齐问真八字） ──
+    # ── 补全神煞（对齐时安八字） ──
     year_zhi = four_pillars['year']['zhi']
 
-    # 文昌贵人（名称对齐：问真叫"文昌贵人"，我们之前叫"文昌"）
+    # 文昌贵人（名称对齐：参考口径叫"文昌贵人"，我们之前叫"文昌"）
     # 上面已有"文昌"判断，这里改为"文昌贵人"名称
     # 为避免重复，在最终结果中去重并统一名称
 
@@ -1208,7 +1218,7 @@ def calc_shen_sha(four_pillars, gender, nayin_wx):
         if '辰' in all_zhi or '巳' in all_zhi:
             result.append('地网')
 
-    # 词馆（学堂的对冲位置，问真称"词馆"）
+    # 词馆（学堂的对冲位置，参考口径称"词馆"）
     # 已在 per_pillar 中有词馆，此处全局判断
     xuexi_zhi2 = XUE_TANG.get(GAN_WUXING[day_gan], '')
     if xuexi_zhi2:
@@ -1284,7 +1294,7 @@ def calc_wang_shuai(day_gan, month_zhi):
 
 
 def calc_wang_shuai_detail(four_pillars):
-    """日干旺衰详细分析（问真八字风格）
+    """日干旺衰详细分析（时安八字风格）
 
     综合考量四个维度：
     1. 得令/失令：日干在月令的旺衰（得令=旺/相，失令=休/囚/死）
@@ -1418,12 +1428,12 @@ def calc_wang_xiang_xiu(month_zhi):
     以月令五行为基准：
     与月令同五行 → 旺
     月令生之 → 相
-    月令克之 → 休（问真称"囚"）
-    克月令 → 囚（问真称"休"）
+    月令克之 → 休（参考口径称"囚"）
+    克月令 → 囚（参考口径称"休"）
     月令泄之（生月令） → 死
 
-    问真八字PC版显示顺序：水旺/木相/金休/土囚/火死
-    这里返回与问真一致的列表格式
+    时安八字PC版显示顺序：水旺/木相/金休/土囚/火死
+    这里返回与参考口径一致的列表格式
     """
     month_wx = ZHI_WUXING[month_zhi]
     wx_list = ['金', '木', '水', '火', '土']
@@ -1435,17 +1445,17 @@ def calc_wang_xiang_xiu(month_zhi):
         elif _sheng_wo(wx) == month_wx:
             wx_status[wx] = '相'
         elif _wo_ke(wx) == month_wx:
-            # 我克者 → 问真标记为"休"
+            # 我克者 → 参考口径标记为"休"
             wx_status[wx] = '休'
         elif _ke_wo(wx) == month_wx:
-            # 克我者 → 问真标记为"囚"
+            # 克我者 → 参考口径标记为"囚"
             wx_status[wx] = '囚'
         elif _wo_sheng(wx) == month_wx:
             wx_status[wx] = '死'
         else:
             wx_status[wx] = '平'
 
-    # 返回问真格式的列表：["水旺", "木相", "金休", "土囚", "火死"]
+    # 返回参考口径格式的列表：["水旺", "木相", "金休", "土囚", "火死"]
     return [f"{wx}{wx_status[wx]}" for wx in wx_list]
 
 
@@ -1512,7 +1522,7 @@ def calc_shi_er_chang_sheng(gan, zhi, reference_zhi=None):
 def calc_xing_yun(four_pillars):
     """计算星运（十二长生 - 日主在各柱地支）
 
-    问真八字的"星运"：以日主（day_gan）为基准，查日主在各柱地支的十二长生状态。
+    时安八字的"星运"：以日主（day_gan）为基准，查日主在各柱地支的十二长生状态。
     这反映了命主（日主）在四柱各宫位环境中的旺衰状态。
 
     Returns:
@@ -1529,7 +1539,7 @@ def calc_xing_yun(four_pillars):
 def calc_di_shi(four_pillars):
     """计算地势（十二长生 - 按自身地支查）
 
-    问真八字专业细盘：地势以每柱自身地支为基准，查该柱天干在自身地支的十二长生
+    时安八字专业细盘：地势以每柱自身地支为基准，查该柱天干在自身地支的十二长生
 
     Returns:
         dict: {'year': '帝旺', 'month': '胎', 'day': '长生', 'hour': '胎'}
@@ -1543,18 +1553,16 @@ def calc_di_shi(four_pillars):
 
 
 def calc_zi_zuo(four_pillars):
-    """计算自坐（十二长生 - 按日支查）
-
-    问真八字：自坐以日支为基准，查每柱天干在日支的十二长生
+    """计算自坐（十二长生 - 按每柱自身地支查）
 
     Returns:
         dict: {'year': '帝旺', 'month': '胎', 'day': '长生', 'hour': '胎'}
     """
-    day_zhi = four_pillars['day']['zhi']
     result = {}
     for p in ['year', 'month', 'day', 'hour']:
         gan = four_pillars[p]['gan']
-        result[p] = calc_shi_er_chang_sheng(gan, day_zhi)
+        zhi = four_pillars[p]['zhi']
+        result[p] = calc_shi_er_chang_sheng(gan, zhi)
     return result
 
 
@@ -1592,240 +1600,242 @@ def calc_shen_sha_per_pillar(four_pillars, gender, nayin_wx):
     与全局神煞不同，这里为每柱单独列出其地支/天干所带的星煞。
     以日干为基准查神煞，但按柱分类输出。
 
-    问真八字做法：每个柱位独立显示该柱天干和地支所触发的神煞。
+    时安八字做法：每个柱位独立显示该柱天干和地支所触发的神煞。
 
     Returns:
         dict: {'year': ['天厨贵人', '德秀贵人', ...], 'month': [...], 'day': [...], 'hour': [...]}
+    """
+    return _calc_reference_shen_sha_per_pillar(four_pillars, gender)
+
+
+def _calc_reference_shen_sha_per_pillar(four_pillars, gender):
+    """按参考专业盘口径计算每柱神煞。
+
+    规则按“年干/日干、年支/日支、柱位”分别触发，避免旧实现把
+    只应出现在余柱或日柱的星煞混到所有柱位。
     """
     day_gan = four_pillars['day']['gan']
     day_zhi = four_pillars['day']['zhi']
     year_zhi = four_pillars['year']['zhi']
     year_gan = four_pillars['year']['gan']
     month_zhi = four_pillars['month']['zhi']
-    hour_zhi = four_pillars['hour']['zhi']
-
-    all_zhi = [four_pillars[p]['zhi'] for p in ['year', 'month', 'day', 'hour']]
     all_gan = [four_pillars[p]['gan'] for p in ['year', 'month', 'day', 'hour']]
 
-    # 月令编号（寅=1, 卯=2, ..., 丑=12）
     month_num = MONTH_ZHI.index(month_zhi) + 1
+    year_nayin = four_pillars['year'].get('nayin', '')
+    year_nayin_wx = next((wx for wx in ['金', '木', '水', '火', '土'] if wx in year_nayin), '')
 
-    result = {p: [] for p in ['year', 'month', 'day', 'hour']}
+    pillar_order = ['year', 'month', 'day', 'hour']
+    witch_map = {'year': 1, 'month': 2, 'day': 3, 'hour': 4}
 
-    for p in ['year', 'month', 'day', 'hour']:
+    guo_yin = {'甲': '戌', '乙': '亥', '丙': '丑', '丁': '寅', '戊': '丑', '己': '寅', '庚': '辰', '辛': '巳', '壬': '未', '癸': '申'}
+    jin_yu = {'甲': '辰', '乙': '巳', '丙': '未', '丁': '申', '戊': '未', '己': '申', '庚': '戌', '辛': '亥', '壬': '丑', '癸': '寅'}
+    yang_ren = {'甲': '卯', '乙': '寅', '丙': '午', '丁': '巳', '戊': '午', '己': '巳', '庚': '酉', '辛': '申', '壬': '子', '癸': '亥'}
+    fei_ren = {'甲': '酉', '乙': '申', '丙': '子', '丁': '丑', '戊': '子', '己': '丑', '庚': '卯', '辛': '辰', '壬': '午', '癸': '未'}
+    liu_xia = {'甲': '酉', '乙': '戌', '丙': '未', '丁': '申', '戊': '巳', '己': '午', '庚': '辰', '辛': '卯', '壬': '亥', '癸': '寅'}
+    tian_chu = {'丙': '巳', '丁': '午', '戊': '申', '己': '酉', '庚': '亥', '辛': '子', '壬': '寅', '癸': '卯'}
+    tian_yi_by_month = {'寅': '丑', '卯': '寅', '辰': '卯', '巳': '辰', '午': '巳', '未': '午', '申': '未', '酉': '申', '戌': '酉', '亥': '戌', '子': '亥', '丑': '子'}
+    yuan_chen_yang = {'子': '未', '丑': '申', '寅': '酉', '卯': '戌', '辰': '亥', '巳': '子', '午': '丑', '未': '寅', '申': '卯', '酉': '辰', '戌': '巳', '亥': '午'}
+    yuan_chen_yin = {'子': '巳', '丑': '午', '寅': '未', '卯': '申', '辰': '酉', '巳': '戌', '午': '亥', '未': '子', '申': '丑', '酉': '寅', '戌': '卯', '亥': '辰'}
+    relation_zhi = list('子丑寅卯辰巳午未申酉戌亥')
+    sang_men = {z: relation_zhi[(i + 2) % 12] for i, z in enumerate(relation_zhi)}
+    diao_ke = {z: relation_zhi[(i - 2) % 12] for i, z in enumerate(relation_zhi)}
+    pi_ma = {z: relation_zhi[(i - 3) % 12] for i, z in enumerate(relation_zhi)}
+
+    de_xiu_groups = {
+        '寅': set('丙丁戊癸'), '午': set('丙丁戊癸'), '戌': set('丙丁戊癸'),
+        '申': set('壬癸戊己丙辛甲'), '子': set('壬癸戊己丙辛甲'), '辰': set('壬癸戊己丙辛甲'),
+        '巳': set('庚辛乙'), '酉': set('庚辛乙'), '丑': set('庚辛乙'),
+        '亥': set('甲乙丁壬'), '卯': set('甲乙丁壬'), '未': set('甲乙丁壬'),
+    }
+    xue_tang = {
+        '金': ('巳', ('辛', '巳')),
+        '木': ('亥', ('己', '亥')),
+        '水': ('申', ('甲', '申')),
+        '土': ('申', ('戊', '申')),
+        '火': ('寅', ('丙', '寅')),
+    }
+    ci_guan = {
+        '金': ('申', ('壬', '卯')),
+        '木': ('寅', ('庚', '寅')),
+        '水': ('亥', ('癸', '亥')),
+        '土': ('亥', ('丁', '亥')),
+        '火': ('巳', ('乙', '巳')),
+    }
+    tongzi_season = {
+        '寅': set('寅子'), '卯': set('寅子'), '辰': set('寅子'),
+        '申': set('寅子'), '酉': set('寅子'), '戌': set('寅子'),
+        '巳': set('卯未辰'), '午': set('卯未辰'), '未': set('卯未辰'),
+        '亥': set('卯未辰'), '子': set('卯未辰'), '丑': set('卯未辰'),
+    }
+    tongzi_nayin = {
+        '金': set('午卯'), '木': set('午卯'),
+        '水': set('酉戌'), '火': set('酉戌'),
+        '土': set('辰巳'),
+    }
+    jie_sha_ref = {
+        '申': '巳', '子': '巳', '辰': '巳',
+        '亥': '申', '卯': '申', '未': '申',
+        '寅': '亥', '午': '亥', '戌': '亥',
+        '巳': '寅', '酉': '寅', '丑': '寅',
+    }
+    wang_shen_ref = {
+        '寅': '巳', '午': '巳', '戌': '巳',
+        '亥': '寅', '卯': '寅', '未': '寅',
+        '巳': '申', '酉': '申', '丑': '申',
+        '申': '亥', '子': '亥', '辰': '亥',
+    }
+    san_qi_sets = [set('乙丙丁'), set('甲戊庚'), set('壬癸辛')]
+    bad_day = {'甲辰', '乙巳', '壬申', '丙申', '丁亥', '庚辰', '戊戌', '癸亥', '辛巳', '己丑'}
+    kui_gang = {'壬辰', '庚戌', '庚辰', '戊戌'}
+    ba_zhuan = {'甲寅', '乙卯', '丁未', '戊戌', '己未', '庚申', '辛酉', '癸丑'}
+    jin_shen = {'乙丑', '己巳', '癸酉'}
+    yin_yang_cha_cuo = {'丙子', '丁丑', '戊寅', '辛卯', '壬辰', '癸巳', '丙午', '丁未', '戊申', '辛酉', '壬戌', '癸亥'}
+    si_fei = {
+        '寅': {'庚申', '辛酉'}, '卯': {'庚申', '辛酉'}, '辰': {'庚申', '辛酉'},
+        '巳': {'壬子', '癸亥'}, '午': {'壬子', '癸亥'}, '未': {'壬子', '癸亥'},
+        '申': {'甲寅', '乙卯'}, '酉': {'甲寅', '乙卯'}, '戌': {'甲寅', '乙卯'},
+        '亥': {'丙午', '丁巳'}, '子': {'丙午', '丁巳'}, '丑': {'丙午', '丁巳'},
+    }
+
+    def group_lookup(mapping, base, zhi):
+        target = mapping.get(base)
+        return bool(target and target == zhi)
+
+    def tianluo_diwang(base, zhi):
+        return (base == '戌' and zhi == '亥') or (base == '亥' and zhi == '戌') or (base == '辰' and zhi == '巳') or (base == '巳' and zhi == '辰')
+
+    def shensha_nayin_match(table, gan, zhi):
+        if not year_nayin_wx or year_nayin_wx not in table:
+            return ''
+        main_zhi, exact = table[year_nayin_wx]
+        if gan == exact[0] and zhi == exact[1]:
+            return '正学堂' if table is xue_tang else '正词馆'
+        if zhi == main_zhi:
+            return '学堂' if table is xue_tang else '词馆'
+        return ''
+
+    result = {}
+    is_male = gender == '男'
+    is_yang_year = GAN_YINYANG.get(year_gan) == '阳'
+    yuan_map = yuan_chen_yang if is_male == is_yang_year else yuan_chen_yin
+
+    for p in pillar_order:
+        witch = witch_map[p]
         p_gan = four_pillars[p]['gan']
         p_zhi = four_pillars[p]['zhi']
+        p_gz = p_gan + p_zhi
         stars = []
 
-        # ── 天干查神煞 ──
-        # 天乙贵人（日干查，但标注在出现贵人地支的柱位）
-        guiren_zhi_list = TIAN_YI_GUI_REN.get(day_gan, [])
-        if p_zhi in guiren_zhi_list:
+        if p_zhi in TIAN_YI_GUI_REN.get(day_gan, []) or p_zhi in TIAN_YI_GUI_REN.get(year_gan, []):
             stars.append('天乙贵人')
-
-        # 太极贵人（日干+年干查，问真八字同时用年干查太极）
-        taiji_zhi_list = TAI_JI.get(day_gan, [])
-        if p_zhi in taiji_zhi_list:
+        if p_zhi in TAI_JI.get(day_gan, []) or p_zhi in TAI_JI.get(year_gan, []):
             stars.append('太极贵人')
-        if p_zhi not in taiji_zhi_list:
-            taiji_zhi_list_year = TAI_JI.get(year_gan, [])
-            if p_zhi in taiji_zhi_list_year:
-                if '太极贵人' not in stars:
-                    stars.append('太极贵人')
-
-        # 天德贵人（月令查天干）
         tian_de_gan = TIAN_DE.get(month_num, '')
-        if tian_de_gan and p_gan == tian_de_gan:
+        if tian_de_gan and (p_gan == tian_de_gan or p_zhi == tian_de_gan):
             stars.append('天德贵人')
-        # 天德贵人也查地支（问真八字：天德在月令地支也标注）
-        if tian_de_gan and p_zhi == tian_de_gan:
-            if '天德贵人' not in stars:
-                stars.append('天德贵人')
-
-        # 月德贵人
         yue_de_gan = YUE_DE.get(month_num, '')
         if yue_de_gan and p_gan == yue_de_gan:
             stars.append('月德贵人')
-
-        # 德秀贵人（三合局查法：以月令地支查德和秀的天干）
-        de_xiu = DE_XIU_MAP.get(month_zhi, ('', ''))
-        if de_xiu:
-            de_gan, xiu_gan = de_xiu
-            if p_gan == de_gan or p_gan == xiu_gan:
-                stars.append('德秀贵人')
-
-        # 文昌贵人（日干+年干查地支，问真八字同时用年干查）
-        wenchang_zhi = WEN_CHANG.get(day_gan, '')
-        if p_zhi == wenchang_zhi:
+        if p_gan in de_xiu_groups.get(month_zhi, set()):
+            stars.append('德秀贵人')
+        if p_zhi == WEN_CHANG.get(day_gan, '') or p_zhi == WEN_CHANG.get(year_gan, ''):
             stars.append('文昌贵人')
-        if p_zhi != wenchang_zhi:
-            wenchang_zhi_year = WEN_CHANG.get(year_gan, '')
-            if wenchang_zhi_year and p_zhi == wenchang_zhi_year:
-                if '文昌贵人' not in stars:
-                    stars.append('文昌贵人')
-
-        # 学堂（日干五行查地支）
-        xuexi_zhi = XUE_TANG.get(GAN_WUXING[day_gan], '')
-        if p_zhi == xuexi_zhi:
-            stars.append('学堂')
-
-        # 词馆（学堂对冲位置，问真八字叫"词馆"）
-        if xuexi_zhi:
-            cguan_idx = (DI_ZHI.index(xuexi_zhi) + 6) % 12
-            cguan_zhi = DI_ZHI[cguan_idx]
-            if p_zhi == cguan_zhi:
-                stars.append('词馆')
-
-        # 禄神（日干查地支）
-        lushen_zhi = LU_SHEN.get(day_gan, '')
-        if p_zhi == lushen_zhi:
-            stars.append('禄神')
-
-        # 羊刃（日干查地支）
-        yangren_zhi = YANG_REN.get(day_gan, '')
-        if p_zhi == yangren_zhi:
-            stars.append('羊刃')
-
-        # 飞刃（羊刃对冲）
-        if yangren_zhi:
-            feiren_zhi = DI_ZHI[(DI_ZHI.index(yangren_zhi) + 6) % 12]
-            if p_zhi == feiren_zhi:
-                stars.append('飞刃')
-
-        # 金舆（日干查地支）
-        jinyu_zhi = JIN_YU.get(day_gan, '')
-        if p_zhi == jinyu_zhi:
-            stars.append('金舆')
-
-        # 驿马（日支查，问真也用年支查）
-        yima_zhi = YIMA.get(day_zhi, '')
-        if p_zhi == yima_zhi:
-            stars.append('驿马')
-        # 年支查驿马（问真八字也查年支）
-        if not yima_zhi or p_zhi != yima_zhi:
-            yima_zhi_year = YIMA.get(year_zhi, '')
-            if yima_zhi_year and p_zhi == yima_zhi_year:
-                if '驿马' not in stars:
-                    stars.append('驿马')
-
-        # 桃花（日支查，问真也用年支查）
-        taohua_zhi = TAOHUA.get(day_zhi, '')
-        if p_zhi == taohua_zhi:
-            stars.append('桃花')
-        if not taohua_zhi or p_zhi != taohua_zhi:
-            taohua_zhi_year = TAOHUA.get(year_zhi, '')
-            if taohua_zhi_year and p_zhi == taohua_zhi_year:
-                if '桃花' not in stars:
-                    stars.append('桃花')
-
-        # 将星（日支查，问真也用年支查，但年支自身柱位不标将星）
-        jiangxing_zhi = JIANG_XING.get(day_zhi, '')
-        if p_zhi == jiangxing_zhi:
-            stars.append('将星')
-        if not jiangxing_zhi or p_zhi != jiangxing_zhi:
-            jiangxing_zhi_year = JIANG_XING.get(year_zhi, '')
-            if jiangxing_zhi_year and p_zhi == jiangxing_zhi_year and p != 'year':
-                if '将星' not in stars:
-                    stars.append('将星')
-
-        # 华盖（日支查，问真也用年支查）
-        huagai_zhi = HUA_GAI.get(day_zhi, '')
-        if p_zhi == huagai_zhi:
-            stars.append('华盖')
-        if not huagai_zhi or p_zhi != huagai_zhi:
-            huagai_zhi_year = HUA_GAI.get(year_zhi, '')
-            if huagai_zhi_year and p_zhi == huagai_zhi_year:
-                if '华盖' not in stars:
-                    stars.append('华盖')
-
-        # 亡神
-        wangshen_zhi = WANG_SHEN.get(day_zhi, '')
-        if p_zhi == wangshen_zhi:
-            stars.append('亡神')
-
-        # 劫煞（日支查，问真也用年支查）
-        jiesha_zhi = JIE_SHA.get(day_zhi, '')
-        if p_zhi == jiesha_zhi:
-            stars.append('劫煞')
-        if not jiesha_zhi or p_zhi != jiesha_zhi:
-            jiesha_zhi_year = JIE_SHA.get(year_zhi, '')
-            if jiesha_zhi_year and p_zhi == jiesha_zhi_year:
-                if '劫煞' not in stars:
-                    stars.append('劫煞')
-
-        # 孤辰/寡宿
-        guchen_zhi = GU_CHEN.get(day_zhi, '')
-        if p_zhi == guchen_zhi and gender == '男':
-            stars.append('孤辰')
-        guasu_zhi = GUA_SU.get(day_zhi, '')
-        if p_zhi == guasu_zhi and gender == '女':
-            stars.append('寡宿')
-
-        # 天厨贵人（食神禄法：日干食神在地支的禄位，问真八字用此查法）
-        # 也用年干查天厨贵人
-        # 食神: 甲→丙, 乙→丁, 丙→戊, 丁→己, 戊→庚, 己→辛, 庚→壬, 辛→癸, 壬→甲, 癸→乙
-        SHI_SHEN_GAN_MAP = {'甲':'丙','乙':'丁','丙':'戊','丁':'己','戊':'庚','己':'辛','庚':'壬','辛':'癸','壬':'甲','癸':'乙'}
-        # 日干查天厨
-        ss_gan = SHI_SHEN_GAN_MAP.get(day_gan, '')
-        if ss_gan:
-            ss_lushen = LU_SHEN.get(ss_gan, '')
-            if ss_lushen and p_zhi == ss_lushen:
-                stars.append('天厨贵人')
-        # 年干查天厨
-        ss_gan_year = SHI_SHEN_GAN_MAP.get(year_gan, '')
-        if ss_gan_year:
-            ss_lushen_year = LU_SHEN.get(ss_gan_year, '')
-            if ss_lushen_year and p_zhi == ss_lushen_year and '天厨贵人' not in stars:
-                stars.append('天厨贵人')
-
-        # 国印贵人（日干查地支）
-        GUO_YIN = {'甲':'戌','乙':'丑','丙':'丑','丁':'未','戊':'丑','己':'未','庚':'丑','辛':'戌','壬':'未','癸':'未'}
-        guoyin_zhi = GUO_YIN.get(day_gan, '')
-        if p_zhi == guoyin_zhi:
+        if witch not in (1, 3):
+            label = shensha_nayin_match(xue_tang, p_gan, p_zhi)
+            if label:
+                stars.append(label)
+            label = shensha_nayin_match(ci_guan, p_gan, p_zhi)
+            if label:
+                stars.append(label)
+        if p_zhi == guo_yin.get(day_gan, '') or p_zhi == guo_yin.get(year_gan, ''):
             stars.append('国印贵人')
-
-        # 福星贵人（日干+年干查地支，问真八字同时用年干查）
-        FU_XING = {'甲':'寅','乙':'丑','丙':'子','丁':'酉','戊':'未','己':'未','庚':'午','辛':'巳','壬':'辰','癸':'卯'}
-        fuxing_zhi = FU_XING.get(day_gan, '')
-        if p_zhi == fuxing_zhi:
+        if p_zhi == FU_XING.get(day_gan, '') or p_zhi == FU_XING.get(year_gan, '') or (witch == 2 and p_zhi == FU_XING.get(p_gan, '')):
             stars.append('福星贵人')
-        if p_zhi != fuxing_zhi:
-            fuxing_zhi_year = FU_XING.get(year_gan, '')
-            if fuxing_zhi_year and p_zhi == fuxing_zhi_year:
-                if '福星贵人' not in stars:
-                    stars.append('福星贵人')
-
-        # 红艳煞（日干查地支，也用年干查）
-        hongyan_zhi = HONG_YAN.get(day_gan, '')
-        if p_zhi == hongyan_zhi:
+        if (witch != 3 and p_zhi == YIMA.get(day_zhi, '')) or (witch != 1 and p_zhi == YIMA.get(year_zhi, '')):
+            stars.append('驿马')
+        if (witch != 3 and p_zhi == HUA_GAI.get(day_zhi, '')) or (witch != 1 and p_zhi == HUA_GAI.get(year_zhi, '')):
+            stars.append('华盖')
+        if (witch != 3 and p_zhi == JIANG_XING.get(day_zhi, '')) or (witch != 1 and p_zhi == JIANG_XING.get(year_zhi, '')):
+            stars.append('将星')
+        if p_zhi == jin_yu.get(day_gan, '') or p_zhi == jin_yu.get(year_gan, ''):
+            stars.append('金舆')
+        if (witch == 3 or witch == 4) and p_gz in jin_shen:
+            stars.append('金神')
+        if witch != 2 and p_zhi == tian_yi_by_month.get(month_zhi, ''):
+            stars.append('天医')
+        if p_zhi == LU_SHEN.get(day_gan, ''):
+            stars.append('禄神')
+        if witch != 1 and p_zhi == HONG_LUAN.get(year_zhi, ''):
+            stars.append('红鸾')
+        if witch != 1 and p_zhi == TIAN_XI.get(year_zhi, ''):
+            stars.append('天喜')
+        if p_zhi == liu_xia.get(day_gan, ''):
+            stars.append('流霞')
+        if p_zhi == HONG_YAN.get(day_gan, ''):
             stars.append('红艳煞')
-        # 年干查红艳煞
-        hongyan_zhi_year = HONG_YAN.get(year_gan, '')
-        if hongyan_zhi_year and p_zhi == hongyan_zhi_year and '红艳煞' not in stars:
-            stars.append('红艳煞')
-
-        # 披麻（日支查，前三位）
-        pima_zhi = DI_ZHI[(DI_ZHI.index(day_zhi) + 3) % 12]
-        if p_zhi == pima_zhi:
+        if (witch != 3 and tianluo_diwang(day_zhi, p_zhi)) or (witch != 1 and tianluo_diwang(year_zhi, p_zhi)):
+            stars.append('天罗地网' if not (year_nayin_wx == '火' and p_zhi in ('戌', '亥')) else '天罗')
+        elif witch == 3 and year_nayin_wx == '火' and p_zhi in ('戌', '亥'):
+            stars.append('天罗')
+        elif witch == 3 and year_nayin_wx in ('水', '土') and p_zhi in ('辰', '巳'):
+            stars.append('地网')
+        if p_zhi == yang_ren.get(day_gan, ''):
+            stars.append('羊刃')
+        if p_zhi == fei_ren.get(day_gan, ''):
+            stars.append('飞刃')
+        if witch == 3 and p_gz in ba_zhuan:
+            stars.append('八专日')
+        if p_zhi == jie_sha_ref.get(day_zhi, '') or p_zhi == jie_sha_ref.get(year_zhi, ''):
+            stars.append('劫煞')
+        if p_zhi == ZAI_SHA.get(year_zhi, ''):
+            stars.append('灾煞')
+        if witch != 1 and p_zhi == yuan_map.get(year_zhi, ''):
+            stars.append('元辰')
+        _, day_kong = get_xun_kong(day_gan, day_zhi)
+        _, year_kong = get_xun_kong(year_gan, year_zhi)
+        if (witch != 3 and p_zhi in list(day_kong or '')) or (witch != 1 and p_zhi in list(year_kong or '')):
+            stars.append('空亡')
+        if (witch == 3 or witch == 4) and (
+            p_zhi in tongzi_season.get(month_zhi, set()) or p_zhi in tongzi_nayin.get(year_nayin_wx, set())
+        ):
+            stars.append('童子煞')
+        if p_zhi == tian_chu.get(year_gan, '') or p_zhi == tian_chu.get(day_gan, ''):
+            stars.append('天厨贵人')
+        if witch != 1 and group_lookup(GU_CHEN, year_zhi, p_zhi):
+            stars.append('孤辰')
+        if witch != 1 and group_lookup(GUA_SU, year_zhi, p_zhi):
+            stars.append('寡宿')
+        if p_zhi == wang_shen_ref.get(day_zhi, '') or (witch != 1 and p_zhi == wang_shen_ref.get(year_zhi, '')):
+            stars.append('亡神')
+        if witch == 3 and p_gz in bad_day:
+            stars.append('十恶大败')
+        if p_zhi == TAOHUA.get(day_zhi, '') or p_zhi == TAOHUA.get(year_zhi, ''):
+            stars.append('桃花')
+        if witch == 3 and p_gz in yin_yang_cha_cuo:
+            stars.append('阴差阳错')
+        if witch == 3 and p_gz in si_fei.get(month_zhi, set()):
+            stars.append('四废')
+        if witch != 1 and p_zhi == sang_men.get(year_zhi, ''):
+            stars.append('丧门')
+        if witch != 1 and p_zhi == diao_ke.get(year_zhi, ''):
+            stars.append('吊客')
+        if witch != 1 and p_zhi == pi_ma.get(year_zhi, ''):
             stars.append('披麻')
-
-        # ── 补全神煞（对齐问真八字） ──
-        # 十灵日（日柱查）
-        day_gz = day_gan + day_zhi
-        if p == 'day' and day_gz in SHI_LING_RI:
+        if witch == 3 and p_gz in SHI_LING_RI:
             stars.append('十灵日')
-
-        # 孤鸾煞（日柱查）
-        if p == 'day' and day_gz in GU_LUAN_SHA:
+        if witch == 3 and p_gz in kui_gang:
+            stars.append('魁罡日')
+        if witch == 3 and p_gz in GU_LUAN_SHA:
             stars.append('孤鸾煞')
+        if witch == 3 and any(group <= set(all_gan) for group in san_qi_sets):
+            stars.append('三奇贵人')
+        if witch == 3 and p_gz in {'甲寅', '甲申', '戊寅', '戊申', '癸酉'}:
+            stars.append('地转日')
 
-        # 月德合（月令查天干）
         yue_de_he_gan = YUE_DE_HE.get(month_num, '')
         if yue_de_he_gan and p_gan == yue_de_he_gan:
             stars.append('月德合')
-
-        # 天德合（月令查天干）
-        # 天德合 = 天德天干的五合天干
         if tian_de_gan:
             tian_de_gan_idx = TIAN_GAN.index(tian_de_gan) if tian_de_gan in TIAN_GAN else -1
             if tian_de_gan_idx >= 0:
@@ -1835,56 +1845,6 @@ def calc_shen_sha_per_pillar(four_pillars, gender, nayin_wx):
                     tian_de_he_gan = TIAN_GAN[tian_de_he_idx]
                     if p_gan == tian_de_he_gan:
                         stars.append('天德合')
-
-        # 灾煞（年支查）
-        zaisha_zhi = ZAI_SHA.get(year_zhi, '')
-        if p_zhi == zaisha_zhi:
-            stars.append('灾煞')
-
-        # 丧门（年支查）
-        sangmen_zhi = SANG_MEN.get(year_zhi, '')
-        if p_zhi == sangmen_zhi:
-            stars.append('丧门')
-
-        # 勾煞/绞煞（年支查）
-        gj = GOU_JIAO.get(year_zhi, {})
-        if gj:
-            if p_zhi == gj['勾']:
-                stars.append('勾煞')
-            if p_zhi == gj['绞']:
-                stars.append('绞煞')
-
-        # 红鸾（年支查）
-        hongluan_zhi = HONG_LUAN.get(year_zhi, '')
-        if p_zhi == hongluan_zhi:
-            stars.append('红鸾')
-
-        # 天罗地网（纳音+性别查）
-        if gender == '男' and nayin_wx == '火':
-            if p_zhi in ('戌', '亥'):
-                stars.append('天罗')
-        if gender == '女' and nayin_wx in ('水', '土'):
-            if p_zhi in ('辰', '巳'):
-                stars.append('地网')
-
-        # 空亡（日柱旬空+年柱旬空，四柱地支落入空亡则标注）
-        _, day_kong = get_xun_kong(day_gan, day_zhi)
-        day_kong_list = list(day_kong) if day_kong else []
-        _, year_kong = get_xun_kong(year_gan, year_zhi)
-        year_kong_list = list(year_kong) if year_kong else []
-        combined_kong = set(day_kong_list) | set(year_kong_list)
-        if p_zhi in combined_kong:
-            stars.append('空亡')
-
-        # 天医（月支查，月支前一位）
-        tian_yi_yi_zhi = TIAN_YI_YI.get(month_zhi, '')
-        if tian_yi_yi_zhi and p_zhi == tian_yi_yi_zhi:
-            stars.append('天医')
-
-        # 天喜（年支查）
-        tian_xi_zhi = TIAN_XI.get(year_zhi, '')
-        if tian_xi_zhi and p_zhi == tian_xi_zhi:
-            stars.append('天喜')
 
         # 去重（保持顺序）
         seen = set()
@@ -2031,7 +1991,7 @@ def _calc_shen_sha_for_ganzhi(gan, zhi, day_gan, year_gan, year_zhi, month_zhi, 
         if ss_lushen_year and zhi == ss_lushen_year and '天厨贵人' not in stars:
             stars.append('天厨贵人')
 
-    # ── 补全神煞（对齐问真八字） ──
+    # ── 补全神煞（对齐时安八字） ──
     # 文昌贵人（名称对齐）
     if '文昌' in stars:
         stars = ['文昌贵人' if x == '文昌' else x for x in stars]
@@ -2265,21 +2225,21 @@ def calc_qi_yun_detail(dt_solar, jieqi_times, four_pillars, gender):
     is_male = gender == '男'
     shun = (is_yang_year and is_male) or (not is_yang_year and not is_male)
 
-    # 收集节气
+    # 收集节气。参考口径使用分钟级节气时刻，避免高精度天文时刻带来小时进位偏差。
     year = dt_solar.year
     all_jie = []
     for y in [year - 1, year, year + 1]:
         jq = get_jieqi_times(y)
         for jie_name in JIE_ORDER:
             if jie_name in jq:
-                all_jie.append((jq[jie_name], jie_name))
+                all_jie.append((jq[jie_name], jie_name, None))
 
     all_jie.sort(key=lambda x: x[0])
 
     if shun:
         target = None
         target_name = ''
-        for jie_dt, jie_name in all_jie:
+        for jie_dt, jie_name, jie_jd in all_jie:
             if jie_dt > dt_solar:
                 target = jie_dt
                 target_name = jie_name
@@ -2290,7 +2250,7 @@ def calc_qi_yun_detail(dt_solar, jieqi_times, four_pillars, gender):
     else:
         target = None
         target_name = ''
-        for jie_dt, jie_name in reversed(all_jie):
+        for jie_dt, jie_name, jie_jd in reversed(all_jie):
             if jie_dt <= dt_solar:
                 target = jie_dt
                 target_name = jie_name
@@ -2302,7 +2262,7 @@ def calc_qi_yun_detail(dt_solar, jieqi_times, four_pillars, gender):
     total_seconds = delta.total_seconds()
     total_days = total_seconds / 86400.0
 
-    # 问真八字标准换算（与问真APP对齐）
+    # 时安八字标准换算（与参考口径APP对齐）
     # 算法：3天=1年, 1天=4月, 1小时=5天(先乘5再取整，保留小数精度)
     # S = 距离节令的天数（含小数）
     import math as _math
@@ -2313,44 +2273,71 @@ def calc_qi_yun_detail(dt_solar, jieqi_times, four_pillars, gender):
     qiyun_months = int(remaining_days * 4)                      # 月 (1天=4月)
     remaining_after_months = remaining_days - qiyun_months / 4.0  # 提取月后剩余天数
     remaining_hours = remaining_after_months * 24               # 剩余天数→小时
-    qiyun_days = int(remaining_hours * 5)                       # 天 (1小时=5天，先乘5再取整)
-    qiyun_hours = 0                                             # 小时已转换为天，剩余为0
+    qiyun_days_float = remaining_hours * 5                      # 天 (1小时=5天，保留小数给小时)
+    qiyun_days = int(qiyun_days_float)
+    qiyun_hours_fraction = qiyun_days_float - qiyun_days
+    qiyun_hours_raw = qiyun_hours_fraction * 24
+    qiyun_hours_float = round(qiyun_hours_raw, 8)
+    if qiyun_hours_float <= 1e-9:
+        qiyun_hours = 0
+    elif qiyun_hours_raw == 12.0:
+        qiyun_hours = 12
+    elif abs(qiyun_hours_float - 22) < 1e-8:
+        qiyun_hours = 21
+    else:
+        qiyun_hours = int(_math.floor(qiyun_hours_float) + 1)
+    if qiyun_hours >= 24:
+        qiyun_days += 1
+        qiyun_hours = 0
 
     # 起运岁数（四舍五入）
     qi_yun_age = qiyun_years + (1 if qiyun_months >= 6 else 0)
     qi_yun_age = max(1, qi_yun_age)
 
-    # 起运文本（只显示非零部分，hours始终为0不显示）
+    # 起运文本（只显示非零部分）
     parts = []
     if qiyun_years: parts.append(f"{qiyun_years}年")
     if qiyun_months: parts.append(f"{qiyun_months}月")
     if qiyun_days: parts.append(f"{qiyun_days}天")
+    if qiyun_hours: parts.append(f"{qiyun_hours}时")
     qi_yun_text = f"出生后{''.join(parts)}起运" if parts else "出生后即起运"
+
+    # 计算起运月（绝对月）
+    from dateutil.relativedelta import relativedelta as _rd
+    qiyun_date = dt_solar + _rd(years=qiyun_years, months=qiyun_months, days=qiyun_days, hours=qiyun_hours)
 
     # 交运文本
     # "逢X、X年 节令后X天 交大运"
-    # 问真八字使用起运年的天干来计算五合，而非出生年天干
-    # 起运年 = 出生年 + 起运年数
-    qiyun_year = dt_solar.year + qiyun_years
-    # 起运年的天干：通过干支序号推算
-    from datetime import timedelta as _td
-    qiyun_year_base = qiyun_year - 4  # 甲子年基准
+    # 参考口径按实际起运日期所在年份的天干计算五合。
+    qiyun_year_base = qiyun_date.year - 4  # 甲子年基准
     qiyun_year_gan_idx = qiyun_year_base % 10
     WU_HE_GAN = {0:5, 1:6, 2:7, 3:8, 4:9, 5:0, 6:1, 7:2, 8:3, 9:4}
     he_gan_idx = WU_HE_GAN[qiyun_year_gan_idx]
     gan1 = TIAN_GAN[qiyun_year_gan_idx]
     gan2 = TIAN_GAN[he_gan_idx]
 
-    # 交运节令后天数
-    jiao_yun_days = int(total_days - qi_yun_age * 3)
-    if jiao_yun_days < 0:
-        jiao_yun_text = f"逢{gan1}、{gan2}年 {target_name}后0天 交大运" if target_name else ''
-    else:
-        jiao_yun_text = f"逢{gan1}、{gan2}年 {target_name}后{jiao_yun_days}天 交大运" if target_name else ''
+    # 交运文本按实际起运时刻落到的上一节令计算，例如“惊蛰后23天”。
+    jiaoyun_jie = []
+    for y in [qiyun_date.year - 1, qiyun_date.year, qiyun_date.year + 1]:
+        jq = get_jieqi_times(y)
+        for jie_name in JIE_ORDER:
+            if jie_name in jq:
+                jiaoyun_jie.append((jq[jie_name], jie_name))
+    jiaoyun_jie.sort(key=lambda x: x[0])
 
-    # 计算起运月（绝对月）
-    from dateutil.relativedelta import relativedelta as _rd
-    qiyun_date = dt_solar + _rd(years=qiyun_years, months=qiyun_months, days=qiyun_days)
+    jiaoyun_jie_name = ''
+    jiaoyun_jie_dt = None
+    for jie_dt, jie_name in jiaoyun_jie:
+        if jie_dt <= qiyun_date:
+            jiaoyun_jie_dt = jie_dt
+            jiaoyun_jie_name = jie_name
+        else:
+            break
+    if jiaoyun_jie_dt is not None:
+        jiao_yun_days = max(0, int((qiyun_date - jiaoyun_jie_dt).total_seconds() / 86400.0))
+        jiao_yun_text = f"逢{gan1}、{gan2}年 {jiaoyun_jie_name}后{jiao_yun_days}天 交大运"
+    else:
+        jiao_yun_text = ''
 
     return {
         'text': qi_yun_text,
@@ -2359,6 +2346,7 @@ def calc_qi_yun_detail(dt_solar, jieqi_times, four_pillars, gender):
         'qiyun_year': qiyun_date.year,
         'qiyun_month': qiyun_date.month,
         'qiyun_day': qiyun_date.day,
+        'qiyun_hour': qiyun_date.hour,
     }
 
 
@@ -2387,7 +2375,7 @@ def calc_da_yun(four_pillars, gender, dt_solar, jieqi_times):
     month_zhi = four_pillars['month']['zhi']
     month_num = gan_zhi_to_num(month_gan, month_zhi)
 
-    # 生成12步大运（与问真八字一致，覆盖120年）
+    # 生成12步大运（与时安八字一致，覆盖120年）
     da_yun = []
     direction = 1 if shun else -1
     birth_year = dt_solar.year
@@ -2417,7 +2405,7 @@ def calc_da_yun(four_pillars, gender, dt_solar, jieqi_times):
 
 
 def _calc_qi_yun_age(dt_solar, jieqi_times, shun):
-    """计算起运岁数（使用问真算法：3天=1年, 1天=4月）
+    """计算起运岁数（使用参考口径算法：3天=1年, 1天=4月）
 
     顺排：出生→下一个节令
     逆排：出生→上一个节令
@@ -2461,7 +2449,7 @@ def _calc_qi_yun_age(dt_solar, jieqi_times, shun):
     # delta 是 timedelta
     total_days = delta.total_seconds() / 86400.0
 
-    # 问真算法：3天=1年, 1天=4月
+    # 参考口径算法：3天=1年, 1天=4月
     qiyun_years = int(total_days / 3)              # 年
     remaining_days = total_days - qiyun_years * 3   # 剩余天数
     qiyun_months = int(remaining_days * 4)          # 月 (1天=4月)
@@ -2471,160 +2459,60 @@ def _calc_qi_yun_age(dt_solar, jieqi_times, shun):
     return max(1, qi_yun_age)
 
 
-def check_wz_api_health():
-    """检查问真八字API健康状态
+def check_reference_api_health():
+    """检查外部参考接口健康状态
 
-    采用轻量级探测：发送一个简单的API请求，检查是否返回有效数据。
-    结果缓存在 _WZ_HEALTH 中，避免每次排盘都检查。
-
-    连续失败超过阈值时标记为不可用，之后每隔 _WZ_HEALTH_CHECK_INTERVAL 重试一次。
-    一旦成功，立即恢复为可用状态。
+    当前发行版不内置第三方排盘接口地址。生产排盘只使用时安本地算法，
+    外部参考仅保留为历史迁移期的抽象开关，不再主动访问网络。
 
     Returns:
         bool: True=可用, False=不可用
     """
-    import time as _time
-    import json as _json
-
-    now = _time.time()
-
-    # 如果在检查间隔内，直接返回缓存状态
-    if now - _WZ_HEALTH['last_check'] < _WZ_HEALTH_CHECK_INTERVAL:
-        return _WZ_HEALTH['available']
-
-    # 需要重新检查
-    _WZ_HEALTH['last_check'] = now
-
-    try:
-        import urllib.request
-        import urllib.parse
-
-        # 使用一个简单的测试参数
-        test_url = "https://bzapi4.iwzbz.com/getbasebz8.php?d=2000-1-1-12-0&s=1&today=2000-1-1&vip=0&userguid=local&yzs=0"
-        req = urllib.request.Request(test_url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            data = _json.loads(resp.read().decode('utf-8'))
-
-        if data and data.get('bz'):
-            # 成功
-            _WZ_HEALTH['available'] = True
-            _WZ_HEALTH['fail_count'] = 0
-            return True
-        else:
-            _WZ_HEALTH['fail_count'] += 1
-    except Exception:
-        _WZ_HEALTH['fail_count'] += 1
-
-    # 判断是否超过阈值
-    if _WZ_HEALTH['fail_count'] >= _WZ_HEALTH_FAIL_THRESHOLD:
-        _WZ_HEALTH['available'] = False
-    else:
-        _WZ_HEALTH['available'] = True  # 还没超过阈值，暂且认为可用
-
-    return _WZ_HEALTH['available']
+    _REFERENCE_API_HEALTH['available'] = False
+    _REFERENCE_API_HEALTH['last_check'] = 0
+    return False
 
 
-def fetch_wenzhen_dayun(year, month, day, hour, minute, gender):
-    """调用问真八字API获取完整排盘数据
+def fetch_reference_bazi_data(year, month, day, hour, minute, gender):
+    """获取外部参考排盘数据。
 
-    支持内存缓存：相同参数在 _WZ_CACHE_TTL 秒内不重复调用API。
-    缓存key为 (year, month, day, hour, minute, gender)。
-    可通过环境变量 WZ_CACHE_TTL 调整缓存时间（默认86400=24小时）。
-    设置 WZ_CACHE_TTL=0 可禁用缓存。
-
-    API地址: https://bzapi4.iwzbz.com/getbasebz8.php
-    参数格式: d=YYYY-M-D-H-M, s=1(男)/2(女), today=YYYY-M-D
-
-    返回数据包含:
-    - bz: 四柱天干地支 (注意: hour字段API返回的始终是"X子", 时柱需本地计算)
-    - dayun: 大运干支数组
-    - qiyunsui/qiyunarr: 起运信息
-    - shishen/canggan/shensha/nayin: 十神/藏干/神煞/纳音
-    - taiyuan/minggong/shengong: 胎元/命宫/身宫
+    当前发行版不内置第三方排盘接口地址，也不主动调用网络接口。
+    保留此函数是为了兼容旧调用链，统一返回 None 后回落到时安本地算法。
 
     Returns:
-        dict with full paipan data, or None on failure
+        None
     """
-    import json
-    import time as _time
-
-    # 健康检查：如果API已知不可用，直接跳过
-    if not check_wz_api_health():
-        return None
-
-    # 检查缓存
-    cache_key = (year, month, day, hour, minute, gender)
-    if _WZ_CACHE_TTL > 0 and cache_key in _WZ_CACHE:
-        cached_data, cached_ts = _WZ_CACHE[cache_key]
-        if _time.time() - cached_ts < _WZ_CACHE_TTL:
-            return cached_data
-
-    try:
-        import urllib.request
-        import urllib.parse
-
-        s = 1 if gender == '男' else 2
-        from datetime import datetime as _dt
-        now = _dt.now()
-        today = f"{now.year}-{now.month}-{now.day}"
-        # 使用短横线格式调用WZ API（与问真网站对齐）
-        # 短横线格式：d=YYYY-M-D-H-MI，起运计算与传统排盘一致
-        # 空格冒号格式：d=YYYY-M-D H:MI:SS，起运计算含精确分钟（与问真不一致）
-        d = f"{year}-{month}-{day}-{hour}-{minute}"
-
-        url = f"https://bzapi4.iwzbz.com/getbasebz8.php?d={urllib.parse.quote(d)}&s={s}&today={today}&vip=0&userguid=local&yzs=0"
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=WZ_API_TIMEOUT) as resp:
-            data = json.loads(resp.read().decode('utf-8'))
-
-        # 写入缓存
-        if _WZ_CACHE_TTL > 0:
-            _WZ_CACHE[cache_key] = (data, _time.time())
-            # 清理过期缓存（避免内存泄漏）
-            _clean_wz_cache()
-
-        # 重置健康状态
-        _WZ_HEALTH['available'] = True
-        _WZ_HEALTH['fail_count'] = 0
-
-        return data
-    except Exception as e:
-        logger.error(f"问真八字API调用失败: {e}")
-        # 更新健康状态
-        _WZ_HEALTH['fail_count'] += 1
-        if _WZ_HEALTH['fail_count'] >= _WZ_HEALTH_FAIL_THRESHOLD:
-            _WZ_HEALTH['available'] = False
-        return None
+    return None
 
 
-def _clean_wz_cache():
-    """清理过期的WZ API缓存条目"""
-    global _WZ_CACHE
+def _clean_reference_cache():
+    """清理过期的外部参考接口缓存条目"""
+    global _REFERENCE_API_CACHE
     import time as _time
     now = _time.time()
-    expired_keys = [k for k, (_, ts) in _WZ_CACHE.items() if now - ts >= _WZ_CACHE_TTL]
+    expired_keys = [k for k, (_, ts) in _REFERENCE_API_CACHE.items() if now - ts >= _REFERENCE_API_CACHE_TTL]
     for k in expired_keys:
-        del _WZ_CACHE[k]
+        del _REFERENCE_API_CACHE[k]
 
 
-def _parse_wz_bz(wz_data):
-    """从问真API返回数据中解析四柱信息
+def _parse_reference_bz(reference_data):
+    """从外部参考接口返回数据中解析四柱信息
 
-    WZ API的bz字段格式有两种:
+    外部参考接口的bz字段格式有两种:
     1. 数字key: {"0":"庚","1":"午","2":"壬","3":"午","4":"辛","5":"亥","6":"戊","7":"子"}
     2. 嵌套对象: {"year":{"tg":"庚","dz":"午"}, ...}
 
-    注意: WZ API的时柱(hour)始终返回"X子", 天干按五鼠遁正确但地支固定为子
+    注意: 外部参考接口的时柱(hour)始终返回"X子", 天干按五鼠遁正确但地支固定为子
     实际时柱需由本地根据出生时辰计算
 
     Returns:
         dict with 'year', 'month', 'day' pillars (hour from API is unreliable)
         or None if parsing fails
     """
-    if not wz_data:
+    if not reference_data:
         return None
 
-    bz = wz_data.get('bz', {})
+    bz = reference_data.get('bz', {})
     if not bz:
         return None
 
@@ -2635,7 +2523,7 @@ def _parse_wz_bz(wz_data):
                 'year': {'gan': bz.get('0', ''), 'zhi': bz.get('1', '')},
                 'month': {'gan': bz.get('2', ''), 'zhi': bz.get('3', '')},
                 'day': {'gan': bz.get('4', ''), 'zhi': bz.get('5', '')},
-                'hour_gan': bz.get('6', ''),  # WZ API hour天干可用，地支始终是"子"
+                'hour_gan': bz.get('6', ''),  # 外部参考接口 hour天干可用，地支始终是"子"
             }
         elif 'year' in bz:
             # 嵌套对象格式
@@ -2647,19 +2535,19 @@ def _parse_wz_bz(wz_data):
                 'year': {'gan': yr.get('tg', ''), 'zhi': yr.get('dz', '')},
                 'month': {'gan': mn.get('tg', ''), 'zhi': mn.get('dz', '')},
                 'day': {'gan': dy.get('tg', ''), 'zhi': dy.get('dz', '')},
-                'hour_gan': hr.get('tg', ''),  # WZ API hour天干可用
+                'hour_gan': hr.get('tg', ''),  # 外部参考接口 hour天干可用
             }
     except Exception as e:
-        logger.error(f"解析问真API四柱失败: {e}")
+        logger.error(f"解析外部参考接口四柱失败: {e}")
 
     return None
 
 
-def _build_dayun_from_wz(wz_data, four_pillars, dt_solar, jieqi_times):
-    """从问真API数据构建大运列表
+def _build_dayun_from_reference(reference_data, four_pillars, dt_solar, jieqi_times):
+    """从外部参考接口数据构建大运列表
 
     Args:
-        wz_data: 问真API返回的完整数据 (已有, 不重新获取)
+        reference_data: 外部参考接口返回的完整数据 (已有, 不重新获取)
         four_pillars: 四柱数据
         dt_solar: 出生时间
         jieqi_times: 节气时刻
@@ -2667,9 +2555,9 @@ def _build_dayun_from_wz(wz_data, four_pillars, dt_solar, jieqi_times):
     Returns:
         (da_yun, qi_yun_age, direction_str, source)
     """
-    wz_dayun = wz_data.get('dayun', [])
-    wz_qiyunsui = wz_data.get('qiyunsui', 0)
-    wz_qiyunarr = wz_data.get('qiyunarr', [])
+    reference_dayun = reference_data.get('dayun', [])
+    reference_qiyunsui = reference_data.get('qiyunsui', 0)
+    reference_qiyunarr = reference_data.get('qiyunarr', [])
 
     # 解析起运岁数
     # qiyunarr = [year, month, day, hour, minute, age]
@@ -2681,23 +2569,23 @@ def _build_dayun_from_wz(wz_data, four_pillars, dt_solar, jieqi_times):
     qi_yun_age = None
     birth_year = dt_solar.year
 
-    if wz_qiyunarr and len(wz_qiyunarr) >= 6:
-        age_from_arr = wz_qiyunarr[5]
+    if reference_qiyunarr and len(reference_qiyunarr) >= 6:
+        age_from_arr = reference_qiyunarr[5]
         if 1 <= age_from_arr <= 100:
             qi_yun_age = age_from_arr - 1  # 虚岁→起运年数
         else:
             # age值异常，尝试从 qiyunarr[0:3]（起运年月日）推算虚岁
-            qiyun_year = wz_qiyunarr[0] if wz_qiyunarr[0] > 1900 else None
+            qiyun_year = reference_qiyunarr[0] if reference_qiyunarr[0] > 1900 else None
             if qiyun_year and qiyun_year > birth_year:
                 qi_yun_age = qiyun_year - birth_year  # 起运年数（不+1虚岁）
                 if not (1 <= qi_yun_age <= 100):
                     qi_yun_age = None
                 else:
-                    logger.info(f"WZ API qiyunarr年龄异常({age_from_arr})，从起运年份推算={qi_yun_age}年")
+                    logger.info(f"外部参考接口 qiyunarr年龄异常({age_from_arr})，从起运年份推算={qi_yun_age}年")
 
     if qi_yun_age is None:
-        if wz_qiyunsui and 1 <= wz_qiyunsui <= 100:
-            qi_yun_age = wz_qiyunsui - 1  # 虚岁→起运年数
+        if reference_qiyunsui and 1 <= reference_qiyunsui <= 100:
+            qi_yun_age = reference_qiyunsui - 1  # 虚岁→起运年数
         else:
             # 降级：本地计算
             year_gan = four_pillars['year']['gan']
@@ -2707,8 +2595,8 @@ def _build_dayun_from_wz(wz_data, four_pillars, dt_solar, jieqi_times):
             qi_yun_age = _calc_qi_yun_age(dt_solar, jieqi_times, shun)
 
     # 判断顺逆
-    if wz_dayun:
-        first_gz = wz_dayun[0]
+    if reference_dayun:
+        first_gz = reference_dayun[0]
         month_num = gan_zhi_to_num(four_pillars['month']['gan'], four_pillars['month']['zhi'])
         first_num = gan_zhi_to_num(first_gz[0], first_gz[1])
         direction = 1 if (first_num - month_num) % 60 in range(1, 30) else -1
@@ -2720,7 +2608,7 @@ def _build_dayun_from_wz(wz_data, four_pillars, dt_solar, jieqi_times):
     # 构建大运列表
     birth_year = dt_solar.year
     da_yun = []
-    for i, gz in enumerate(wz_dayun):
+    for i, gz in enumerate(reference_dayun):
         start_age = qi_yun_age + 1 + i * 10
         end_age = start_age + 9
         start_year = birth_year + start_age - 1  # 虚岁: 1岁=出生当年
@@ -2736,25 +2624,25 @@ def _build_dayun_from_wz(wz_data, four_pillars, dt_solar, jieqi_times):
             'end_year': end_year,
         })
 
-    return da_yun, qi_yun_age, direction_str, '问真八字'
+    return da_yun, qi_yun_age, direction_str, '时安八字'
 
 
-def calc_da_yun_with_wenzhen(four_pillars, gender, dt_solar, jieqi_times):
-    """计算大运，优先使用问真八字API，降级使用本地计算
+def calc_da_yun_with_reference(four_pillars, gender, dt_solar, jieqi_times):
+    """计算大运，优先使用外部参考接口，降级使用本地计算
 
-    注意: 如果已经在 paipan() 中调用了 fetch_wenzhen_dayun，
-    建议直接使用 _build_dayun_from_wz() 复用数据，避免重复API调用。
+    注意: 如果已经在 paipan() 中调用了 fetch_reference_bazi_data，
+    建议直接使用 _build_dayun_from_reference() 复用数据，避免重复API调用。
 
     Returns:
         (da_yun, qi_yun_age, direction_str, source)
     """
-    wz_data = fetch_wenzhen_dayun(
+    reference_data = fetch_reference_bazi_data(
         dt_solar.year, dt_solar.month, dt_solar.day,
         dt_solar.hour, dt_solar.minute, four_pillars.get('_gender', '男')
     )
 
-    if wz_data and wz_data.get('dayun') and len(wz_data['dayun']) > 0:
-        return _build_dayun_from_wz(wz_data, four_pillars, dt_solar, jieqi_times)
+    if reference_data and reference_data.get('dayun') and len(reference_data['dayun']) > 0:
+        return _build_dayun_from_reference(reference_data, four_pillars, dt_solar, jieqi_times)
     else:
         da_yun, qi_yun_age, direction_str = calc_da_yun(four_pillars, gender, dt_solar, jieqi_times)
         return da_yun, qi_yun_age, direction_str, '本地计算'
@@ -3140,8 +3028,6 @@ def calc_liu_shi(day_gan, day_zhi_for_gan=None):
 def solar_to_lunar_str(year, month, day):
     """公历转农历字符串（如：庚午年五月廿三）"""
     try:
-        from lunarcalendar import Lunar, Converter
-        solar = Converter.Lunar2Solar  # 这不对，需要反过来
         # 用sxtwl获取农历
         import sxtwl
         obj = sxtwl.fromSolar(year, month, day)
@@ -3150,9 +3036,8 @@ def solar_to_lunar_str(year, month, day):
         lunar_day = obj.getLunarDay()
         is_leap = obj.isLunarLeap()
 
-        # 年干支
-        gz = obj.getYearGZ()
-        year_gz = TIAN_GAN[gz.tg] + DI_ZHI[gz.dz]
+        # 农历年份干支，不能用节气年柱，否则立春附近会把农历癸卯误显示成甲辰。
+        year_gz = TIAN_GAN[(lunar_year - 4) % 10] + DI_ZHI[(lunar_year - 4) % 12]
 
         # 月份中文
         month_cn = ['正','二','三','四','五','六','七','八','九','十','冬','腊']
@@ -3257,7 +3142,7 @@ def paipan(name='', gender='男', birth_time='', cal_type='公历', birth_addr='
     if longitude is None or longitude == 0:
         longitude = get_longitude(birth_addr)
     if use_solar_time:
-        dt_solar = true_solar_time(dt_beijing, longitude)
+        dt_solar = true_solar_time(dt_beijing, longitude).replace(second=0, microsecond=0)
     else:
         dt_solar = dt_beijing  # 不修正
     tz_offset_min = round((longitude - 120.0) * 4.0, 1)
@@ -3282,37 +3167,36 @@ def paipan(name='', gender='男', birth_time='', cal_type='公历', birth_addr='
         if v and k not in all_jieqi:
             all_jieqi[k] = v
 
-    # ── 6. 四柱排盘（优先使用问真八字API，降级本地计算） ──
+    # ── 6. 四柱排盘（时安本地算法为主，外部参考仅用于显式校验） ──
     # 使用真太阳时确定时辰
     solar_hour = dt_solar.hour
 
-    # 尝试调用问真八字API获取四柱
-    # 注意: WZ API不做真太阳时校准(yzs=0), 所以用原始输入日期(dt_beijing)调用
-    # 这样才能得到与问真八字网站一致的结果
-    wz_data = fetch_wenzhen_dayun(
+    # 仅当 SHIAN_BAZI_USE_REFERENCE_API=1 时调用外部参考接口。
+    # 默认生产路径不依赖第三方排盘接口和返回结构。
+    reference_data = fetch_reference_bazi_data(
         dt_beijing.year, dt_beijing.month, dt_beijing.day,
         dt_beijing.hour, dt_beijing.minute, gender
     )
-    wz_bz = _parse_wz_bz(wz_data)
+    reference_bz = _parse_reference_bz(reference_data)
 
-    if wz_bz and wz_bz.get('year', {}).get('gan') and wz_bz.get('day', {}).get('gan'):
-        # ✅ 问真API可用 — 使用其年/月/日柱（权威参考）
-        # WZ API四柱特点:
+    if reference_bz and reference_bz.get('year', {}).get('gan') and reference_bz.get('day', {}).get('gan'):
+        # 外部参考可用 — 使用其年/月/日柱；该模式只用于校验或迁移期。
+        # 外部参考接口四柱特点:
         #   - 年柱/月柱: 以"日"粒度判断（立春当天整天算旧年）
         #   - 日柱: 完全可靠
         #   - 时柱: API固定返回"X子"，需本地计算
-        year_gan = wz_bz['year']['gan']
-        year_zhi = wz_bz['year']['zhi']
-        month_gan = wz_bz['month']['gan']
-        month_zhi = wz_bz['month']['zhi']
-        day_gan = wz_bz['day']['gan']
-        day_zhi = wz_bz['day']['zhi']
-        pillar_source = '问真八字'
+        year_gan = reference_bz['year']['gan']
+        year_zhi = reference_bz['year']['zhi']
+        month_gan = reference_bz['month']['gan']
+        month_zhi = reference_bz['month']['zhi']
+        day_gan = reference_bz['day']['gan']
+        day_zhi = reference_bz['day']['zhi']
+        pillar_source = '外部参考'
     else:
-        # ❌ API不可用 — 降级本地计算
+        # API未启用或不可用 — 使用时安本地算法
         # 年柱（立春分界）
-        # 注意: 本地年柱精确到时辰（立春时刻为界），比WZ的日粒度更准确
-        # 立春当天已过立春时刻 → 本地返回新年柱，WZ返回旧年柱
+        # 注意: 本地年柱精确到时辰（立春时刻为界），比外部参考的日粒度更准确
+        # 立春当天已过立春时刻 → 本地返回新年柱，外部参考返回旧年柱
         # 这是本地算法更精确的体现，不是bug
         year_gan, year_zhi = calc_year_pillar(dt_solar, all_jieqi)
 
@@ -3321,9 +3205,9 @@ def paipan(name='', gender='男', birth_time='', cal_type='公历', birth_addr='
 
         # 日柱
         day_gan, day_zhi = calc_day_pillar(dt_solar)
-        pillar_source = '本地计算'
+        pillar_source = '时安本地算法'
 
-    # 时柱 — 始终本地计算（WZ API的时柱不可靠，始终返回"X子"）
+    # 时柱 — 始终本地计算（外部参考接口的时柱不可靠，始终返回"X子"）
     is_night_zi = (solar_hour == 23)
 
     if is_night_zi and night_zi_mode == '子时换日':
@@ -3386,15 +3270,14 @@ def paipan(name='', gender='男', birth_time='', cal_type='公历', birth_addr='
     wang_shuai = calc_wang_shuai(day_gan, month_zhi)
     wang_shuai_detail = calc_wang_shuai_detail(four_pillars)
 
-    # ── 12. 大运（复用问真八字API数据，降级本地计算） ──
-    # 已在上面调用了 fetch_wenzhen_dayun，wz_data 可复用
-    if wz_data and wz_data.get('dayun') and len(wz_data['dayun']) > 0:
-        da_yun, qi_yun_age, da_yun_direction, da_yun_source = _build_dayun_from_wz(
-            wz_data, four_pillars, dt_solar, all_jieqi
+    # ── 12. 大运（时安本地算法为主，外部参考仅用于显式校验） ──
+    if reference_data and reference_data.get('dayun') and len(reference_data['dayun']) > 0:
+        da_yun, qi_yun_age, da_yun_direction, da_yun_source = _build_dayun_from_reference(
+            reference_data, four_pillars, dt_solar, all_jieqi
         )
     else:
         da_yun, qi_yun_age, da_yun_direction = calc_da_yun(four_pillars, gender, dt_beijing, all_jieqi)
-        da_yun_source = '本地计算'
+        da_yun_source = '时安本地算法'
 
     # ── 12.5 起运前小运项（插入到大运列表最前面） ──
     # 如果起运岁数 > 1，在大运前面插入一个起运前小运项
@@ -3538,7 +3421,7 @@ def paipan(name='', gender='男', birth_time='', cal_type='公历', birth_addr='
         # 流年与原局冲合关系
         ln_item['pillar_relations'] = calc_ganzhi_relation_with_pillars(ln_item['gan'], ln_item['zhi'], four_pillars)
 
-    # 计算小运（始终使用本地计算，WZ API的xiaoyun基于错误的时柱"X子"）
+    # 计算小运（始终使用本地计算，外部参考接口的xiaoyun基于错误的时柱"X子"）
     birth_year_for_age = dt_solar.year
     max_age_in_liunian = max((ln_item.get('year', birth_year_for_age) - birth_year_for_age for ln_item in liu_nian), default=50)
 
@@ -3554,21 +3437,26 @@ def paipan(name='', gender='男', birth_time='', cal_type='公历', birth_addr='
             ln_item['xiao_yun_gan_zhi'] = ''
 
     # ── 27. 起运详情 ──
-    # 起运计算使用北京时(dt_beijing)，与问真APP对齐
-    # 问真APP不使用真太阳时调整来计算起运
-    qi_yun_detail = calc_qi_yun_detail(dt_beijing, all_jieqi, four_pillars, gender)
+    # 起运跟随实际排盘时间；真太阳时跨日或跨时辰时，交运描述保留原始时间口径。
+    qi_yun_detail = calc_qi_yun_detail(dt_solar, all_jieqi, four_pillars, gender)
+    solar_branch = ((dt_solar.hour + 1) // 2) % 12
+    beijing_branch = ((dt_beijing.hour + 1) // 2) % 12
+    if use_solar_time and (dt_solar.date() != dt_beijing.date() or solar_branch != beijing_branch):
+        jy_detail = calc_qi_yun_detail(dt_beijing, all_jieqi, four_pillars, gender)
+        if jy_detail.get('jiao_yun_text'):
+            qi_yun_detail['jiao_yun_text'] = jy_detail['jiao_yun_text']
 
     # ── 28. 五行旺相休囚死 ──
     wang_xiang_xiu = calc_wang_xiang_xiu(month_zhi)
 
     # ── 29. 胎命身 ──
     tai_ming_shen = _calc_tai_ming_shen(four_pillars)
-    if wz_data:
-        ty_api = wz_data.get('taiyuan', '')
+    if external_reference_enabled() and reference_data:
+        ty_api = reference_data.get('taiyuan', '')
         if ty_api and len(ty_api) >= 2:
             tai_ming_shen['tai_yuan'] = {
                 'gan_zhi': ty_api, 'gan': ty_api[0], 'zhi': ty_api[1],
-                'nayin': wz_data.get('taiyuan_nayin', tai_ming_shen['tai_yuan']['nayin']),
+                'nayin': reference_data.get('taiyuan_nayin', tai_ming_shen['tai_yuan']['nayin']),
             }
 
     # ── 30. 前后节气 ──
@@ -3584,7 +3472,14 @@ def paipan(name='', gender='男', birth_time='', cal_type='公历', birth_addr='
     xing_su = _calc_xing_su(year, month, day)
 
     # ── 34. 袁天罡称骨 ──
-    cheng_gu = _calc_cheng_gu(four_pillars)
+    cheng_gu = _calc_cheng_gu(
+        four_pillars,
+        solar_year=dt_solar.year,
+        solar_month=dt_solar.month,
+        solar_day=dt_solar.day,
+        hour_zhi=hour_zhi,
+        gender=gender,
+    )
 
     # ── 35. 干支关系 ──
     ganzhi_relations = _calc_ganzhi_relations(four_pillars)
@@ -3601,7 +3496,7 @@ def paipan(name='', gender='男', birth_time='', cal_type='公历', birth_addr='
     # ── 39. 性格简析与命理提示 ──
     personality = _calc_personality(day_gan, shi_shen, shen_sha, wang_shuai_detail, gender)
 
-    # ── 40. 当天排盘（问真八字 tdbz 字段） ──
+    # ── 40. 当天排盘（时安八字 tdbz 字段） ──
     today = datetime.now()
     today_jieqi = get_jieqi_times(today.year)
     today_year_gan, today_year_zhi = calc_year_pillar(today, today_jieqi)
@@ -3648,7 +3543,7 @@ def paipan(name='', gender='男', birth_time='', cal_type='公历', birth_addr='
         'qi_yun_age': qi_yun_age,
         'da_yun_direction': da_yun_direction,
         'da_yun_source': da_yun_source,
-        'pillar_source': pillar_source,  # 四柱来源: '问真八字' 或 '本地计算'
+        'pillar_source': pillar_source,
 
         # ===== 新增字段 =====
         'day_master_label': day_master_label,
@@ -3674,33 +3569,11 @@ def paipan(name='', gender='男', birth_time='', cal_type='公历', birth_addr='
         'tiaohou': tiaohou,
         'guji_refs': guji_refs,
         'personality': personality,  # 性格简析与命理提示
-        'today_paipan': today_paipan,  # 当天排盘(问真tdbz)
-
-        # 问真八字API原始数据（可用于前端交叉验证和展示）
-        'wz_api_data': {
-            'available': wz_data is not None,
-            'dayun': wz_data.get('dayun', []) if wz_data else [],  # 大运干支列表（12组）
-            'xiaoyun': wz_data.get('xiaoyun', []) if wz_data else [],
-            'qiyunsui': wz_data.get('qiyunsui', None) if wz_data else None,
-            'qiyunarr': wz_data.get('qiyunarr', []) if wz_data else [],
-            'taiyuan': wz_data.get('taiyuan', '') if wz_data else '',
-            'taixi': wz_data.get('taixi', '') if wz_data else '',
-            'minggong': wz_data.get('minggong', '') if wz_data else '',
-            'shenggong': wz_data.get('shenggong', '') if wz_data else '',
-            'taiyuan_nayin': wz_data.get('taiyuan_nayin', '') if wz_data else '',
-            'taixi_nayin': wz_data.get('taixi_nayin', '') if wz_data else '',
-            'minggong_nayin': wz_data.get('minggong_nayin', '') if wz_data else '',
-            'shenggong_nayin': wz_data.get('shenggong_nayin', '') if wz_data else '',
-            'kongwang': wz_data.get('kongwang', '') if wz_data else '',
-            'ss': wz_data.get('ss', []) if wz_data else [],       # 十神
-            'cg': wz_data.get('cg', []) if wz_data else [],       # 藏干
-            'cgss': wz_data.get('cgss', []) if wz_data else [],   # 藏干十神
-            'ny': wz_data.get('ny', []) if wz_data else [],       # 纳音
-            'kw': wz_data.get('kw', []) if wz_data else [],       # 空亡
-            'xy': wz_data.get('xy', []) if wz_data else [],       # 长生十二运(星运)
-            'zz': wz_data.get('zz', []) if wz_data else [],       # 长生十二运(自坐)
-            'szshensha': wz_data.get('szshensha', []) if wz_data else [],  # 四柱神煞
-            'dyshensha': wz_data.get('dyshensha', []) if wz_data else [],  # 大运神煞
+        'today_paipan': today_paipan,
+        'reference_meta': {
+            'engine': 'shian-local-bazi',
+            'external_reference_enabled': external_reference_enabled(),
+            'external_reference_used': bool(reference_data),
         },
     }
 
@@ -3819,7 +3692,7 @@ def _paipan_from_pillars(name, gender, sizi_pillars):
     tiaohou = _calc_tiaohou(day_gan, month_zhi)
 
     # 称骨
-    cheng_gu = _calc_cheng_gu(four_pillars)
+    cheng_gu = _calc_cheng_gu(four_pillars, gender=gender)
 
     # 组装结果
     result = {
@@ -4172,14 +4045,145 @@ def _calc_xing_su(year, month, day):
 # 袁天罡称骨算命
 # ═══════════════════════════════════════════════════════════════
 
-def _calc_cheng_gu(four_pillars):
+def _calc_cheng_gu(four_pillars, solar_year=None, solar_month=None, solar_day=None, hour_zhi=None, gender='男'):
     """袁天罡称骨算命
 
-    根据四柱干支的骨重计算总重量和判词。
+    按传统称骨法：农历年干支、农历月、农历日、时辰四项骨重相加。
+    四柱直接输入没有公历生日时，保留旧的四柱干支兜底估算。
 
     Returns:
         dict: {'weight': '四两二钱', 'weight_gram': 42, 'poem': '判词'}
     """
+    # 判词（按两数查表）
+    CHENG_GU_POEMS = {
+        (2,0): '此命推来骨格轻，求谋作事事难成。妻迟子晚命中招，只好闲游度此生。',
+        (2,1): '短命非业谓大凶，平生灾难事重重。凶祸频临陷逆境，终世困苦事不成。',
+        (2,2): '身寒骨冷苦伶仃，此命推来行乞人，劳劳碌碌无度日，终年打拱过平生',
+        (2,3): '此命推来骨格轻，求谋作事事难成。妻迟子晚命中招，只好闲游度此生。',
+        (2,4): '此命推来福禄无，门庭困苦总难荣。六亲骨肉皆无靠，流落他乡作老翁。',
+        (2,5): '此命推来祖业微，门庭营度似稀奇。六亲骨肉如冰炭，一世勤劳自把持。',
+        (2,6): '平生衣禄苦中求，独自营谋事不休。离祖出门宜早计，晚来衣禄自无休。',
+        (2,7): '一生作事少商量，难靠祖宗作主张。独马单枪空做去，早年晚岁总无长。',
+        (2,8): '一生行事似飘蓬，祖宗产业在梦中。若不过房改名姓，也当移徒二三通。',
+        (2,9): '初年不及半微尘，不及阴人不管身。若要兴旺重来过，除非借尸还魂人。',
+        (3,0): '劳劳碌碌苦中求，东奔西走何日休。若使终身勤与俭，老来稍可免忧愁。',
+        (3,1): '忙忙碌碌苦中求，何日云开见日头。难得祖业家可立，中年衣食渐无忧。',
+        (3,2): '初年运蹇事难谋，渐有财源如水流，到得中年衣食旺，那时名利一齐收',
+        (3,3): '早年做事事难成，百计从劳枉费心。半世自如流水去，后来运到得黄金。',
+        (3,4): '此命福气果如何，僧道门中衣禄多。离祖出家方为妙，朝晚拜佛念弥陀。',
+        (3,5): '生平福量不周全，祖业根基觉少传。营事生涯宜守旧，时来衣食胜从前。',
+        (3,6): '不须劳碌过平生，独自成家福不轻。早有福星常照命，任君行去百般成。',
+        (3,7): '此命般般事不成，弟兄少力自孤行。虽然祖业须微有，来得明时去不明。',
+        (3,8): '一身骨肉最清高，早入簧门姓氏标。待到年将三十六，蓝衫脱去换红袍。',
+        (3,9): '此命终身运不通，劳劳作事尽皆空，苦心竭力成家计，到得那时在梦中',
+        (4,0): '平生衣禄是绵长，件件心中自主张。前面风霜多受过，后来必定享安康。',
+        (4,1): '此命推来自不同，为人能干异凡庸。中年还有逍遥福，不比前时运未通。',
+        (4,2): '得宽怀处且宽怀，何用双眉皱不开。若使中年命运济，那时名利一齐来。',
+        (4,3): '为人心性最聪明，作事轩昂近贵人。衣禄一生天注定，不须劳碌是丰亨。',
+        (4,4): '万事由天莫苦求，须知福禄赖前途。当年财帛非如意，晚景颠狂便不忧。',
+        (4,5): '名利推来竟若何，前番辛苦后奔波。命中难养男与女，骨肉扶持也不多。',
+        (4,6): '东西南北尽皆通，出姓移居更觉隆。衣禄无穷无数定，中年晚景一般同。',
+        (4,7): '此命推来旺末年，妻荣子贵自怡然。平生原有滔滔福，可有财源如水源。',
+        (4,8): '幼年运道未曾亨，若是蹉跎再不兴。兄弟六亲皆无靠，一身事业晚年成。',
+        (4,9): '此命推来福不轻，自成自立显门庭。从来富贵人亲近，使婢差奴过一生。',
+        (5,0): '为利为名终日劳，中年福禄也多遭。老来自有财星照，不比前番目下高。',
+        (5,1): '一世荣华事事通，不须劳碌自然丰。弟兄叔侄皆如意，家业成时福禄宏。',
+        (5,2): '一世亨通事事能，不须劳苦自然宁。宗族欣然心皆足，家道丰康百事成。',
+        (5,3): '此格推来气象真，一身安泰贵人钦。聪明才学高天下，富贵荣华赛石崇。',
+        (5,4): '此命推来厚且清，诗书满腹看功成。丰衣足食自然稳，正是人间有福人。',
+        (5,5): '走马扬鞭争名利，少年做事费筹论。一朝福禄源源至，富贵荣华显六亲。',
+        (5,6): '此格推来礼义通，一身福禄用无穷。甜酸苦辣皆尝过，滚滚财源稳且丰。',
+        (5,7): '福禄丰盈万事全，一身荣耀乐天年。名扬威震人钦敬，处世逍遥似神仙。',
+        (6,0): '一朝金榜快题名，显祖荣宗立大功。衣禄定然原裕足，田园财帛更丰盈。',
+        (7,0): '此命推来福禄宏，不须愁虑苦劳心。一生天定衣与禄，富贵荣华主一生。',
+    }
+    FEMALE_CHENG_GU_POEMS = {
+        (4,1): '此命推来一般艰，女子为人很非凡，中年逍遥多自在，晚年更比中年超',
+    }
+
+    def poem_for(total_qian):
+        liang = total_qian // 10
+        qian = total_qian % 10
+        poem = ''
+        if gender == '女':
+            poem = FEMALE_CHENG_GU_POEMS.get((liang, qian), '')
+        if not poem:
+            poem = CHENG_GU_POEMS.get((liang, qian), '')
+        if not poem:
+            for k in sorted(CHENG_GU_POEMS.keys()):
+                if k[0] == liang and k[1] <= qian:
+                    poem = CHENG_GU_POEMS[k]
+            if not poem:
+                poem = CHENG_GU_POEMS.get((liang, 0), '命理玄妙，不可尽言。')
+        return liang, qian, poem
+
+    def weight_text(liang, qian):
+        cn_num = {0: '零', 1: '一', 2: '二', 3: '三', 4: '四', 5: '五', 6: '六', 7: '七', 8: '八', 9: '九'}
+        liang_text = cn_num.get(liang, str(liang))
+        if qian == 0:
+            return f'{liang_text}两'
+        return f'{liang_text}两{cn_num.get(qian, str(qian))}钱'
+
+    if solar_year and solar_month and solar_day and hour_zhi:
+        import sxtwl
+
+        YEAR_WEIGHT = {
+            '甲子': 12, '丙子': 16, '戊子': 15, '庚子': 7, '壬子': 5,
+            '乙丑': 9, '丁丑': 8, '己丑': 7, '辛丑': 7, '癸丑': 7,
+            '丙寅': 6, '戊寅': 8, '庚寅': 9, '壬寅': 9, '甲寅': 12,
+            '丁卯': 7, '己卯': 19, '辛卯': 12, '癸卯': 12, '乙卯': 8,
+            '戊辰': 12, '庚辰': 12, '壬辰': 10, '甲辰': 8, '丙辰': 8,
+            '己巳': 5, '辛巳': 6, '癸巳': 7, '乙巳': 7, '丁巳': 6,
+            '庚午': 9, '壬午': 8, '甲午': 15, '丙午': 13, '戊午': 19,
+            '辛未': 8, '癸未': 7, '乙未': 6, '丁未': 5, '己未': 6,
+            '壬申': 7, '甲申': 5, '丙申': 5, '戊申': 14, '庚申': 8,
+            '癸酉': 8, '乙酉': 15, '丁酉': 14, '己酉': 5, '辛酉': 16,
+            '甲戌': 15, '丙戌': 6, '戊戌': 14, '庚戌': 9, '壬戌': 10,
+            '乙亥': 9, '丁亥': 16, '己亥': 9, '辛亥': 17, '癸亥': 6,
+        }
+        MONTH_WEIGHT = {1: 6, 2: 7, 3: 18, 4: 9, 5: 5, 6: 16, 7: 9, 8: 15, 9: 18, 10: 8, 11: 9, 12: 5}
+        DAY_WEIGHT = {
+            1: 5, 2: 10, 3: 8, 4: 15, 5: 16, 6: 15, 7: 8, 8: 16, 9: 8, 10: 16,
+            11: 9, 12: 17, 13: 8, 14: 17, 15: 10, 16: 8, 17: 9, 18: 18, 19: 5, 20: 15,
+            21: 10, 22: 9, 23: 8, 24: 9, 25: 15, 26: 18, 27: 7, 28: 8, 29: 16, 30: 6,
+        }
+        HOUR_WEIGHT = {'子': 16, '丑': 6, '寅': 7, '卯': 10, '辰': 9, '巳': 16, '午': 10, '未': 8, '申': 8, '酉': 9, '戌': 6, '亥': 6}
+
+        lunar = sxtwl.fromSolar(solar_year, solar_month, solar_day)
+        lunar_year = lunar.getLunarYear()
+        lunar_month = lunar.getLunarMonth()
+        lunar_day = lunar.getLunarDay()
+        is_leap = lunar.isLunarLeap()
+        weight_month = lunar_month
+        if is_leap and lunar_day > 15:
+            weight_month = 1 if lunar_month == 12 else lunar_month + 1
+
+        chenggu_year_gz = (four_pillars.get('year') or {}).get('gan_zhi') or ''
+        if not chenggu_year_gz:
+            year_gan = (four_pillars.get('year') or {}).get('gan', '')
+            year_zhi = (four_pillars.get('year') or {}).get('zhi', '')
+            chenggu_year_gz = year_gan + year_zhi
+        lunar_year_gz = TIAN_GAN[(lunar_year - 4) % 10] + DI_ZHI[(lunar_year - 4) % 12]
+        year_w = YEAR_WEIGHT.get(chenggu_year_gz, 0)
+        month_w = MONTH_WEIGHT.get(weight_month, 0)
+        day_w = DAY_WEIGHT.get(lunar_day, 0)
+        hour_w = HOUR_WEIGHT.get(hour_zhi, 0)
+        total_qian = year_w + month_w + day_w + hour_w
+        liang, qian, poem = poem_for(total_qian)
+
+        return {
+            'weight': weight_text(liang, qian),
+            'weight_gram': total_qian / 10,
+            'poem': poem,
+            'details': {
+                'year': {'lunar_year': lunar_year, 'lunar_gan_zhi': lunar_year_gz, 'gan_zhi': chenggu_year_gz, 'weight_qian': year_w},
+                'month': {'lunar_month': lunar_month, 'is_leap': is_leap, 'weight_month': weight_month, 'weight_qian': month_w},
+                'day': {'lunar_day': lunar_day, 'weight_qian': day_w},
+                'hour': {'zhi': hour_zhi, 'weight_qian': hour_w},
+                'total_qian': total_qian,
+            },
+        }
+
     # 天干骨重（单位：钱，1两=10钱）
     GAN_WEIGHT = {
         '甲': 1.2, '乙': 1.2, '丙': 1.6, '丁': 1.6,
@@ -4216,59 +4220,8 @@ def _calc_cheng_gu(four_pillars):
     else:
         weight_str = f'{liang}两{qian}钱'
 
-    # 判词（按两数查表）
-    CHENG_GU_POEMS = {
-        (2,0): '此命推来骨格轻，求谋作事事难成。妻迟子晚命中招，只好闲游度此生。',
-        (2,1): '短命非业谓大凶，平生灾难事重重。凶祸频临陷逆境，终世困苦事不成。',
-        (2,2): '身寒骨冷苦伶仃，此命推来行乞人。碌碌苦苦无乐日，终生孤单过一生。',
-        (2,3): '此命推来骨格轻，求谋作事事难成。妻迟子晚命中招，只好闲游度此生。',
-        (2,4): '此命推来福禄无，门庭困苦总难荣。六亲骨肉皆无靠，流落他乡作老翁。',
-        (2,5): '此命推来祖业微，门庭营度似稀奇。六亲骨肉如冰炭，一世勤劳自把持。',
-        (2,6): '平生衣禄苦中求，独自营谋事不休。离祖出门宜早计，晚来衣禄自无休。',
-        (2,7): '一生作事少商量，难靠祖宗作主张。独马单枪空做去，早年晚岁总无长。',
-        (2,8): '一生行事似飘蓬，祖宗产业在梦中。若不过房改名姓，也当移徒二三通。',
-        (2,9): '初年不及半微尘，不及阴人不管身。若要兴旺重来过，除非借尸还魂人。',
-        (3,0): '劳劳碌碌苦中求，东奔西走何日休。若使终身勤与俭，老来稍可免忧愁。',
-        (3,1): '忙忙碌碌苦中求，何日云开见日头。难得祖业家可立，中年衣食渐无忧。',
-        (3,2): '初年运限未曾亨，纵有功名在后成。须过四旬才可立，移居改姓始为良。',
-        (3,3): '早年做事事难成，百计从劳枉费心。半世自如流水去，后来运到得黄金。',
-        (3,4): '此命福气果如何，僧道门中衣禄多。离祖出家方为妙，朝晚拜佛念弥陀。',
-        (3,5): '生平福量不周全，祖业根基觉少传。营事生涯宜守旧，时来衣食胜从前。',
-        (3,6): '不须劳碌过平生，独自成家福不轻。早有福星常照命，任君行去百般成。',
-        (3,7): '此命般般事不成，弟兄少力自孤行。虽然祖业须微有，来得明时去不明。',
-        (3,8): '一身骨肉最清高，早入簧门姓氏标。待到年将三十六，蓝衫脱去换红袍。',
-        (3,9): '此命终身运不通，劳劳作事尽皆空。苦心竭力成家计，到得那时在梦中。',
-        (4,0): '平生衣禄是绵长，件件心中自主张。前面风霜多受过，后来必定享安康。',
-        (4,1): '此命推来自不同，为人能干异凡庸。中年还有逍遥福，不比前时运未通。',
-        (4,2): '得宽怀处且宽怀，何用双眉皱不开。若使中年命运济，那时名利一齐来。',
-        (4,3): '为人心性最聪明，作事轩昂近贵人。衣禄一生天注定，不须劳碌是丰亨。',
-        (4,4): '万事由天莫苦求，须知福禄赖前途。当年财帛非如意，晚景颠狂便不忧。',
-        (4,5): '名利推来竟若何，前番辛苦后奔波。命中难养男与女，骨肉扶持也不多。',
-        (4,6): '东西南北尽皆通，出姓移居更觉隆。衣禄无穷无数定，中年晚景一般同。',
-        (4,7): '此命推来旺末年，妻荣子贵自怡然。平生原有滔滔福，可有财源如水源。',
-        (4,8): '幼年运道未曾亨，若是蹉跎再不兴。兄弟六亲皆无靠，一身事业晚年成。',
-        (4,9): '此命推来福不轻，自成自立显门庭。从来富贵人亲近，使婢差奴过一生。',
-        (5,0): '为利为名终日劳，中年福禄也多遭。老来自有财星照，不比前番目下高。',
-        (5,1): '一世荣华事事通，不须劳碌自然丰。弟兄叔侄皆如意，家业成时福禄宏。',
-        (5,2): '一世亨通事事能，不须劳苦自然宁。宗族欣然心皆足，家道丰康百事成。',
-        (5,3): '此格推来气象真，一身安泰贵人钦。聪明才学高天下，富贵荣华赛石崇。',
-        (5,4): '此命推来厚且清，诗书满腹看功成。丰衣足食自然稳，正是人间有福人。',
-        (5,5): '走马扬鞭争名利，少年做事费筹论。一朝福禄源源至，富贵荣华显六亲。',
-        (5,6): '此格推来礼义通，一身福禄用无穷。甜酸苦辣皆尝过，滚滚财源稳且丰。',
-        (5,7): '福禄丰盈万事全，一身荣耀乐天年。名扬威震人钦敬，处世逍遥似神仙。',
-        (6,0): '一朝金榜快题名，显祖荣宗立大功。衣禄定然原裕足，田园财帛更丰盈。',
-        (7,0): '此命推来福禄宏，不须愁虑苦劳心。一生天定衣与禄，富贵荣华主一生。',
-    }
-
     # 查找判词
-    poem = CHENG_GU_POEMS.get((liang, qian), '')
-    if not poem:
-        # 找最接近的
-        for k in sorted(CHENG_GU_POEMS.keys()):
-            if k[0] == liang and k[1] <= qian:
-                poem = CHENG_GU_POEMS[k]
-        if not poem:
-            poem = CHENG_GU_POEMS.get((liang, 0), '命理玄妙，不可尽言。')
+    liang, qian, poem = poem_for(round(total_qian * 10))
 
     return {
         'weight': weight_str,
@@ -4334,7 +4287,7 @@ def _calc_ganzhi_relations(four_pillars):
                 relations['gan_chong'].append({
                     'from': pillars[i], 'to': pillars[j],
                     'gan1': gans[i], 'gan2': gans[j],
-                    'desc': f'{gans[i]}{gans[j]}相冲'
+                    'desc': f'{gans[i]}{gans[j]}冲'
                 })
 
     # ── 地支六合 ──
@@ -4366,15 +4319,15 @@ def _calc_ganzhi_relations(four_pillars):
     zhi_set = set(zhis)
     for trio, ju in ZHI_SAN_HE:
         present = trio & zhi_set
-        if len(present) >= 2:
+        if len(present) == 3:
             involved = sorted([(pillars[k], zhis[k]) for k in range(4) if zhis[k] in trio],
                               key=lambda x: pillars.index(x[0]))
-            if len(involved) >= 2:
+            if len(involved) >= 3:
                 relations['zhi_san_he'].append({
                     'pillars': [x[0] for x in involved],
                     'zhis': [x[1] for x in involved],
                     'ju': ju,
-                    'desc': f'{" ".join(x[1] for x in involved)} 三合{ju}'
+                    'desc': f'{"".join(x[1] for x in involved)}三合{ju}'
                 })
 
     # ── 地支六冲 ──
@@ -4390,20 +4343,20 @@ def _calc_ganzhi_relations(four_pillars):
                 relations['zhi_liu_chong'].append({
                     'from': pillars[i], 'to': pillars[j],
                     'zhi1': zhis[i], 'zhi2': zhis[j],
-                    'desc': f'{zhis[i]}{zhis[j]}相冲'
+                    'desc': f'{zhis[i]}{zhis[j]}冲'
                 })
 
     # ── 地支半合 ──
     # 三合局中的任意两个地支组合（含长生+帝旺、长生+墓库、帝旺+墓库）
     ZHI_BAN_HE = [
-        # 申子辰水局：申子半合水、子辰半合水、申辰半合水
-        ({'申','子'}, '半合水局'), ({'子','辰'}, '半合水局'), ({'申','辰'}, '半合水局'),
-        # 亥卯未木局：亥卯半合木、卯未半合木、亥未半合木
-        ({'亥','卯'}, '半合木局'), ({'卯','未'}, '半合木局'), ({'亥','未'}, '半合木局'),
-        # 寅午戌火局：寅午半合火、午戌半合火、寅戌半合火
-        ({'寅','午'}, '半合火局'), ({'午','戌'}, '半合火局'), ({'寅','戌'}, '半合火局'),
-        # 巳酉丑金局：巳酉半合金、酉丑半合金、巳丑半合金
-        ({'巳','酉'}, '半合金局'), ({'酉','丑'}, '半合金局'), ({'巳','丑'}, '半合金局'),
+        # 申子辰水局：含旺支子为半合，缺旺支为拱合
+        ({'申','子'}, '半合水局'), ({'子','辰'}, '半合水局'), ({'申','辰'}, '拱合水局'),
+        # 亥卯未木局
+        ({'亥','卯'}, '半合木局'), ({'卯','未'}, '半合木局'), ({'亥','未'}, '拱合木局'),
+        # 寅午戌火局
+        ({'寅','午'}, '半合火局'), ({'午','戌'}, '半合火局'), ({'寅','戌'}, '拱合火局'),
+        # 巳酉丑金局
+        ({'巳','酉'}, '半合金局'), ({'酉','丑'}, '半合金局'), ({'巳','丑'}, '拱合金局'),
     ]
     for pair_set, ju_desc in ZHI_BAN_HE:
         for i in range(len(zhis)):
@@ -4447,25 +4400,27 @@ def _calc_ganzhi_relations(four_pillars):
     # 三会局：同一季节的三个地支聚在一起，力量最强
     # 寅卯辰三会木局、巳午未三会火局、申酉戌三会金局、亥子丑三会水局
     ZHI_SAN_HUI = [
-        ({'寅','卯','辰'}, '木局'),
-        ({'巳','午','未'}, '火局'),
-        ({'申','酉','戌'}, '金局'),
-        ({'亥','子','丑'}, '水局'),
+        ({'寅','卯','辰'}, '木局', '卯'),
+        ({'巳','午','未'}, '火局', '午'),
+        ({'申','酉','戌'}, '金局', '酉'),
+        ({'亥','子','丑'}, '水局', '子'),
     ]
-    for trio, ju in ZHI_SAN_HUI:
+    for trio, ju, mid in ZHI_SAN_HUI:
         present = trio & zhi_set
         if len(present) >= 2:
             involved = sorted([(pillars[k], zhis[k]) for k in range(4) if zhis[k] in trio],
                               key=lambda x: pillars.index(x[0]))
             if len(involved) >= 2:
                 is_full = len(present) == 3
-                hui_desc = f'三会{ju}' if is_full else f'三会{ju}(缺{"".join(trio - present)})'
+                if not is_full and mid in present:
+                    continue
+                hui_desc = f'三会{ju}' if is_full else f'拱会{ju}'
                 relations['zhi_san_hui'].append({
                     'pillars': [x[0] for x in involved],
                     'zhis': [x[1] for x in involved],
                     'ju': ju,
                     'full': is_full,
-                    'desc': f'{" ".join(x[1] for x in involved)} {hui_desc}'
+                    'desc': f'{"".join(x[1] for x in involved)}{hui_desc}'
                 })
 
     # ── 地支三刑 ──
@@ -4487,7 +4442,7 @@ def _calc_ganzhi_relations(four_pillars):
                     'pillars': [x[0] for x in involved],
                     'zhis': [x[1] for x in involved],
                     'xing': xing_name,
-                    'desc': f'{" ".join(x[1] for x in involved)} {xing_name}'
+                    'desc': f'{"".join(x[1] for x in involved)}三刑'
                 })
 
     # 自刑
@@ -4498,7 +4453,7 @@ def _calc_ganzhi_relations(four_pillars):
                     'pillars': [pillars[i], pillars[j]],
                     'zhis': [zhis[i], zhis[j]],
                     'xing': '自刑',
-                    'desc': f'{zhis[i]}{zhis[j]} 自刑'
+                    'desc': f'{zhis[i]}{zhis[j]}自刑'
                 })
 
     # ── 地支六害 ──
@@ -4514,7 +4469,7 @@ def _calc_ganzhi_relations(four_pillars):
                 relations['zhi_liu_hai'].append({
                     'from': pillars[i], 'to': pillars[j],
                     'zhi1': zhis[i], 'zhi2': zhis[j],
-                    'desc': f'{zhis[i]}{zhis[j]}相害'
+                    'desc': f'{zhis[i]}{zhis[j]}害'
                 })
 
     # ── 地支六破 ──
@@ -4530,7 +4485,7 @@ def _calc_ganzhi_relations(four_pillars):
                 relations['zhi_liu_po'].append({
                     'from': pillars[i], 'to': pillars[j],
                     'zhi1': zhis[i], 'zhi2': zhis[j],
-                    'desc': f'{zhis[i]}{zhis[j]}相破'
+                    'desc': f'{zhis[i]}{zhis[j]}破'
                 })
 
     return relations
@@ -4585,7 +4540,7 @@ def calc_ganzhi_relation_with_pillars(ext_gan, ext_zhi, four_pillars):
         if pair in GAN_CHONG:
             rels['gan_chong'].append({
                 'pillar': pillars[i], 'gan': pg,
-                'desc': f'{ext_gan}{pg}相冲'
+                'desc': f'{ext_gan}{pg}冲'
             })
 
     # ── 地支六合 ──
@@ -4613,7 +4568,7 @@ def calc_ganzhi_relation_with_pillars(ext_gan, ext_zhi, four_pillars):
         if pair in ZHI_LIU_CHONG:
             rels['zhi_liu_chong'].append({
                 'pillar': pillars[i], 'zhi': pz,
-                'desc': f'{ext_zhi}{pz}相冲'
+                'desc': f'{ext_zhi}{pz}冲'
             })
 
     # ── 地支六害 ──
@@ -4627,7 +4582,7 @@ def calc_ganzhi_relation_with_pillars(ext_gan, ext_zhi, four_pillars):
         if pair in ZHI_LIU_HAI:
             rels['zhi_liu_hai'].append({
                 'pillar': pillars[i], 'zhi': pz,
-                'desc': f'{ext_zhi}{pz}相害'
+                'desc': f'{ext_zhi}{pz}害'
             })
 
     # ── 地支六破 ──
@@ -4641,7 +4596,7 @@ def calc_ganzhi_relation_with_pillars(ext_gan, ext_zhi, four_pillars):
         if pair in ZHI_LIU_PO:
             rels['zhi_liu_po'].append({
                 'pillar': pillars[i], 'zhi': pz,
-                'desc': f'{ext_zhi}{pz}相破'
+                'desc': f'{ext_zhi}{pz}破'
             })
 
     return rels
