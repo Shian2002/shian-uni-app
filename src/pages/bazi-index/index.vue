@@ -19,7 +19,7 @@
           <!-- Tab 切换 -->
           <view class="tool-tabs">
             <view id="baziTabFree" class="tool-tab" :class="{ active: activeTab === 'free' }" @tap="switchBaziTab('free')">
-              八字排盘<text class="tab-badge free">免费</text>
+              <text class="tool-tab-main">八字排盘</text><text class="tab-badge free">免费</text>
             </view>
             <view v-if="false" id="baziTabAi" class="tool-tab" :class="{ active: activeTab === 'ai' }" @tap="switchBaziTab('ai')">
               时安八字系统<text class="tab-badge">PRO</text>
@@ -140,13 +140,21 @@
                 </view>
               </view>
 
-              <!-- 即时起局 -->
+              <!-- 当前时间 -->
               <view class="wz-instant-row">
-                <view class="wz-instant-btn" @tap="wzInstantPaipan">⚡ 即时起局</view>
+                <view class="wz-instant-btn" @tap="wzInstantPaipan">⚡ 当前时间</view>
                 <view class="wz-instant-preview" v-if="instantPillars || instantCalendar">
                   <view class="wz-instant-pillars" v-if="instantPillars">{{ instantPillars }}</view>
                   <view class="wz-instant-calendar">{{ instantCalendar }}</view>
                 </view>
+              </view>
+
+              <view class="wz-action-block">
+                <view class="wz-submit-btn" @tap="baziFreePaipan">
+                  <text class="wz-submit-title">免费排盘</text>
+                  <text class="wz-submit-sub">生成基础命盘</text>
+                </view>
+                <text class="wz-form-hint">基础命盘结果，不含 AI 解读。深度解读请回首页选择八字或自动选术数。</text>
               </view>
 
               <!-- 高级选项 -->
@@ -186,14 +194,6 @@
                   </view>
                 </view>
                 <text class="wz-form-hint">真太阳时默认开启，选择出生地后按经度校正时辰；夏令时只在确认为夏令时出生时开启。</text>
-              </view>
-
-              <view class="wz-action-block">
-                <view class="wz-submit-btn" @tap="baziFreePaipan">
-                  <text class="wz-submit-title">免费排盘</text>
-                  <text class="wz-submit-sub">生成基础命盘</text>
-                </view>
-                <text class="wz-form-hint">基础命盘结果，不含 AI 解读。深度解读请回首页选择八字或自动选术数。</text>
               </view>
             </view>
           </view>
@@ -2305,17 +2305,6 @@ function fillBaziSelect(id, options, selectedVal, onChange) {
   }
 }
 
-function rotateBaziOptionsAroundAnchor(options, anchor) {
-  var idx = -1
-  for (var i = 0; i < options.length; i++) {
-    var item = options[i]
-    var value = typeof item === 'object' && item !== null ? item.value : item
-    if (String(value) === String(anchor)) { idx = i; break }
-  }
-  if (idx <= 0) return options
-  return options.slice(idx).concat(options.slice(0, idx))
-}
-
 // ── 模式C: 年月日联动 ──
 function getDaysInMonth(year, month) {
   return new Date(year, month, 0).getDate()
@@ -2341,7 +2330,6 @@ function refillBaziDaySelect() {
   for (var i = 1; i <= maxDay; i++) {
     dayValues.push(i)
   }
-  dayValues = rotateBaziOptionsAroundAnchor(dayValues, baziBirthOptionAnchor.day)
   for (var j = 0; j < dayValues.length; j++) {
     var opt = document.createElement('option')
     opt.value = dayValues[j]
@@ -2369,7 +2357,6 @@ function refillBaziDaySelect() {
     dElAi.appendChild(emptyOptAi)
     var dayValuesAi = []
     for (var k = 1; k <= maxDayAi; k++) dayValuesAi.push(k)
-    dayValuesAi = rotateBaziOptionsAroundAnchor(dayValuesAi, baziBirthOptionAnchor.day)
     for (var i = 0; i < dayValuesAi.length; i++) {
       var optAi = document.createElement('option')
       optAi.value = dayValuesAi[i]
@@ -2576,7 +2563,6 @@ onMounted(() => {
   for (var y = curYear - 120; y <= curYear + 10; y++) {
     yearOpts.push({ value: y, label: y + '年' })
   }
-  yearOpts = rotateBaziOptionsAroundAnchor(yearOpts, baziBirthOptionAnchor.year)
   yearOpts.unshift({ value: '', label: '年' })
   fillBaziSelect('baziYear', yearOpts, '', function() {
     if (baziCalType.value === '农历') { wzUpdateLunarMonthDay() } else { refillBaziDaySelect() }
@@ -2586,7 +2572,6 @@ onMounted(() => {
   for (var i = 1; i <= 12; i++) {
     monthOpts.push({ value: i, label: i + '月' })
   }
-  monthOpts = rotateBaziOptionsAroundAnchor(monthOpts, baziBirthOptionAnchor.month)
   monthOpts.unshift({ value: '', label: '月' })
   fillBaziSelect('baziMonth', monthOpts, '', function() {
     if (baziCalType.value === '农历' && _lunarMonthsData) {
@@ -2615,7 +2600,6 @@ onMounted(() => {
   for (var i = 1; i <= maxDay; i++) {
     dayOpts.push({ value: i, label: i + '日' })
   }
-  dayOpts = rotateBaziOptionsAroundAnchor(dayOpts, baziBirthOptionAnchor.day)
   dayOpts.unshift({ value: '', label: '日' })
   fillBaziSelect('baziDay', dayOpts, '', function() { updateBaziDate() })
   // 时
@@ -2666,7 +2650,6 @@ onMounted(() => {
   for (var i = 1; i <= maxDay; i++) {
     dayOpts.push({ value: i, label: i + '日' })
   }
-  dayOpts = rotateBaziOptionsAroundAnchor(dayOpts, baziBirthOptionAnchor.day)
   dayOpts.unshift({ value: '', label: '日' })
   fillBaziSelect('baziDayAi', dayOpts, '', function() { updateBaziDate() })
   fillBaziSelect('baziHourAi', hourOpts, now.getHours(), function(val) {
@@ -2928,6 +2911,11 @@ onMounted(() => {
   color: var(--text-2);
   background: transparent;
   text-align: center;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   transition: background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 .tool-tab.active {
@@ -2943,7 +2931,8 @@ onMounted(() => {
   border-color: rgba(255,255,255,0.18);
   box-shadow: 0 10px 26px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.12);
 }
-.tab-badge { font-size: 0.5625rem; padding: 1px 5px; border-radius: 4px; background: var(--accent); color: #fff; margin-left: 4px; }
+.tool-tab-main { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab-badge { flex: 0 0 auto; font-size: 0.5625rem; padding: 1px 5px; border-radius: 4px; background: var(--accent); color: #fff; line-height: 1.35; }
 .tab-badge.free { background: var(--success); }
 .tool-tab-content { display: block; }
 
@@ -2978,7 +2967,7 @@ onMounted(() => {
 .wz-datetime-select { width: 100%; padding: 8px 6px; border: 1.5px solid var(--card-border); border-radius: 8px; font-size: 0.82rem; font-weight: 500; background: var(--card-bg); color: var(--text-1); cursor: pointer; text-align: center; appearance: none; -webkit-appearance: none; -moz-appearance: none; outline: none; box-sizing: border-box; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M5 7L1 3h8z' fill='%23999'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 4px center; padding-right: 16px; }
 .wz-datetime-select:focus { border-color: var(--accent); }
 
-/* 即时起局 */
+/* 当前时间 */
 .wz-instant-row { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
 .wz-instant-btn { padding: 7px 16px; border-radius: 10px; background: var(--accent-glow); border: 1.5px solid var(--accent); color: var(--accent); font-size: 0.85rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .wz-instant-preview { font-size: 0.72rem; color: var(--text-1); display: flex; flex-direction: column; gap: 2px; }
@@ -3581,7 +3570,8 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   .wz-addr-selects { flex-direction: row; }
   .wz-switch-grid { grid-template-columns: 1fr 1fr; }
   .submit-btn { font-size: 0.875rem; padding: 12px 16px; }
-  .tool-tab { display: inline-flex; align-items: center; padding: 8px 10px; font-size: 0.75rem; }
+  .tool-tabs { gap: 6px; padding: 4px; }
+  .tool-tab { padding: 8px 8px; font-size: 0.75rem; gap: 4px; }
   .tab-badge { font-size: 0.5rem; padding: 1px 4px; }
   .record-tab { padding: 12px 16px; font-size: 0.8125rem; }
 }

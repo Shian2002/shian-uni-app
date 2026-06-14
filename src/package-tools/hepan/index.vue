@@ -135,6 +135,54 @@ function wxColor(wx) {
   return m[wx] || 'var(--text-2)'
 }
 
+function relationLabelHepan(desc) {
+  const raw = String(desc || '').replace(/\s+/g, '')
+  const charSource = raw.replace(/缺[甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥]+/g, '')
+  const chars = charSource.match(/[甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥]/g) || []
+  const pairText = chars.slice(0, 2).join('')
+  const allText = chars.join('')
+  const hePairOrder = ['甲己', '乙庚', '丙辛', '丁壬', '戊癸']
+  const relationPairOrder = ['辰丑', '酉戌', '辰卯', '午卯', '巳亥', '辰戌', '丑戌']
+  const orderedPair = (orders) => chars.length >= 2 && chars[0] !== chars[1] ? (orders.find(item => item.includes(chars[0]) && item.includes(chars[1])) || pairText) : pairText
+  const hePairText = orderedPair(hePairOrder)
+  const relationPairText = orderedPair(relationPairOrder)
+  const juMap = { 子: '水局', 午: '火局', 卯: '木局', 酉: '金局' }
+  const huiSets = [
+    { zhis: '寅卯辰', ju: '木局' },
+    { zhis: '巳午未', ju: '火局' },
+    { zhis: '申酉戌', ju: '金局' },
+    { zhis: '亥子丑', ju: '水局' },
+  ]
+  let m = raw.match(/合化([木火土金水])/)
+  if (m && pairText) return `${hePairText}合化${m[1]}`
+  if (/六合|相合/.test(raw) && pairText) return `${relationPairText}合`
+  if (raw.includes('相冲') && pairText) return `${relationPairText}冲`
+  if (raw.includes('相破') && pairText) return `${relationPairText}破`
+  if (raw.includes('自刑') && pairText) return `${relationPairText}自刑`
+  if (/无恩之刑|恃势之刑|无礼之刑/.test(raw) && allText) return `${allText}三刑`
+  if (raw.includes('相刑') && pairText) return `${relationPairText}${chars[0] === chars[1] ? '自刑' : '刑'}`
+  if (raw.includes('相害') && pairText) return `${relationPairText}害`
+  if (raw.includes('相克') && pairText) return `${pairText}克`
+  m = raw.match(/拱合([子午卯酉])/)
+  if (m && pairText) return `${pairText}拱合${juMap[m[1]] || m[1]}`
+  if (raw.includes('拱会') && pairText) {
+    const found = huiSets.find(item => chars.slice(0, 2).every(zhi => item.zhis.includes(zhi)))
+    return `${pairText}拱会${found ? found.ju : ''}`
+  }
+  m = raw.match(/半合([木火金水])局/)
+  if (m && pairText) return `${pairText}半合${m[1]}局`
+  m = raw.match(/三合([木火金水])局/)
+  if (m && allText) return `${allText}三合${m[1]}局`
+  m = raw.match(/三会([木火金水])局/)
+  if (m && raw.includes('缺') && pairText) return `${pairText}拱会${m[1]}局`
+  if (m && allText) return `${allText}三会${m[1]}局`
+  if (raw.includes('暗合') && pairText) return `${relationPairText}暗合`
+  for (const suffix of ['冲', '害', '破', '合', '克']) {
+    if (raw.endsWith(suffix) && pairText) return `${relationPairText}${suffix}`
+  }
+  return raw.replace(/相/g, '')
+}
+
 // ═══ 渲染合盘结果 ═══
 function renderHepanResult(d) {
   const p1 = d.person1, p2 = d.person2
@@ -185,7 +233,7 @@ function renderHepanResult(d) {
       <div class="compare-title">📊 柱位对比</div>`
     for (const pc of d.pillar_compare) {
       const relsHtml = (pc.relations || []).map(r =>
-        `<span class="rel-tag ${r.positive ? 'positive' : 'negative'}">${r.desc}</span>`
+        `<span class="rel-tag ${r.positive ? 'positive' : 'negative'}">${relationLabelHepan(r.desc)}</span>`
       ).join('') || '<span style="color:var(--text-3);font-size:0.75rem;">无特殊关系</span>'
       html += `<div class="pillar-row">
         <span class="pillar-label">${pc.label}</span>

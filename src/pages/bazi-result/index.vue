@@ -34,7 +34,7 @@
               <view class="tab-sidebar">
                 <view id="baziTabInfo" class="tab-btn" :class="{ active: activeTab === 'info' }" @tap="switchTab('info')">基本信息</view>
                 <view id="baziTabBasic" class="tab-btn" :class="{ active: activeTab === 'basic' }" @tap="switchTab('basic')">基本排盘</view>
-                <view id="baziTabWzpro" class="tab-btn" :class="{ active: activeTab === 'wzpro' }" @tap="switchTab('wzpro')">专业排盘</view>
+                <view id="baziTabShianpro" class="tab-btn" :class="{ active: activeTab === 'shianpro' }" @tap="switchTab('shianpro')">专业排盘</view>
                 <view id="baziTabNotes" class="tab-btn" :class="{ active: activeTab === 'notes' }" @tap="switchTab('notes')">📝 笔记</view>
                 <view id="baziTabSettings" class="tab-btn" :class="{ active: activeTab === 'settings' }" @tap="switchTab('settings')">⚙ 设置</view>
                 <view class="tab-btn tab-return-btn" @tap="goBaziHome">↩ 返回排盘</view>
@@ -194,7 +194,7 @@
                         <view class="pillar-row">
                           <view class="pillar-cell label-cell">主星</view>
                           <view class="pillar-cell zhuxing-cell" v-for="(pillar, key) in fourPillars" :key="'zx'+key">
-                            <text :class="ssTagClass(shiShen[key])" class="ss-full-text">{{ key === 'day' ? dayMasterLabel : fixShiShenName(shiShen[key]) }}</text>
+                            <text :class="ssTagClass(shiShen[key])" class="ss-full-text clickable-term" @tap="openTermCard('十神', key === 'day' ? dayMasterLabel : fixShiShenName(shiShen[key]))">{{ key === 'day' ? dayMasterLabel : fixShiShenName(shiShen[key]) }}</text>
                           </view>
                         </view>
                         <view class="pillar-row">
@@ -212,7 +212,7 @@
                         <view class="pillar-row">
                           <view class="pillar-cell label-cell">副星</view>
                           <view class="pillar-cell fuxing-cell" v-for="(pillar, key) in fourPillars" :key="'fx'+key">
-                            <text v-for="(cgSs, ci) in (cangGanShiShen[key] || [])" :key="ci" :class="ssTagClass(cgSs)" class="ss-full-text ss-vertical">{{ fixShiShenName(cgSs) }}</text>
+                            <text v-for="(cgSs, ci) in (cangGanShiShen[key] || [])" :key="ci" :class="ssTagClass(cgSs)" class="ss-full-text ss-vertical clickable-term" @tap="openTermCard('十神', fixShiShenName(cgSs))">{{ fixShiShenName(cgSs) }}</text>
                           </view>
                         </view>
                         <view class="pillar-row">
@@ -250,7 +250,7 @@
                         <view class="pillar-row" v-if="shenShaPerPillar && Object.keys(shenShaPerPillar).length">
                           <view class="pillar-cell label-cell">神煞</view>
                           <view class="pillar-cell shensha-cell" v-for="(pillar, key) in fourPillars" :key="'ss2'+key">
-                            <text class="ss-tag" v-for="(ss, si) in (shenShaPerPillar[key] || [])" :key="si">{{ ss }}</text>
+                            <text class="ss-tag clickable-term" v-for="(ss, si) in (shenShaPerPillar[key] || [])" :key="si" @tap="openTermCard('神煞', ss)">{{ ss }}</text>
                           </view>
                         </view>
                       </view>
@@ -301,20 +301,23 @@
                   </view>
                 </view>
 
-                <!-- Tab3: 专业排盘（问真风格1:1复刻） -->
-                <view id="baziPanelWzpro" class="tab-panel" :class="{ active: activeTab === 'wzpro' }">
-                  <view v-if="baziData" class="wzpro-wrap">
+                <!-- Tab3: 专业排盘（时安专业盘） -->
+                <view id="baziPanelShianpro" class="tab-panel" :class="{ active: activeTab === 'shianpro' }">
+                  <view v-if="baziData" class="shianpro-wrap">
                     <!-- Top bar -->
-                    <view class="wz-top-bar">
-                      <view class="wz-case-info">
+                    <view class="pro-top-bar">
+                      <view class="pro-case-info">
                         <text style="font-size:1.4rem;">{{ shengxiaoEmoji }}</text>
                         <view style="display:flex;flex-direction:column;gap:2px;">
-                          <text style="font-weight:700;color:var(--text-1);">{{ baziData.name || '命主' }} <text style="color:var(--accent);font-size:0.78rem;">{{ baziData.gender || '' }}</text></text>
+                          <view class="pro-case-name-line">
+                            <text style="font-weight:700;color:var(--text-1);">{{ baziData.name || '命主' }}</text>
+                            <text style="color:var(--accent);font-size:0.78rem;">{{ baziData.gender || '' }}</text>
+                          </view>
                           <text style="font-size:0.68rem;color:var(--text-3);">阴历：{{ baziData.birth_lunar || '' }}</text>
                           <text style="font-size:0.68rem;color:var(--text-3);">阳历：{{ baziData.birth_solar || '' }}</text>
                         </view>
                       </view>
-                      <view class="wz-top-actions">
+                      <view class="pro-top-actions">
                         <view class="tms-toggle" :class="{active: showTMS}" @tap="showTMS = !showTMS">
                           <view class="toggle-dot"></view> 胎命身
                         </view>
@@ -325,30 +328,31 @@
                     </view>
 
                     <!-- 胎命身横排 -->
-                    <view class="wz-tms-bar" v-if="showTMS">
-                      <view class="wz-tms-item" v-for="tms in tmsItems" :key="tms.key">
-                        <view class="wz-tms-label">{{ tms.label }}</view>
-                        <view class="wz-tms-value"><rich-text :nodes="tms.html"></rich-text></view>
-                        <view class="wz-tms-sub" v-if="tms.nayin">{{ tms.nayin }}</view>
+                    <view class="pro-tms-bar" v-if="showTMS">
+                      <view class="pro-tms-item" v-for="tms in tmsItems" :key="tms.key">
+                        <view class="pro-tms-label">{{ tms.label }}</view>
+                        <view class="pro-tms-value"><rich-text :nodes="tms.html"></rich-text></view>
+                        <view class="pro-tms-sub" v-if="tms.nayin">{{ tms.nayin }}</view>
                       </view>
                       </view>
                     <!-- 起运摘要栏 -->
-                    <view class="wz-summary-bar" v-if="qiyunSummary">
-                      <view class="wz-qiyun-text">{{ qiyunSummary }}</view>
-                      <view class="wz-qiyun-extra" v-if="wzProData && wzProData.jiaoyun_info">{{ wzProData.jiaoyun_info }}</view>
+                    <view class="pro-summary-bar" v-if="qiyunSummary">
+                      <view class="pro-qiyun-text">{{ qiyunSummary }}</view>
+                      <view class="pro-qiyun-extra" v-if="jiaoyunSummary">{{ jiaoyunSummary }}</view>
+                      <view class="pro-qiyun-extra" v-if="shianProData && shianProData.jiaoyun_info">{{ shianProData.jiaoyun_info }}</view>
                     </view>
 
                     <!-- Main layout -->
-                    <view class="wz-pan-layout">
-                      <view class="wz-pan-left">
-                        <view class="wz-pan-table-inner">
-                          <view class="wz-row header-row" :key="'hdr-'+yunRefreshKey">
-                            <view class="wz-row-item label-cell">日期</view>
-                            <view class="wz-row-item" v-for="(h, i) in colLabels" :key="'hdr-'+yunRefreshKey+'-'+i">{{ h }}</view>
+                    <view class="pro-pan-layout">
+                      <view class="pro-pan-left">
+                        <view class="pro-pan-table-inner">
+                          <view class="pro-row header-row" :key="'hdr-'+yunRefreshKey">
+                            <view class="pro-row-item label-cell">日期</view>
+                            <view class="pro-row-item" v-for="(h, i) in colLabels" :key="'hdr-'+yunRefreshKey+'-'+i">{{ h }}</view>
                           </view>
-                          <view class="wz-row" :class="row.cls" v-for="row in proPanRows" :key="'row-'+yunRefreshKey+'-'+row.key">
-                            <view class="wz-row-item label-cell">{{ row.label }}</view>
-                            <view class="wz-row-item" :class="{'wz-pro-sep': (row.key === 'zhuxing' || row.key === 'tg' || row.key === 'dz') && i === proSepIdx}" v-for="(col, i) in colData" :key="'cd-'+yunRefreshKey+'-'+i">
+                          <view class="pro-row" :class="row.cls" v-for="row in proPanRows" :key="'row-'+yunRefreshKey+'-'+row.key">
+                            <view class="pro-row-item label-cell">{{ row.label }}</view>
+                            <view class="pro-row-item" :class="{'shian-pro-sep': (row.key === 'zhuxing' || row.key === 'tg' || row.key === 'dz') && i === proSepIdx}" v-for="(col, i) in colData" :key="'cd-'+yunRefreshKey+'-'+i">
                               <template v-if="row.key === 'tg'">
                                 <rich-text :nodes="wxSpanBZ(col.tg || '')"></rich-text>
                               </template>
@@ -359,13 +363,13 @@
                                 <text>{{ col.ss || '' }}</text>
                               </template>
                               <template v-else-if="row.key === 'zhuxing'">
-                                <text class="mainColor">{{ col.zhuxing || '' }}</text>
+                                <text class="mainColor clickable-term" @tap="openTermCard('十神', col.zhuxing || '')">{{ col.zhuxing || '' }}</text>
                               </template>
                               <template v-else-if="row.key === 'cg'">
-                                <view class="wz-cg-list wz-cg-wrap">
-                                  <view class="wz-cg-item" v-for="(cg, cgi) in (col.canggan || [])" :key="cgi">
+                                <view class="pro-cg-list pro-cg-wrap">
+                                  <view class="pro-cg-item" v-for="(cg, cgi) in (col.canggan || [])" :key="cgi">
                                     <rich-text :nodes="wxSpanBZ(cg.gz || cg)"></rich-text>
-                                    <text class="wz-cg-ss" v-if="cg.ss">{{ fixShiShenName(cg.ss) }}</text>
+                                    <text class="pro-cg-ss clickable-term" v-if="cg.ss" @tap.stop="openTermCard('十神', fixShiShenName(cg.ss))">{{ fixShiShenName(cg.ss) }}</text>
                                   </view>
                                 </view>
                               </template>
@@ -385,75 +389,229 @@
                                 <text>{{ col.nayin || '' }}</text>
                               </template>
                               <template v-else-if="row.key === 'shensha'">
-                                <view class="wz-ss-list">
-                                  <text class="wz-ss-tag" v-for="(ss, ssi) in (col.shensha || [])" :key="ssi">{{ ss }}</text>
+                                <view class="pro-ss-list">
+                                  <text class="pro-ss-tag clickable-term" v-for="(ss, ssi) in (col.shensha || [])" :key="ssi" @tap="openTermCard('神煞', ss)">{{ ss }}</text>
                                 </view>
                               </template>
                             </view>
                           </view>
-                          <view class="wz-ss-division"></view>
-                          <view class="wz-row ss-row" :key="'ss-'+yunRefreshKey">
-                            <view class="wz-row-item label-cell">神煞</view>
-                            <view class="wz-row-item" v-for="(col, i) in colData" :key="'ss-cd-'+yunRefreshKey+'-'+i">
-                              <text class="wz-ss-tag" :class="ssTagClass(s)" v-for="(s, si) in (col.shensha || [])" :key="si">{{ s }}</text>
+                          <view class="pro-ss-division"></view>
+                          <view class="pro-row ss-row" :key="'ss-'+yunRefreshKey">
+                            <view class="pro-row-item label-cell">神煞</view>
+                            <view class="pro-row-item" v-for="(col, i) in colData" :key="'ss-cd-'+yunRefreshKey+'-'+i">
+                              <text class="pro-ss-tag clickable-term" :class="ssTagClass(s)" v-for="(s, si) in (col.shensha || [])" :key="si" @tap="openTermCard('神煞', s)">{{ s }}</text>
                               <text v-if="!(col.shensha && col.shensha.length)">-</text>
                             </view>
                           </view>
                         </view>
                       </view>
 
-                      <view class="wz-pan-right">
-                        <view class="wz-yun-section">
-                          <view class="wz-yun-switch-tabs">
-                            <view class="wz-yun-tab" :class="{ active: activeYunType === 'dayun' }" @click="switchYunType('dayun')">大运</view>
-                            <view class="wz-yun-tab" :class="{ active: activeYunType === 'xiaoyun' }" @click="switchYunType('xiaoyun')">小运</view>
+                      <view class="pro-pan-right">
+                        <view class="pro-yun-section">
+                          <view class="pro-yun-switch-tabs">
+                            <view class="pro-yun-tab" :class="{ active: activeYunType === 'dayun' }" @click="switchYunType('dayun')">大运</view>
+                            <view class="pro-yun-tab" :class="{ active: activeYunType === 'xiaoyun' }" @click="switchYunType('xiaoyun')">小运</view>
                           </view>
-                          <view class="wz-yun-items-wrap">
-                            <view class="wz-yun-items" id="wz-yun-main"></view>
-                          </view>
-                        </view>
-
-                        <view class="wz-yun-section" v-if="filteredLiuNian.length">
-                          <view class="wz-yun-title">流年 <text class="wz-today-btn" @click="jumpToToday">今</text></view>
-                          <view class="wz-yun-items-wrap">
-                            <view class="wz-yun-items" id="wz-yun-liunian"></view>
+                          <view class="pro-yun-items-wrap">
+                            <view class="pro-yun-items" id="pro-yun-main"></view>
                           </view>
                         </view>
 
-                        <view class="wz-yun-section" v-if="proLiuYue.length">
-                          <view class="wz-yun-title">流月</view>
-                          <view class="wz-yun-items-wrap">
-                            <view class="wz-yun-items" id="wz-yun-liuyue"></view>
+                        <view class="pro-yun-section" v-if="filteredLiuNian.length">
+                          <view class="pro-yun-title">流年 <text class="pro-today-btn" @click="jumpToToday">今</text></view>
+                          <view class="pro-yun-items-wrap">
+                            <view class="pro-yun-items" id="pro-yun-liunian"></view>
+                          </view>
+                        </view>
+
+                        <view class="pro-yun-section" v-if="proLiuYue.length">
+                          <view class="pro-yun-title">流月</view>
+                          <view class="pro-yun-items-wrap">
+                            <view class="pro-yun-items" id="pro-yun-liuyue"></view>
                           </view>
                         </view>
                       </view>
                     </view>
 
-                    <!-- 干支留意 -->
-                    <view class="wz-guanxi-box" v-if="proGuanxi || proWuxingWangduSorted.length">
-                      <view class="wz-guanxi-box-title"><text class="wz-guanxi-box-icon">⚡</text> 干支留意</view>
-                      <view class="wz-guanxi-box-body" style="flex-direction:column;gap:6px;">
-                        <view class="wz-guanxi-item" style="width:100%;" v-if="proGuanxi && proGuanxi.tg">
-                          <text class="wz-guanxi-label">天干</text>
-                          <text class="wz-guanxi-text">{{ proGuanxi.tg }}</text>
-                        </view>
-                        <view class="wz-guanxi-item" style="width:100%;" v-if="proGuanxi && proGuanxi.dz">
-                          <text class="wz-guanxi-label">地支</text>
-                          <text class="wz-guanxi-text">{{ proGuanxi.dz }}</text>
-                        </view>
-                        <view class="wz-guanxi-wx-row" style="width:100%;" v-if="proWuxingWangduSorted.length">
-                          <text class="wz-guanxi-label">五行</text>
-                          <view class="wz-guanxi-wx-items">
-                            <text class="wz-guanxi-wx-tag" v-for="wx in proWuxingWangduSorted" :key="wx.name" :style="{borderColor: wx.color, color: wx.color}">{{ wx.name }}<text style="font-weight:700;">{{ wx.wang }}</text></text>
+                    <!-- 智能四柱图示 -->
+                    <view class="pro-smart-chart" v-if="pillarFlowItems.length">
+                      <view class="pro-smart-title">智能四柱图示</view>
+                      <view class="pro-smart-tabs">
+                        <view class="pro-smart-tab" :class="{active: activeGzTab === 'ganshi'}" @tap="activeGzTab = 'ganshi'">干支</view>
+                        <view class="pro-smart-tab" :class="{active: activeGzTab === 'liutong'}" @tap="activeGzTab = 'liutong'">流通</view>
+                        <view class="pro-smart-tab" :class="{active: activeGzTab === 'gongwei'}" @tap="activeGzTab = 'gongwei'">宫位</view>
+                        <view class="pro-smart-tab" :class="{active: activeGzTab === 'liuqin'}" @tap="activeGzTab = 'liuqin'">六亲</view>
+                      </view>
+
+                      <template v-if="activeGzTab === 'ganshi' || activeGzTab === 'liutong'">
+                        <view class="pro-smart-relation-summary" v-if="proGuanxi && (proGuanxi.tg || proGuanxi.dz)">
+                          <view class="pro-smart-summary-line" v-if="proGuanxi.tg">
+                            <text class="pro-smart-summary-label">天干留意：</text>
+                            <text class="pro-smart-summary-text">{{ formatRelationList(proGuanxi.tg) }}</text>
                           </view>
+                          <view class="pro-smart-summary-line" v-if="proGuanxi.dz">
+                            <text class="pro-smart-summary-label">地支留意：</text>
+                            <text class="pro-smart-summary-text">{{ formatRelationList(proGuanxi.dz) }}</text>
+                          </view>
+                        </view>
+
+                        <view class="pro-smart-diagram" :style="{ '--gz-cols': smartDiagramItems.length }">
+                          <view class="pro-smart-lines pro-smart-lines-top" v-if="smartRelationRows.top.length">
+                            <view class="pro-smart-line-row" v-for="(row, idx) in smartRelationRows.top" :key="'top-'+idx">
+                              <view class="pro-smart-line" :class="row.cls" :style="{ '--line-left': row.leftPct + '%', '--line-right': row.rightPct + '%', '--line-mid': row.midPct + '%', '--line-shift': row.offsetPx + 'px' }">
+                                <text class="pro-smart-line-end pro-smart-line-end-left">{{ row.leftChar }}</text>
+                                <text class="pro-smart-line-label">{{ row.label }}</text>
+                                <text class="pro-smart-line-end pro-smart-line-end-right">{{ row.rightChar }}</text>
+                              </view>
+                            </view>
+                          </view>
+                          <view class="pro-smart-label-row">
+                            <text v-for="item in smartDiagramItems" :key="'label-'+item.key">{{ item.label }}</text>
+                          </view>
+                          <view class="pro-smart-ss-row">
+                            <text v-for="item in smartDiagramItems" :key="'ss-'+item.key" class="clickable-term" @tap="openTermCard('十神', item.shishen)">{{ item.shishen }}</text>
+                          </view>
+                          <view class="pro-smart-gan-row">
+                            <view v-for="item in smartDiagramItems" :key="'gan-'+item.key" class="pro-smart-char">
+                              <rich-text :nodes="wxSpanBZ(item.gan)"></rich-text>
+                            </view>
+                          </view>
+                          <view class="pro-smart-zhi-row">
+                            <view v-for="item in smartDiagramItems" :key="'zhi-'+item.key" class="pro-smart-char">
+                              <rich-text :nodes="wxSpanBZ(item.zhi)"></rich-text>
+                            </view>
+                          </view>
+                          <view class="pro-smart-hidden-row">
+                            <view v-for="item in smartDiagramItems" :key="'hidden-'+item.key" class="pro-smart-hidden-cell">
+                              <text v-for="cg in item.canggan.slice(0, 2)" :key="item.key + cg.gz" class="clickable-term" @tap="openTermCard('十神', fixShiShenName(cg.ss))">{{ fixShiShenName(cg.ss) || cg.gz }}</text>
+                            </view>
+                          </view>
+                          <view class="pro-smart-lines pro-smart-lines-bottom" v-if="smartRelationRows.bottom.length">
+                            <view class="pro-smart-line-row" v-for="(row, idx) in smartRelationRows.bottom" :key="'bottom-'+idx">
+                              <view class="pro-smart-line" :class="row.cls" :style="{ '--line-left': row.leftPct + '%', '--line-right': row.rightPct + '%', '--line-mid': row.midPct + '%', '--line-shift': row.offsetPx + 'px' }">
+                                <text class="pro-smart-line-end pro-smart-line-end-left">{{ row.leftChar }}</text>
+                                <text class="pro-smart-line-label">{{ row.label }}</text>
+                                <text class="pro-smart-line-end pro-smart-line-end-right">{{ row.rightChar }}</text>
+                              </view>
+                            </view>
+                          </view>
+                        </view>
+
+                        <view class="pro-smart-flow-note" v-if="activeGzTab === 'liutong'">
+                          <view class="pro-smart-wx-tags" v-if="proWuxingWangduSorted.length">
+                            <view class="pro-smart-wx-tag" v-for="wx in proWuxingWangduSorted" :key="wx.name" :style="{borderColor: wx.color, color: wx.color}">
+                              <text>{{ wx.name }}</text><text>{{ wx.wang }}</text>
+                            </view>
+                          </view>
+                          <text>流通用于观察命局五行与干支作用是否顺畅。合、冲、克、害、三合、三会等关系越集中，越需要结合宫位与十神判断能量走向。</text>
+                        </view>
+                      </template>
+
+                      <template v-else-if="activeGzTab === 'gongwei'">
+                        <view class="pro-palace-board">
+                          <view class="pro-palace-lanes">
+                            <view class="pro-palace-tag" v-for="item in palaceAxisItems" :key="item.label">
+                              <text>{{ item.label }}</text>
+                              <text>{{ item.desc }}</text>
+                            </view>
+                          </view>
+                          <view class="pro-palace-map">
+                            <view class="pro-palace-row pro-palace-row-labels">
+                              <text v-for="item in pillarFlowItems" :key="'palace-label-'+item.key">{{ item.label }}</text>
+                            </view>
+                            <view class="pro-palace-row pro-palace-row-gan">
+                              <view v-for="item in pillarFlowItems" :key="'palace-gan-'+item.key" class="pro-palace-char">
+                                <rich-text :nodes="wxSpanBZ(item.gan)"></rich-text>
+                              </view>
+                            </view>
+                            <view class="pro-palace-row pro-palace-row-zhi">
+                              <view v-for="item in pillarFlowItems" :key="'palace-zhi-'+item.key" class="pro-palace-char">
+                                <rich-text :nodes="wxSpanBZ(item.zhi)"></rich-text>
+                              </view>
+                            </view>
+                            <view class="pro-palace-row pro-palace-row-desc">
+                              <text v-for="item in pillarFlowItems" :key="'palace-desc-'+item.key">{{ item.palace }}</text>
+                            </view>
+                          </view>
+                        </view>
+                      </template>
+
+                      <template v-else>
+                        <view class="pro-kinship-board">
+                          <view class="pro-kinship-map">
+                            <view class="pro-kinship-title">亲属关系</view>
+                            <view class="pro-kinship-row pro-kinship-row-rel">
+                              <text v-for="item in kinshipDiagramItems" :key="'family-rel-'+item.key">{{ item.family }}</text>
+                            </view>
+                            <view class="pro-kinship-row pro-kinship-row-ss">
+                              <text v-for="item in kinshipDiagramItems" :key="'family-ss-'+item.key" class="clickable-term" @tap="openTermCard('十神', item.shishen)">{{ item.shishen }}</text>
+                            </view>
+                            <view class="pro-kinship-row pro-kinship-row-gan">
+                              <view v-for="item in kinshipDiagramItems" :key="'family-gan-'+item.key" class="pro-kinship-char">
+                                <rich-text :nodes="wxSpanBZ(item.gan)"></rich-text>
+                              </view>
+                            </view>
+                            <view class="pro-kinship-row pro-kinship-row-zhi">
+                              <view v-for="item in kinshipDiagramItems" :key="'family-zhi-'+item.key" class="pro-kinship-char">
+                                <rich-text :nodes="wxSpanBZ(item.zhi)"></rich-text>
+                              </view>
+                            </view>
+                            <view class="pro-kinship-row pro-kinship-row-hidden">
+                              <text v-for="item in kinshipDiagramItems" :key="'family-hidden-'+item.key">{{ item.hiddenFamily }}</text>
+                            </view>
+                          </view>
+                          <view class="pro-kinship-map">
+                            <view class="pro-kinship-title">社会关系</view>
+                            <view class="pro-kinship-row pro-kinship-row-rel">
+                              <text v-for="item in kinshipDiagramItems" :key="'social-rel-'+item.key">{{ item.social }}</text>
+                            </view>
+                            <view class="pro-kinship-row pro-kinship-row-ss">
+                              <text v-for="item in kinshipDiagramItems" :key="'social-ss-'+item.key" class="clickable-term" @tap="openTermCard('十神', item.shishen)">{{ item.shishen }}</text>
+                            </view>
+                            <view class="pro-kinship-row pro-kinship-row-gan">
+                              <view v-for="item in kinshipDiagramItems" :key="'social-gan-'+item.key" class="pro-kinship-char">
+                                <rich-text :nodes="wxSpanBZ(item.gan)"></rich-text>
+                              </view>
+                            </view>
+                            <view class="pro-kinship-row pro-kinship-row-zhi">
+                              <view v-for="item in kinshipDiagramItems" :key="'social-zhi-'+item.key" class="pro-kinship-char">
+                                <rich-text :nodes="wxSpanBZ(item.zhi)"></rich-text>
+                              </view>
+                            </view>
+                            <view class="pro-kinship-row pro-kinship-row-hidden">
+                              <text v-for="item in kinshipDiagramItems" :key="'social-hidden-'+item.key">{{ item.hiddenSocial }}</text>
+                            </view>
+                          </view>
+                        </view>
+                      </template>
+
+                      <view class="pro-gz-setting-panel">
+                        <view class="pro-gz-setting-title">干支设置</view>
+                        <view class="pro-gz-setting-tabs">
+                          <view
+                            class="pro-gz-setting-tab"
+                            :class="{active: activeGanzhiSetting === item.key}"
+                            v-for="item in ganzhiSettingTabs"
+                            :key="item.key"
+                            @tap="activeGanzhiSetting = item.key"
+                          >{{ item.label }}</view>
+                        </view>
+                        <view class="pro-gz-setting-body" v-if="activeGanzhiSetting === 'relations'">
+                          <text class="pro-gz-setting-copy">当前用于智能图示识别和绘线的干支关系范围：</text>
+                          <view class="pro-gz-relation-tags">
+                            <text class="pro-gz-relation-tag" v-for="item in ganzhiRelationKinds" :key="item">{{ item }}</text>
+                          </view>
+                        </view>
+                        <view class="pro-gz-setting-body pro-gz-setting-locked" v-else>
+                          <text>{{ currentGanzhiSettingLabel }}会继续按问真结构补齐；当前先保留入口，避免后续接开关时再改版式。</text>
                         </view>
                       </view>
                     </view>
 
                     <!-- 参考用神 + 格局 + 称骨 -->
-                    <view class="wz-pro-bottom-info" v-if="baziData.tiaohou || baziData.geju || baziData.cheng_gu" style="margin-top:12px;">
-                      <view class="wz-pro-bottom-card" v-if="baziData.tiaohou && (baziData.tiaohou.yong_shen || baziData.tiaohou.tiao_hou)">
-                        <view class="wz-pro-bottom-card-title">⚡ 参考用神</view>
+                    <view class="shian-pro-bottom-info" v-if="baziData.tiaohou || baziData.geju || baziData.cheng_gu" style="margin-top:12px;">
+                      <view class="shian-pro-bottom-card" v-if="baziData.tiaohou && (baziData.tiaohou.yong_shen || baziData.tiaohou.tiao_hou)">
+                        <view class="shian-pro-bottom-card-title">⚡ 参考用神</view>
                         <view style="display:flex;flex-wrap:wrap;gap:6px;">
                           <text v-if="baziData.tiaohou.yong_shen" class="info-tag">用 {{ baziData.tiaohou.yong_shen }}</text>
                           <text v-if="baziData.tiaohou.tiao_hou" class="info-tag">候 {{ baziData.tiaohou.tiao_hou }}</text>
@@ -461,21 +619,21 @@
                           <text v-if="baziData.tiaohou.ji_shen" class="info-tag">忌 {{ baziData.tiaohou.ji_shen }}</text>
                         </view>
                       </view>
-                      <view class="wz-pro-bottom-card" v-if="baziData.geju && baziData.geju.desc">
-                        <view class="wz-pro-bottom-card-title">🏛 格局</view>
+                      <view class="shian-pro-bottom-card" v-if="baziData.geju && baziData.geju.desc">
+                        <view class="shian-pro-bottom-card-title">🏛 格局</view>
                         <text style="font-size:0.78rem;color:var(--text-2);line-height:1.6;">{{ baziData.geju.desc }}</text>
                       </view>
-                      <view class="wz-pro-bottom-card" v-if="baziData.cheng_gu && baziData.cheng_gu.weight">
-                        <view class="wz-pro-bottom-card-title">⚖ 袁天罡称骨</view>
+                      <view class="shian-pro-bottom-card" v-if="baziData.cheng_gu && baziData.cheng_gu.weight">
+                        <view class="shian-pro-bottom-card-title">⚖ 袁天罡称骨</view>
                         <text style="font-size:0.84rem;font-weight:700;color:var(--accent);">{{ baziData.cheng_gu.weight }}</text>
                         <text v-if="baziData.cheng_gu.poem" style="font-size:0.72rem;color:var(--text-3);display:block;margin-top:4px;">{{ baziData.cheng_gu.poem }}</text>
                       </view>
                     </view>
 
                     <!-- 旺衰详情 -->
-                    <view class="wz-section-card" v-if="baziData.wang_shuai_detail && baziData.wang_shuai_detail.detail" style="margin-top:10px;">
-                      <text class="wz-section-title">📊 旺衰分析</text>
-                      <view class="wz-section-body">
+                    <view class="pro-section-card" v-if="baziData.wang_shuai_detail && baziData.wang_shuai_detail.detail" style="margin-top:10px;">
+                      <text class="pro-section-title">📊 旺衰分析</text>
+                      <view class="pro-section-body">
                         <view style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
                           <text class="wxxs-tag" :class="baziData.wang_shuai_detail.de_sheng ? 'wx-wang' : 'wx-qiu'">得生{{ baziData.wang_shuai_detail.de_sheng ? '✓' : '✗' }}</text>
                           <text class="wxxs-tag" :class="baziData.wang_shuai_detail.de_zhu ? 'wx-wang' : 'wx-qiu'">得助{{ baziData.wang_shuai_detail.de_zhu ? '✓' : '✗' }}</text>
@@ -491,44 +649,44 @@
                     </view>
 
                     <!-- 性格分析 -->
-                    <view class="wz-section-card" v-if="baziData.personality" style="margin-top:10px;">
-                      <text class="wz-section-title">🎭 性格分析</text>
-                      <view class="wz-section-body">
-                        <text class="wz-section-text">{{ baziData.personality.summary || '' }}</text>
-                        <view class="wz-trait-tags" v-if="baziData.personality.traits && baziData.personality.traits.length">
-                          <text class="wz-trait-tag" v-for="(t, ti) in baziData.personality.traits" :key="ti">{{ t }}</text>
+                    <view class="pro-section-card" v-if="baziData.personality" style="margin-top:10px;">
+                      <text class="pro-section-title">🎭 性格分析</text>
+                      <view class="pro-section-body">
+                        <text class="pro-section-text">{{ baziData.personality.summary || '' }}</text>
+                        <view class="pro-trait-tags" v-if="baziData.personality.traits && baziData.personality.traits.length">
+                          <text class="pro-trait-tag" v-for="(t, ti) in baziData.personality.traits" :key="ti">{{ t }}</text>
                         </view>
-                        <view class="wz-personality-grid">
-                          <view class="wz-p-item" v-if="baziData.personality.career">
-                            <text class="wz-p-label">💼 事业</text>
-                            <text class="wz-p-text">{{ baziData.personality.career }}</text>
+                        <view class="pro-personality-grid">
+                          <view class="pro-p-item" v-if="baziData.personality.career">
+                            <text class="pro-p-label">💼 事业</text>
+                            <text class="pro-p-text">{{ baziData.personality.career }}</text>
                           </view>
-                          <view class="wz-p-item" v-if="baziData.personality.wealth">
-                            <text class="wz-p-label">💰 财运</text>
-                            <text class="wz-p-text">{{ baziData.personality.wealth }}</text>
+                          <view class="pro-p-item" v-if="baziData.personality.wealth">
+                            <text class="pro-p-label">💰 财运</text>
+                            <text class="pro-p-text">{{ baziData.personality.wealth }}</text>
                           </view>
-                          <view class="wz-p-item" v-if="baziData.personality.relationship">
-                            <text class="wz-p-label">💕 感情</text>
-                            <text class="wz-p-text">{{ baziData.personality.relationship }}</text>
+                          <view class="pro-p-item" v-if="baziData.personality.relationship">
+                            <text class="pro-p-label">💕 感情</text>
+                            <text class="pro-p-text">{{ baziData.personality.relationship }}</text>
                           </view>
-                          <view class="wz-p-item" v-if="baziData.personality.advice">
-                            <text class="wz-p-label">💡 建议</text>
-                            <text class="wz-p-text">{{ baziData.personality.advice }}</text>
+                          <view class="pro-p-item" v-if="baziData.personality.advice">
+                            <text class="pro-p-label">💡 建议</text>
+                            <text class="pro-p-text">{{ baziData.personality.advice }}</text>
                           </view>
                         </view>
                       </view>
                     </view>
 
                     <!-- 古籍参考 -->
-                    <view class="wz-section-card" v-if="baziData.guji_refs && baziData.guji_refs.length" style="margin-top:10px;">
-                      <text class="wz-section-title">📚 古籍参考</text>
-                      <view class="wz-section-body">
-                        <view class="wz-guji-item" v-for="(ref, ri) in baziData.guji_refs" :key="ri">
-                          <view class="wz-guji-header">
-                            <text class="wz-guji-title">{{ ref.title }}</text>
-                            <text class="wz-guji-match">{{ ref.source }}</text>
+                    <view class="pro-section-card" v-if="baziData.guji_refs && baziData.guji_refs.length" style="margin-top:10px;">
+                      <text class="pro-section-title">📚 古籍参考</text>
+                      <view class="pro-section-body">
+                        <view class="pro-guji-item" v-for="(ref, ri) in baziData.guji_refs" :key="ri">
+                          <view class="pro-guji-header">
+                            <text class="pro-guji-title">{{ ref.title }}</text>
+                            <text class="pro-guji-match">{{ ref.source }}</text>
                           </view>
-                          <text class="wz-guji-text">{{ ref.text }}</text>
+                          <text class="pro-guji-text">{{ ref.text }}</text>
                         </view>
                       </view>
                     </view>
@@ -617,6 +775,17 @@
       </view>
     </view>
 
+    <view class="modal-overlay" :class="{open: termCardOpen}" @tap="closeTermCard">
+      <view class="modal-box term-card-box" @tap.stop>
+        <view class="modal-title">{{ termCard.type }} · {{ termCard.name }}</view>
+        <view class="term-card-body">
+          <view class="term-card-line">{{ termCard.summary }}</view>
+          <view class="term-card-meta" v-if="termCard.meta">{{ termCard.meta }}</view>
+        </view>
+        <view class="modal-btns"><view class="btn btn-outline" @tap="closeTermCard">关闭</view></view>
+      </view>
+    </view>
+
 
   </view>
 </template>
@@ -642,7 +811,7 @@ const isLoggedIn = ref(!!uni.getStorageSync('xc_token'))
 window.addEventListener('xc-session-expired', function() { isLoggedIn.value = false })
 function closeSharePanel() { sharePanelOpen.value = false; try { document.getElementById('sharePanelModal')?.classList.remove('open') } catch(_) {} }
 
-// ═══ 五行颜色映射（问真八字官方配色） ═══
+// ═══ 五行颜色映射（时安八字配色） ═══
 const WX_COLOR_BZ = {
   '金':'#ef9104','木':'#07e930','水':'#2e83f6','火':'#d30505','土':'#8b6d03',
   '庚':'#ef9104','辛':'#d4860a','甲':'#07e930','乙':'#1dcc36',
@@ -667,6 +836,62 @@ function fixShiShenName(ss) {
   if (ss === '偏官') return '七杀'
   if (ss === '日主') return '比肩'
   return ss
+}
+
+const SHI_SHEN_HINTS = {
+  '比肩': '同我之气，主自我、同辈、竞争与独立性。',
+  '劫财': '异性同类，主行动、分夺、朋友与冲劲。',
+  '食神': '我所生且同性，主表达、福气、作品与稳定输出。',
+  '伤官': '我所生且异性，主才华、锋芒、表达与破格。',
+  '正财': '我所克且异性，主稳定资源、经营、现实收益。',
+  '偏财': '我所克且同性，主机会财、流动资源、人情往来。',
+  '正官': '克我且异性，主规则、职位、名分与约束。',
+  '七杀': '克我且同性，主压力、执行、风险与突破。',
+  '正印': '生我且异性，主保护、学习、资质与贵人。',
+  '偏印': '生我且同性，主灵感、偏门、研究与敏感度。',
+  '元男': '日柱天干为命主自身，男命显示为元男。',
+  '元女': '日柱天干为命主自身，女命显示为元女。',
+}
+
+const SHEN_SHA_HINTS = {
+  '天乙贵人': '常作贵人助力参考，遇事有转圜与扶持之象。',
+  '太极贵人': '主悟性、学理、玄学兴趣与思辨能力。',
+  '文昌贵人': '主学习、文书、表达、考试与专业输出。',
+  '国印贵人': '主印信、资格、名誉与制度内资源。',
+  '福星贵人': '主福泽、安稳、衣食与缓冲力。',
+  '天德贵人': '常作化凶助善参考，重在减灾与修德。',
+  '月德贵人': '常作月令德气参考，主缓和与助缘。',
+  '禄神': '主根气、职位、俸禄与自我支撑。',
+  '驿马': '主动象、迁移、奔波、差旅与变化。',
+  '桃花': '主人缘、审美、情感吸引与社交曝光。',
+  '红鸾': '常用于婚恋喜庆参考。',
+  '天喜': '常用于喜事、人缘与情绪舒展参考。',
+  '华盖': '主孤高、技艺、宗教玄学、审美与独处。',
+  '羊刃': '主强势、决断、冲劲，也要留意过刚。',
+  '飞刃': '多作冲动、急切、锋利之象参考。',
+  '劫煞': '主竞争、阻滞、突发损耗，宜结合原局喜忌。',
+  '亡神': '主隐忧、思虑、失落感，宜结合宫位与十神。',
+  '空亡': '主虚、落空、不实，需看所在柱和用神。',
+  '金舆': '主享受、车舆、体面和资源配置。',
+  '天医': '主医药、调养、照护、修复之象。',
+  '天厨贵人': '主饮食、福禄、口福与供养。',
+  '德秀贵人': '主德性、秀气、学养与外在气质。',
+  '童子煞': '民俗神煞，常作敏感、孤清、缘分特殊参考。',
+  '天罗地网': '主拘束、困局、牵连，需看是否为忌。',
+}
+
+function openTermCard(type, rawName) {
+  const name = fixShiShenName(String(rawName || '').trim())
+  if (!name) return
+  termCard.type = type
+  termCard.name = name
+  termCard.summary = (type === '十神' ? SHI_SHEN_HINTS[name] : SHEN_SHA_HINTS[name]) || '此项需结合四柱位置、喜忌、旺衰和大运流年综合判断。'
+  termCard.meta = type === '神煞' ? '神煞用于提示辅助信息，不单独决定吉凶；页面已在基本盘和专业盘同时显示。' : '十神以日主为中心判断生克关系，点击用于快速识别含义。'
+  termCardOpen.value = true
+}
+
+function closeTermCard() {
+  termCardOpen.value = false
 }
 
 function wxSpanBZ(ch) {
@@ -754,8 +979,8 @@ function getQiYunMonth(d) {
     var monthMatch = (qd.text || '').match(/(\d+)月/)
     if (monthMatch) return parseInt(monthMatch[1])
   }
-  if (d && d.wzProData && d.wzProData.qi_yun_detail) {
-    var qd2 = d.wzProData.qi_yun_detail
+  if (d && d.shianProData && d.shianProData.qi_yun_detail) {
+    var qd2 = d.shianProData.qi_yun_detail
     if (qd2.month) return qd2.month
   }
   return null
@@ -775,8 +1000,8 @@ function getQiYunYear(d) {
     if (qd.qiyun_year) return qd.qiyun_year
     if (qd.year) return qd.year
   }
-  if (d && d.wzProData && d.wzProData.qi_yun_detail) {
-    var qd2 = d.wzProData.qi_yun_detail
+  if (d && d.shianProData && d.shianProData.qi_yun_detail) {
+    var qd2 = d.shianProData.qi_yun_detail
     if (qd2.year) return qd2.year
   }
   return null
@@ -802,24 +1027,27 @@ const baziData = ref(null)
 const navInfo = ref('')
 const showTMS = ref(false)
 const sharePanelOpen = ref(false)
-const wzProData = ref(null)
-const wzProLoading = ref(false)
+const termCardOpen = ref(false)
+const termCard = reactive({ type: '', name: '', summary: '', meta: '' })
+const activeGzTab = ref('ganshi')
+const shianProData = ref(null)
+const shianProLoading = ref(false)
 const baziSourceParams = ref(null)
 const agentHandoffStorageKey = 'xc_agent_handoff_v1'
 
 // Tab
-const activeTab = ref(uni.getStorageSync('xc_bazi_activeTab') || 'wzpro')
+const activeTab = ref(uni.getStorageSync('xc_bazi_activeTab') || 'shianpro')
 function switchTab(tab) {
   activeTab.value = tab
   uni.setStorageSync('xc_bazi_activeTab', tab)
   rememberBaziResultRoute()
-  if (tab === 'wzpro') {
-    loadWzProData()
+  if (tab === 'shianpro') {
+    loadShianProData()
   }
   // DOM直操作：绕过Vue 3.4.21 render effect bug
-  var tabs = ['info','basic','wzpro','notes','settings']
-  var btnIds = ['baziTabInfo','baziTabBasic','baziTabWzpro','baziTabNotes','baziTabSettings']
-  var panelIds = ['baziPanelInfo','baziPanelBasic','baziPanelWzpro','baziPanelNotes','baziPanelSettings']
+  var tabs = ['info','basic','shianpro','notes','settings']
+  var btnIds = ['baziTabInfo','baziTabBasic','baziTabShianpro','baziTabNotes','baziTabSettings']
+  var panelIds = ['baziPanelInfo','baziPanelBasic','baziPanelShianpro','baziPanelNotes','baziPanelSettings']
   for (var i = 0; i < tabs.length; i++) {
     var btn = document.getElementById(btnIds[i])
     if (btn) { tab === tabs[i] ? btn.classList.add('active') : btn.classList.remove('active') }
@@ -916,45 +1144,55 @@ function sendBaziToAgent() {
   uni.reLaunch({ url: '/pages/index/index?app=1' })
 }
 
-async function loadWzProData() {
-  if (wzProData.value) return
+async function loadShianProData() {
+  if (shianProData.value) return
   var d = baziData.value
   if (!d) return
 
-  wzProLoading.value = true
+  shianProLoading.value = true
   try {
     var y = '', m = '', dd = '', h = '0', mi = 0, s = 1
+    var jy = ''
 
-    if (d.birth_params) {
+    if (d.birth_solar) {
+      var parts = d.birth_solar.match(/(\d{4})-(\d{2})-(\d{2})\s*(\d{2}):(\d{2})/)
+      if (parts) {
+        y = parts[1]; m = parseInt(parts[2]); dd = parseInt(parts[3])
+        h = parseInt(parts[4]); mi = parseInt(parts[5])
+      }
+      var jyParts = (d.birth_input || '').match(/(\d{4})[年\-](\d{1,2})[月\-](\d{1,2}).*?(\d{1,2})[:：](\d{1,2})/)
+      if (jyParts) {
+        jy = jyParts[1] + String(parseInt(jyParts[2])).padStart(2, '0') + String(parseInt(jyParts[3])).padStart(2, '0') + String(parseInt(jyParts[4])).padStart(2, '0') + String(parseInt(jyParts[5])).padStart(2, '0')
+        var effectiveCompact = String(y) + String(m).padStart(2, '0') + String(dd).padStart(2, '0') + String(h).padStart(2, '0') + String(mi).padStart(2, '0')
+        var effectiveBranch = (Math.floor((parseInt(effectiveCompact.slice(8, 10)) + 1) / 2)) % 12
+        var originalBranch = (Math.floor((parseInt(jy.slice(8, 10)) + 1) / 2)) % 12
+        if (effectiveCompact.slice(0, 8) === jy.slice(0, 8) && effectiveBranch === originalBranch) jy = ''
+      }
+      s = d.gender === '女' ? 2 : 1
+    } else if (d.birth_params) {
       y = d.birth_params.y || ''
       m = d.birth_params.m || ''
       dd = d.birth_params.d || ''
       h = d.birth_params.h || '0'
       mi = d.birth_params.mi || 0
       s = d.birth_params.s || 1
-    } else if (d.birth_solar) {
-      var parts = d.birth_solar.match(/(\d{4})-(\d{2})-(\d{2})\s*(\d{2}):(\d{2})/)
-      if (parts) {
-        y = parts[1]; m = parseInt(parts[2]); dd = parseInt(parts[3])
-        h = parseInt(parts[4]); mi = parseInt(parts[5])
-      }
-      s = d.gender === '女' ? 2 : 1
     }
 
     if (!y || !m || !dd) {
-      wzProLoading.value = false
+      shianProLoading.value = false
       return
     }
 
-    var url = '/api/bazi/wz-pro?y=' + y + '&m=' + m + '&d=' + dd + '&h=' + h + '&mi=' + mi + '&s=' + s
+    var url = '/api/bazi/shian-pro?y=' + y + '&m=' + m + '&d=' + dd + '&h=' + h + '&mi=' + mi + '&s=' + s
+    if (jy) url += '&jy=' + encodeURIComponent(jy)
     var r = await uni.request({ url: url, method: 'GET' })
     if (r.data && r.data.success) {
-      wzProData.value = r.data
+      shianProData.value = r.data
     }
   } catch (e) {
-    console.log('[专业排盘] 加载wz-pro数据失败', e)
+    console.log('[专业排盘] 加载shian-pro数据失败', e)
   } finally {
-    wzProLoading.value = false
+    shianProLoading.value = false
   }
 }
 
@@ -1063,7 +1301,7 @@ const infoItems = computed(() => {
 })
 
 // 专业排盘HTML（由后端渲染）— 已弃用，改用前端渲染
-// const wzproHtml = computed(() => baziData.value?.wzpro_html || baziData.value?.pro_html || '')
+// const shianproHtml = computed(() => baziData.value?.shianpro_html || baziData.value?.pro_html || '')
 
 // ═══ 专业排盘数据 ═══
 const selDaYunIdx = ref(-1)
@@ -1243,17 +1481,17 @@ const colData = computed(() => {
   const tmsCols = []
   if (showTMS.value) {
     const tms = d.tai_ming_shen || {}
-    const wzTms = wzProData.value || {}
+    const shianTms = shianProData.value || {}
     const tmsDefs = [
-      { key: 'tai_yuan', label: '胎元', wzKey: 'taiyuan' },
-      { key: 'ming_gong', label: '命宫', wzKey: 'minggong' },
-      { key: 'shen_gong', label: '身宫', wzKey: 'shenggong' },
+      { key: 'tai_yuan', label: '胎元', proKey: 'taiyuan' },
+      { key: 'ming_gong', label: '命宫', proKey: 'minggong' },
+      { key: 'shen_gong', label: '身宫', proKey: 'shenggong' },
     ]
     tmsDefs.forEach(function(def) {
       const tmsData = tms[def.key] || {}
-      const wzGz = wzTms[def.wzKey] || ''
-      let tg = tmsData.gan || (wzGz ? wzGz[0] : '')
-      let dz = tmsData.zhi || (wzGz && wzGz.length > 1 ? wzGz[1] : '')
+      const proGz = shianTms[def.proKey] || ''
+      let tg = tmsData.gan || (proGz ? proGz[0] : '')
+      let dz = tmsData.zhi || (proGz && proGz.length > 1 ? proGz[1] : '')
       const dayMaster = d.four_pillars.day.gan || ''
       const CANG_GAN_LOCAL = {'子':['癸'],'丑':['己','癸','辛'],'寅':['甲','丙','戊'],'卯':['乙'],'辰':['戊','乙','癸'],'巳':['丙','庚','戊'],'午':['丁','己'],'未':['己','丁','乙'],'申':['庚','壬','戊'],'酉':['辛'],'戌':['戊','辛','丁'],'亥':['壬','甲']}
       const cgList = (CANG_GAN_LOCAL[dz] || []).map(function(g) { return { gz: g, ss: getShiShenLocal(dayMaster, g) } })
@@ -1270,6 +1508,289 @@ const colData = computed(() => {
     return [...szData, ...tmsCols, dyData, lnData, lmData]
   }
   return cols
+})
+
+const pillarFlowItems = computed(() => {
+  const d = baziData.value
+  if (!d || !d.four_pillars) return []
+  const fp = d.four_pillars
+  const cg = d.cang_gan || {}
+  const cgSs = d.cang_gan_shi_shen || {}
+  const xy = d.xing_yun || {}
+  const zz = d.zi_zuo || {}
+  const kw = d.kong_wang_per_pillar || {}
+  return ['year', 'month', 'day', 'hour'].map(key => ({
+    key,
+    label: pillarLabels[key],
+    gan: fp[key]?.gan || '',
+    zhi: fp[key]?.zhi || '',
+    shishen: key === 'day' ? dayMasterLabel.value : fixShiShenName(shiShen.value[key] || ''),
+    canggan: (cg[key] || []).map((g, i) => ({ gz: g, ss: (cgSs[key] || [])[i] || '' })),
+    xingyun: xy[key] || '',
+    zizuo: zz[key] || '',
+    kongwang: kw[key] || '',
+    palace: ({ year: '祖辈宫 / 早年根基', month: '父母事业宫 / 月令环境', day: '夫妻宫 / 自身落点', hour: '子女宫 / 晚景结果' })[key] || '',
+  }))
+})
+
+const smartDiagramItems = computed(() => {
+  const items = []
+  const labels = colLabels.value || []
+  const cols = colData.value || []
+  cols.forEach((col, idx) => {
+    if (!col || (!col.tg && !col.dz)) return
+    const label = labels[idx] || ''
+    if (!label) return
+    const key = `col-${idx}-${label}`
+    const canggan = (col.canggan || []).map(cg => ({
+      gz: cg.gz || cg,
+      ss: cg.ss || '',
+    }))
+    items.push({
+      key,
+      label,
+      gan: col.tg || '',
+      zhi: col.dz || '',
+      shishen: label === '日柱' ? dayMasterLabel.value : fixShiShenName(col.zhuxing || ''),
+      canggan,
+    })
+  })
+  if (items.length >= 4) return items.slice(0, 7)
+  return pillarFlowItems.value
+})
+
+function relationClass(desc) {
+  if (/冲|克|害|刑|破/.test(desc)) return 'danger'
+  if (/合|会/.test(desc)) return 'merge'
+  return 'neutral'
+}
+
+function relationLabel(desc) {
+  const raw = String(desc || '').trim()
+  const rawCompact = raw.replace(/\s+/g, '')
+  const charSource = rawCompact.replace(/缺[甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥]+/g, '')
+  const pair = charSource.match(/[甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥]/g) || []
+  const pairText = pair.slice(0, 2).join('')
+  const allText = pair.join('')
+  const hePairOrder = ['甲己', '乙庚', '丙辛', '丁壬', '戊癸']
+  const relationPairOrder = ['辰丑', '酉戌', '辰卯', '午卯', '巳亥', '辰戌', '丑戌']
+  const orderedPair = (orders) => pair.length >= 2 && pair[0] !== pair[1] ? (orders.find(item => item.includes(pair[0]) && item.includes(pair[1])) || pairText) : pairText
+  const hePairText = orderedPair(hePairOrder)
+  const relationPairText = orderedPair(relationPairOrder)
+  const juMap = { 子: '水局', 午: '火局', 卯: '木局', 酉: '金局' }
+  const huiSets = [
+    { zhis: '寅卯辰', ju: '木局' },
+    { zhis: '巳午未', ju: '火局' },
+    { zhis: '申酉戌', ju: '金局' },
+    { zhis: '亥子丑', ju: '水局' },
+  ]
+  let m = rawCompact.match(/合化([木火土金水])/)
+  if (m && pairText) return `${hePairText}合化${m[1]}`
+  if (/六合|相合/.test(rawCompact) && pairText) return `${relationPairText}合`
+  if (rawCompact.includes('相克') && pairText) return `${pairText}克`
+  if (rawCompact.includes('相冲') && pairText) return `${relationPairText}冲`
+  if (rawCompact.includes('相害') && pairText) return `${relationPairText}害`
+  if (rawCompact.includes('自刑') && pairText) return `${relationPairText}自刑`
+  if (/无恩之刑|恃势之刑|无礼之刑/.test(rawCompact) && allText) return `${allText}三刑`
+  if (rawCompact.includes('相刑') && pairText) return `${relationPairText}${pair[0] === pair[1] ? '自刑' : '刑'}`
+  if (rawCompact.includes('相破') && pairText) return `${relationPairText}破`
+  m = rawCompact.match(/拱合([子午卯酉])/)
+  if (m && pairText) return `${pairText}拱合${juMap[m[1]] || m[1]}`
+  if (rawCompact.includes('拱会') && pairText) {
+    const found = huiSets.find(item => pair.slice(0, 2).every(zhi => item.zhis.includes(zhi)))
+    return `${pairText}拱会${found ? found.ju : ''}`
+  }
+  m = rawCompact.match(/半合([木火金水])局/)
+  if (m && pairText) return `${pairText}半合${m[1]}局`
+  m = rawCompact.match(/三合([木火金水])局/)
+  if (m && allText) return `${allText}三合${m[1]}局`
+  m = rawCompact.match(/三会([木火金水])局/)
+  if (m && rawCompact.includes('缺') && pairText) return `${pairText}拱会${m[1]}局`
+  if (m && allText) return `${allText}三会${m[1]}局`
+  if (rawCompact.includes('暗合') && pairText) return `${relationPairText}暗合`
+  for (const suffix of ['冲', '害', '破', '合', '克']) {
+    if (rawCompact.endsWith(suffix) && pairText) return `${relationPairText}${suffix}`
+  }
+  return rawCompact.replace(/相/g, '')
+}
+
+function formatRelationList(source) {
+  return String(source || '')
+    .split(/[、,，]/)
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(relationLabel)
+    .join('、')
+}
+
+function extractRelationRows(source, level) {
+  const text = source || ''
+  const chars = level === 'gan' ? '甲乙丙丁戊己庚辛壬癸' : '子丑寅卯辰巳午未申酉戌亥'
+  const items = smartDiagramItems.value || []
+  const pieces = text.split(/[、,，]/).map(s => s.trim()).filter(Boolean)
+  const rows = []
+  pieces.forEach((desc, idx) => {
+    const hits = []
+    items.forEach((item, itemIdx) => {
+      const ch = level === 'gan' ? item.gan : item.zhi
+      if (ch && chars.includes(ch) && desc.includes(ch)) hits.push({ index: itemIdx + 1, ch })
+    })
+    const uniq = Array.from(new Map(hits.map(hit => [hit.index, hit])).values()).sort((a, b) => a.index - b.index)
+    if (uniq.length < 2) return
+    const colCount = Math.max(items.length, 1)
+    const leftPct = ((uniq[0].index - 0.5) / colCount) * 100
+    const rightPct = ((uniq[uniq.length - 1].index - 0.5) / colCount) * 100
+    const midPct = (leftPct + rightPct) / 2
+    rows.push({
+      label: relationLabel(desc),
+      start: uniq[0].index,
+      end: uniq[uniq.length - 1].index + 1,
+      leftPct,
+      rightPct,
+      midPct,
+      offsetPx: 0,
+      leftChar: uniq[0].ch,
+      rightChar: uniq[uniq.length - 1].ch,
+      cls: relationClass(desc),
+      level,
+      order: idx,
+    })
+  })
+  return rows
+}
+
+const smartRelationRows = computed(() => {
+  const gx = proGuanxi.value || {}
+  const top = extractRelationRows(gx.tg || '', 'gan').slice(0, 6)
+  const bottom = extractRelationRows(gx.dz || '', 'zhi').slice(0, 8)
+  return { top, bottom }
+})
+
+const activeGanzhiSetting = ref('relations')
+const ganzhiSettingTabs = [
+  { key: 'relations', label: '干支关系' },
+  { key: 'hidden', label: '地支藏干' },
+  { key: 'renyuan', label: '人元司令' },
+  { key: 'shensha', label: '神煞设置' },
+  { key: 'minggong', label: '命宫身宫' },
+  { key: 'geju', label: '格局取法' },
+  { key: 'xushi', label: '虚实岁' },
+]
+const ganzhiRelationKinds = [
+  '天干相冲',
+  '天干相克',
+  '天干五合',
+  '地支天干配合',
+  '地支三合',
+  '地支三会',
+  '地支暗合',
+  '地支相刑',
+  '地支相冲',
+  '地支相害',
+  '地支相破',
+  '地支相合',
+]
+const currentGanzhiSettingLabel = computed(() => {
+  return (ganzhiSettingTabs.find(item => item.key === activeGanzhiSetting.value) || ganzhiSettingTabs[0]).label
+})
+
+const palaceAxisItems = computed(() => [
+  { label: '祖辈宫', desc: '年柱' },
+  { label: '事业宫', desc: '月令' },
+  { label: '父母宫', desc: '月柱' },
+  { label: '兄弟宫', desc: '比劫' },
+  { label: '夫妻宫', desc: '日支' },
+  { label: '子女宫', desc: '时柱' },
+])
+
+function kinshipByTenGod(ss, gender, kind) {
+  const maleFamily = {
+    '比肩': '兄弟 / 姑父',
+    '劫财': '姐妹 / 同辈',
+    '食神': '女婿 / 外孙',
+    '伤官': '奶奶 / 孙女 / 外母',
+    '正财': '妻子 / 伯叔母',
+    '偏财': '父亲 / 情缘',
+    '正官': '女儿 / 外甥',
+    '七杀': '儿子 / 姐夫 / 侄儿',
+    '正印': '母亲 / 贵人',
+    '偏印': '爷爷 / 外父 / 男外孙',
+    '元男': '自己',
+    '元女': '自己',
+  }
+  const femaleFamily = {
+    '比肩': '姐妹 / 同辈',
+    '劫财': '兄弟 / 竞争者',
+    '食神': '女儿 / 晚辈',
+    '伤官': '儿子 / 晚辈',
+    '正财': '父亲 / 资源',
+    '偏财': '婆家资源',
+    '正官': '丈夫 / 正缘',
+    '七杀': '情缘 / 压力',
+    '正印': '母亲 / 贵人',
+    '偏印': '长辈 / 偏助',
+    '元男': '自己',
+    '元女': '自己',
+  }
+  const social = {
+    '比肩': '同性朋友 / 同性同辈',
+    '劫财': '竞争者 / 合伙消耗',
+    '食神': '表达 / 福气 / 下属',
+    '伤官': '晚辈 / 下属 / 才华',
+    '正财': '现实收益 / 经营资源',
+    '偏财': '外财 / 机会 / 人脉',
+    '正官': '规则 / 职位 / 责任',
+    '七杀': '敌人 / 小人 / 权力',
+    '正印': '长辈 / 文凭 / 保护',
+    '偏印': '意外助力 / 精神追求',
+    '元男': '自己',
+    '元女': '自己',
+  }
+  if (kind === 'social') return social[ss] || '关系待辨'
+  return (gender === '女' ? femaleFamily : maleFamily)[ss] || '关系待辨'
+}
+
+const kinshipDiagramItems = computed(() => {
+  const gender = baziData.value?.gender || '男'
+  return pillarFlowItems.value.map(item => {
+    const primaryHidden = item.canggan && item.canggan.length ? fixShiShenName(item.canggan[0].ss) : ''
+    return {
+      ...item,
+      family: kinshipByTenGod(item.shishen, gender, 'family'),
+      social: kinshipByTenGod(item.shishen, gender, 'social'),
+      hiddenFamily: primaryHidden ? kinshipByTenGod(primaryHidden, gender, 'family') : '',
+      hiddenSocial: primaryHidden ? kinshipByTenGod(primaryHidden, gender, 'social') : '',
+    }
+  })
+})
+
+const palaceNotes = computed(() => {
+  const d = baziData.value
+  if (!d || !d.four_pillars) return []
+  const fp = d.four_pillars
+  return [
+    { label: '年柱', text: `${fp.year?.gan_zhi || ''}：祖上、早年、外缘与根基。` },
+    { label: '月柱', text: `${fp.month?.gan_zhi || ''}：父母、事业环境、月令旺衰核心。` },
+    { label: '日柱', text: `${fp.day?.gan_zhi || ''}：日主自身与夫妻宫，是合婚和亲密关系重点。` },
+    { label: '时柱', text: `${fp.hour?.gan_zhi || ''}：子女、晚景、执行落点和长期结果。` },
+  ]
+})
+
+const kinshipNotes = computed(() => {
+  const d = baziData.value
+  if (!d) return []
+  const gender = d.gender || ''
+  const spouseStars = gender === '女' ? ['正官', '七杀'] : ['正财', '偏财']
+  const childStars = gender === '女' ? ['食神', '伤官'] : ['正官', '七杀']
+  const ssValues = Object.values(shiShen.value || {}).map(fixShiShenName)
+  const hiddenValues = Object.values(cangGanShiShen.value || {}).flat().map(fixShiShenName)
+  const hasSpouse = spouseStars.some(s => ssValues.includes(s) || hiddenValues.includes(s))
+  const hasChild = childStars.some(s => ssValues.includes(s) || hiddenValues.includes(s))
+  return [
+    { label: '配偶星', text: `${spouseStars.join('、')}：${hasSpouse ? '原局可见，需看所在柱位和旺衰。' : '原局不显，重点看大运流年引动。'}` },
+    { label: '子女星', text: `${childStars.join('、')}：${hasChild ? '原局可见，结合时柱和喜忌判断。' : '原局不显，后续看运年补足。'}` },
+    { label: '夫妻宫', text: '日支为夫妻宫，流年/大运与日支合冲刑害时，常作为关系变化提示。' },
+  ]
 })
 
 const proSepIdx = computed(() => {
@@ -1364,9 +1885,9 @@ const filteredLiuNian = computed(() => {
 
 const proPanRows = [
   { label: '主星', key: 'zhuxing', cls: '' },
-  { label: '天干', key: 'tg', cls: 'wz-tg-row' },
-  { label: '地支', key: 'dz', cls: 'wz-dz-row' },
-  { label: '藏干', key: 'cg', cls: 'wz-cg-row' },
+  { label: '天干', key: 'tg', cls: 'pro-tg-row' },
+  { label: '地支', key: 'dz', cls: 'pro-dz-row' },
+  { label: '藏干', key: 'cg', cls: 'pro-cg-row' },
   { label: '星运', key: 'xy', cls: '' },
   { label: '自坐', key: 'zz', cls: '' },
   { label: '空亡', key: 'kw', cls: '' },
@@ -1375,8 +1896,8 @@ const proPanRows = [
 
 const proDaYun = computed(() => {
   const dayMaster = baziData.value?.four_pillars?.day?.gan || ''
-  if (wzProData.value && wzProData.value.dayun_list) {
-    return wzProData.value.dayun_list.map((dy, i) => {
+  if (shianProData.value && shianProData.value.dayun_list) {
+    return shianProData.value.dayun_list.map((dy, i) => {
       const gan = dy.tg || dy.gan || ''
       const ssFull = gan ? getShiShenLocal(dayMaster, gan) : ''
       return {
@@ -1413,8 +1934,8 @@ const proDaYunLabel = computed(() => {
 
 const proLiuNian = computed(() => {
   const dayMaster = baziData.value?.four_pillars?.day?.gan || ''
-  if (wzProData.value && wzProData.value.liunian_list) {
-    return wzProData.value.liunian_list.map((ln, i) => {
+  if (shianProData.value && shianProData.value.liunian_list) {
+    return shianProData.value.liunian_list.map((ln, i) => {
       const gan = ln.tg || ln.gan || ''
       const ssFull = gan ? getShiShenLocal(dayMaster, gan) : ''
       return {
@@ -1444,8 +1965,8 @@ const proLiuNian = computed(() => {
 })
 
 const proXiaoYun = computed(() => {
-  if (wzProData.value && wzProData.value.xiaoyun_list) {
-    return wzProData.value.xiaoyun_list.map((xy, i) => ({
+  if (shianProData.value && shianProData.value.xiaoyun_list) {
+    return shianProData.value.xiaoyun_list.map((xy, i) => ({
       ...xy,
       gan: xy.tg || xy.gan || '',
       zhi: xy.dz || xy.zhi || '',
@@ -1474,8 +1995,8 @@ const wuXingBar = computed(() => {
 })
 
 const proWuxingWangdu = computed(() => {
-  if (wzProData.value && wzProData.value.wuxing_wangdu) {
-    var wd = wzProData.value.wuxing_wangdu
+  if (shianProData.value && shianProData.value.wuxing_wangdu) {
+    var wd = shianProData.value.wuxing_wangdu
     return [
       { name: '水', wang: wd.water || '' },
       { name: '木', wang: wd.wood || '' },
@@ -1488,10 +2009,10 @@ const proWuxingWangdu = computed(() => {
 })
 
 const proGuanxi = computed(() => {
-  if (wzProData.value && (wzProData.value.tg_guanxi || wzProData.value.dz_guanxi)) {
+  if (shianProData.value && (shianProData.value.tg_guanxi || shianProData.value.dz_guanxi)) {
     return {
-      tg: wzProData.value.tg_guanxi || '',
-      dz: wzProData.value.dz_guanxi || '',
+      tg: shianProData.value.tg_guanxi || '',
+      dz: shianProData.value.dz_guanxi || '',
     }
   }
   const rel = baziData.value?.ganzhi_relations
@@ -1537,7 +2058,8 @@ const allGuanxiTags = computed(() => {
     var arr = rel[td.key]
     if (arr && arr.length) {
       arr.forEach(function(item) {
-        tags.push({ label: td.level + td.type + ' ' + (item.desc || ''), color: td.color })
+        const raw = item.desc || `${item.gan1 || item.zhi1 || ''}${item.gan2 || item.zhi2 || ''}${td.type}`
+        tags.push({ label: td.level + td.type + ' ' + relationLabel(raw), color: td.color })
       })
     }
   })
@@ -1551,28 +2073,28 @@ const ganzhiRelationTexts = computed(() => {
   const lines = []
   const relMap = [
     { key: 'gan_he', label: '天干合', cls: 'mainColor' },
-    { key: 'gan_chong', label: '天干冲', cls: 'wz-text-danger' },
+    { key: 'gan_chong', label: '天干冲', cls: 'pro-text-danger' },
     { key: 'zhi_san_he', label: '地支三合', cls: 'mainColor' },
     { key: 'zhi_liu_he', label: '地支六合', cls: 'mainColor' },
     { key: 'zhi_ban_he', label: '地支半合', cls: 'mainColor' },
     { key: 'zhi_an_he', label: '地支暗合', cls: 'mainColor' },
-    { key: 'zhi_liu_chong', label: '地支六冲', cls: 'wz-text-danger' },
-    { key: 'zhi_liu_hai', label: '地支六害', cls: 'wz-text-danger' },
-    { key: 'zhi_liu_po', label: '地支相破', cls: 'wz-text-warn' },
-    { key: 'zhi_san_xing', label: '地支三刑', cls: 'wz-text-warn' },
+    { key: 'zhi_liu_chong', label: '地支六冲', cls: 'pro-text-danger' },
+    { key: 'zhi_liu_hai', label: '地支六害', cls: 'pro-text-danger' },
+    { key: 'zhi_liu_po', label: '地支相破', cls: 'pro-text-warn' },
+    { key: 'zhi_san_xing', label: '地支三刑', cls: 'pro-text-warn' },
     { key: 'zhi_san_hui', label: '地支三会', cls: 'mainColor' },
   ]
   relMap.forEach(r => {
     const arr = rel[r.key]
     if (arr && arr.length) {
-      const text = arr.map(item => item.desc || `${item.gan1 || item.zhi1 || ''}${item.gan2 || item.zhi2 || ''}`).join('、')
+      const text = arr.map(item => relationLabel(item.desc || `${item.gan1 || item.zhi1 || ''}${item.gan2 || item.zhi2 || ''}`)).join('、')
       lines.push({ label: r.label, text, cls: r.cls })
     }
   })
   return lines
 })
 
-const wzRelationTags = computed(() => {
+const proRelationTags = computed(() => {
   const tags = []
   const rel = baziData.value?.ganzhi_relations
   if (!rel) return tags
@@ -1593,7 +2115,8 @@ const wzRelationTags = computed(() => {
     const arr = rel[d.key]
     if (arr && arr.length) {
       arr.forEach(item => {
-        tags.push({ label: d.level + (item.desc || ''), color: d.color })
+        const raw = item.desc || `${item.gan1 || item.zhi1 || ''}${item.gan2 || item.zhi2 || ''}${d.type}`
+        tags.push({ label: d.level + d.type + ' ' + relationLabel(raw), color: d.color })
       })
     }
   })
@@ -1626,11 +2149,20 @@ const proWuxingWangduSorted = computed(() => {
 const qiyunSummary = computed(() => {
   const d = baziData.value
   if (!d) return ''
+  if (shianProData.value && shianProData.value.qiyun_info) return shianProData.value.qiyun_info
   const qyd = d.qi_yun_detail
   if (qyd && qyd.text) return qyd.text
-  if (wzProData.value && wzProData.value.qiyun_info) return wzProData.value.qiyun_info
-  const qiAge = d.qi_yun_age || wzProData.value?.qi_yun_age
+  const qiAge = d.qi_yun_age || shianProData.value?.qi_yun_age
   if (qiAge) return `${qiAge}岁起运`
+  return ''
+})
+
+const jiaoyunSummary = computed(() => {
+  const pro = shianProData.value
+  if (pro && pro.jiaoyun_text) return pro.jiaoyun_text
+  const d = baziData.value
+  const qyd = d && d.qi_yun_detail
+  if (qyd && qyd.jiao_yun_text) return qyd.jiao_yun_text
   return ''
 })
 
@@ -1789,7 +2321,7 @@ function switchYunPhase(phase) {
 
 function getScopedAttr() {
   if (typeof document === 'undefined') return ''
-  var el = document.getElementById('wz-yun-main')
+  var el = document.getElementById('pro-yun-main')
   if (!el) return ''
   var attrs = el.attributes
   for (var i = 0; i < attrs.length; i++) {
@@ -1811,25 +2343,25 @@ function renderYunItemsDOM() {
   nextTick(() => {
     var sa = getScopedAttr()
 
-    var mainEl = document.getElementById('wz-yun-main')
+    var mainEl = document.getElementById('pro-yun-main')
     if (mainEl) {
       mainEl.setAttribute('data-yun-type', activeYunType.value)
       mainEl.innerHTML = ''
       var list = activeYunList.value
       list.forEach(function(item, idx) {
-        var cls = 'wz-yun-item'
-        if (idx === selDaYunIdx.value) cls += ' wz-active'
-        else if (item.current) cls += ' wz-current'
+        var cls = 'pro-yun-item'
+        if (idx === selDaYunIdx.value) cls += ' pro-active'
+        else if (item.current) cls += ' pro-current'
         var row = ce('div', cls, sa)
         row.setAttribute('data-idx', idx)
-        if (item.start_year) row.appendChild(ce('span', 'wz-yun-item-year', sa, item.start_year))
-        if (item.start_age && item.end_age && item.start_age !== item.end_age) row.appendChild(ce('span', 'wz-yun-item-age', sa, item.start_age + '-' + item.end_age))
-        else if (item.start_age) row.appendChild(ce('span', 'wz-yun-item-age', sa, item.start_age + '岁'))
-        else if (item.age) row.appendChild(ce('span', 'wz-yun-item-age', sa, item.age + '岁'))
+        if (item.start_year) row.appendChild(ce('span', 'pro-yun-item-year', sa, item.start_year))
+        if (item.start_age && item.end_age && item.start_age !== item.end_age) row.appendChild(ce('span', 'pro-yun-item-age', sa, item.start_age + '-' + item.end_age))
+        else if (item.start_age) row.appendChild(ce('span', 'pro-yun-item-age', sa, item.start_age + '岁'))
+        else if (item.age) row.appendChild(ce('span', 'pro-yun-item-age', sa, item.age + '岁'))
         if (item.gan) {
           var gw = ce('div', null, sa)
           var gSpan = document.createElement('span')
-          gSpan.className = 'wz-yun-item-gz'
+          gSpan.className = 'pro-yun-item-gz'
           var gColor = WX_COLOR_BZ && WX_COLOR_BZ[item.gan] || ''
           if (gColor) gSpan.style.color = gColor
           gSpan.textContent = item.gan
@@ -1840,7 +2372,7 @@ function renderYunItemsDOM() {
         if (item.zhi) {
           var zw = ce('div', null, sa)
           var zSpan = document.createElement('span')
-          zSpan.className = 'wz-yun-item-gz'
+          zSpan.className = 'pro-yun-item-gz'
           var zColor = WX_COLOR_BZ && WX_COLOR_BZ[item.zhi] || ''
           if (zColor) zSpan.style.color = zColor
           zSpan.textContent = item.zhi
@@ -1849,28 +2381,28 @@ function renderYunItemsDOM() {
           row.appendChild(zw)
         }
         var ss = item.ss_full || item.gan_shishen_abbrev
-        if (ss) row.appendChild(ce('span', 'wz-yun-item-ss', sa, ss))
+        if (ss) row.appendChild(ce('span', 'pro-yun-item-ss', sa, ss))
         mainEl.appendChild(row)
       })
     }
 
-    var lnEl = document.getElementById('wz-yun-liunian')
+    var lnEl = document.getElementById('pro-yun-liunian')
     if (lnEl) {
       lnEl.innerHTML = ''
       var lnList = filteredLiuNian.value
       lnList.forEach(function(item, idx) {
-        var cls = 'wz-yun-item'
-        if (idx === selLiuNianIdx.value) cls += ' wz-active'
-        else if (item.current) cls += ' wz-current'
+        var cls = 'pro-yun-item'
+        if (idx === selLiuNianIdx.value) cls += ' pro-active'
+        else if (item.current) cls += ' pro-current'
         var row = ce('div', cls, sa)
         row.setAttribute('data-idx', idx)
         row.setAttribute('data-type', 'liunian')
-        row.appendChild(ce('span', 'wz-yun-item-year', sa, item.year))
-        if (item.age) row.appendChild(ce('span', 'wz-yun-item-age', sa, item.age))
+        row.appendChild(ce('span', 'pro-yun-item-year', sa, item.year))
+        if (item.age) row.appendChild(ce('span', 'pro-yun-item-age', sa, item.age))
         if (item.gan) {
           var gwl = ce('div', null, sa)
           var gsL = document.createElement('span')
-          gsL.className = 'wz-yun-item-gz'
+          gsL.className = 'pro-yun-item-gz'
           var gcL = WX_COLOR_BZ && WX_COLOR_BZ[item.gan] || ''
           if (gcL) gsL.style.color = gcL
           gsL.textContent = item.gan
@@ -1881,7 +2413,7 @@ function renderYunItemsDOM() {
         if (item.zhi) {
           var zwl = ce('div', null, sa)
           var zsL = document.createElement('span')
-          zsL.className = 'wz-yun-item-gz'
+          zsL.className = 'pro-yun-item-gz'
           var zcL = WX_COLOR_BZ && WX_COLOR_BZ[item.zhi] || ''
           if (zcL) zsL.style.color = zcL
           zsL.textContent = item.zhi
@@ -1893,23 +2425,23 @@ function renderYunItemsDOM() {
       })
     }
 
-    var lyEl = document.getElementById('wz-yun-liuyue')
+    var lyEl = document.getElementById('pro-yun-liuyue')
     if (lyEl) {
       lyEl.innerHTML = ''
       var lyList = proLiuYue.value
       lyList.forEach(function(item, idx) {
-        var cls = 'wz-yun-item'
-        if (idx === selLiuYueIdx.value) cls += ' wz-active'
-        else if (item.current) cls += ' wz-current'
+        var cls = 'pro-yun-item'
+        if (idx === selLiuYueIdx.value) cls += ' pro-active'
+        else if (item.current) cls += ' pro-current'
         var row = ce('div', cls, sa)
         row.setAttribute('data-idx', idx)
         row.setAttribute('data-type', 'liuyue')
-        if (item.jieqi) row.appendChild(ce('span', 'wz-yun-item-month', sa, item.jieqi))
-        if (item.date) row.appendChild(ce('span', 'wz-yun-item-date', sa, item.date))
+        if (item.jieqi) row.appendChild(ce('span', 'pro-yun-item-month', sa, item.jieqi))
+        if (item.date) row.appendChild(ce('span', 'pro-yun-item-date', sa, item.date))
         if (item.gan) {
           var gwly = ce('div', null, sa)
           var gsLy = document.createElement('span')
-          gsLy.className = 'wz-yun-item-gz'
+          gsLy.className = 'pro-yun-item-gz'
           var gcLy = WX_COLOR_BZ && WX_COLOR_BZ[item.gan] || ''
           if (gcLy) gsLy.style.color = gcLy
           gsLy.textContent = item.gan
@@ -1920,7 +2452,7 @@ function renderYunItemsDOM() {
         if (item.zhi) {
           var zwly = ce('div', null, sa)
           var zsLy = document.createElement('span')
-          zsLy.className = 'wz-yun-item-gz'
+          zsLy.className = 'pro-yun-item-gz'
           var zcLy = WX_COLOR_BZ && WX_COLOR_BZ[item.zhi] || ''
           if (zcLy) zsLy.style.color = zcLy
           zsLy.textContent = item.zhi
@@ -1928,14 +2460,14 @@ function renderYunItemsDOM() {
           zwly.appendChild(zsLy)
           row.appendChild(zwly)
         }
-        if (item.tgSs) row.appendChild(ce('span', 'wz-yun-item-ss', sa, item.tgSs))
+        if (item.tgSs) row.appendChild(ce('span', 'pro-yun-item-ss', sa, item.tgSs))
         lyEl.appendChild(row)
       })
     }
 
-    setupDragScroll(document.getElementById('wz-yun-main'))
-    setupDragScroll(document.getElementById('wz-yun-liunian'))
-    setupDragScroll(document.getElementById('wz-yun-liuyue'))
+    setupDragScroll(document.getElementById('pro-yun-main'))
+    setupDragScroll(document.getElementById('pro-yun-liunian'))
+    setupDragScroll(document.getElementById('pro-yun-liuyue'))
     updateYunActiveDOM()
     scrollActiveIntoView()
   })
@@ -2007,15 +2539,15 @@ function setupDragScroll(el) {
 function updateYunActiveDOM() {
   if (typeof document === 'undefined') return
   var containers = [
-    { el: document.getElementById('wz-yun-main'), idx: selDaYunIdx.value },
-    { el: document.getElementById('wz-yun-liunian'), idx: selLiuNianIdx.value },
-    { el: document.getElementById('wz-yun-liuyue'), idx: selLiuYueIdx.value },
+    { el: document.getElementById('pro-yun-main'), idx: selDaYunIdx.value },
+    { el: document.getElementById('pro-yun-liunian'), idx: selLiuNianIdx.value },
+    { el: document.getElementById('pro-yun-liuyue'), idx: selLiuYueIdx.value },
   ]
   containers.forEach(function(c) {
     if (!c.el) return
-    var items = c.el.querySelectorAll('.wz-yun-item')
+    var items = c.el.querySelectorAll('.pro-yun-item')
     items.forEach(function(item, i) {
-      item.classList.toggle('wz-active', i === c.idx)
+      item.classList.toggle('pro-active', i === c.idx)
     })
   })
 }
@@ -2023,13 +2555,13 @@ function updateYunActiveDOM() {
 function scrollActiveIntoView() {
   if (typeof document === 'undefined') return
   var targets = [
-    { el: document.getElementById('wz-yun-main'), idx: selDaYunIdx.value },
-    { el: document.getElementById('wz-yun-liunian'), idx: selLiuNianIdx.value },
-    { el: document.getElementById('wz-yun-liuyue'), idx: selLiuYueIdx.value },
+    { el: document.getElementById('pro-yun-main'), idx: selDaYunIdx.value },
+    { el: document.getElementById('pro-yun-liunian'), idx: selLiuNianIdx.value },
+    { el: document.getElementById('pro-yun-liuyue'), idx: selLiuYueIdx.value },
   ]
   targets.forEach(function(t) {
     if (!t.el || t.idx < 0) return
-    var items = t.el.querySelectorAll('.wz-yun-item')
+    var items = t.el.querySelectorAll('.pro-yun-item')
     if (items && items[t.idx]) {
       items[t.idx].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
     }
@@ -2041,7 +2573,7 @@ document.addEventListener('click', function(e) {
   while (el && el !== document.body) {
     var idx = el.getAttribute && el.getAttribute('data-idx')
     if (idx !== null && idx !== undefined) {
-      var container = el.closest && el.closest('.wz-yun-items')
+      var container = el.closest && el.closest('.pro-yun-items')
       if (container && container.getAttribute('data-drag-moved') === '1') return
       idx = parseInt(idx)
       var type = el.getAttribute('data-type') || activeYunType.value
@@ -2060,7 +2592,7 @@ document.addEventListener('click', function(e) {
 
 watch(activeYunType, (val) => {
   nextTick(() => {
-    document.querySelectorAll('.wz-yun-tab').forEach(t => {
+    document.querySelectorAll('.pro-yun-tab').forEach(t => {
       const isDayun = t.textContent.trim() === '大运'
       t.classList.toggle('active', isDayun ? val === 'dayun' : val === 'xiaoyun')
     })
@@ -2789,9 +3321,9 @@ onMounted(async () => {
       nextTick(() => {
         renderYunItemsDOM()
       })
-      // 如果当前tab是专业排盘，立即加载wz-pro数据
-      if (activeTab.value === 'wzpro') {
-        loadWzProData()
+      // 如果当前tab是专业排盘，立即加载shian-pro数据
+      if (activeTab.value === 'shianpro') {
+        loadShianProData()
       }
     } else {
       errorMsg.value = (data && data.error) || '排盘失败'
@@ -2945,15 +3477,23 @@ onMounted(async () => {
 .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
 .modal-btns .btn { flex: 1; text-align: center; }
 .modal-error { color: var(--danger); font-size: 0.75rem; text-align: center; margin-top: 10px; min-height: 18px; }
+.term-card-box { width: min(420px, calc(100vw - 36px)); padding: 24px; }
+.term-card-body { display: flex; flex-direction: column; gap: 10px; }
+.term-card-line { font-size: 0.86rem; line-height: 1.7; color: var(--text-1); }
+.term-card-meta { font-size: 0.72rem; line-height: 1.6; color: var(--text-3); padding: 10px 12px; border-radius: 8px; background: var(--section-alt); border: 1px solid var(--card-border); }
+.clickable-term { cursor: pointer; transition: color 0.15s, background 0.15s, border-color 0.15s, transform 0.15s; }
+.clickable-term:hover { color: var(--accent); border-color: var(--accent); }
+.clickable-term:active { transform: scale(0.97); }
 
-/* ═══ 专业排盘（问真风格1:1复刻） ═══ */
+/* ═══ 专业排盘（时安专业盘） ═══ */
 .mainColor { color: var(--accent); font-weight: 500; }
-.wzpro-wrap { font-size: 0.875rem; }
+.shianpro-wrap { font-size: 0.875rem; }
 
 /* 顶部信息栏 */
-.wz-top-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-radius: 10px; margin-bottom: 10px; background: linear-gradient(135deg, rgba(178,149,93,0.08) 0%, rgba(178,149,93,0.03) 100%); border: 1px solid rgba(178,149,93,0.15); }
-.wz-case-info { display: flex; align-items: center; gap: 10px; }
-.wz-top-actions { display: flex; align-items: center; gap: 8px; }
+.pro-top-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-radius: 10px; margin-bottom: 10px; background: linear-gradient(135deg, rgba(178,149,93,0.08) 0%, rgba(178,149,93,0.03) 100%); border: 1px solid rgba(178,149,93,0.15); }
+.pro-case-info { display: flex; align-items: center; gap: 10px; }
+.pro-case-name-line { display: flex; align-items: baseline; gap: 4px; }
+.pro-top-actions { display: flex; align-items: center; gap: 8px; }
 .tms-toggle { display: flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 14px; font-size: 0.72rem; cursor: pointer; border: 1px solid var(--card-border); color: var(--text-3); transition: all 0.2s; }
 .tms-toggle:active { transform: scale(0.95); }
 .tms-toggle.active { background: var(--accent-glow); border-color: var(--accent); color: var(--accent); }
@@ -2963,127 +3503,201 @@ onMounted(async () => {
 .layout-icon { font-size: 0.82rem; }
 
 /* 胎命身横排 */
-.wz-tms-bar { display: flex; align-items: center; gap: 16px; padding: 10px 16px; border-radius: 8px; margin-bottom: 10px; background: var(--section-alt); border: 1px solid var(--card-border); flex-wrap: wrap; }
-.wz-tms-item { display: flex; align-items: center; gap: 6px; }
-.wz-tms-label { font-size: 0.72rem; color: var(--text-3); font-weight: 500; white-space: nowrap; }
-.wz-tms-value { font-size: 0.88rem; font-weight: 600; }
-.wz-tms-sub { font-size: 0.62rem; color: var(--text-3); }
+.pro-tms-bar { display: flex; align-items: center; gap: 16px; padding: 10px 16px; border-radius: 8px; margin-bottom: 10px; background: var(--section-alt); border: 1px solid var(--card-border); flex-wrap: wrap; }
+.pro-tms-item { display: flex; align-items: center; gap: 6px; }
+.pro-tms-label { font-size: 0.72rem; color: var(--text-3); font-weight: 500; white-space: nowrap; }
+.pro-tms-value { font-size: 0.88rem; font-weight: 600; }
+.pro-tms-sub { font-size: 0.62rem; color: var(--text-3); }
 
 /* 起运摘要栏 */
-.wz-summary-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; border-radius: 8px; margin-bottom: 10px; background: var(--section-alt); border: 1px solid var(--card-border); flex-wrap: wrap; gap: 8px; }
-.wz-qiyun-text { font-size: 0.78rem; color: var(--text-2); font-weight: 600; }
-.wz-qiyun-extra { font-size: 0.68rem; color: var(--text-3); margin-top: 2px; }
-.wz-wx-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.wz-wx-item { display: flex; align-items: center; gap: 3px; font-size: 0.78rem; font-weight: 600; }
+.pro-summary-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; border-radius: 8px; margin-bottom: 10px; background: var(--section-alt); border: 1px solid var(--card-border); flex-wrap: wrap; gap: 8px; }
+.pro-qiyun-text { font-size: 0.78rem; color: var(--text-2); font-weight: 600; }
+.pro-qiyun-extra { font-size: 0.68rem; color: var(--text-3); margin-top: 2px; }
+.pro-wx-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pro-wx-item { display: flex; align-items: center; gap: 3px; font-size: 0.78rem; font-weight: 600; }
 .wx-dot { width: 8px; height: 8px; border-radius: 50%; }
 .wx-jin { background: #f0c040; }
 .wx-mu { background: #4caf50; }
 .wx-shui { background: #2196f3; }
 .wx-huo { background: #f44336; }
 .wx-tu { background: #9c6b30; }
-.wz-wx-lack { font-size: 0.72rem; color: var(--danger); font-weight: 600; }
-.wz-geju-info { display: flex; align-items: center; gap: 6px; }
-.wz-ws-tag { font-size: 0.72rem; padding: 2px 8px; border-radius: 10px; background: rgba(178,149,93,0.15); color: var(--accent); font-weight: 600; }
-.wz-geju-tag { font-size: 0.72rem; padding: 2px 8px; border-radius: 10px; background: rgba(46,131,246,0.12); color: var(--info); font-weight: 600; }
+.pro-wx-lack { font-size: 0.72rem; color: var(--danger); font-weight: 600; }
+.pro-geju-info { display: flex; align-items: center; gap: 6px; }
+.pro-ws-tag { font-size: 0.72rem; padding: 2px 8px; border-radius: 10px; background: rgba(178,149,93,0.15); color: var(--accent); font-weight: 600; }
+.pro-geju-tag { font-size: 0.72rem; padding: 2px 8px; border-radius: 10px; background: rgba(46,131,246,0.12); color: var(--info); font-weight: 600; }
 
 /* 排盘主布局 */
-.wz-pan-layout { display: flex; gap: 10px; margin-bottom: 10px; }
-.wz-pan-left { flex: 1; min-width: 0; overflow: hidden; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md); }
-.wz-pan-table-inner { width: 100%; min-width: 0; }
-.wz-pan-right { width: 380px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; border-left: 1px solid var(--card-border); padding-left: 10px; }
+.pro-pan-layout { display: flex; gap: 10px; margin-bottom: 10px; }
+.pro-pan-left { flex: 1; min-width: 0; overflow: hidden; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md); }
+.pro-pan-table-inner { width: 100%; min-width: 0; }
+.pro-pan-right { width: 380px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; border-left: 1px solid var(--card-border); padding-left: 10px; }
 
-.wz-row { display: flex; align-items: stretch; min-height: 28px; border-bottom: 1px solid var(--card-border); width: 100%; }
-.wz-row:last-child { border-bottom: none; }
-.wz-row.header-row .wz-row-item { color: var(--accent); font-size: 0.72rem; font-weight: 700; background: var(--section-alt); }
-.wz-row-item { flex: 1 1 0%; display: flex; align-items: center; justify-content: center; font-size: 0.82rem; padding: 3px 2px; position: relative; transition: background 0.15s; min-width: 0; overflow: hidden; }
-.wz-row-item:last-child { border-right: none; }
-.wz-row-item.wz-pro-sep { border-left: 2px solid var(--card-border); }
-.wz-row-item.label-cell { flex: 0 0 48px; max-width: 48px; min-width: 48px; padding: 0 !important; box-sizing: border-box; color: var(--text-3); font-size: 0.72rem; font-weight: 600; background: var(--section-alt); border-right: 1px solid var(--card-border); }
+.pro-row { display: flex; align-items: stretch; min-height: 28px; border-bottom: 1px solid var(--card-border); width: 100%; }
+.pro-row:last-child { border-bottom: none; }
+.pro-row.header-row .pro-row-item { color: var(--accent); font-size: 0.72rem; font-weight: 700; background: var(--section-alt); }
+.pro-row-item { flex: 1 1 0%; display: flex; align-items: center; justify-content: center; font-size: 0.82rem; padding: 3px 2px; position: relative; transition: background 0.15s; min-width: 0; overflow: hidden; }
+.pro-row-item:last-child { border-right: none; }
+.pro-row-item.shian-pro-sep { border-left: 2px solid var(--card-border); }
+.pro-row-item.label-cell { flex: 0 0 48px; max-width: 48px; min-width: 48px; padding: 0 !important; box-sizing: border-box; color: var(--text-3); font-size: 0.72rem; font-weight: 600; background: var(--section-alt); border-right: 1px solid var(--card-border); }
 
-.wz-row.wz-tg-row .wz-row-item:not(.label-cell) { font-size: 1.2rem; font-weight: 700; padding: 6px 0; }
-.wz-row.wz-tg-row { border-bottom: none; }
-.wz-row.wz-dz-row .wz-row-item:not(.label-cell) { font-size: 1.2rem; font-weight: 700; padding: 8px 0; }
-.wz-row.wz-cg-row { background: var(--section-alt); }
-.wz-row.wz-cg-row .wz-row-item { flex-direction: column; gap: 1px; font-size: 0.68rem; }
-.wz-cg-wrap { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.wz-cg-item { display: flex; align-items: center; gap: 1px; line-height: 1.5; white-space: nowrap; }
-.wz-cg-ss { font-size: 0.56rem; color: var(--text-3); }
-.wz-cg-wx { font-size: 0.52rem; color: var(--text-3); opacity: 0.7; }
-.wz-row.wz-fuxing-row { background: var(--section-alt); }
-.wz-row.wz-fuxing-row .wz-row-item { flex-direction: column; gap: 2px; font-size: 0.56rem; }
-.wz-row.wz-siling-row { background: var(--section-alt); }
-.wz-siling-text { font-size: 0.68rem; color: var(--accent); font-weight: 600; }
-.wz-canggan-item { display: flex; align-items: center; gap: 2px; line-height: 1.4; }
-.wz-canggan-ss { font-size: 0.56rem; color: var(--text-3); }
+.pro-row.pro-tg-row .pro-row-item:not(.label-cell) { font-size: 1.2rem; font-weight: 700; padding: 6px 0; }
+.pro-row.pro-tg-row { border-bottom: none; }
+.pro-row.pro-dz-row .pro-row-item:not(.label-cell) { font-size: 1.2rem; font-weight: 700; padding: 8px 0; }
+.pro-row.pro-cg-row { background: var(--section-alt); }
+.pro-row.pro-cg-row .pro-row-item { flex-direction: column; gap: 1px; font-size: 0.68rem; }
+.pro-cg-wrap { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.pro-cg-item { display: flex; align-items: center; gap: 1px; line-height: 1.5; white-space: nowrap; }
+.pro-cg-ss { font-size: 0.56rem; color: var(--text-3); }
+.pro-cg-wx { font-size: 0.52rem; color: var(--text-3); opacity: 0.7; }
+.pro-row.pro-fuxing-row { background: var(--section-alt); }
+.pro-row.pro-fuxing-row .pro-row-item { flex-direction: column; gap: 2px; font-size: 0.56rem; }
+.pro-row.pro-siling-row { background: var(--section-alt); }
+.pro-siling-text { font-size: 0.68rem; color: var(--accent); font-weight: 600; }
+.pro-canggan-item { display: flex; align-items: center; gap: 2px; line-height: 1.4; }
+.pro-canggan-ss { font-size: 0.56rem; color: var(--text-3); }
 .info-tag { font-size: 0.78rem; padding: 2px 8px; border-radius: 6px; background: var(--tag-bg); color: var(--text-2); border: 1px solid var(--card-border); }
 /* 神煞分割行 */
-.wz-ss-division { height: 8px; background: var(--section-alt); }
+.pro-ss-division { height: 8px; background: var(--section-alt); }
 /* 天干留意/地支留意行 */
-.wz-row.guanxi-row { background: var(--section-alt); }
-.wz-row.guanxi-row .wz-row-item.label-cell { background: transparent; font-size: 0.66rem; color: var(--accent); font-weight: 600; align-items: flex-start; padding-top: 5px; }
-.wz-guanxi-cell { flex: 1 !important; border-right: none !important; text-align: left !important; justify-content: flex-start !important; padding: 4px 8px !important; flex-wrap: wrap; gap: 2px 10px; }
-.wz-guanxi-text { font-size: 0.68rem; line-height: 1.6; color: var(--text-2); }
+.pro-row.guanxi-row { background: var(--section-alt); }
+.pro-row.guanxi-row .pro-row-item.label-cell { background: transparent; font-size: 0.66rem; color: var(--accent); font-weight: 600; align-items: flex-start; padding-top: 5px; }
+.pro-guanxi-cell { flex: 1 !important; border-right: none !important; text-align: left !important; justify-content: flex-start !important; padding: 4px 8px !important; flex-wrap: wrap; gap: 2px 10px; }
+.pro-guanxi-text { font-size: 0.68rem; line-height: 1.6; color: var(--text-2); }
 /* 神煞行 */
-.wz-row.ss-row .wz-row-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 0.62rem; line-height: 1.5; padding: 4px 1px; }
-.wz-ss-tag { display: inline-block; padding: 0 3px; margin: 0 1px; border-radius: 3px; background: var(--tag-bg); border: 1px solid var(--card-border); font-size: 0.52rem; color: var(--tag-text); line-height: 1.4; }
-.wz-ss-tag.ji-shen { border-color: var(--card-border); background: var(--tag-bg); color: var(--text-1); }
-.wz-ss-tag.xiong-sha { border-color: var(--card-border); background: var(--tag-bg); color: var(--text-1); }
+.pro-row.ss-row .pro-row-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 0.62rem; line-height: 1.5; padding: 4px 1px; }
+.pro-ss-tag { display: inline-block; padding: 0 3px; margin: 0 1px; border-radius: 3px; background: var(--tag-bg); border: 1px solid var(--card-border); font-size: 0.52rem; color: var(--tag-text); line-height: 1.4; }
+.pro-ss-tag.ji-shen { border-color: var(--card-border); background: var(--tag-bg); color: var(--text-1); }
+.pro-ss-tag.xiong-sha { border-color: var(--card-border); background: var(--tag-bg); color: var(--text-1); }
 
 /* 日主高亮 */
-.wz-day-master-gan { position: relative; text-shadow: 0 0 8px var(--accent-glow); }
+.pro-day-master-gan { position: relative; text-shadow: 0 0 8px var(--accent-glow); }
 
 /* 右侧面板 - 大运/小运切换 */
-.wz-yun-section { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md); }
-.wz-yun-title { padding: 8px 12px; font-size: 0.74rem; font-weight: 700; color: var(--accent); background: var(--accent-glow); border-bottom: 1px solid var(--card-border); display: flex; align-items: center; gap: 4px; }
-.wz-today-btn { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 4px; background: var(--accent); color: #fff; font-size: 0.68rem; font-weight: 700; cursor: pointer; margin-left: auto; transition: all 0.2s; border: 1px solid var(--accent); line-height: 1; }
-.wz-yun-switch-tabs { display: flex; border-bottom: 1px solid var(--card-border); background: var(--accent-glow); }
-.wz-yun-tab { flex: 1; text-align: center; padding: 8px 12px; font-size: 0.74rem; font-weight: 700; cursor: pointer; color: var(--text-3); transition: all 0.2s; border-bottom: 2px solid transparent; }
-.wz-yun-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--card-bg); }
-.wz-yun-items-wrap { position: relative; padding: 0; }
-.wz-yun-items { display: flex; flex-wrap: nowrap; gap: 0; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; position: relative; scrollbar-width: none; -ms-overflow-style: none; touch-action: pan-x; overscroll-behavior-x: contain; overscroll-behavior-y: none; }
-.wz-yun-items::-webkit-scrollbar { display: none; }
-.wz-yun-item { display: flex; flex-direction: column; align-items: center; padding: 8px 4px; min-width: 48px; flex: 0 0 auto; cursor: pointer; transition: background 0.15s; gap: 2px; min-height: 72px; justify-content: center; box-sizing: border-box; scroll-snap-align: start; }
-.wz-yun-item:hover { background: var(--accent-glow); }
-.wz-yun-item.wz-active { background: var(--dayun-active); }
-.wz-yun-item.wz-current { background: var(--accent-glow); }
-.wz-yun-item-year { font-size: 0.62rem; color: var(--text-3); }
-.wz-yun-item-age { font-size: 0.52rem; color: var(--text-3); margin-top: 1px; }
-.wz-yun-item-month { font-size: 0.62rem; color: var(--text-3); font-weight: 500; }
-.wz-yun-item-date { font-size: 0.48rem; color: var(--text-3); }
-.wz-yun-item-gz { font-size: 0.88rem; font-weight: 700; color: var(--text-1); font-family: var(--font-serif); }
-.wz-yun-item.wz-active .wz-yun-item-gz { color: var(--accent); }
-.wz-yun-item-ss { font-size: 0.52rem; color: var(--text-3); }
-.wz-yun-item-age-label { font-size: 0.48rem; color: var(--text-3); margin-top: 1px; white-space: nowrap; }
+.pro-yun-section { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md); }
+.pro-yun-title { padding: 8px 12px; font-size: 0.74rem; font-weight: 700; color: var(--accent); background: var(--accent-glow); border-bottom: 1px solid var(--card-border); display: flex; align-items: center; gap: 4px; }
+.pro-today-btn { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 4px; background: var(--accent); color: #fff; font-size: 0.68rem; font-weight: 700; cursor: pointer; margin-left: auto; transition: all 0.2s; border: 1px solid var(--accent); line-height: 1; }
+.pro-yun-switch-tabs { display: flex; border-bottom: 1px solid var(--card-border); background: var(--accent-glow); }
+.pro-yun-tab { flex: 1; text-align: center; padding: 8px 12px; font-size: 0.74rem; font-weight: 700; cursor: pointer; color: var(--text-3); transition: all 0.2s; border-bottom: 2px solid transparent; }
+.pro-yun-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--card-bg); }
+.pro-yun-items-wrap { position: relative; padding: 0; }
+.pro-yun-items { display: flex; flex-wrap: nowrap; gap: 0; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; position: relative; scrollbar-width: none; -ms-overflow-style: none; touch-action: pan-x; overscroll-behavior-x: contain; overscroll-behavior-y: none; }
+.pro-yun-items::-webkit-scrollbar { display: none; }
+.pro-yun-item { display: flex; flex-direction: column; align-items: center; padding: 8px 4px; min-width: 48px; flex: 0 0 auto; cursor: pointer; transition: background 0.15s; gap: 2px; min-height: 72px; justify-content: center; box-sizing: border-box; scroll-snap-align: start; }
+.pro-yun-item:hover { background: var(--accent-glow); }
+.pro-yun-item.pro-active { background: var(--dayun-active); }
+.pro-yun-item.pro-current { background: var(--accent-glow); }
+.pro-yun-item-year { font-size: 0.62rem; color: var(--text-3); }
+.pro-yun-item-age { font-size: 0.52rem; color: var(--text-3); margin-top: 1px; }
+.pro-yun-item-month { font-size: 0.62rem; color: var(--text-3); font-weight: 500; }
+.pro-yun-item-date { font-size: 0.48rem; color: var(--text-3); }
+.pro-yun-item-gz { font-size: 0.88rem; font-weight: 700; color: var(--text-1); font-family: var(--font-serif); }
+.pro-yun-item.pro-active .pro-yun-item-gz { color: var(--accent); }
+.pro-yun-item-ss { font-size: 0.52rem; color: var(--text-3); }
+.pro-yun-item-age-label { font-size: 0.48rem; color: var(--text-3); margin-top: 1px; white-space: nowrap; }
 
 /* 起运信息 */
-.wz-qiyun-section { padding: 8px 10px; font-size: 0.72rem; color: var(--text-2); border-bottom: 1px solid var(--card-border); text-align: left; line-height: 1.6; }
+.pro-qiyun-section { padding: 8px 10px; font-size: 0.72rem; color: var(--text-2); border-bottom: 1px solid var(--card-border); text-align: left; line-height: 1.6; }
 
 /* 五行旺度条 */
-.wz-wuxing-bar { background: transparent; border-radius: 6px; padding: 8px 12px; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 0.78rem; font-weight: 500; flex-wrap: wrap; }
-.wz-wuxing-item { padding: 3px 10px; border-radius: 6px; font-weight: 500; display: inline-flex; align-items: center; gap: 2px; }
-.wz-wuxing-item b { font-weight: 700; }
+.pro-wuxing-bar { background: transparent; border-radius: 6px; padding: 8px 12px; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 0.78rem; font-weight: 500; flex-wrap: wrap; }
+.pro-wuxing-item { padding: 3px 10px; border-radius: 6px; font-weight: 500; display: inline-flex; align-items: center; gap: 2px; }
+.pro-wuxing-item b { font-weight: 700; }
 
 /* 干支留意盒子 */
-.wz-guanxi-box { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md); overflow: hidden; margin-bottom: 10px; }
-.wz-guanxi-box-title { display: flex; align-items: center; gap: 6px; padding: 8px 12px; font-size: 0.78rem; font-weight: 700; color: var(--accent); background: var(--accent-glow); border-bottom: 1px solid var(--card-border); font-family: var(--font-serif); }
-.wz-guanxi-box-icon { font-size: 0.88rem; }
-.wz-guanxi-box-body { padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; }
-.wz-guanxi-item { display: flex; align-items: baseline; gap: 8px; }
-.wz-guanxi-label { flex-shrink: 0; font-size: 0.72rem; font-weight: 700; color: var(--text-3); }
-.wz-guanxi-text { font-size: 0.72rem; color: var(--text-2); }
-.wz-guanxi-wx-row { display: flex; align-items: center; gap: 8px; }
-.wz-guanxi-wx-items { display: flex; gap: 6px; }
-.wz-guanxi-wx-tag { font-size: 0.72rem; color: var(--text-2); background: var(--tag-bg); border: 1px solid var(--card-border); border-radius: 5px; padding: 2px 7px; }
-.wz-guanxi-wx-tag text { font-weight: 700; color: var(--accent); margin-left: 2px; }
-.wz-guanxi-lack { font-size: 0.68rem; color: var(--danger); margin-left: 4px; }
-.wz-guanxi-ws-tag { font-size: 0.72rem; font-weight: 700; padding: 2px 10px; border-radius: 5px; color: var(--info); background: rgba(46,131,246,0.12); border: 1px solid rgba(46,131,246,0.25); }
-.wz-guanxi-geju-tag { font-size: 0.72rem; font-weight: 700; padding: 2px 10px; border-radius: 5px; color: var(--success); background: rgba(7,233,48,0.10); border: 1px solid rgba(7,233,48,0.22); }
+.pro-guanxi-box { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md); overflow: hidden; margin-bottom: 10px; }
+.pro-guanxi-box-title { display: flex; align-items: center; gap: 6px; padding: 8px 12px; font-size: 0.78rem; font-weight: 700; color: var(--accent); background: var(--accent-glow); border-bottom: 1px solid var(--card-border); font-family: var(--font-serif); }
+.pro-guanxi-box-icon { font-size: 0.88rem; }
+.pro-guanxi-box-body { padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; }
+.pro-guanxi-item { display: flex; align-items: baseline; gap: 8px; }
+.pro-guanxi-label { flex-shrink: 0; font-size: 0.72rem; font-weight: 700; color: var(--text-3); }
+.pro-guanxi-text { font-size: 0.72rem; color: var(--text-2); }
+.pro-guanxi-wx-row { display: flex; align-items: center; gap: 8px; }
+.pro-guanxi-wx-items { display: flex; gap: 6px; }
+.pro-guanxi-wx-tag { font-size: 0.72rem; color: var(--text-2); background: var(--tag-bg); border: 1px solid var(--card-border); border-radius: 5px; padding: 2px 7px; }
+.pro-guanxi-wx-tag text { font-weight: 700; color: var(--accent); margin-left: 2px; }
+.pro-guanxi-lack { font-size: 0.68rem; color: var(--danger); margin-left: 4px; }
+.pro-guanxi-ws-tag { font-size: 0.72rem; font-weight: 700; padding: 2px 10px; border-radius: 5px; color: var(--info); background: rgba(46,131,246,0.12); border: 1px solid rgba(46,131,246,0.25); }
+.pro-guanxi-geju-tag { font-size: 0.72rem; font-weight: 700; padding: 2px 10px; border-radius: 5px; color: var(--success); background: rgba(7,233,48,0.10); border: 1px solid rgba(7,233,48,0.22); }
+
+/* 智能四柱图示 */
+.pro-smart-chart { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-md); overflow: hidden; margin-bottom: 12px; }
+.pro-smart-title { text-align: center; padding: 9px 12px; font-size: 0.82rem; font-weight: 800; color: var(--text-1); border-bottom: 1px solid var(--card-border); font-family: var(--font-serif); }
+.pro-smart-tabs { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--card-border); background: var(--section-alt); }
+.pro-smart-tab { min-height: 34px; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; color: var(--text-3); font-weight: 700; border-right: 1px solid var(--card-border); cursor: pointer; }
+.pro-smart-tab:last-child { border-right: none; }
+.pro-smart-tab.active { background: var(--card-bg); color: var(--accent); }
+.pro-smart-relation-summary { padding: 8px 12px; border-bottom: 1px solid var(--card-border); background: rgba(178,149,93,0.05); }
+.pro-smart-summary-line { display: flex; align-items: baseline; gap: 4px; font-size: 0.72rem; line-height: 1.6; }
+.pro-smart-summary-label { flex-shrink: 0; color: var(--accent); font-weight: 800; }
+.pro-smart-summary-text { color: var(--text-2); }
+.pro-smart-diagram { --gz-cols: 4; padding: 16px 18px 18px; min-width: 620px; overflow-x: auto; }
+.pro-smart-lines { display: flex; flex-direction: column; gap: 6px; }
+.pro-smart-line-row { position: relative; min-height: 25px; align-items: center; }
+.pro-smart-line { --line-left: 8%; --line-right: 92%; --line-mid: 50%; --line-shift: 0px; position: relative; min-width: 0; min-height: 25px; display: block; color: var(--text-2); font-size: 0.62rem; font-weight: 700; transform: translateY(var(--line-shift)); }
+.pro-smart-line::before { content: ''; position: absolute; left: var(--line-left); right: calc(100% - var(--line-right)); top: 50%; height: 1px; background: currentColor; opacity: 0.42; }
+.pro-smart-line-label { position: absolute; z-index: 2; left: var(--line-mid); top: 50%; transform: translate(-50%, -50%); padding: 1px 7px; border-radius: 10px; background: var(--card-bg); border: 1px solid currentColor; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pro-smart-line-end { position: absolute; z-index: 3; top: calc(50% - 9px); width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--card-bg); border: 1px solid currentColor; color: currentColor; font-size: 0.58rem; font-weight: 800; line-height: 1; }
+.pro-smart-line-end-left { left: var(--line-left); transform: translateX(-50%); }
+.pro-smart-line-end-right { left: var(--line-right); transform: translateX(-50%); }
+.pro-smart-line.merge { color: #4a8c5c; }
+.pro-smart-line.danger { color: #a85d42; }
+.pro-smart-line.neutral { color: var(--accent); }
+.pro-smart-label-row,
+.pro-smart-ss-row,
+.pro-smart-gan-row,
+.pro-smart-zhi-row,
+.pro-smart-hidden-row { display: grid; grid-template-columns: repeat(var(--gz-cols), minmax(58px, 1fr)); text-align: center; align-items: center; column-gap: 6px; }
+.pro-smart-label-row { margin-top: 8px; color: var(--text-3); font-size: 0.64rem; font-weight: 700; }
+.pro-smart-ss-row { margin-top: 4px; color: var(--text-2); font-size: 0.68rem; font-weight: 700; }
+.pro-smart-gan-row { margin-top: 8px; }
+.pro-smart-zhi-row { margin-top: 4px; }
+.pro-smart-char { min-height: 28px; display: flex; align-items: center; justify-content: center; font-family: var(--font-serif); font-size: 1.18rem; font-weight: 900; }
+.pro-smart-hidden-row { margin-top: 6px; color: var(--text-3); font-size: 0.62rem; }
+.pro-smart-hidden-cell { min-height: 18px; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 3px; }
+.pro-smart-hidden-cell text { padding: 1px 4px; border-radius: 4px; background: var(--tag-bg); }
+.pro-smart-lines-bottom { margin-top: 10px; gap: 8px; }
+.pro-smart-flow-note { padding: 10px 14px 14px; border-top: 1px solid var(--card-border); color: var(--text-3); font-size: 0.72rem; line-height: 1.7; background: rgba(178,149,93,0.04); }
+.pro-smart-wx-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.pro-smart-wx-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 5px; border: 1px solid var(--card-border); background: var(--card-bg); font-size: 0.68rem; font-weight: 800; }
+.pro-palace-board { padding: 14px 18px 18px; overflow-x: auto; }
+.pro-palace-lanes { min-width: 560px; display: grid; grid-template-columns: repeat(6, minmax(74px, 1fr)); gap: 0; margin-bottom: 18px; }
+.pro-palace-tag { min-height: 46px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-bottom: 1px solid var(--card-border); background: transparent; }
+.pro-palace-tag text:first-child { color: var(--accent); font-size: 0.7rem; font-weight: 800; }
+.pro-palace-tag text:last-child { color: var(--text-3); font-size: 0.62rem; }
+.pro-palace-map { min-width: 560px; padding: 12px 46px 18px; border: 1px solid var(--card-border); border-radius: 8px; background: linear-gradient(180deg, rgba(178,149,93,0.035), transparent); }
+.pro-palace-row { display: grid; grid-template-columns: repeat(4, minmax(70px, 1fr)); text-align: center; align-items: center; column-gap: 12px; }
+.pro-palace-row-labels { color: var(--text-3); font-size: 0.66rem; font-weight: 800; }
+.pro-palace-row-gan { margin-top: 10px; }
+.pro-palace-row-zhi { margin-top: 4px; }
+.pro-palace-char { min-height: 30px; display: flex; align-items: center; justify-content: center; font-family: var(--font-serif); font-size: 1.2rem; font-weight: 900; }
+.pro-palace-row-desc { margin-top: 10px; color: var(--text-2); font-size: 0.66rem; line-height: 1.35; }
+.pro-kinship-board { padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 16px; overflow-x: auto; }
+.pro-kinship-map { min-width: 560px; padding: 12px 46px 16px; border: 1px solid var(--card-border); border-radius: 8px; background: linear-gradient(180deg, rgba(178,149,93,0.035), transparent); }
+.pro-kinship-title { font-family: var(--font-serif); color: var(--accent); font-weight: 800; font-size: 0.8rem; margin-bottom: 10px; }
+.pro-kinship-row { display: grid; grid-template-columns: repeat(4, minmax(70px, 1fr)); text-align: center; align-items: center; column-gap: 12px; }
+.pro-kinship-row-rel { color: var(--text-2); font-size: 0.64rem; line-height: 1.35; min-height: 34px; }
+.pro-kinship-row-ss { color: var(--accent); font-size: 0.68rem; font-weight: 800; margin-top: 4px; }
+.pro-kinship-row-gan { margin-top: 8px; }
+.pro-kinship-row-zhi { margin-top: 4px; }
+.pro-kinship-char { min-height: 30px; display: flex; align-items: center; justify-content: center; font-family: var(--font-serif); font-size: 1.14rem; font-weight: 900; }
+.pro-kinship-row-hidden { color: var(--text-3); font-size: 0.62rem; line-height: 1.35; min-height: 32px; margin-top: 8px; }
+.pro-gz-setting-panel { border-top: 1px solid var(--card-border); background: var(--card-bg); }
+.pro-gz-setting-title { display: flex; align-items: center; justify-content: center; min-height: 38px; color: var(--accent); font-size: 0.72rem; font-weight: 800; border-bottom: 1px solid var(--card-border); }
+.pro-gz-setting-tabs { display: grid; grid-template-columns: repeat(7, minmax(74px, 1fr)); min-width: 560px; overflow-x: auto; background: var(--section-alt); }
+.pro-gz-setting-tab { min-height: 34px; display: flex; align-items: center; justify-content: center; color: var(--text-3); font-size: 0.68rem; font-weight: 800; border-right: 1px solid var(--card-border); cursor: pointer; white-space: nowrap; }
+.pro-gz-setting-tab:last-child { border-right: none; }
+.pro-gz-setting-tab.active { background: var(--card-bg); color: var(--accent); }
+.pro-gz-setting-body { padding: 18px 20px 20px; min-height: 90px; color: var(--text-2); font-size: 0.72rem; line-height: 1.7; }
+.pro-gz-setting-copy { display: block; margin-bottom: 10px; color: var(--text-3); font-weight: 700; }
+.pro-gz-relation-tags { display: flex; flex-wrap: wrap; gap: 7px; }
+.pro-gz-relation-tag { display: inline-flex; align-items: center; justify-content: center; min-height: 24px; padding: 2px 9px; border-radius: 5px; border: 1px solid rgba(178,149,93,0.28); background: rgba(178,149,93,0.07); color: var(--accent); font-size: 0.68rem; font-weight: 800; }
+.pro-gz-setting-locked { display: flex; align-items: center; justify-content: center; color: var(--text-3); text-align: center; background: linear-gradient(180deg, rgba(178,149,93,0.035), transparent); }
 
 /* 冲合关系 */
-.wz-relation-section { margin-top: 10px; }
-.wz-relation-title { font-size: 0.82rem; font-weight: 700; color: var(--accent); font-family: var(--font-serif); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
-.wz-relation-tags { display: flex; flex-wrap: wrap; gap: 4px; }
-.wz-relation-tag { padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; background: var(--section-alt); border: 1px solid; font-weight: 500; }
+.pro-relation-section { margin-top: 10px; }
+.pro-relation-title { font-size: 0.82rem; font-weight: 700; color: var(--accent); font-family: var(--font-serif); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.pro-relation-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.pro-relation-tag { padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; background: var(--section-alt); border: 1px solid; font-weight: 500; }
 
 /* 旺相休囚死标签 */
 .wxxs-tag { font-size: 0.72rem; padding: 3px 10px; border-radius: 14px; border: 1px solid var(--card-border); background: var(--tag-bg); color: var(--text-2); }
@@ -3092,34 +3706,34 @@ onMounted(async () => {
 .wx-xiu { border-color: #ef9104; color: #ef9104; background: rgba(239,145,4,0.08); }
 .wx-qiu { border-color: #8b6d03; color: #8b6d03; background: rgba(139,109,3,0.08); }
 .wx-si { border-color: #d30505; color: #d30505; background: rgba(211,5,5,0.08); }
-.wz-pro-bottom-info { display: flex; flex-direction: column; gap: 8px; }
-.wz-pro-bottom-card { background: var(--section-alt); border-radius: 10px; padding: 12px 16px; border: 1px solid var(--card-border); }
-.wz-pro-bottom-card-title { font-size: 0.78rem; font-weight: 700; color: var(--text-1); margin-bottom: 8px; }
+.shian-pro-bottom-info { display: flex; flex-direction: column; gap: 8px; }
+.shian-pro-bottom-card { background: var(--section-alt); border-radius: 10px; padding: 12px 16px; border: 1px solid var(--card-border); }
+.shian-pro-bottom-card-title { font-size: 0.78rem; font-weight: 700; color: var(--text-1); margin-bottom: 8px; }
 
 /* 格局/用神等 */
-.wz-extra-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-.wz-extra-card { background: var(--section-alt); border-radius: 10px; padding: 12px 16px; border: 1px solid var(--card-border); }
-.wz-extra-title { font-size: 0.72rem; color: var(--text-3); font-weight: 600; display: block; margin-bottom: 4px; }
-.wz-extra-val { font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 4px; }
-.wz-extra-desc { font-size: 0.68rem; color: var(--text-3); line-height: 1.5; display: block; }
+.pro-extra-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.pro-extra-card { background: var(--section-alt); border-radius: 10px; padding: 12px 16px; border: 1px solid var(--card-border); }
+.pro-extra-title { font-size: 0.72rem; color: var(--text-3); font-weight: 600; display: block; margin-bottom: 4px; }
+.pro-extra-val { font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 4px; }
+.pro-extra-desc { font-size: 0.68rem; color: var(--text-3); line-height: 1.5; display: block; }
 
 /* 性格分析/古籍等区块卡片 */
-.wz-section-card { background: var(--section-alt); border-radius: 10px; padding: 14px 18px; border: 1px solid var(--card-border); margin-top: 10px; }
-.wz-section-title { font-size: 0.85rem; font-weight: 700; color: var(--accent); display: block; margin-bottom: 10px; font-family: var(--font-serif); letter-spacing: 1px; }
-.wz-section-body { font-size: 0.78rem; color: var(--text-2); line-height: 1.7; }
-.wz-section-text { display: block; margin-bottom: 8px; }
-.wz-trait-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-.wz-trait-tag { padding: 3px 10px; border-radius: 14px; font-size: 0.72rem; background: var(--tag-bg); border: 1px solid var(--card-border); color: var(--accent); }
-.wz-personality-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
-.wz-p-item { padding: 6px 10px; border-radius: 8px; background: rgba(178,149,93,0.06); }
-.wz-p-label { font-size: 0.68rem; color: var(--accent); font-weight: 600; display: block; margin-bottom: 2px; }
-.wz-p-text { font-size: 0.72rem; color: var(--text-2); line-height: 1.5; }
-.wz-guji-item { padding: 10px 0; border-bottom: 1px solid var(--card-border); }
-.wz-guji-item:last-child { border-bottom: none; }
-.wz-guji-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
-.wz-guji-title { font-size: 0.78rem; font-weight: 600; }
-.wz-guji-match { font-size: 0.62rem; color: var(--text-3); padding: 1px 6px; border-radius: 8px; background: var(--tag-bg); }
-.wz-guji-text { font-size: 0.72rem; color: var(--text-3); line-height: 1.6; }
+.pro-section-card { background: var(--section-alt); border-radius: 10px; padding: 14px 18px; border: 1px solid var(--card-border); margin-top: 10px; }
+.pro-section-title { font-size: 0.85rem; font-weight: 700; color: var(--accent); display: block; margin-bottom: 10px; font-family: var(--font-serif); letter-spacing: 1px; }
+.pro-section-body { font-size: 0.78rem; color: var(--text-2); line-height: 1.7; }
+.pro-section-text { display: block; margin-bottom: 8px; }
+.pro-trait-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.pro-trait-tag { padding: 3px 10px; border-radius: 14px; font-size: 0.72rem; background: var(--tag-bg); border: 1px solid var(--card-border); color: var(--accent); }
+.pro-personality-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.pro-p-item { padding: 6px 10px; border-radius: 8px; background: rgba(178,149,93,0.06); }
+.pro-p-label { font-size: 0.68rem; color: var(--accent); font-weight: 600; display: block; margin-bottom: 2px; }
+.pro-p-text { font-size: 0.72rem; color: var(--text-2); line-height: 1.5; }
+.pro-guji-item { padding: 10px 0; border-bottom: 1px solid var(--card-border); }
+.pro-guji-item:last-child { border-bottom: none; }
+.pro-guji-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.pro-guji-title { font-size: 0.78rem; font-weight: 600; }
+.pro-guji-match { font-size: 0.62rem; color: var(--text-3); padding: 1px 6px; border-radius: 8px; background: var(--tag-bg); }
+.pro-guji-text { font-size: 0.72rem; color: var(--text-3); line-height: 1.6; }
 
 /* 响应式 */
 @media (max-width: 768px) {
@@ -3136,12 +3750,14 @@ onMounted(async () => {
   .pillar-cell.cang-gan-cell { font-size: 0.74rem; }
   .pillar-cell.nayin-cell { font-size: 0.68rem; }
   .pillar-cell.shensha-cell { font-size: 0.64rem; }
-  .wz-pan-layout { flex-direction: column; }
-  .wz-pan-right { width: 100%; border-left: none; padding-left: 0; border-top: 1px solid var(--card-border); padding-top: 10px; }
-  .wz-extra-grid { grid-template-columns: 1fr; }
-  .wz-row-item.label-cell { flex: 0 0 40px; max-width: 40px; min-width: 40px; font-size: 0.68rem; }
-  .wz-row-item { min-width: 0; font-size: 0.68rem; }
-  .wz-row.wz-tg-row .wz-row-item:not(.label-cell), .wz-row.wz-dz-row .wz-row-item:not(.label-cell) { font-size: 0.95rem; }
+  .pro-pan-layout { flex-direction: column; }
+  .pro-pan-right { width: 100%; border-left: none; padding-left: 0; border-top: 1px solid var(--card-border); padding-top: 10px; }
+  .pro-extra-grid { grid-template-columns: 1fr; }
+  .pro-row-item.label-cell { flex: 0 0 40px; max-width: 40px; min-width: 40px; font-size: 0.68rem; }
+  .pro-row-item { min-width: 0; font-size: 0.68rem; }
+  .pro-row.pro-tg-row .pro-row-item:not(.label-cell), .pro-row.pro-dz-row .pro-row-item:not(.label-cell) { font-size: 0.95rem; }
+  .pro-smart-diagram { min-width: 560px; padding: 14px 12px; }
+  .pro-palace-lanes, .pro-palace-map, .pro-kinship-map { min-width: 520px; }
 }
 @media (max-width: 640px) {
   .result-container { padding: 8px 8px 36px; }
@@ -3150,25 +3766,32 @@ onMounted(async () => {
   .tab-panel { padding: 12px; }
   .pillar-cell.gan-cell, .pillar-cell.zhi-cell { font-size: 1.05rem; }
   .pillar-cell.label-cell { flex: 0 0 40px; max-width: 40px; font-size: 0.68rem; }
-  .wz-row-item { min-width: 44px; font-size: 0.68rem; }
-  .wz-row-item.label-cell { flex: 0 0 40px; max-width: 40px; min-width: 40px; padding: 0 !important; }
-  .wz-row.wz-tg-row .wz-row-item, .wz-row.wz-dz-row .wz-row-item { font-size: 0.95rem; }
-  .wz-tms-bar { gap: 8px; }
-  .wz-tms-item { gap: 3px; }
-  .wz-top-bar { flex-wrap: wrap; gap: 8px; }
+  .pro-row-item { min-width: 44px; font-size: 0.68rem; }
+  .pro-row-item.label-cell { flex: 0 0 40px; max-width: 40px; min-width: 40px; padding: 0 !important; }
+  .pro-row.pro-tg-row .pro-row-item, .pro-row.pro-dz-row .pro-row-item { font-size: 0.95rem; }
+  .pro-tms-bar { gap: 8px; }
+  .pro-tms-item { gap: 3px; }
+  .pro-top-bar { flex-wrap: wrap; gap: 8px; }
+  .pro-smart-tabs { min-width: 0; }
+  .pro-smart-tab { font-size: 0.68rem; }
+  .term-card-box { padding: 20px; }
 }
 @media (max-width: 480px) {
   .pillar-cell.label-cell { flex: 0 0 36px; max-width: 36px; font-size: 0.6rem; }
-  .wz-pan-table-inner { min-width: auto !important; }
-  .wz-row-item { min-width: 0; font-size: 0.55rem; padding: 2px 1px; flex: 1; }
-  .wz-row-item.label-cell { flex: 0 0 24px; max-width: 24px; min-width: 24px; font-size: 0.52rem; padding: 0 !important; }
-  .wz-row.wz-tg-row .wz-row-item:not(.label-cell), .wz-row.wz-dz-row .wz-row-item:not(.label-cell) { font-size: 0.9rem; padding: 4px 0; }
-  .wz-pro-sep { border-left-width: 1px !important; }
-  .wz-row.ss-row .wz-row-item { gap: 1px; padding: 2px 0; }
-  .wz-ss-tag { font-size: 0.45rem; padding: 0 2px; margin: 0; }
+  .pro-pan-table-inner { min-width: auto !important; }
+  .pro-row-item { min-width: 0; font-size: 0.55rem; padding: 2px 1px; flex: 1; }
+  .pro-row-item.label-cell { flex: 0 0 24px; max-width: 24px; min-width: 24px; font-size: 0.52rem; padding: 0 !important; }
+  .pro-row.pro-tg-row .pro-row-item:not(.label-cell), .pro-row.pro-dz-row .pro-row-item:not(.label-cell) { font-size: 0.9rem; padding: 4px 0; }
+  .shian-pro-sep { border-left-width: 1px !important; }
+  .pro-row.ss-row .pro-row-item { gap: 1px; padding: 2px 0; }
+  .pro-ss-tag { font-size: 0.45rem; padding: 0 2px; margin: 0; }
   .ss-tag { font-size: 0.5rem; padding: 0 3px; }
-  .wz-yun-item { min-width: 0; flex: 1; padding: 4px 1px; font-size: 0.6rem; min-height: 52px; }
-  .wz-cg-item { font-size: 0.55rem; }
+  .pro-yun-item { min-width: 0; flex: 1; padding: 4px 1px; font-size: 0.6rem; min-height: 52px; }
+  .pro-cg-item { font-size: 0.55rem; }
+  .pro-smart-diagram { min-width: 520px; }
+  .pro-palace-board, .pro-kinship-board { padding: 10px; }
+  .pro-palace-lanes, .pro-palace-map, .pro-kinship-map { min-width: 500px; }
+  .pro-palace-map, .pro-kinship-map { padding-left: 28px; padding-right: 28px; }
 }
 .riZhu-strength { margin-top: 12px; padding: 12px; background: var(--section-alt); border-radius: 10px; border: 1px solid var(--card-border); }
 .riZhu-strength .strength-label { font-size: 0.78rem; font-weight: 700; color: var(--text-1); margin-bottom: 8px; }

@@ -94,7 +94,8 @@
           <view class="pro-pan-content-bg">
             <!-- 起运信息 -->
             <view class="pro-pan-qiyun">
-              <text>起运： {{ baziData.qiyun_info || '' }} &nbsp;&nbsp; 交运： {{ baziData.jiaoyun_info || '' }}</text>
+              <text>起运： {{ baziData.qiyun_info || '' }} &nbsp;&nbsp; 交运： {{ baziData.jiaoyun_text || '' }}</text>
+              <text v-if="baziData.jiaoyun_info" class="pro-pan-qiyun-extra">{{ baziData.jiaoyun_info || '' }}</text>
             </view>
             <!-- 大运 -->
             <view class="pro-pan-yun">
@@ -172,8 +173,8 @@
 
       <!-- ==================== 干支留意 ==================== -->
       <view class="sizhu-gztip">
-        <view>天干留意：&nbsp; <text class="mainColor">{{ baziData.tg_guanxi || '' }}</text></view>
-        <view>地支留意：&nbsp; <text class="mainColor">{{ baziData.dz_guanxi || '' }}</text></view>
+        <view>天干留意：&nbsp; <text class="mainColor">{{ formatRelationList(baziData.tg_guanxi) }}</text></view>
+        <view>地支留意：&nbsp; <text class="mainColor">{{ formatRelationList(baziData.dz_guanxi) }}</text></view>
       </view>
 
       <!-- ==================== 智能四柱图示 ==================== -->
@@ -235,6 +236,64 @@ const WX = {
 function wxClass(gz) {
   const w = WX[gz]
   return w ? w + 'Color' : ''
+}
+
+function relationLabel(desc) {
+  const raw = String(desc || '').trim()
+  const rawCompact = raw.replace(/\s+/g, '')
+  const charSource = rawCompact.replace(/缺[甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥]+/g, '')
+  const pair = charSource.match(/[甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥]/g) || []
+  const pairText = pair.slice(0, 2).join('')
+  const allText = pair.join('')
+  const hePairOrder = ['甲己', '乙庚', '丙辛', '丁壬', '戊癸']
+  const relationPairOrder = ['辰丑', '酉戌', '辰卯', '午卯', '巳亥', '辰戌', '丑戌']
+  const orderedPair = (orders) => pair.length >= 2 && pair[0] !== pair[1] ? (orders.find(item => item.includes(pair[0]) && item.includes(pair[1])) || pairText) : pairText
+  const hePairText = orderedPair(hePairOrder)
+  const relationPairText = orderedPair(relationPairOrder)
+  const juMap = { 子: '水局', 午: '火局', 卯: '木局', 酉: '金局' }
+  const huiSets = [
+    { zhis: '寅卯辰', ju: '木局' },
+    { zhis: '巳午未', ju: '火局' },
+    { zhis: '申酉戌', ju: '金局' },
+    { zhis: '亥子丑', ju: '水局' },
+  ]
+  let m = rawCompact.match(/合化([木火土金水])/)
+  if (m && pairText) return `${hePairText}合化${m[1]}`
+  if (/六合|相合/.test(rawCompact) && pairText) return `${relationPairText}合`
+  if (rawCompact.includes('相克') && pairText) return `${pairText}克`
+  if (rawCompact.includes('相冲') && pairText) return `${relationPairText}冲`
+  if (rawCompact.includes('相害') && pairText) return `${relationPairText}害`
+  if (rawCompact.includes('自刑') && pairText) return `${relationPairText}自刑`
+  if (/无恩之刑|恃势之刑|无礼之刑/.test(rawCompact) && allText) return `${allText}三刑`
+  if (rawCompact.includes('相刑') && pairText) return `${relationPairText}${pair[0] === pair[1] ? '自刑' : '刑'}`
+  if (rawCompact.includes('相破') && pairText) return `${relationPairText}破`
+  m = rawCompact.match(/拱合([子午卯酉])/)
+  if (m && pairText) return `${pairText}拱合${juMap[m[1]] || m[1]}`
+  if (rawCompact.includes('拱会') && pairText) {
+    const found = huiSets.find(item => pair.slice(0, 2).every(zhi => item.zhis.includes(zhi)))
+    return `${pairText}拱会${found ? found.ju : ''}`
+  }
+  m = rawCompact.match(/半合([木火金水])局/)
+  if (m && pairText) return `${pairText}半合${m[1]}局`
+  m = rawCompact.match(/三合([木火金水])局/)
+  if (m && allText) return `${allText}三合${m[1]}局`
+  m = rawCompact.match(/三会([木火金水])局/)
+  if (m && rawCompact.includes('缺') && pairText) return `${pairText}拱会${m[1]}局`
+  if (m && allText) return `${allText}三会${m[1]}局`
+  if (rawCompact.includes('暗合') && pairText) return `${relationPairText}暗合`
+  for (const suffix of ['冲', '害', '破', '合', '克']) {
+    if (rawCompact.endsWith(suffix) && pairText) return `${relationPairText}${suffix}`
+  }
+  return rawCompact.replace(/相/g, '')
+}
+
+function formatRelationList(source) {
+  return String(source || '')
+    .split(/[、,，]/)
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(relationLabel)
+    .join('、')
 }
 
 const CANG_GAN_LOCAL = {
@@ -336,6 +395,7 @@ const baziData = reactive({
   gender_label: '',
   solar_date: '',
   qiyun_info: '',
+  jiaoyun_text: '',
   jiaoyun_info: '',
   tg_guanxi: '',
   dz_guanxi: '',
@@ -361,6 +421,7 @@ function injectBaziData(data) {
   baziData.solar_date = data.solar_date || ''
   // 起运信息
   baziData.qiyun_info = data.qiyun_info || ''
+  baziData.jiaoyun_text = data.jiaoyun_text || (data.qi_yun_detail && data.qi_yun_detail.jiao_yun_text) || ''
   baziData.jiaoyun_info = data.jiaoyun_info || ''
   // 干支留意
   baziData.tg_guanxi = data.tg_guanxi || ''
