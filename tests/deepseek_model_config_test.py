@@ -34,14 +34,17 @@ class _FakeClient:
 
 
 def test_home_model_provider_mapping(monkeypatch):
+    for name in ("BASIC_AI_API_KEY", "ZAI_API_KEY", "ZHIPU_API_KEY"):
+        monkeypatch.setenv(name, "")
+    monkeypatch.setenv("SILICONFLOW_API_KEY", "sf-test-key")
     service = _load_service(monkeypatch)
 
     basic = service._model_config("basic")
     advanced = service._model_config("advanced")
     expert = service._model_config("expert")
 
-    assert basic["provider"] == "zhipu"
-    assert basic["model"] == "glm-5.1"
+    assert basic["provider"] == "siliconflow"
+    assert basic["supports_thinking"] is False
     assert basic["thinking_type"] == "disabled"
 
     assert advanced["provider"] == "zhipu"
@@ -51,7 +54,22 @@ def test_home_model_provider_mapping(monkeypatch):
     assert expert["thinking_type"] == "enabled"
 
 
+def test_home_basic_model_uses_zhipu_when_basic_key_is_configured(monkeypatch):
+    monkeypatch.setenv("BASIC_AI_API_KEY", "basic-test-key")
+    service = _load_service(monkeypatch)
+
+    basic = service._model_config("basic")
+
+    assert basic["provider"] == "zhipu"
+    assert basic["model"] == "glm-5.1"
+    assert basic["supports_thinking"] is True
+    assert basic["thinking_type"] == "disabled"
+
+
 def test_home_model_thinking_flags_are_fixed_by_tier(monkeypatch):
+    for name in ("BASIC_AI_API_KEY", "ZAI_API_KEY", "ZHIPU_API_KEY"):
+        monkeypatch.setenv(name, "")
+    monkeypatch.setenv("SILICONFLOW_API_KEY", "sf-test-key")
     service = _load_service(monkeypatch)
     seen = []
     monkeypatch.setattr(service, "_get_model_client", lambda config: _FakeClient(seen))
@@ -63,4 +81,4 @@ def test_home_model_thinking_flags_are_fixed_by_tier(monkeypatch):
 
     assert seen[0]["extra_body"] == {"thinking": {"type": "disabled"}}
     assert seen[1]["extra_body"] == {"thinking": {"type": "enabled"}}
-    assert seen[2]["extra_body"] == {"thinking": {"type": "disabled"}}
+    assert "extra_body" not in seen[2]
