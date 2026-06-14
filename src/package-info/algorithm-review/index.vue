@@ -96,7 +96,7 @@ const rules = [
 ]
 
 const testReport = [
-  { type: '已知标准案例（与问真八字对齐）', count: 15, rate: '100%' },
+  { type: '已知标准案例', count: 15, rate: '100%' },
   { type: '节气边界测试（3年份×24节气）', count: 216, rate: '100%' },
   { type: '真太阳时校正测试', count: 59, rate: '100%' },
   { type: '夜子时/早子时边界', count: 24, rate: '100%' },

@@ -184,14 +184,13 @@ def test_bazi_result_has_wenzhen_style_smart_pillar_chart_tabs():
     assert "kinshipDiagramItems" in source
     assert "pro-palace-map" in source
     assert "pro-kinship-map" in source
-    assert "activeGanzhiSetting = ref('relations')" in source
-    assert "ganzhiSettingTabs" in source
-    for label in ["干支关系", "地支藏干", "人元司令", "神煞设置", "命宫身宫", "格局取法", "虚实岁"]:
-        assert f"label: '{label}'" in source
-    for relation in ["天干相冲", "天干相克", "天干五合", "地支天干配合", "地支三合", "地支三会", "地支暗合", "地支相刑", "地支相冲", "地支相害", "地支相破", "地支相合"]:
-        assert f"'{relation}'" in source
-    assert "pro-gz-setting-panel" in source
-    assert "pro-gz-relation-tag" in source
+    assert "activeGanzhiSetting = ref('relations')" not in source
+    assert "ganzhiSettingTabs" not in source
+    for label in ["地支藏干", "人元司令", "神煞设置", "命宫身宫", "格局取法", "虚实岁"]:
+        assert f"label: '{label}'" not in source
+    assert "问真结构" not in source
+    assert "pro-gz-setting-panel" not in source
+    assert "pro-gz-relation-tag" not in source
     assert "pro-palace-pillar" not in source
     assert "pro-kinship-card" not in source
     assert "求亲" not in source

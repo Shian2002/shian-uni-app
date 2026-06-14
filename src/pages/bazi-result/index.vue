@@ -585,27 +585,6 @@
                         </view>
                       </template>
 
-                      <view class="pro-gz-setting-panel">
-                        <view class="pro-gz-setting-title">干支设置</view>
-                        <view class="pro-gz-setting-tabs">
-                          <view
-                            class="pro-gz-setting-tab"
-                            :class="{active: activeGanzhiSetting === item.key}"
-                            v-for="item in ganzhiSettingTabs"
-                            :key="item.key"
-                            @tap="activeGanzhiSetting = item.key"
-                          >{{ item.label }}</view>
-                        </view>
-                        <view class="pro-gz-setting-body" v-if="activeGanzhiSetting === 'relations'">
-                          <text class="pro-gz-setting-copy">当前用于智能图示识别和绘线的干支关系范围：</text>
-                          <view class="pro-gz-relation-tags">
-                            <text class="pro-gz-relation-tag" v-for="item in ganzhiRelationKinds" :key="item">{{ item }}</text>
-                          </view>
-                        </view>
-                        <view class="pro-gz-setting-body pro-gz-setting-locked" v-else>
-                          <text>{{ currentGanzhiSettingLabel }}会继续按问真结构补齐；当前先保留入口，避免后续接开关时再改版式。</text>
-                        </view>
-                      </view>
                     </view>
 
                     <!-- 参考用神 + 格局 + 称骨 -->
@@ -1664,34 +1643,6 @@ const smartRelationRows = computed(() => {
   const top = extractRelationRows(gx.tg || '', 'gan').slice(0, 6)
   const bottom = extractRelationRows(gx.dz || '', 'zhi').slice(0, 8)
   return { top, bottom }
-})
-
-const activeGanzhiSetting = ref('relations')
-const ganzhiSettingTabs = [
-  { key: 'relations', label: '干支关系' },
-  { key: 'hidden', label: '地支藏干' },
-  { key: 'renyuan', label: '人元司令' },
-  { key: 'shensha', label: '神煞设置' },
-  { key: 'minggong', label: '命宫身宫' },
-  { key: 'geju', label: '格局取法' },
-  { key: 'xushi', label: '虚实岁' },
-]
-const ganzhiRelationKinds = [
-  '天干相冲',
-  '天干相克',
-  '天干五合',
-  '地支天干配合',
-  '地支三合',
-  '地支三会',
-  '地支暗合',
-  '地支相刑',
-  '地支相冲',
-  '地支相害',
-  '地支相破',
-  '地支相合',
-]
-const currentGanzhiSettingLabel = computed(() => {
-  return (ganzhiSettingTabs.find(item => item.key === activeGanzhiSetting.value) || ganzhiSettingTabs[0]).label
 })
 
 const palaceAxisItems = computed(() => [
@@ -3681,17 +3632,6 @@ onMounted(async () => {
 .pro-kinship-row-zhi { margin-top: 4px; }
 .pro-kinship-char { min-height: 30px; display: flex; align-items: center; justify-content: center; font-family: var(--font-serif); font-size: 1.14rem; font-weight: 900; }
 .pro-kinship-row-hidden { color: var(--text-3); font-size: 0.62rem; line-height: 1.35; min-height: 32px; margin-top: 8px; }
-.pro-gz-setting-panel { border-top: 1px solid var(--card-border); background: var(--card-bg); }
-.pro-gz-setting-title { display: flex; align-items: center; justify-content: center; min-height: 38px; color: var(--accent); font-size: 0.72rem; font-weight: 800; border-bottom: 1px solid var(--card-border); }
-.pro-gz-setting-tabs { display: grid; grid-template-columns: repeat(7, minmax(74px, 1fr)); min-width: 560px; overflow-x: auto; background: var(--section-alt); }
-.pro-gz-setting-tab { min-height: 34px; display: flex; align-items: center; justify-content: center; color: var(--text-3); font-size: 0.68rem; font-weight: 800; border-right: 1px solid var(--card-border); cursor: pointer; white-space: nowrap; }
-.pro-gz-setting-tab:last-child { border-right: none; }
-.pro-gz-setting-tab.active { background: var(--card-bg); color: var(--accent); }
-.pro-gz-setting-body { padding: 18px 20px 20px; min-height: 90px; color: var(--text-2); font-size: 0.72rem; line-height: 1.7; }
-.pro-gz-setting-copy { display: block; margin-bottom: 10px; color: var(--text-3); font-weight: 700; }
-.pro-gz-relation-tags { display: flex; flex-wrap: wrap; gap: 7px; }
-.pro-gz-relation-tag { display: inline-flex; align-items: center; justify-content: center; min-height: 24px; padding: 2px 9px; border-radius: 5px; border: 1px solid rgba(178,149,93,0.28); background: rgba(178,149,93,0.07); color: var(--accent); font-size: 0.68rem; font-weight: 800; }
-.pro-gz-setting-locked { display: flex; align-items: center; justify-content: center; color: var(--text-3); text-align: center; background: linear-gradient(180deg, rgba(178,149,93,0.035), transparent); }
 
 /* 冲合关系 */
 .pro-relation-section { margin-top: 10px; }
