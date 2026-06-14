@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2026 JunJunXu. All rights reserved.
+原始发起与核心开发：JunJunXu <904752171@qq.com>
+-->
+
 <script>
 export default {
   onLaunch() {

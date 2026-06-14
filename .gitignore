@@ -19,6 +19,7 @@ replace.txt
 tmp/
 artifacts/
 backups/
+scripts/capture_wenzhen_professional_pan.py
 *.png
 test_*.py
 test-*.mjs

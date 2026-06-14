@@ -1,5 +1,8 @@
 """时安解忧屋 — 数据模型
 
+Copyright (c) 2026 JunJunXu. All rights reserved.
+原始发起与核心开发：JunJunXu <904752171@qq.com>
+
 所有 SQLAlchemy 模型定义集中管理。
 依赖：extensions.db
 """

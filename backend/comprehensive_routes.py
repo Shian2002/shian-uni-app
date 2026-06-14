@@ -1,4 +1,8 @@
-"""首页综合 AI 对话、盘面 artifact 与历史接口。"""
+"""首页综合 AI 对话、盘面 artifact 与历史接口。
+
+Copyright (c) 2026 JunJunXu. All rights reserved.
+原始发起与核心开发：JunJunXu <904752171@qq.com>
+"""
 
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
