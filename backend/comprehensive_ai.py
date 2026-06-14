@@ -40,7 +40,7 @@ COMPREHENSIVE_READING_MODES = [
 
 
 COMPREHENSIVE_TOOL_MODELS = [
-    {"id": "qimen", "name": "奇门遁甲", "cost": 3, "needs_profile": True},
+    {"id": "qimen", "name": "奇门遁甲", "cost": 3, "needs_profile": False},
     {"id": "bazi", "name": "八字", "cost": 2, "needs_profile": True},
     {"id": "liuyao", "name": "六爻", "cost": 2, "needs_profile": False},
     {"id": "meihua", "name": "梅花易数", "cost": 2, "needs_profile": False},

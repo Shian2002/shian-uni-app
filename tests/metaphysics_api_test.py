@@ -1181,6 +1181,45 @@ def test_comprehensive_uses_frontend_handoff_paipan_without_rebuilding(app_modul
     assert paipan_done["artifact_actions"]["added"] == ["qimen.pan"]
 
 
+def test_comprehensive_qimen_uses_lichun_aware_birth_year_pillar(app_module, user_factory, monkeypatch):
+    user = user_factory("qimen-year-ming-user")
+
+    def fake_stream(*args, **kwargs):
+        return iter([("已结合奇门年命。", None)])
+
+    monkeypatch.setattr(app_module, "get_reading_stream", fake_stream)
+    with app_module.app.app_context():
+        app_module.add_points(user.id, "admin_add", 100, "测试积分")
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+      sess["_user_id"] = str(user.id)
+      sess["_fresh"] = True
+
+    response = client.post("/api/comprehensive/ask/stream", json={
+        "question": "能否找到刮车的人",
+        "profile": {
+            "name": "立春前样例",
+            "gender": "男",
+            "calType": "公历",
+            "birthTime": "200202031200",
+            "birthAddr": "",
+            "meta": {"birthPlacePrecision": "unknown"},
+        },
+        "profile_confirmed": True,
+        "tool_models": ["qimen"],
+        "auto_select_tools": False,
+        "reading_mode": "standard",
+    })
+
+    assert response.status_code == 200
+    paipan_done = next(p for p in _sse_payloads(response) if p.get("stage") == "paipan_done")
+    year_pillar = paipan_done["paipan"]["qimen"]["user_year_pillar"]
+    assert year_pillar["gan_zhi"] == "辛巳"
+    assert year_pillar["lichun_rule"] == "以立春为年柱分界"
+    assert year_pillar["birth_time"] == "200202031200"
+
+
 def test_comprehensive_stream_passes_reading_mode_to_model_provider(app_module, user_factory, monkeypatch):
     user = user_factory("artifact-reading-mode-user")
     seen = []

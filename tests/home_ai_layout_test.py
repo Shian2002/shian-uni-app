@@ -142,6 +142,60 @@ def test_home_ai_summary_tab_is_available_during_streaming():
     assert "setActiveArtifact(aiIndex, '__summary__')" in source
 
 
+def test_profile_sheet_scrolls_full_quick_create_form_on_mobile():
+    source = _source()
+
+    assert '<view class="profile-sheet-scroll">' in source
+    assert re.search(r"\.profile-sheet-panel \{[^}]*overflow: hidden", source, re.S)
+    assert re.search(r"\.profile-sheet-scroll \{[^}]*overflow-y: auto", source, re.S)
+    assert re.search(r"\.profile-sheet-scroll \{[^}]*-webkit-overflow-scrolling: touch", source, re.S)
+    assert source.find('class="profile-quick-create"') < source.find('class="profile-options"')
+    assert ".profile-options { overflow: visible;" in source
+    assert not re.search(r"^\s*\.sheet-actions \{[^}]*position: sticky", source, re.M | re.S)
+    assert "请补全出生信息后再解读" in source
+    assert "请补全出生时间后再解读" not in source
+    assert "请填写出生地" not in source
+    assert "birthPlacePrecision: birthAddr ? 'known' : 'unknown'" in source
+    assert re.search(r"\.quick-save \{[^}]*box-sizing: border-box", source, re.S)
+
+
+def test_question_based_tools_do_not_force_birth_profile_completion():
+    source = _source()
+
+    assert "{ id: 'qimen', name: '奇门遁甲', cost: 3, needs_profile: false }" in source
+    assert "const needsExactTime = selectedToolModels.value.some(id => id === 'bazi' || id === 'ziwei')" in source
+    assert "奇门、六爻、梅花或塔罗先看具体问题" in source
+
+
+def test_quick_birth_select_options_keep_natural_order():
+    source = _source()
+
+    assert "rotateOptionsAroundAnchor" not in source
+    assert "for (let y = current; y >= current - 120; y--) years.push(y)" in source
+    assert "const quickMonthOptions = computed(() => Array.from({ length: 12 }, (_, i) => i + 1))" in source
+    assert "return Array.from({ length: maxDay }, (_, i) => i + 1)" in source
+    assert 'class="quick-datetime-row quick-datetime-all"' in source
+    assert "quick-datetime-date" not in source
+    assert "quick-datetime-time" not in source
+    assert re.search(r"\.quick-datetime-all \{[^}]*grid-template-columns: minmax\(68px, 1\.2fr\) repeat\(4, minmax\(48px, 0\.9fr\)\)", source, re.S)
+    assert '@change="onQuickBirthPartChange(\'birthYear\', $event)"' in source
+    assert '@change="onQuickBirthPartChange(\'birthMonth\', $event)"' in source
+    assert '@change="onQuickBirthPartChange(\'birthDay\', $event)"' in source
+    assert '@change="onQuickBirthPartChange(\'birthHour\', $event)"' in source
+    assert '@change="onQuickBirthPartChange(\'birthMinute\', $event)"' in source
+    assert '<option value="">时</option>' in source
+    assert '<option value="">分</option>' in source
+    assert "birthHour: ''" in source
+    assert "birthMinute: ''" in source
+    assert "quickProfileForm.birthHour = ''" in source
+    assert "quickProfileForm.birthMinute = ''" in source
+    assert "quickNow" not in source
+    assert "const missingTime = quickProfileForm.birthHour === '' || quickProfileForm.birthMinute === ''" in source
+    assert "birthTimePrecision: quickProfileForm.timeUnknown || quickProfileForm.birthHour === '' || quickProfileForm.birthMinute === '' ? 'date_unknown_time' : 'datetime'" in source
+    assert "function quickSelectValue(e)" in source
+    assert "function onQuickDistrictChange(e)" in source
+
+
 def test_qimen_free_json_copy_is_member_only_and_uses_backend_pan_type_values():
     source = QIMEN_VUE.read_text(encoding="utf-8")
 

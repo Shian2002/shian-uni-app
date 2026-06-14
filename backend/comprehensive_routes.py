@@ -160,7 +160,7 @@ def register_comprehensive_routes(app, db, services):
 
 
     def _tools_require_birth_profile(tool_models):
-        return any(tool in ('bazi', 'ziwei', 'qimen') for tool in (tool_models or []))
+        return any(tool in ('bazi', 'ziwei') for tool in (tool_models or []))
 
 
     def _split_birth_time(birth_time):
@@ -244,13 +244,59 @@ def register_comprehensive_routes(app, db, services):
         return value
 
 
-    def build_qimen_context_from_question(question=''):
+    def _qimen_year_ming_from_profile(profile):
+        if not isinstance(profile, dict):
+            return {}
+        raw = ''.join(ch for ch in str(profile.get('birth_time') or profile.get('birthTime') or '') if ch.isdigit())
+        if len(raw) < 4:
+            return {}
+        meta = profile.get('meta') or {}
+        try:
+            year = int(raw[:4])
+            if len(raw) >= 8:
+                month = int(raw[4:6])
+                day = int(raw[6:8])
+                hour = int(raw[8:10]) if len(raw) >= 10 else 12
+                minute = int(raw[10:12]) if len(raw) >= 12 else 0
+                precision = meta.get('birthTimePrecision') or ('datetime' if len(raw) >= 12 else 'date_only')
+            else:
+                month = 6
+                day = 15
+                hour = 12
+                minute = 0
+                precision = 'year_only'
+            from bazi_engine import calc_year_pillar, get_jieqi_times
+            dt_solar = datetime(year, month, day, hour, minute)
+            jieqi_times = {}
+            for y in (year - 1, year, year + 1):
+                jieqi_times.update(get_jieqi_times(y) or {})
+            gan, zhi = calc_year_pillar(dt_solar, jieqi_times)
+            lichun = get_jieqi_times(year).get('立春')
+            return {
+                'gan': gan,
+                'zhi': zhi,
+                'gan_zhi': gan + zhi,
+                'birth_time': raw,
+                'precision': precision,
+                'lichun_rule': '以立春为年柱分界',
+                'lichun_at': lichun.strftime('%Y-%m-%d %H:%M') if lichun else '',
+                'uncertain': precision in ('year_only', 'date_unknown_time', 'month_only', 'year_month'),
+            }
+        except Exception as e:
+            logger.warning(f"奇门年命计算失败: {e}")
+            return {}
+
+
+    def build_qimen_context_from_question(question='', profile=None):
         now = datetime.now()
         result = qimen_paipan(now.year, now.month, now.day, now.hour, now.minute, 2)
         if result.get('error'):
             return {'error': result.get('error')}
         context = dict(result or {})
         context['question'] = question or ''
+        year_ming = _qimen_year_ming_from_profile(profile)
+        if year_ming:
+            context['user_year_pillar'] = year_ming
         return context
 
 
@@ -364,7 +410,7 @@ def register_comprehensive_routes(app, db, services):
             elif tool == 'ziwei':
                 return tool, build_ziwei_context_from_profile(profile)
             elif tool == 'qimen':
-                return tool, build_qimen_context_from_question(question)
+                return tool, build_qimen_context_from_question(question, profile)
             elif tool == 'liuyao':
                 return tool, build_liuyao_context_from_question(question)
             elif tool == 'meihua':

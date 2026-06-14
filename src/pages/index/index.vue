@@ -553,115 +553,117 @@
           <text class="profile-sheet-title">选择命盘</text>
           <text class="profile-sheet-close" @tap="cancelProfileSelection">×</text>
         </view>
-        <view class="profile-tabs">
-          <view v-for="tab in profileTabs" :key="tab" :class="{ active: profileTab === tab }" @tap="profileTab = tab">{{ tab }}</view>
-        </view>
-        <view class="profile-options">
-          <view v-if="profileGroups[profileTab].length === 0" class="profile-empty">
-            <text>暂无命盘档案</text>
-            <text class="profile-empty-sub">可先新增一个常用命盘，再用于八字、紫微和时安agent。</text>
+        <view class="profile-sheet-scroll">
+          <view class="profile-tabs">
+            <view v-for="tab in profileTabs" :key="tab" :class="{ active: profileTab === tab }" @tap="profileTab = tab">{{ tab }}</view>
           </view>
-          <view
-            class="profile-option"
-            v-for="p in profileGroups[profileTab]"
-            :key="p.id"
-            :class="{ active: isProfileDraftSelected(p) }"
-            @tap="toggleProfileSelection(p)"
-          >
-            <view>
-              <text class="profile-option-name">{{ p.name || '未命名' }}</text>
-              <text class="profile-option-meta">{{ p.gender }} · {{ formatBirthTime(p.birthTime || p.birth_time) }}</text>
+          <view class="profile-quick-create">
+            <view class="profile-quick-toggle" @tap="toggleQuickProfileForm">
+              <text>{{ profileQuickFormOpen ? '收起新增命盘' : '+ 新增命盘' }}</text>
+              <text class="profile-quick-hint">不知道具体时分也可以先保存</text>
             </view>
-            <view class="profile-option-side">
-              <text class="profile-option-type">{{ profileTypeLabel(p.profileType || p.profile_type) }}</text>
-              <text class="profile-option-check">{{ isProfileDraftSelected(p) ? '✓' : '' }}</text>
-            </view>
-          </view>
-        </view>
-        <view class="profile-quick-create">
-          <view class="profile-quick-toggle" @tap="toggleQuickProfileForm">
-            <text>{{ profileQuickFormOpen ? '收起新增命盘' : '+ 新增命盘' }}</text>
-            <text class="profile-quick-hint">不知道具体时分也可以先保存</text>
-          </view>
-          <view class="profile-quick-form" v-if="profileQuickFormOpen">
-            <view class="quick-grid">
-              <label class="quick-field">
-                <text>姓名</text>
-                <input v-model="quickProfileForm.name" placeholder="请输入名称" />
-              </label>
-              <label class="quick-field">
-                <text>关系</text>
-                <picker :range="profileTypeQuickLabels" :value="quickProfileTypeIndex" @change="onQuickProfileTypeChange">
-                  <view class="quick-picker">{{ profileTypeLabel(quickProfileForm.profileType) }}</view>
-                </picker>
-              </label>
-              <label class="quick-field">
-                <text>性别</text>
-                <picker :range="genderOptions" :value="quickGenderIndex" @change="onQuickGenderChange">
-                  <view class="quick-picker">{{ quickProfileForm.gender }}</view>
-                </picker>
-              </label>
-              <label class="quick-field">
-                <text>历法</text>
-                <picker :range="calTypeOptions" :value="quickCalTypeIndex" @change="onQuickCalTypeChange">
-                  <view class="quick-picker">{{ quickProfileForm.calType }}</view>
-                </picker>
-              </label>
-              <view class="quick-field quick-field-wide">
-                <text>出生时间</text>
-                <view class="quick-datetime-row quick-datetime-date">
-                  <select v-model="quickProfileForm.birthYear" class="quick-native-select" @change="normalizeQuickBirthDay">
-                    <option value="">年</option>
-                    <option v-for="year in quickYearOptions" :key="'qy-' + year" :value="year">{{ year }}年</option>
-                  </select>
-                  <select v-model="quickProfileForm.birthMonth" class="quick-native-select" @change="normalizeQuickBirthDay">
-                    <option value="">月</option>
-                    <option v-for="month in quickMonthOptions" :key="'qm-' + month" :value="month">{{ String(month).padStart(2, '0') }}月</option>
-                  </select>
-                  <select v-model="quickProfileForm.birthDay" class="quick-native-select">
-                    <option value="">日</option>
-                    <option v-for="day in quickDayOptions" :key="'qd-' + day" :value="day">{{ String(day).padStart(2, '0') }}日</option>
-                  </select>
+            <view class="profile-quick-form" v-if="profileQuickFormOpen">
+              <view class="quick-grid">
+                <label class="quick-field">
+                  <text>姓名</text>
+                  <input v-model="quickProfileForm.name" placeholder="请输入名称" />
+                </label>
+                <label class="quick-field">
+                  <text>关系</text>
+                  <picker :range="profileTypeQuickLabels" :value="quickProfileTypeIndex" @change="onQuickProfileTypeChange">
+                    <view class="quick-picker">{{ profileTypeLabel(quickProfileForm.profileType) }}</view>
+                  </picker>
+                </label>
+                <label class="quick-field">
+                  <text>性别</text>
+                  <picker :range="genderOptions" :value="quickGenderIndex" @change="onQuickGenderChange">
+                    <view class="quick-picker">{{ quickProfileForm.gender }}</view>
+                  </picker>
+                </label>
+                <label class="quick-field">
+                  <text>历法</text>
+                  <picker :range="calTypeOptions" :value="quickCalTypeIndex" @change="onQuickCalTypeChange">
+                    <view class="quick-picker">{{ quickProfileForm.calType }}</view>
+                  </picker>
+                </label>
+                <view class="quick-field quick-field-wide">
+                  <text>出生时间</text>
+                  <view class="quick-datetime-row quick-datetime-all">
+                    <select v-model="quickProfileForm.birthYear" class="quick-native-select" @change="onQuickBirthPartChange('birthYear', $event)">
+                      <option value="">年</option>
+                      <option v-for="year in quickYearOptions" :key="'qy-' + year" :value="year">{{ year }}年</option>
+                    </select>
+                    <select v-model="quickProfileForm.birthMonth" class="quick-native-select" @change="onQuickBirthPartChange('birthMonth', $event)">
+                      <option value="">月</option>
+                      <option v-for="month in quickMonthOptions" :key="'qm-' + month" :value="month">{{ String(month).padStart(2, '0') }}月</option>
+                    </select>
+                    <select v-model="quickProfileForm.birthDay" class="quick-native-select" @change="onQuickBirthPartChange('birthDay', $event)">
+                      <option value="">日</option>
+                      <option v-for="day in quickDayOptions" :key="'qd-' + day" :value="day">{{ String(day).padStart(2, '0') }}日</option>
+                    </select>
+                    <select v-model="quickProfileForm.birthHour" class="quick-native-select" :disabled="quickProfileForm.timeUnknown" @change="onQuickBirthPartChange('birthHour', $event)">
+                      <option value="">时</option>
+                      <option v-for="hour in quickHourOptions" :key="'qh-' + hour" :value="hour">{{ String(hour).padStart(2, '0') }}时</option>
+                    </select>
+                    <select v-model="quickProfileForm.birthMinute" class="quick-native-select" :disabled="quickProfileForm.timeUnknown" @change="onQuickBirthPartChange('birthMinute', $event)">
+                      <option value="">分</option>
+                      <option v-for="minute in quickMinuteOptions" :key="'qmi-' + minute" :value="minute">{{ String(minute).padStart(2, '0') }}分</option>
+                    </select>
+                  </view>
                 </view>
-                <view class="quick-datetime-row quick-datetime-time" :class="{ disabled: quickProfileForm.timeUnknown }">
-                  <select v-model="quickProfileForm.birthHour" class="quick-native-select" :disabled="quickProfileForm.timeUnknown">
-                    <option v-for="hour in quickHourOptions" :key="'qh-' + hour" :value="hour">{{ String(hour).padStart(2, '0') }}时</option>
-                  </select>
-                  <select v-model="quickProfileForm.birthMinute" class="quick-native-select" :disabled="quickProfileForm.timeUnknown">
-                    <option v-for="minute in quickMinuteOptions" :key="'qmi-' + minute" :value="minute">{{ String(minute).padStart(2, '0') }}分</option>
-                  </select>
+                <view class="quick-field quick-field-wide">
+                  <text>出生地</text>
+                  <view class="quick-addr-selects">
+                    <select v-model="quickProfileForm.birthProvince" class="quick-native-select" @change="onQuickProvinceChange">
+                      <option value="">省</option>
+                      <option v-for="province in quickProvinceOptions" :key="'qp-' + province" :value="province">{{ province }}</option>
+                    </select>
+                    <select v-model="quickProfileForm.birthCity" class="quick-native-select" @change="onQuickCityChange">
+                      <option value="">市</option>
+                      <option v-for="city in quickCityOptions" :key="'qc-' + city" :value="city">{{ city }}</option>
+                    </select>
+                    <select v-model="quickProfileForm.birthDistrict" class="quick-native-select" @change="onQuickDistrictChange">
+                      <option value="">区</option>
+                      <option v-for="district in quickDistrictOptions" :key="'qd-' + district.name" :value="district.name">{{ district.name }}</option>
+                    </select>
+                  </view>
+                  <view class="quick-addr-info" v-if="quickProfileForm.birthAddr">
+                    <text>{{ quickProfileForm.birthAddr }}</text>
+                    <text v-if="quickProfileForm.birthLng">经度 {{ quickProfileForm.birthLng }} · 纬度 {{ quickProfileForm.birthLat }}</text>
+                  </view>
                 </view>
               </view>
-              <view class="quick-field quick-field-wide">
-                <text>出生地</text>
-                <view class="quick-addr-selects">
-                  <select v-model="quickProfileForm.birthProvince" class="quick-native-select" @change="onQuickProvinceChange">
-                    <option value="">省</option>
-                    <option v-for="province in quickProvinceOptions" :key="'qp-' + province" :value="province">{{ province }}</option>
-                  </select>
-                  <select v-model="quickProfileForm.birthCity" class="quick-native-select" @change="onQuickCityChange">
-                    <option value="">市</option>
-                    <option v-for="city in quickCityOptions" :key="'qc-' + city" :value="city">{{ city }}</option>
-                  </select>
-                  <select v-model="quickProfileForm.birthDistrict" class="quick-native-select" @change="syncQuickBirthAddr">
-                    <option value="">区</option>
-                    <option v-for="district in quickDistrictOptions" :key="'qd-' + district.name" :value="district.name">{{ district.name }}</option>
-                  </select>
+              <view class="quick-row">
+                <view class="quick-check" :class="{ active: quickProfileForm.timeUnknown }" @tap="quickProfileForm.timeUnknown = !quickProfileForm.timeUnknown">
+                  <text class="quick-check-dot">{{ quickProfileForm.timeUnknown ? '✓' : '' }}</text>
+                  <text>不清楚具体时分</text>
                 </view>
-                <view class="quick-addr-info" v-if="quickProfileForm.birthAddr">
-                  <text>{{ quickProfileForm.birthAddr }}</text>
-                  <text v-if="quickProfileForm.birthLng">经度 {{ quickProfileForm.birthLng }} · 纬度 {{ quickProfileForm.birthLat }}</text>
-                </view>
+                <view class="quick-save" @tap="createQuickProfile">保存并选中</view>
+              </view>
+              <view class="quick-note">八字和紫微需要较准确的出生时间；信息不全时，时安agent会优先建议用奇门或先补充资料。</view>
+            </view>
+          </view>
+          <view class="profile-options">
+            <view v-if="profileGroups[profileTab].length === 0" class="profile-empty">
+              <text>暂无命盘档案</text>
+              <text class="profile-empty-sub">可先新增一个常用命盘，再用于八字、紫微和时安agent。</text>
+            </view>
+            <view
+              class="profile-option"
+              v-for="p in profileGroups[profileTab]"
+              :key="p.id"
+              :class="{ active: isProfileDraftSelected(p) }"
+              @tap="toggleProfileSelection(p)"
+            >
+              <view>
+                <text class="profile-option-name">{{ p.name || '未命名' }}</text>
+                <text class="profile-option-meta">{{ p.gender }} · {{ formatBirthTime(p.birthTime || p.birth_time) }}</text>
+              </view>
+              <view class="profile-option-side">
+                <text class="profile-option-type">{{ profileTypeLabel(p.profileType || p.profile_type) }}</text>
+                <text class="profile-option-check">{{ isProfileDraftSelected(p) ? '✓' : '' }}</text>
               </view>
             </view>
-            <view class="quick-row">
-              <view class="quick-check" :class="{ active: quickProfileForm.timeUnknown }" @tap="quickProfileForm.timeUnknown = !quickProfileForm.timeUnknown">
-                <text class="quick-check-dot">{{ quickProfileForm.timeUnknown ? '✓' : '' }}</text>
-                <text>不清楚具体时分</text>
-              </view>
-              <view class="quick-save" @tap="createQuickProfile">保存并选中</view>
-            </view>
-            <view class="quick-note">八字和紫微需要较准确的出生时间；信息不全时，时安agent会优先建议用奇门或先补充资料。</view>
           </view>
         </view>
         <view class="sheet-actions">
@@ -1325,7 +1327,6 @@ const profileTypeQuickValues = ['self', 'family', 'friend', 'partner', 'customer
 const genderOptions = ['男', '女']
 const calTypeOptions = ['公历', '农历']
 const profileQuickFormOpen = ref(false)
-const quickNow = new Date()
 const quickDefaultBirth = { year: 2000, month: 6, day: 15 }
 const quickProfileForm = reactive({
   name: '',
@@ -1335,8 +1336,8 @@ const quickProfileForm = reactive({
   birthYear: '',
   birthMonth: '',
   birthDay: '',
-  birthHour: quickNow.getHours(),
-  birthMinute: quickNow.getMinutes(),
+  birthHour: '',
+  birthMinute: '',
   birthProvince: '',
   birthCity: '',
   birthDistrict: '',
@@ -1374,7 +1375,7 @@ const readingModes = ref([
 ])
 const llmModels = ref([{ id: 'basic', name: 'SHIAN-1.1', cost_base: 2, cost_multiplier: 0, followup_cost: 2 }])
 const toolModels = ref([
-  { id: 'qimen', name: '奇门遁甲', cost: 3, needs_profile: true },
+  { id: 'qimen', name: '奇门遁甲', cost: 3, needs_profile: false },
   { id: 'bazi', name: '八字', cost: 2, needs_profile: true },
   { id: 'liuyao', name: '六爻', cost: 2, needs_profile: false },
   { id: 'meihua', name: '梅花易数', cost: 2, needs_profile: false },
@@ -1516,15 +1517,15 @@ const quickCalTypeIndex = computed(() => Math.max(0, calTypeOptions.indexOf(quic
 const quickYearOptions = computed(() => {
   const current = new Date().getFullYear()
   const years = []
-  for (let y = current - 120; y <= current + 10; y++) years.push(y)
-  return rotateOptionsAroundAnchor(years, quickDefaultBirth.year)
+  for (let y = current; y >= current - 120; y--) years.push(y)
+  return years
 })
-const quickMonthOptions = computed(() => rotateOptionsAroundAnchor(Array.from({ length: 12 }, (_, i) => i + 1), quickDefaultBirth.month))
+const quickMonthOptions = computed(() => Array.from({ length: 12 }, (_, i) => i + 1))
 const quickDayOptions = computed(() => {
   const year = Number(quickProfileForm.birthYear || quickDefaultBirth.year)
   const month = Number(quickProfileForm.birthMonth || quickDefaultBirth.month)
   const maxDay = new Date(year, month, 0).getDate()
-  return rotateOptionsAroundAnchor(Array.from({ length: maxDay }, (_, i) => i + 1), quickDefaultBirth.day)
+  return Array.from({ length: maxDay }, (_, i) => i + 1)
 })
 const quickHourOptions = computed(() => Array.from({ length: 24 }, (_, i) => i))
 const quickMinuteOptions = computed(() => Array.from({ length: 60 }, (_, i) => i))
@@ -1677,7 +1678,7 @@ function confirmProfileSelection() {
   profileSelectionConfirmed.value = true
   saveSelectedProfiles()
   if (selectedProfilesNeedBirthCompletion()) {
-    uni.showToast({ title: '请补全出生时间后再解读', icon: 'none' })
+    uni.showToast({ title: '请补全出生信息后再解读', icon: 'none' })
     profileQuickFormOpen.value = true
     loadQuickCityData()
   } else {
@@ -1851,8 +1852,8 @@ function resetQuickProfileForm() {
   quickProfileForm.birthYear = ''
   quickProfileForm.birthMonth = ''
   quickProfileForm.birthDay = ''
-  quickProfileForm.birthHour = quickNow.getHours()
-  quickProfileForm.birthMinute = quickNow.getMinutes()
+  quickProfileForm.birthHour = ''
+  quickProfileForm.birthMinute = ''
   quickProfileForm.birthProvince = ''
   quickProfileForm.birthCity = ''
   quickProfileForm.birthDistrict = ''
@@ -1866,21 +1867,28 @@ function quickBirthTime() {
   const y = String(quickProfileForm.birthYear || '').padStart(4, '0')
   const m = String(quickProfileForm.birthMonth || '').padStart(2, '0')
   const d = String(quickProfileForm.birthDay || '').padStart(2, '0')
-  const h = quickProfileForm.timeUnknown ? '12' : String(quickProfileForm.birthHour || 0).padStart(2, '0')
-  const minute = quickProfileForm.timeUnknown ? '00' : String(quickProfileForm.birthMinute || 0).padStart(2, '0')
+  const missingTime = quickProfileForm.birthHour === '' || quickProfileForm.birthMinute === ''
+  const h = quickProfileForm.timeUnknown || missingTime ? '12' : String(quickProfileForm.birthHour).padStart(2, '0')
+  const minute = quickProfileForm.timeUnknown || missingTime ? '00' : String(quickProfileForm.birthMinute).padStart(2, '0')
   return y + m + d + h + minute
-}
-
-function rotateOptionsAroundAnchor(list, anchor) {
-  const idx = list.indexOf(anchor)
-  if (idx <= 0) return list
-  return list.slice(idx).concat(list.slice(0, idx))
 }
 
 function normalizeQuickBirthDay() {
   const day = Number(quickProfileForm.birthDay || 0)
   const maxDay = quickDayOptions.value.length
   if (day > maxDay) quickProfileForm.birthDay = maxDay
+}
+
+function quickSelectValue(e) {
+  if (e && e.target) return e.target.value
+  if (e && e.detail && e.detail.value !== undefined) return e.detail.value
+  return ''
+}
+
+function onQuickBirthPartChange(part, e) {
+  const raw = quickSelectValue(e)
+  quickProfileForm[part] = raw === '' ? '' : Number(raw)
+  if (part === 'birthYear' || part === 'birthMonth') normalizeQuickBirthDay()
 }
 
 function loadQuickCityData() {
@@ -1893,14 +1901,21 @@ function loadQuickCityData() {
   // #endif
 }
 
-function onQuickProvinceChange() {
+function onQuickProvinceChange(e) {
+  quickProfileForm.birthProvince = quickSelectValue(e)
   quickProfileForm.birthCity = ''
   quickProfileForm.birthDistrict = ''
   syncQuickBirthAddr()
 }
 
-function onQuickCityChange() {
+function onQuickCityChange(e) {
+  quickProfileForm.birthCity = quickSelectValue(e)
   quickProfileForm.birthDistrict = ''
+  syncQuickBirthAddr()
+}
+
+function onQuickDistrictChange(e) {
+  quickProfileForm.birthDistrict = quickSelectValue(e)
   syncQuickBirthAddr()
 }
 
@@ -1926,13 +1941,14 @@ async function createQuickProfile() {
     + String(quickProfileForm.birthDay || '').padStart(2, '0')
   if (!name) return uni.showToast({ title: '请填写姓名', icon: 'none' })
   if (!birthDate || birthDate.length !== 8) return uni.showToast({ title: '请填写出生日期', icon: 'none' })
+  const birthAddr = quickProfileForm.birthAddr.trim()
   try {
     const payload = {
       name,
       gender: quickProfileForm.gender,
       calType: quickProfileForm.calType,
       birthTime: quickBirthTime(),
-      birthAddr: quickProfileForm.birthAddr.trim(),
+      birthAddr,
       birthLng: quickProfileForm.birthLng || 0,
       birthLat: quickProfileForm.birthLat || 0,
       profileType: quickProfileForm.profileType,
@@ -1941,7 +1957,8 @@ async function createQuickProfile() {
       meta: {
         source: 'manual',
         createdFrom: 'home_agent_profile_picker',
-        birthTimePrecision: quickProfileForm.timeUnknown ? 'date_unknown_time' : 'datetime',
+        birthTimePrecision: quickProfileForm.timeUnknown || quickProfileForm.birthHour === '' || quickProfileForm.birthMinute === '' ? 'date_unknown_time' : 'datetime',
+        birthPlacePrecision: birthAddr ? 'known' : 'unknown',
         birthLng: quickProfileForm.birthLng || 0,
         birthLat: quickProfileForm.birthLat || 0,
       },
@@ -3979,12 +3996,12 @@ function profileHasUnknownBirthTime(profile) {
 }
 
 function confirmBirthPrecisionForTools() {
-  const needsExactTime = selectedToolModels.value.some(id => id === 'bazi' || id === 'ziwei' || id === 'qimen')
+  const needsExactTime = selectedToolModels.value.some(id => id === 'bazi' || id === 'ziwei')
   if (!needsExactTime || !selectedProfiles.value.some(profileHasUnknownBirthTime)) return Promise.resolve(true)
   return new Promise(function(resolve) {
     uni.showModal({
       title: '出生时间不完整',
-      content: '当前命盘标记为不清楚具体时分。八字、紫微和奇门对出生信息较敏感，建议补充准确时间；若暂时不知道，可以改用六爻、梅花或塔罗先看具体问题。',
+      content: '当前命盘标记为不清楚具体时分。八字和紫微对出生时间较敏感，建议补充准确时间；若暂时不知道，可以改用奇门、六爻、梅花或塔罗先看具体问题。',
       confirmText: '继续',
       cancelText: '返回调整',
       success: function(res) { resolve(!!res.confirm) },
@@ -7602,10 +7619,11 @@ onBeforeUnmount(() => {
 .profile-sheet-title { color: var(--text-1); font-size: 1rem; font-family: var(--font-serif); letter-spacing: 2px; }
 .profile-sheet-close { width: 30px; height: 30px; border-radius: 50%; color: var(--text-3); font-size: 1.25rem; cursor: pointer; display: flex; align-items: center; justify-content: center; border: 1px solid transparent; }
 .profile-sheet-close:hover { color: var(--accent); border-color: rgba(178,149,93,0.24); background: var(--accent-glow); }
+.profile-sheet-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding-right: 2px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; }
 .profile-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
 .profile-tabs view { flex: 1; text-align: center; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--card-border); color: var(--text-3); font-size: 0.8rem; cursor: pointer; }
 .profile-tabs view.active { background: var(--accent-glow); border-color: var(--accent); color: var(--accent); }
-.profile-options { max-height: 48vh; overflow-y: auto; min-height: 0; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.profile-options { overflow: visible; min-height: 0; }
 .profile-option { display: flex; justify-content: space-between; gap: 16px; padding: 12px; border-radius: 14px; border: 1px solid rgba(178,149,93,0.13); background: rgba(255,255,255,0.035); margin-bottom: 8px; cursor: pointer; transition: border-color .18s ease, background .18s ease; }
 .profile-option-name { display: block; color: var(--text-1); font-size: 0.88rem; }
 .profile-option-meta { display: block; margin-top: 4px; color: var(--text-3); font-size: 0.72rem; }
@@ -7615,7 +7633,7 @@ onBeforeUnmount(() => {
 .profile-option-check { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--card-border); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 700; }
 .profile-empty { padding: 22px; text-align: center; color: var(--text-3); font-size: 0.84rem; display: grid; gap: 6px; }
 .profile-empty-sub { font-size: 0.72rem; color: var(--text-4); }
-.profile-quick-create { margin-top: 10px; border-top: 1px solid rgba(178,149,93,0.12); padding-top: 10px; flex-shrink: 0; }
+.profile-quick-create { margin-bottom: 10px; border-bottom: 1px solid rgba(178,149,93,0.12); padding-bottom: 10px; flex-shrink: 0; }
 .profile-quick-toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 38px; border-radius: 12px; padding: 0 12px; background: rgba(178,149,93,0.10); color: var(--accent); font-size: 0.82rem; cursor: pointer; }
 .profile-quick-hint { color: var(--text-4); font-size: 0.7rem; }
 .profile-quick-form { margin-top: 10px; padding: 12px; border-radius: 14px; border: 1px solid rgba(178,149,93,0.16); background: rgba(255,255,255,0.04); }
@@ -7628,9 +7646,7 @@ onBeforeUnmount(() => {
 .quick-native-select:focus { border-color: rgba(178,149,93,0.46); }
 .quick-native-select:disabled { opacity: 0.54; cursor: not-allowed; }
 .quick-datetime-row, .quick-addr-selects { display: grid; gap: 8px; }
-.quick-datetime-date { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.quick-datetime-time { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 8px; }
-.quick-datetime-time.disabled { opacity: 0.62; }
+.quick-datetime-all { grid-template-columns: minmax(68px, 1.2fr) repeat(4, minmax(48px, 0.9fr)); }
 .quick-addr-selects { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .quick-addr-info { display: grid; gap: 3px; margin-top: 7px; color: var(--text-4); font-size: 0.66rem; line-height: 1.35; }
 .quick-addr-info text:first-child { color: var(--text-3); }
@@ -7638,7 +7654,7 @@ onBeforeUnmount(() => {
 .quick-check, .send-confirm-check { display: inline-flex; align-items: center; gap: 8px; color: var(--text-3); font-size: 0.76rem; cursor: pointer; }
 .quick-check-dot { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(178,149,93,0.32); display: inline-flex; align-items: center; justify-content: center; color: var(--accent); font-size: 0.68rem; }
 .quick-check.active .quick-check-dot, .send-confirm-check.active .quick-check-dot { background: var(--accent); border-color: var(--accent); color: #fff; }
-.quick-save { flex-shrink: 0; height: 34px; padding: 0 14px; border-radius: 999px; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.78rem; cursor: pointer; }
+.quick-save { flex-shrink: 0; max-width: 100%; height: 34px; padding: 0 14px; border-radius: 999px; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.78rem; cursor: pointer; box-sizing: border-box; }
 .quick-note { margin-top: 8px; color: var(--text-4); font-size: 0.68rem; line-height: 1.55; }
 .sheet-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 12px; margin-top: 12px; border-top: 1px solid rgba(178,149,93,0.14); flex-shrink: 0; }
 .sheet-btn { min-width: 88px; height: 38px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 0.82rem; cursor: pointer; border: 1px solid rgba(178,149,93,0.18); box-sizing: border-box; transition: transform .18s ease, border-color .18s ease; }
@@ -7900,9 +7916,10 @@ onBeforeUnmount(() => {
   .profile-sheet-panel { bottom: max(10px, env(safe-area-inset-bottom)); max-height: calc(100dvh - 22px); padding: 16px; border-radius: 18px; }
   .profile-sheet-head { flex-shrink: 0; margin-bottom: 10px; }
   .profile-tabs { flex-shrink: 0; }
-  .profile-options { max-height: calc(100dvh - 236px); }
+  .profile-options { max-height: none; }
   .quick-grid { grid-template-columns: 1fr; gap: 9px; }
-  .quick-datetime-date, .quick-addr-selects { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .quick-datetime-all { grid-template-columns: minmax(60px, 1.16fr) repeat(4, minmax(44px, 0.92fr)); gap: 5px; }
+  .quick-addr-selects { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
   .quick-native-select { padding-left: 6px; padding-right: 16px; font-size: 0.72rem; background-position: calc(100% - 10px) 15px, calc(100% - 6px) 15px; }
   .quick-row { align-items: stretch; flex-direction: column; }
   .quick-save { width: 100%; }
