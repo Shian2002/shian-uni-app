@@ -1321,17 +1321,15 @@ def _calc_yuan_chaibu(year, month, day, hour, minute, jieqi_info, jieqi_idx):
     核心逻辑：
     1. 找到当日干支所属的5日组（符头）
     2. 根据符头干支确定上/中/下元
-    3. 计算距当前节气开始日的天数差
-    4. 应用超神/接气/正授规则（超神时用下一节气的局数）
+    3. 按当前已过节气定局数，不在节气后半段提前切换下一节气
 
     Returns: (yuan, ju, updated_jieqi_name, updated_dun)
         yuan: '上'/'中'/'下'
         ju: 局数 (1-9)
-        updated_jieqi_name: 节气名（超神时可能变为下一节气）
-        updated_dun: 遁型（超神时可能改变）
+        updated_jieqi_name: 节气名
+        updated_dun: 遁型
     """
     import sxtwl
-    import datetime
 
     jieqi_name, dun, shang, zhong, xia = jieqi_info
 
@@ -1366,50 +1364,14 @@ def _calc_yuan_chaibu(year, month, day, hour, minute, jieqi_info, jieqi_idx):
     else:
         yuan = '下'
 
-    # ─── 4. 判断当天是否为符头日 ───
-    all_futou = _SHANG_FUTOU | _ZHONG_FUTOU | _XIA_FUTOU
-    is_futou_day = day_ganzhi in all_futou
-
-    # ─── 5. 精确计算距节气开始日的天数差 ───
-    jieqi_start_dt = _find_jieqi_start_datetime(year, month, day, jieqi_idx)
-
-    if jieqi_start_dt:
-        current_dt = datetime.datetime(year, month, day, hour, minute, 0)
-        difference = (current_dt - jieqi_start_dt).days
-    else:
-        difference = 0
-
-    # ─── 6. 应用超神/接气/正授规则 ───
-    # 超神：符头在节气之前到达，节气还没到但符头已到
-    #   条件1: 是符头日 且 距节气>=9天 → 使用下一节气
-    #   条件2: 非符头日 且 9<=距节气<15天 → 使用下一节气
-    # 正授：符头与节气同日 (符头日 且 距节气==0)
-    # 接气：节气在非符头日到达 (非符头日 且 距节气==15)
-    # 其他：使用当前节气
+    # ─── 4. 按当前节气定局 ───
+    # 旧实现把“已过当前节气的天数 >= 9”当成超神条件，导致芒种后第 9-14 天
+    # 被提前切到夏至。对外参考口径应仍以当前已过节气定局，符头只负责定元。
     updated_jieqi_name = jieqi_name
     updated_dun = dun
     updated_shang = shang
     updated_zhong = zhong
     updated_xia = xia
-
-    if is_futou_day and difference >= 9:
-        # 超神：符头日且距节气>=9天 → 使用下一节气
-        next_idx = (jieqi_idx + 1) % 24
-        new_info = _JIEQI_JU_TABLE[next_idx]
-        updated_jieqi_name = new_info[0]
-        updated_dun = new_info[1]
-        updated_shang = new_info[2]
-        updated_zhong = new_info[3]
-        updated_xia = new_info[4]
-    elif not is_futou_day and difference >= 9 and difference < 15:
-        # 超神：非符头日且9<=距节气<15天 → 使用下一节气
-        next_idx = (jieqi_idx + 1) % 24
-        new_info = _JIEQI_JU_TABLE[next_idx]
-        updated_jieqi_name = new_info[0]
-        updated_dun = new_info[1]
-        updated_shang = new_info[2]
-        updated_zhong = new_info[3]
-        updated_xia = new_info[4]
 
     # 确定局数
     if yuan == '上':
@@ -2085,6 +2047,7 @@ def _qimen_paipan(year, month, day, hour, minute=0, pan_type=2):
         # 顶层信息
         zhi_fu_star_name = zfzs['zhiFuStar']
         zhi_shi_door_name = zfzs['zhiShiDoor']
+        zhi_fu_gong_actual = 2 if shi_gan_gong == 5 else shi_gan_gong
 
         # 从步进法结果中提取值使实际落宫
         zhi_shi_gong_actual = None
@@ -2116,10 +2079,10 @@ def _qimen_paipan(year, month, day, hour, minute=0, pan_type=2):
             'solarTerm': jq['jieqi'],
             'xunShou': gz['xunShou'],
             'xunKong': gz['xunKong'],
-            'zhiFu': f'值符天{zhi_fu_star_name}落{_GONG_NAMES.get(shi_gan_gong, "")}',
+            'zhiFu': f'值符天{zhi_fu_star_name}落{_GONG_NAMES.get(zhi_fu_gong_actual, "")}',
             'zhiShi': f'值使{_MEN_FULL.get(zhi_shi_door_name, zhi_shi_door_name)}落{_GONG_NAMES.get(zhi_shi_gong_actual, "")}',
             'zhiFuStar': zhi_fu_star_name,
-            'zhiFuGong': _GONG_BAGUA.get(shi_gan_gong, ''),
+            'zhiFuGong': _GONG_BAGUA.get(zhi_fu_gong_actual, ''),
             'zhiShiMen': zhi_shi_door_name,
             'zhiShiGong': _GONG_BAGUA.get(zhi_shi_gong_actual, ''),
             'tianYi': tian_yi_str,

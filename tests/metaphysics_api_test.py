@@ -419,6 +419,26 @@ def test_qimen_before_mangzhong_exact_time_stays_xiaoman(client):
     assert qimen["maXing"] == {"驛馬": "寅"}
 
 
+def test_qimen_between_mangzhong_and_xiazhi_stays_mangzhong(client):
+    qimen = _post_json(
+        client,
+        "/api/qimen/paipan",
+        {"year": 2026, "month": 6, "day": 17, "hour": 5, "minute": 32, "panType": 2},
+    )
+
+    assert qimen["fourPillars"] == {"year": "丙午", "month": "甲午", "day": "壬戌", "hour": "癸卯"}
+    assert qimen["solarTerm"] == "芒种"
+    assert qimen["ju"] == "阳遁九局下元"
+    assert qimen["xunKong"] == {"day": "子丑", "hour": "辰巳"}
+    assert qimen["zhiFu"] == "值符天冲落坤二宫(西南)"
+    assert qimen["zhiShi"] == "值使伤门落震三宫(东)"
+    assert qimen["maXing"] == {"驛馬": "巳"}
+    palaces = {p["gong"]: p for p in qimen["palaces"]}
+    assert palaces[2]["shenFull"] == "值符"
+    assert palaces[2]["xingFull"] == "天冲"
+    assert palaces[3]["menFull"] == "伤门"
+
+
 def test_qimen_special_patterns_include_global_and_exportable_palace_data(client):
     qimen = _post_json(
         client,
