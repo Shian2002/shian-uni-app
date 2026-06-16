@@ -1780,11 +1780,32 @@ function isCurrent(pathPrefix) {
 
 // ── 按钮栏溢出检测（处理所有 TopNav 实例） ──
 function updateNavOverflow() {
+  function styleMoreMenuItem(el, isSection) {
+    if (!el || !el.style) return
+    el.style.display = 'block'
+    el.style.boxSizing = 'border-box'
+    el.style.width = '100%'
+    el.style.maxWidth = '100%'
+    el.style.overflow = 'hidden'
+    el.style.textOverflow = 'ellipsis'
+    el.style.whiteSpace = 'nowrap'
+    el.style.lineHeight = isSection ? '1.3' : '1.35'
+    el.style.padding = isSection ? '9px 16px 5px' : '10px 16px'
+    el.style.fontSize = isSection ? '0.74rem' : '0.86rem'
+    if (isSection) {
+      el.style.color = 'var(--accent)'
+      el.style.cursor = 'default'
+    } else {
+      el.style.cursor = 'pointer'
+    }
+  }
+
   function appendMoreItem(moreMenu, more, label, href) {
-    var clone = document.createElement('view')
+    var clone = document.createElement('div')
     clone.className = 'nav-btn-drop-item'
     if (href) clone.setAttribute('data-href', href)
     clone.textContent = label
+    styleMoreMenuItem(clone, false)
     clone.onclick = function(e) {
       var targetHref = clone.getAttribute('data-href')
       if (window._xc_dropItemGo) {
@@ -1839,9 +1860,10 @@ function updateNavOverflow() {
         btn.style.display = 'none'
         var nestedMenu = btn.querySelector('.nav-btn-drop-menu')
         if (nestedMenu) {
-          var section = document.createElement('view')
+          var section = document.createElement('div')
           section.className = 'nav-btn-drop-section'
           section.textContent = getTopLevelNavText(btn)
+          styleMoreMenuItem(section, true)
           moreMenu.appendChild(section)
           nestedMenu.querySelectorAll('.nav-btn-drop-item').forEach(function(item) {
             appendMoreItem(moreMenu, more, item.textContent.trim(), item.getAttribute('data-href'))
