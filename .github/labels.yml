@@ -1,0 +1,63 @@
+- name: platform:android
+  color: 2ea44f
+  description: Android 平台问题
+- name: platform:ios
+  color: 0e8a16
+  description: iOS 平台问题
+- name: platform:harmony
+  color: c2e0c6
+  description: 鸿蒙平台问题
+- name: platform:macos
+  color: 5319e7
+  description: macOS 桌面端问题
+- name: platform:windows
+  color: 1d76db
+  description: Windows 桌面端问题
+- name: device:phone
+  color: d4c5f9
+  description: 手机设备问题
+- name: device:tablet
+  color: d4c5f9
+  description: 平板设备问题
+- name: device:desktop
+  color: d4c5f9
+  description: 桌面设备问题
+- name: store:appstore
+  color: fbca04
+  description: Apple App Store 审核
+- name: store:google-play
+  color: fbca04
+  description: Google Play 审核
+- name: store:yingyongbao
+  color: fbca04
+  description: 应用宝审核
+- name: store:huawei
+  color: fbca04
+  description: 华为应用市场审核
+- name: store:xiaomi
+  color: fbca04
+  description: 小米应用商店审核
+- name: store:oppo
+  color: fbca04
+  description: OPPO 软件商店审核
+- name: store:vivo
+  color: fbca04
+  description: vivo 应用商店审核
+- name: release
+  color: 0052cc
+  description: 发行和上架工作
+- name: review-rejected
+  color: d73a4a
+  description: 商店审核被拒
+- name: compliance
+  color: b60205
+  description: 合规、隐私、权限问题
+- name: signing
+  color: 5319e7
+  description: 签名、证书、打包问题
+- name: payment
+  color: c5def5
+  description: 支付和积分问题
+- name: privacy
+  color: b60205
+  description: 隐私政策和数据处理问题

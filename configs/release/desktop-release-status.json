@@ -1,0 +1,102 @@
+{
+  "appName": "时安解忧屋",
+  "versionName": "1.0.0",
+  "status": "draft",
+  "distribution": "第一版通过官网或 GitHub Releases 分发 macOS 和 Windows 安装包。",
+  "policy": {
+    "secretsForbidden": true,
+    "certificatesInGit": false,
+    "strictRequiresSignedAndVerifiedInstallEvidence": true
+  },
+  "platforms": [
+    {
+      "id": "macos",
+      "name": "macOS",
+      "target": "macOS arm64",
+      "codeSigningStatus": "unsigned",
+      "notarizationStatus": "not-started",
+      "artifactPaths": [
+        "artifacts/release-inbox/v1.0.0/macos/shian-v1.0.0-macos-arm64.dmg",
+        "desktop/release/时安解忧屋-1.0.0-arm64.dmg",
+        "desktop/release/时安解忧屋-1.0.0-arm64.app.zip"
+      ],
+      "requiredArtifactExts": [
+        ".dmg",
+        ".zip"
+      ],
+      "smokeReportPath": "latest:desktop-smoke",
+      "installEvidence": [
+        {
+          "id": "dmg-install",
+          "label": "DMG 安装拖拽"
+        },
+        {
+          "id": "first-open",
+          "label": "首次打开"
+        },
+        {
+          "id": "security-prompt",
+          "label": "安全提示或无提示说明"
+        },
+        {
+          "id": "login-modal",
+          "label": "登录弹窗"
+        },
+        {
+          "id": "agent-home",
+          "label": "时安 agent 应用态"
+        },
+        {
+          "id": "window-resize",
+          "label": "窗口缩放"
+        }
+      ],
+      "installEvidencePaths": []
+    },
+    {
+      "id": "windows",
+      "name": "Windows",
+      "target": "Windows x64",
+      "codeSigningStatus": "unsigned",
+      "artifactPaths": [
+        "artifacts/release-inbox/v1.0.0/windows/shian-v1.0.0-windows-x64-nsis.exe",
+        "desktop/release/时安解忧屋 Setup 1.0.0.exe"
+      ],
+      "requiredArtifactExts": [
+        ".exe",
+        ".msi"
+      ],
+      "installEvidence": [
+        {
+          "id": "installer",
+          "label": "安装器启动"
+        },
+        {
+          "id": "start-menu",
+          "label": "开始菜单入口"
+        },
+        {
+          "id": "first-open",
+          "label": "首次打开"
+        },
+        {
+          "id": "login-modal",
+          "label": "登录弹窗"
+        },
+        {
+          "id": "agent-home",
+          "label": "时安 agent 应用态"
+        },
+        {
+          "id": "window-resize",
+          "label": "窗口缩放"
+        },
+        {
+          "id": "uninstall",
+          "label": "卸载流程"
+        }
+      ],
+      "installEvidencePaths": []
+    }
+  ]
+}

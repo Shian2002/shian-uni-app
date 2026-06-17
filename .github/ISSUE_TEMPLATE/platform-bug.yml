@@ -1,0 +1,45 @@
+name: 多端机型问题
+description: 记录 Android、iOS、鸿蒙、macOS、Windows 的设备兼容问题
+title: "[平台问题] "
+labels:
+  - release
+body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 平台
+      options:
+        - Android
+        - iOS
+        - Harmony
+        - macOS
+        - Windows
+        - H5
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: 设备和系统版本
+      placeholder: "例如：iPhone 15 / iOS 18.5，华为 MatePad / HarmonyOS 5"
+    validations:
+      required: true
+  - type: input
+    id: app_version
+    attributes:
+      label: 应用版本和 commit
+      placeholder: "v1.0.0 / commit sha"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: "写清入口、操作、预期结果、实际结果。"
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 证据
+      placeholder: "截图、日志、录屏、安装包名、QA 结果。不要粘贴密钥或真实用户隐私。"

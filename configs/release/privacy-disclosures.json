@@ -1,0 +1,159 @@
+{
+  "appName": "时安解忧屋",
+  "versionName": "1.0.0",
+  "status": "draft",
+  "humanReviewStatus": "pending",
+  "privacyPolicySource": "docs/legal/privacy-policy.md",
+  "userAgreementSource": "docs/legal/user-agreement.md",
+  "legalUrlConfig": "configs/release/legal-urls.json",
+  "dataDeletionAvailable": true,
+  "dataDeletionPath": "个人中心 -> 账号注销 -> 注销账号与删除数据",
+  "encryptedInTransit": true,
+  "tracking": {
+    "appleTracking": false,
+    "googleAdsOrCrossAppTracking": false,
+    "notes": "当前版本不接入广告追踪，不把数据用于跨 App/网站追踪。"
+  },
+  "thirdPartySharing": [
+    {
+      "id": "ai-provider",
+      "name": "AI 生成服务",
+      "purpose": "生成用户主动请求的传统文化解读内容",
+      "data": ["问题文本", "命盘信息", "上下文摘要"],
+      "required": true
+    },
+    {
+      "id": "sms-email",
+      "name": "短信/邮件服务",
+      "purpose": "验证码、账号绑定和安全通知",
+      "data": ["手机号", "邮箱", "验证码发送记录"],
+      "required": false
+    },
+    {
+      "id": "payment",
+      "name": "支付和订单服务",
+      "purpose": "积分、订单、售后和合规审计",
+      "data": ["订单号", "支付状态", "金额", "售后核验记录"],
+      "required": false
+    }
+  ],
+  "appleAppPrivacy": {
+    "privacyPolicyUrlRequired": true,
+    "dataLinkedToUser": true,
+    "dataUsedToTrackUser": false,
+    "dataTypes": [
+      {
+        "id": "contact-info",
+        "appleLabel": "Contact Info",
+        "collected": true,
+        "linkedToUser": true,
+        "usedForTracking": false,
+        "purposes": ["App Functionality", "Account Management"],
+        "examples": ["手机号", "邮箱"]
+      },
+      {
+        "id": "identifiers",
+        "appleLabel": "Identifiers",
+        "collected": true,
+        "linkedToUser": true,
+        "usedForTracking": false,
+        "purposes": ["App Functionality", "Account Management", "Fraud Prevention"],
+        "examples": ["用户 ID", "第三方登录标识", "登录态"]
+      },
+      {
+        "id": "user-content",
+        "appleLabel": "User Content",
+        "collected": true,
+        "linkedToUser": true,
+        "usedForTracking": false,
+        "purposes": ["App Functionality", "Personalization"],
+        "examples": ["问题文本", "AI 解读记录", "排盘历史", "报告保存记录"]
+      },
+      {
+        "id": "sensitive-info",
+        "appleLabel": "Sensitive Info",
+        "collected": true,
+        "linkedToUser": true,
+        "usedForTracking": false,
+        "purposes": ["App Functionality", "Personalization"],
+        "examples": ["出生日期", "出生时间", "出生地点", "命盘档案"]
+      },
+      {
+        "id": "purchases",
+        "appleLabel": "Purchases",
+        "collected": true,
+        "linkedToUser": true,
+        "usedForTracking": false,
+        "purposes": ["App Functionality", "Customer Support"],
+        "examples": ["积分订单", "充值记录", "售后核验记录"]
+      },
+      {
+        "id": "diagnostics",
+        "appleLabel": "Diagnostics",
+        "collected": true,
+        "linkedToUser": false,
+        "usedForTracking": false,
+        "purposes": ["App Functionality", "Analytics"],
+        "examples": ["错误日志", "性能诊断", "接口异常"]
+      }
+    ]
+  },
+  "googlePlayDataSafety": {
+    "privacyPolicyUrlRequired": true,
+    "dataCollected": true,
+    "dataShared": true,
+    "dataEncryptedInTransit": true,
+    "usersCanRequestDeletion": true,
+    "dataTypes": [
+      {
+        "category": "Personal info",
+        "types": ["Email address", "Phone number", "User IDs"],
+        "collected": true,
+        "shared": false,
+        "required": true,
+        "purposes": ["App functionality", "Account management", "Fraud prevention"]
+      },
+      {
+        "category": "User content",
+        "types": ["Other user-generated content"],
+        "collected": true,
+        "shared": true,
+        "required": true,
+        "purposes": ["App functionality", "Personalization"],
+        "sharedWith": ["AI 生成服务"]
+      },
+      {
+        "category": "Financial info",
+        "types": ["Purchase history", "Other financial info"],
+        "collected": true,
+        "shared": true,
+        "required": false,
+        "purposes": ["App functionality", "Customer support"],
+        "sharedWith": ["支付和订单服务"]
+      },
+      {
+        "category": "App activity",
+        "types": ["App interactions", "In-app search history"],
+        "collected": true,
+        "shared": false,
+        "required": true,
+        "purposes": ["App functionality", "Analytics"]
+      },
+      {
+        "category": "App info and performance",
+        "types": ["Crash logs", "Diagnostics"],
+        "collected": true,
+        "shared": false,
+        "required": false,
+        "purposes": ["App functionality", "Analytics"]
+      }
+    ]
+  },
+  "submissionEvidenceRequired": [
+    "App Store Connect App Privacy 截图",
+    "Google Play Data safety 截图",
+    "隐私政策 HTTPS URL 线上验证报告",
+    "账号注销真机截图"
+  ],
+  "notes": "本文件是商店后台填写草案，不是法律意见。正式提交前需要按实际上架包 SDK、支付、短信、邮件、AI 服务和后台日志行为逐项复核。"
+}

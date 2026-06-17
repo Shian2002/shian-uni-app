@@ -1,0 +1,52 @@
+name: 商店审核记录
+description: 记录应用商店提交、被拒和整改
+title: "[商店审核] "
+labels:
+  - release
+body:
+  - type: dropdown
+    id: store
+    attributes:
+      label: 商店
+      options:
+        - 应用宝
+        - 华为应用市场
+        - 小米应用商店
+        - OPPO 软件商店
+        - vivo 应用商店
+        - Google Play
+        - Apple App Store
+        - GitHub Releases
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版本和 commit
+      placeholder: "v1.0.0 / commit sha"
+    validations:
+      required: true
+  - type: dropdown
+    id: status
+    attributes:
+      label: 状态
+      options:
+        - 待提交
+        - 审核中
+        - 通过
+        - 被拒
+        - 已整改
+    validations:
+      required: true
+  - type: textarea
+    id: feedback
+    attributes:
+      label: 审核反馈
+      placeholder: "粘贴审核要点即可，不要包含账号密码、证书、密钥。"
+    validations:
+      required: true
+  - type: textarea
+    id: action
+    attributes:
+      label: 整改动作和复测结果
+      placeholder: "写清改动范围、验证命令、真机结果和下一步。"

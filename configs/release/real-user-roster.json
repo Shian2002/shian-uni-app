@@ -1,0 +1,152 @@
+{
+  "appName": "时安解忧屋",
+  "versionName": "1.0.0",
+  "status": "draft",
+  "minimumTestersPerPlatform": 2,
+  "policy": {
+    "noPasswords": true,
+    "noPhoneNumbers": true,
+    "noEmailAddresses": true,
+    "reviewAccountDeliveredBySecureChannel": true
+  },
+  "platforms": [
+    {
+      "id": "h5",
+      "name": "H5",
+      "requiredDeviceGroups": ["mobile-safari", "android-chrome", "desktop-browser"],
+      "slots": [
+        {
+          "slotId": "h5-tester-1",
+          "status": "not-assigned",
+          "testerAlias": "",
+          "deviceGroup": "mobile-safari",
+          "resultPath": "artifacts/real-user-packets/latest/h5/results/tester-1.json",
+          "screenshotDir": "artifacts/real-user-packets/latest/h5/screenshots"
+        },
+        {
+          "slotId": "h5-tester-2",
+          "status": "not-assigned",
+          "testerAlias": "",
+          "deviceGroup": "android-chrome",
+          "resultPath": "artifacts/real-user-packets/latest/h5/results/tester-2.json",
+          "screenshotDir": "artifacts/real-user-packets/latest/h5/screenshots"
+        }
+      ]
+    },
+    {
+      "id": "android",
+      "name": "Android",
+      "requiredDeviceGroups": ["huawei-or-harmony-android", "xiaomi", "oppo-or-vivo", "tablet-or-large-screen"],
+      "slots": [
+        {
+          "slotId": "android-tester-1",
+          "status": "not-assigned",
+          "testerAlias": "",
+          "deviceGroup": "huawei-or-harmony-android",
+          "resultPath": "artifacts/real-user-packets/latest/android/results/tester-1.json",
+          "screenshotDir": "artifacts/real-user-packets/latest/android/screenshots"
+        },
+        {
+          "slotId": "android-tester-2",
+          "status": "not-assigned",
+          "testerAlias": "",
+          "deviceGroup": "xiaomi",
+          "resultPath": "artifacts/real-user-packets/latest/android/results/tester-2.json",
+          "screenshotDir": "artifacts/real-user-packets/latest/android/screenshots"
+        }
+      ]
+    },
+    {
+      "id": "ios",
+      "name": "iOS",
+      "requiredDeviceGroups": ["iphone", "ipad"],
+      "slots": [
+        {
+          "slotId": "ios-tester-1",
+          "status": "not-assigned",
+          "testerAlias": "",
+          "deviceGroup": "iphone",
+          "resultPath": "artifacts/real-user-packets/latest/ios/results/tester-1.json",
+          "screenshotDir": "artifacts/real-user-packets/latest/ios/screenshots"
+        },
+        {
+          "slotId": "ios-tester-2",
+          "status": "not-assigned",
+          "testerAlias": "",
+          "deviceGroup": "ipad",
+          "resultPath": "artifacts/real-user-packets/latest/ios/results/tester-2.json",
+          "screenshotDir": "artifacts/real-user-packets/latest/ios/screenshots"
+        }
+      ]
+    },
+    {
+      "id": "harmony",
+      "name": "鸿蒙",
+      "requiredDeviceGroups": ["harmony-phone", "harmony-tablet"],
+      "slots": [
+        {
+          "slotId": "harmony-tester-1",
+          "status": "not-assigned",
+          "testerAlias": "",
+          "deviceGroup": "harmony-phone",
+          "resultPath": "artifacts/real-user-packets/latest/harmony/results/tester-1.json",
+          "screenshotDir": "artifacts/real-user-packets/latest/harmony/screenshots"
+        },
+        {
+          "slotId": "harmony-tester-2",
+          "status": "not-assigned",
+          "testerAlias": "",
+          "deviceGroup": "harmony-tablet",
+          "resultPath": "artifacts/real-user-packets/latest/harmony/results/tester-2.json",
+          "screenshotDir": "artifacts/real-user-packets/latest/harmony/screenshots"
+        }
+      ]
+    },
+    {
+      "id": "macos",
+      "name": "macOS",
+      "requiredDeviceGroups": ["apple-silicon", "intel-or-second-mac"],
+      "slots": [
+        {
+          "slotId": "macos-tester-1",
+          "status": "not-assigned",
+          "testerAlias": "",
+          "deviceGroup": "apple-silicon",
+          "resultPath": "artifacts/real-user-packets/latest/macos/results/tester-1.json",
+          "screenshotDir": "artifacts/real-user-packets/latest/macos/screenshots"
+        },
+        {
+          "slotId": "macos-tester-2",
+          "status": "not-assigned",
+          "testerAlias": "",
+          "deviceGroup": "intel-or-second-mac",
+          "resultPath": "artifacts/real-user-packets/latest/macos/results/tester-2.json",
+          "screenshotDir": "artifacts/real-user-packets/latest/macos/screenshots"
+        }
+      ]
+    },
+    {
+      "id": "windows",
+      "name": "Windows",
+      "requiredDeviceGroups": ["windows-10", "windows-11"],
+      "slots": [
+        {
+          "slotId": "windows-tester-1",
+          "status": "not-assigned",
+          "testerAlias": "",
+          "deviceGroup": "windows-10",
+          "resultPath": "artifacts/real-user-packets/latest/windows/results/tester-1.json",
+          "screenshotDir": "artifacts/real-user-packets/latest/windows/screenshots"
+        },
+        {
+          "slotId": "windows-tester-2",
+          "status": "not-assigned",
+          "testerAlias": "",
+          "deviceGroup": "windows-11",
+          "resultPath": "artifacts/real-user-packets/latest/windows/results/tester-2.json",
+          "screenshotDir": "artifacts/real-user-packets/latest/windows/screenshots"
+        }
+      ]
+    }
+  ]
+}

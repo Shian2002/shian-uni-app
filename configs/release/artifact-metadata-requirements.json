@@ -1,0 +1,108 @@
+{
+  "appName": "时安解忧屋",
+  "versionName": "1.0.0",
+  "status": "draft",
+  "metadataRoot": "artifacts/release-inbox/v1.0.0",
+  "policy": {
+    "noSecrets": true,
+    "noReviewerPasswords": true,
+    "noCertificateFiles": true,
+    "metadataFileName": "build-metadata.json"
+  },
+  "platforms": [
+    {
+      "id": "android",
+      "name": "Android",
+      "metadataPath": "artifacts/release-inbox/v1.0.0/android/build-metadata.json",
+      "requiredArtifactKinds": ["apk", "aab"],
+      "requiredFields": [
+        "versionName",
+        "versionCode",
+        "commit",
+        "buildTool",
+        "builder",
+        "builtAt",
+        "channel",
+        "artifactPath",
+        "artifactSha256",
+        "deviceTestEvidence",
+        "reviewAccountDelivery"
+      ]
+    },
+    {
+      "id": "ios",
+      "name": "iOS TestFlight",
+      "metadataPath": "artifacts/release-inbox/v1.0.0/ios/build-metadata.json",
+      "requiredArtifactKinds": ["testflight", "ipa"],
+      "requiredFields": [
+        "versionName",
+        "buildNumber",
+        "commit",
+        "buildTool",
+        "builder",
+        "builtAt",
+        "artifactPath",
+        "artifactSha256",
+        "testFlightBuildNumber",
+        "deviceTestEvidence",
+        "appPrivacyEvidence",
+        "reviewAccountDelivery"
+      ]
+    },
+    {
+      "id": "harmony",
+      "name": "鸿蒙/AppGallery",
+      "metadataPath": "artifacts/release-inbox/v1.0.0/harmony/build-metadata.json",
+      "requiredArtifactKinds": ["hap", "appgallery-record"],
+      "requiredFields": [
+        "versionName",
+        "versionCode",
+        "commit",
+        "buildTool",
+        "builder",
+        "builtAt",
+        "artifactPath",
+        "artifactSha256",
+        "deviceTestEvidence",
+        "permissionEvidence",
+        "reviewAccountDelivery"
+      ]
+    },
+    {
+      "id": "macos",
+      "name": "macOS",
+      "metadataPath": "artifacts/release-inbox/v1.0.0/macos/build-metadata.json",
+      "requiredArtifactKinds": ["dmg", "zip"],
+      "requiredFields": [
+        "versionName",
+        "commit",
+        "buildTool",
+        "builder",
+        "builtAt",
+        "artifactPath",
+        "artifactSha256",
+        "codeSigningStatus",
+        "notarizationStatus",
+        "deviceTestEvidence"
+      ]
+    },
+    {
+      "id": "windows",
+      "name": "Windows",
+      "metadataPath": "artifacts/release-inbox/v1.0.0/windows/build-metadata.json",
+      "requiredArtifactKinds": ["exe", "msi"],
+      "requiredFields": [
+        "versionName",
+        "commit",
+        "buildTool",
+        "builder",
+        "builtAt",
+        "artifactPath",
+        "artifactSha256",
+        "codeSigningStatus",
+        "deviceTestEvidence",
+        "uninstallEvidence"
+      ]
+    }
+  ]
+}

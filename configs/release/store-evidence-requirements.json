@@ -1,0 +1,133 @@
+{
+  "appName": "时安解忧屋",
+  "versionName": "1.0.0",
+  "status": "draft",
+  "inboxRoot": "artifacts/store-evidence-inbox/v1.0.0",
+  "policy": {
+    "noSecrets": true,
+    "noReviewerPasswords": true,
+    "noCertificateFiles": true,
+    "screenshotsOnlyForBackendEvidence": true
+  },
+  "stores": [
+    {
+      "id": "yingyongbao",
+      "name": "应用宝",
+      "platform": "Android",
+      "requiredEvidence": [
+        "submit-status-json",
+        "privacy-url-screenshot",
+        "permissions-screenshot",
+        "app-record-screenshot",
+        "account-deletion-device-screenshot",
+        "phone-store-screenshots"
+      ]
+    },
+    {
+      "id": "huawei",
+      "name": "华为应用市场",
+      "platform": "Android",
+      "requiredEvidence": [
+        "submit-status-json",
+        "privacy-url-screenshot",
+        "permissions-screenshot",
+        "app-record-screenshot",
+        "account-deletion-device-screenshot",
+        "phone-store-screenshots"
+      ]
+    },
+    {
+      "id": "xiaomi",
+      "name": "小米应用商店",
+      "platform": "Android",
+      "requiredEvidence": [
+        "submit-status-json",
+        "privacy-url-screenshot",
+        "permissions-screenshot",
+        "app-record-screenshot",
+        "account-deletion-device-screenshot",
+        "phone-store-screenshots"
+      ]
+    },
+    {
+      "id": "oppo",
+      "name": "OPPO 软件商店",
+      "platform": "Android",
+      "requiredEvidence": [
+        "submit-status-json",
+        "privacy-url-screenshot",
+        "permissions-screenshot",
+        "app-record-screenshot",
+        "account-deletion-device-screenshot",
+        "phone-store-screenshots"
+      ]
+    },
+    {
+      "id": "vivo",
+      "name": "vivo 应用商店",
+      "platform": "Android",
+      "requiredEvidence": [
+        "submit-status-json",
+        "privacy-url-screenshot",
+        "permissions-screenshot",
+        "app-record-screenshot",
+        "account-deletion-device-screenshot",
+        "phone-store-screenshots"
+      ]
+    },
+    {
+      "id": "google-play",
+      "name": "Google Play",
+      "platform": "Android",
+      "requiredEvidence": [
+        "submit-status-json",
+        "privacy-url-screenshot",
+        "data-safety-screenshot",
+        "testing-track-screenshot",
+        "account-deletion-console-screenshot",
+        "phone-store-screenshots",
+        "tablet-store-screenshots"
+      ]
+    },
+    {
+      "id": "appstore",
+      "name": "Apple App Store",
+      "platform": "iOS",
+      "requiredEvidence": [
+        "submit-status-json",
+        "privacy-url-screenshot",
+        "app-privacy-screenshot",
+        "testflight-build-screenshot",
+        "account-deletion-device-screenshot",
+        "iphone-store-screenshots",
+        "ipad-store-screenshots"
+      ]
+    },
+    {
+      "id": "harmony",
+      "name": "华为 AppGallery / 鸿蒙",
+      "platform": "Harmony",
+      "requiredEvidence": [
+        "submit-status-json",
+        "privacy-url-screenshot",
+        "permissions-screenshot",
+        "harmony-package-screenshot",
+        "account-deletion-device-screenshot",
+        "phone-store-screenshots",
+        "tablet-store-screenshots"
+      ]
+    },
+    {
+      "id": "github-desktop",
+      "name": "GitHub Releases 桌面下载",
+      "platform": "macOS / Windows",
+      "requiredEvidence": [
+        "release-draft-json",
+        "desktop-release-page-screenshot",
+        "macos-install-screenshots",
+        "windows-install-screenshots",
+        "desktop-checksums"
+      ]
+    }
+  ]
+}

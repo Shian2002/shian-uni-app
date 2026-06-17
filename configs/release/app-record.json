@@ -1,0 +1,76 @@
+{
+  "appName": "时安解忧屋",
+  "versionName": "1.0.0",
+  "policy": {
+    "noSecrets": true,
+    "trackByPackageOrBundleId": true,
+    "h5DomainTrackedInDomainHttps": true,
+    "requiresChinaAppRecordBeforeChinaStores": true
+  },
+  "records": [
+    {
+      "id": "h5-domain",
+      "platform": "H5",
+      "target": "https://shianjieyouwu.com",
+      "packageOrBundleId": "",
+      "status": "not-required",
+      "notRequiredReason": "H5 网站域名已按 ICP 备案与 HTTPS 台账追踪，不按移动端 APP 备案口径处理。",
+      "evidencePaths": [
+        "configs/release/domain-https.json",
+        "src/pages/index/index.vue"
+      ],
+      "ownerAlias": "release-owner",
+      "nextAction": "保持 ICP 展示和 HTTPS 线上验证。"
+    },
+    {
+      "id": "android-cn",
+      "platform": "Android",
+      "target": "国内安卓市场",
+      "packageOrBundleId": "com.shian.xuanctai",
+      "status": "not-ready",
+      "notRequiredReason": "",
+      "evidencePaths": [],
+      "ownerAlias": "release-owner",
+      "nextAction": "按应用宝、华为、小米、OPPO、vivo 要求准备 APP 备案、软著或不适用说明。"
+    },
+    {
+      "id": "harmony-cn",
+      "platform": "Harmony",
+      "target": "华为 AppGallery / 鸿蒙",
+      "packageOrBundleId": "com.shian.xuanctai",
+      "status": "not-ready",
+      "notRequiredReason": "",
+      "evidencePaths": [],
+      "ownerAlias": "release-owner",
+      "nextAction": "按华为/鸿蒙后台要求准备 APP 备案、应用资质或不适用说明。"
+    },
+    {
+      "id": "ios-appstore",
+      "platform": "iOS",
+      "target": "Apple App Store",
+      "packageOrBundleId": "com.shian.xuanctai",
+      "status": "not-required",
+      "notRequiredReason": "Apple App Store 不按中国安卓市场 APP 备案材料入口处理；仍需完成 App Privacy、审核账号和隐私政策 URL。",
+      "evidencePaths": [
+        "configs/release/ios-appstore.json",
+        "docs/release/app-store-privacy-notes.md"
+      ],
+      "ownerAlias": "release-owner",
+      "nextAction": "继续补 TestFlight 构建、App Privacy 后台截图和审核账号。"
+    },
+    {
+      "id": "google-play",
+      "platform": "Android",
+      "target": "Google Play",
+      "packageOrBundleId": "com.shian.xuanctai",
+      "status": "not-required",
+      "notRequiredReason": "Google Play 不使用国内安卓市场 APP 备案材料入口；仍需完成 Data safety、测试轨道和隐私政策 URL。",
+      "evidencePaths": [
+        "configs/release/android-channels.json",
+        "configs/release/privacy-disclosures.json"
+      ],
+      "ownerAlias": "release-owner",
+      "nextAction": "继续补 AAB、Data safety 后台截图和测试轨道。"
+    }
+  ]
+}

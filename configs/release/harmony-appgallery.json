@@ -1,0 +1,26 @@
+{
+  "appName": "时安解忧屋",
+  "bundleName": "com.shian.xuanctai",
+  "versionName": "1.0.0",
+  "versionCode": 100,
+  "distribution": "华为开发者后台和鸿蒙测试包单独记录。",
+  "artifactPolicy": "鸿蒙包上传 GitHub Releases，签名资料不得入库。",
+  "requiredMaterials": [
+    "华为开发者账号",
+    "应用分类和简介",
+    "隐私政策 URL",
+    "用户协议 URL",
+    "权限说明",
+    "手机和平板截图",
+    "测试账号",
+    "软著或版权材料"
+  ],
+  "requiredChecks": [
+    "鸿蒙手机安装",
+    "鸿蒙平板适配",
+    "登录注册",
+    "首页综合解读",
+    "账号注销",
+    "权限触发时机"
+  ]
+}

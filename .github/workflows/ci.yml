@@ -44,5 +44,83 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Release readiness
+        run: npm run release:check
+
+      - name: Release readiness audit
+        run: npm run release:readiness
+
+      - name: Release user action handoff
+        run: npm run release:user-actions
+
+      - name: Payment boundary
+        run: npm run release:payment-boundary
+
+      - name: Store materials
+        run: npm run store:materials
+
+      - name: Store submission status
+        run: npm run store:submission-status
+
+      - name: Store backend evidence status
+        run: npm run store:evidence-status
+
+      - name: Store account access
+        run: npm run store:account-access
+
+      - name: Store app record status
+        run: npm run store:app-record
+
+      - name: Domain HTTPS readiness
+        run: npm run domain:https
+
+      - name: H5 legal deploy status
+        run: npm run h5:legal-deploy-status
+
+      - name: Desktop release status
+        run: npm run desktop:release-status
+
+      - name: Desktop download bundle
+        run: npm run desktop:bundle
+
+      - name: macOS DMG install verification
+        run: npm run desktop:verify-macos
+
+      - name: macOS user packet
+        run: npm run desktop:macos-user-packet
+
+      - name: Windows user packet
+        run: npm run desktop:windows-user-packet
+
+      - name: App icon assets
+        run: npm run release:app-icons
+
+      - name: App Store and Google Play channel builds
+        run: npm run release:channel-builds
+
+      - name: Mobile app resources
+        run: npm run build:app
+
+      - name: Mobile release preflight
+        run: MOBILE_PREFLIGHT_REQUIRE_BUILD=1 npm run mobile:preflight
+
+      - name: Mobile build requests
+        run: npm run mobile:build-requests
+
+      - name: Mobile API evidence
+        run: npm run mobile:api-evidence
+
+      - name: Mobile app resource packet
+        run: npm run mobile:app-resource-packet
+
+      - name: Release artifact metadata
+        run: npm run release:artifact-metadata
+
+      - name: Real user roster
+        run: npm run real-user:roster
+
+      - name: Release manifest
+        run: node scripts/release_manifest.mjs > release-manifest.json
+
       - name: Build
         run: npm run build

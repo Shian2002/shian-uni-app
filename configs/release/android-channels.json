@@ -1,0 +1,54 @@
+{
+  "appName": "时安解忧屋",
+  "packageName": "com.shian.xuanctai",
+  "versionName": "1.0.0",
+  "versionCode": 100,
+  "artifactPolicy": "安装包上传 GitHub Releases，签名证书不得入库。",
+  "channels": [
+    {
+      "id": "yingyongbao",
+      "name": "应用宝",
+      "artifact": "apk",
+      "notes": "优先准备隐私政策、APP 备案、软著和测试账号。"
+    },
+    {
+      "id": "huawei",
+      "name": "华为应用市场",
+      "artifact": "apk",
+      "notes": "同步准备鸿蒙渠道资料，权限说明必须和实际触发一致。"
+    },
+    {
+      "id": "xiaomi",
+      "name": "小米应用商店",
+      "artifact": "apk",
+      "notes": "关注隐私合规检测和敏感权限说明。"
+    },
+    {
+      "id": "oppo",
+      "name": "OPPO 软件商店",
+      "artifact": "apk",
+      "notes": "关注应用分类、截图和权限弹窗。"
+    },
+    {
+      "id": "vivo",
+      "name": "vivo 应用商店",
+      "artifact": "apk",
+      "notes": "关注应用资质、软著和备案资料。"
+    },
+    {
+      "id": "google-play",
+      "name": "Google Play",
+      "artifact": "aab",
+      "notes": "必须完成 Data safety、目标 API 和测试轨道。"
+    }
+  ],
+  "requiredChecks": [
+    "真机安装和升级",
+    "首次隐私弹窗",
+    "登录注册",
+    "首页综合解读",
+    "积分中心",
+    "账号注销",
+    "权限最小化"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "appName": "时安解忧屋",
+  "status": "candidate",
+  "productionBaseUrl": "https://shianjieyouwu.com",
+  "privacyPolicyUrl": "https://shianjieyouwu.com/#/pages/legal/index?type=privacy",
+  "userAgreementUrl": "https://shianjieyouwu.com/#/pages/legal/index?type=terms",
+  "requiresHttpsDomainBeforeStoreSubmit": true,
+  "notes": "当前已切换到 HTTPS 域名候选 URL。正式提交 Apple App Store、Google Play 和国内安卓市场前，还需要完成线上法律 URL 严格验证、ICP备案/APP 备案状态确认和商店后台 URL 截图回传。"
+}

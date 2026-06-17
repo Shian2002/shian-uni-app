@@ -1,0 +1,43 @@
+{
+  "appName": "时安解忧屋",
+  "versionName": "1.0.0",
+  "status": "ready-for-build-handoff",
+  "sourceLogo": "src/static/images/logo.png",
+  "storeIcon": "src/static/app-icons/app-icon-1024.png",
+  "desktopIcons": {
+    "png": "desktop/assets/icon.png",
+    "icns": "desktop/assets/icon.icns",
+    "ico": "desktop/assets/icon.ico"
+  },
+  "policy": {
+    "sensitiveFilesAllowed": false,
+    "notes": [
+      "所有平台第一版使用同一个 logo 作为应用图标，避免桌面、移动端和商店素材不一致。",
+      "证书、keystore、p12、mobileprovision、签名口令和商店账号密码不进入 GitHub。",
+      "HBuilderX、DCloud 云打包、Xcode、DevEco 或商店后台应优先使用 storeIcon 作为 1024x1024 母图。"
+    ]
+  },
+  "requiredIcons": [
+    { "id": "store-1024", "size": 1024, "path": "src/static/app-icons/app-icon-1024.png", "platforms": ["appstore", "google-play", "android-cn", "harmony"] },
+    { "id": "store-512", "size": 512, "path": "src/static/app-icons/app-icon-512.png", "platforms": ["google-play", "android-cn"] },
+    { "id": "harmony-432", "size": 432, "path": "src/static/app-icons/app-icon-432.png", "platforms": ["harmony"] },
+    { "id": "harmony-216", "size": 216, "path": "src/static/app-icons/app-icon-216.png", "platforms": ["harmony"] },
+    { "id": "android-192", "size": 192, "path": "src/static/app-icons/app-icon-192.png", "platforms": ["android"] },
+    { "id": "ios-180", "size": 180, "path": "src/static/app-icons/app-icon-180.png", "platforms": ["ios"] },
+    { "id": "ios-167", "size": 167, "path": "src/static/app-icons/app-icon-167.png", "platforms": ["ios", "ipad"] },
+    { "id": "ios-152", "size": 152, "path": "src/static/app-icons/app-icon-152.png", "platforms": ["ios", "ipad"] },
+    { "id": "android-144", "size": 144, "path": "src/static/app-icons/app-icon-144.png", "platforms": ["android"] },
+    { "id": "ios-120", "size": 120, "path": "src/static/app-icons/app-icon-120.png", "platforms": ["ios"] },
+    { "id": "android-96", "size": 96, "path": "src/static/app-icons/app-icon-96.png", "platforms": ["android"] },
+    { "id": "ios-87", "size": 87, "path": "src/static/app-icons/app-icon-87.png", "platforms": ["ios"] },
+    { "id": "ios-80", "size": 80, "path": "src/static/app-icons/app-icon-80.png", "platforms": ["ios", "ipad"] },
+    { "id": "ios-76", "size": 76, "path": "src/static/app-icons/app-icon-76.png", "platforms": ["ios", "ipad"] },
+    { "id": "android-72", "size": 72, "path": "src/static/app-icons/app-icon-72.png", "platforms": ["android"] },
+    { "id": "ios-60", "size": 60, "path": "src/static/app-icons/app-icon-60.png", "platforms": ["ios"] },
+    { "id": "ios-58", "size": 58, "path": "src/static/app-icons/app-icon-58.png", "platforms": ["ios"] },
+    { "id": "android-48", "size": 48, "path": "src/static/app-icons/app-icon-48.png", "platforms": ["android"] },
+    { "id": "ios-40", "size": 40, "path": "src/static/app-icons/app-icon-40.png", "platforms": ["ios", "ipad"] },
+    { "id": "ios-29", "size": 29, "path": "src/static/app-icons/app-icon-29.png", "platforms": ["ios"] },
+    { "id": "ios-20", "size": 20, "path": "src/static/app-icons/app-icon-20.png", "platforms": ["ios", "ipad"] }
+  ]
+}

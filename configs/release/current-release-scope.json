@@ -1,0 +1,27 @@
+{
+  "appName": "时安解忧屋",
+  "versionName": "1.0.0",
+  "status": "phase-1-active",
+  "currentBatch": "v1.0.0-phase-1",
+  "activePlatforms": ["h5", "android", "macos", "windows"],
+  "deferredPlatforms": [
+    {
+      "id": "ios",
+      "name": "iOS / iPadOS",
+      "reason": "用户 2026-06-17 指示：先不上架 iOS，Xcode、Apple Developer 签名、TestFlight 和 App Store 后续批次再处理。",
+      "resumeWhen": "需要 Apple App Store/TestFlight 上架时再恢复为 active。"
+    },
+    {
+      "id": "harmony",
+      "name": "鸿蒙 / AppGallery",
+      "reason": "用户 2026-06-17 指示：先不上架鸿蒙，DevEco/hdc/hvigor、华为签名和 AppGallery 后续批次再处理。",
+      "resumeWhen": "需要华为 AppGallery/鸿蒙上架时再恢复为 active。"
+    }
+  ],
+  "policy": {
+    "keepDeferredEvidence": true,
+    "doNotDeleteDeferredConfigs": true,
+    "doNotRequireDeferredPackagesForCurrentBatch": true,
+    "currentDownloadsRefreshStillLast": true
+  }
+}

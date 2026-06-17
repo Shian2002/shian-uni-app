@@ -1,0 +1,20 @@
+{
+  "appName": "时安解忧屋",
+  "appId": "com.shian.xuanctai.desktop",
+  "versionName": "1.0.0",
+  "distribution": "第一版通过官网或 GitHub Releases 分发 macOS 和 Windows 安装包。",
+  "artifactPolicy": "DMG、EXE、MSI 可以进入 GitHub Releases；签名证书和 notarization 密钥不得入库。",
+  "platforms": [
+    "macos",
+    "windows"
+  ],
+  "requiredChecks": [
+    "首次安装",
+    "覆盖升级",
+    "登录注册",
+    "首页综合解读",
+    "积分中心",
+    "窗口缩放",
+    "退出和重新打开登录态"
+  ]
+}

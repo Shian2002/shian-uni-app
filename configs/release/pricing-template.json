@@ -1,0 +1,85 @@
+{
+  "appName": "时安解忧屋",
+  "currency": "CNY",
+  "policy": "非敏感定价模板，仅用于产品、商店材料和前端展示草案；真实价格以后端和支付后台为准。",
+  "dailyBenefits": {
+    "signInPoints": 300,
+    "notes": "对标产品使用每日登录积分促活；正式数值上线前需要核算模型成本。"
+  },
+  "plans": [
+    {
+      "id": "free",
+      "name": "免费版",
+      "price": 0,
+      "points": 0,
+      "profileLimit": 1,
+      "parallelTaskLimit": 1,
+      "positioning": "新用户体验问事引导、基础排盘和少量 AI 解读。"
+    },
+    {
+      "id": "starter",
+      "name": "入门版",
+      "price": 9.9,
+      "points": 3000,
+      "profileLimit": 3,
+      "parallelTaskLimit": 3,
+      "positioning": "适合单人短期问题、感情/事业小决策和轻量追问。"
+    },
+    {
+      "id": "standard",
+      "name": "标准版",
+      "price": 36,
+      "points": 12000,
+      "profileLimit": 5,
+      "parallelTaskLimit": 5,
+      "positioning": "适合多命主、长期追问、合盘和正式报告。"
+    },
+    {
+      "id": "professional",
+      "name": "专业版",
+      "price": 68,
+      "points": 30000,
+      "profileLimit": 10,
+      "parallelTaskLimit": 10,
+      "positioning": "适合高频用户、咨询师助理和多报告场景。"
+    }
+  ],
+  "usageEstimate": [
+    {
+      "id": "short_question",
+      "name": "短期问题",
+      "estimatedPoints": 300,
+      "examples": ["最近三个月事业机会", "这次合作是否推进"]
+    },
+    {
+      "id": "long_question",
+      "name": "长期问题",
+      "estimatedPoints": 800,
+      "examples": ["今年事业主线", "一段关系的长期走势"]
+    },
+    {
+      "id": "complex_question",
+      "name": "复杂问题",
+      "estimatedPoints": 1500,
+      "examples": ["八字、奇门、紫微合参", "正式报告加多轮追问"]
+    }
+  ],
+  "validationExperiments": [
+    {
+      "name": "积分说明页 A/B 测试",
+      "successMetric": "从首页首问到完整解读的转化率提升 15%",
+      "timeline": "1 周"
+    },
+    {
+      "name": "新手任务",
+      "successMetric": "注册后 24 小时内完成首问比例达到 40%",
+      "timeline": "2 周"
+    },
+    {
+      "name": "报告保存入口",
+      "successMetric": "完整解读后保存报告比例达到 30%",
+      "timeline": "2 周"
+    }
+  ]
+}
+

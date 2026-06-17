@@ -1,0 +1,69 @@
+{
+  "appName": "时安解忧屋",
+  "versionName": "1.0.0",
+  "status": "draft",
+  "policy": {
+    "requiresHttpsBeforeStoreSubmit": true,
+    "requiresIcpBeforeChinaStores": true,
+    "requiresAppRecordBeforeChinaStores": true,
+    "noDnsProviderSecrets": true,
+    "noPrivateKeys": true
+  },
+  "domains": [
+    {
+      "id": "h5-production",
+      "purpose": "H5 正式访问和法律页面",
+      "hostname": "shianjieyouwu.com",
+      "currentCandidateUrl": "https://shianjieyouwu.com",
+      "targetBaseUrl": "https://shianjieyouwu.com",
+      "dnsStatus": "ready",
+      "httpsStatus": "ready",
+      "tlsCertificateStatus": "ready",
+      "icpStatus": "ready",
+      "icpRecordNumber": "粤ICP备2026072162号-1",
+      "icpEvidencePaths": [
+        "src/pages/index/index.vue",
+        "src/pages/about/index.vue"
+      ],
+      "appRecordStatus": "not-required",
+      "appRecordNotRequiredReason": "H5 法律页域名只按网站 ICP 与 HTTPS 验证；移动端 APP 备案按包名、开发者账号和商店材料台账追踪。",
+      "privacyPolicyUrl": "https://shianjieyouwu.com/#/pages/legal/index?type=privacy",
+      "userAgreementUrl": "https://shianjieyouwu.com/#/pages/legal/index?type=terms",
+      "onlineVerificationReport": "",
+      "ownerAlias": "release-owner",
+      "nextAction": "ICP备案号已在营销页末尾和关于页展示；继续补线上法律 URL 严格验证报告和商店后台隐私政策 URL 截图。"
+    },
+    {
+      "id": "api-production",
+      "purpose": "API 正式访问和 App 网络安全配置",
+      "hostname": "shianjieyouwu.com",
+      "currentCandidateUrl": "https://shianjieyouwu.com",
+      "targetBaseUrl": "https://shianjieyouwu.com",
+      "dnsStatus": "ready",
+      "httpsStatus": "ready",
+      "tlsCertificateStatus": "ready",
+      "icpStatus": "ready",
+      "icpRecordNumber": "粤ICP备2026072162号-1",
+      "icpEvidencePaths": [
+        "src/pages/index/index.vue",
+        "src/pages/about/index.vue"
+      ],
+      "appRecordStatus": "not-required",
+      "appRecordNotRequiredReason": "API 域名只按 HTTPS、TLS、ICP备案和 App 网络安全配置验证；移动端 APP 备案按包名、开发者账号和商店材料台账追踪。",
+      "privacyPolicyUrl": "",
+      "userAgreementUrl": "",
+      "onlineVerificationReport": "",
+      "ownerAlias": "release-owner",
+      "nextAction": "确认线上 API 是否已全部走 HTTPS 域名，补 App/H5 生产 API baseUrl 证据。"
+    }
+  ],
+  "requiredEvidence": [
+    "DNS 解析截图或记录",
+    "HTTPS 证书状态截图",
+    "营销页末尾 ICP 备案展示源码或线上截图",
+    "ICP备案或不适用说明",
+    "移动端 APP 备案或不适用说明（按包名、开发者账号和商店材料台账追踪）",
+    "LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict 报告",
+    "商店后台隐私政策 URL 截图"
+  ]
+}

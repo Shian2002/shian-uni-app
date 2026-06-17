@@ -1,0 +1,26 @@
+{
+  "appName": "时安解忧屋",
+  "bundleId": "com.shian.xuanctai",
+  "versionName": "1.0.0",
+  "buildNumber": "100",
+  "distribution": "TestFlight first, App Store after review readiness.",
+  "paymentPolicy": "iOS 端第一版默认隐藏第三方数字内容充值入口；如需销售积分、AI 次数包或付费内容，应按 Apple IAP 改造。",
+  "requiredMaterials": [
+    "App Privacy 表单",
+    "年龄分级",
+    "测试账号",
+    "审核备注",
+    "隐私政策 URL",
+    "用户协议 URL",
+    "账号删除入口",
+    "截图和应用简介"
+  ],
+  "requiredChecks": [
+    "TestFlight 安装",
+    "登录注册",
+    "首页综合解读",
+    "积分消费但不暴露违规充值",
+    "账号注销",
+    "安全区和平板适配"
+  ]
+}
