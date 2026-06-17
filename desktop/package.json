@@ -1,0 +1,58 @@
+{
+  "name": "shian-desktop-shell",
+  "version": "1.0.0",
+  "private": true,
+  "description": "时安解忧屋 macOS/Windows 桌面端壳",
+  "main": "main.js",
+  "author": "JunJunXu <904752171@qq.com>",
+  "license": "UNLICENSED",
+  "scripts": {
+    "dev": "electron .",
+    "pack": "electron-builder --dir --publish=never",
+    "dist": "electron-builder --publish=never",
+    "dist:mac:arm64": "electron-builder --mac dmg --arm64 --publish=never",
+    "dist:win:x64": "electron-builder --win nsis --x64 --publish=never",
+    "dist:win:arm64": "electron-builder --win nsis --arm64 --publish=never"
+  },
+  "devDependencies": {
+    "electron": "^37.10.3",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.shian.xuanctai.desktop",
+    "productName": "时安解忧屋",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "assets/**/*",
+      "package.json",
+      {
+        "from": "../dist/build/h5",
+        "to": "app",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "mac": {
+      "icon": "assets/icon.icns",
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.lifestyle"
+    },
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
