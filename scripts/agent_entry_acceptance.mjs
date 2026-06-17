@@ -193,12 +193,14 @@ async function assertLoginModal(page) {
       hasPassword: text.includes('密码登录'),
       hasCode: text.includes('验证码登录'),
       hasGitee: text.includes('Gitee 验证登录'),
+      theme: document.documentElement.getAttribute('data-theme') || document.body.getAttribute('data-theme') || '',
     }
   })
   assertCondition(modal.open, '登录弹窗未打开')
   assertCondition(modal.hasPassword, '登录弹窗缺少密码登录')
   assertCondition(modal.hasCode, '登录弹窗缺少验证码登录')
   assertCondition(modal.hasGitee, '登录弹窗缺少 Gitee 验证登录')
+  assertCondition(modal.theme === 'light', `未显式选择主题时登录弹窗应为亮色，实际: ${modal.theme}`)
   return modal
 }
 
@@ -225,9 +227,13 @@ async function checkViewport(browser, viewport) {
     assertCondition(unauth.ctaText === '登录/注册', `${viewport.name} 未登录辅助按钮应为登录/注册，实际: ${unauth.ctaText}`)
     assertCondition(!unauth.horizontalOverflow, `${viewport.name} 未登录首页出现水平溢出`)
     await clickAgent(page)
+    await waitForHome(page)
+    const unauthAfterClick = await readEntryState(page)
     const modal = await assertLoginModal(page)
+    assertCondition(unauthAfterClick.mode === 'marketing' && unauthAfterClick.hasAgent, `${viewport.name} 未登录点击时安agent应停留营销页`)
+    assertCondition(!unauthAfterClick.appControlsVisible, `${viewport.name} 未登录不应看到 Agent 应用控件`)
     await page.screenshot({ path: join(artifactDir, `${viewport.name}-01-unauth-agent-login-modal.png`), fullPage: true })
-    result.checks.push({ name: 'unauth-agent-modal', passed: true, state: unauth, modal })
+    result.checks.push({ name: 'unauth-agent-login-modal', passed: true, state: unauth, afterClick: unauthAfterClick, modal })
 
     await page.goto(routeUrl('/'), { waitUntil: 'domcontentloaded', timeout: timeoutMs })
     await waitForHome(page)

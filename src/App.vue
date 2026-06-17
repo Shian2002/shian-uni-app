@@ -9,21 +9,28 @@ export default {
     // #ifdef H5
     var isDesktopShell = false
     try { isDesktopShell = !!(window.shianDesktop && window.shianDesktop.platform) } catch(_) {}
-    var saved = ''
-    try { saved = localStorage.getItem('xc_theme') || '' } catch(_) {}
-    if (!saved) {
-      try { saved = uni ? uni.getStorageSync('xc_theme') : '' } catch(_) {}
+    var themeUserSelected = false
+    try { themeUserSelected = localStorage.getItem('xc_theme_user_selected') === '1' } catch(_) {}
+    if (!themeUserSelected) {
+      try {
+        var storedChoice = uni ? uni.getStorageSync('xc_theme_user_selected') : ''
+        themeUserSelected = storedChoice === '1' || storedChoice === true
+      } catch(_) {}
     }
-    if (isDesktopShell) {
+    var saved = ''
+    if (themeUserSelected) {
+      try { saved = localStorage.getItem('xc_theme') || '' } catch(_) {}
+      if (!saved) {
+        try { saved = uni ? uni.getStorageSync('xc_theme') : '' } catch(_) {}
+      }
+      if (saved !== 'dark' && saved !== 'light') saved = ''
+    }
+    if (isDesktopShell && !themeUserSelected) {
       saved = 'light'
     }
     if (!saved) {
-      try {
-        var ua = navigator.userAgent || ''
-        var isAndroidWeChat = /Android/i.test(ua) && /MicroMessenger/i.test(ua)
-        // Android 微信 XWeb 在深色模式下偶发首屏黑屏，未手动选择主题时默认浅色。
-        saved = isAndroidWeChat ? 'light' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
-      } catch(_) { saved = 'light' }
+      // 未手动选择主题时默认浅色；只有用户主动切到深色才持久保持深色。
+      saved = 'light'
     }
     try {
       localStorage.setItem('xc_theme', saved)
@@ -210,8 +217,8 @@ export default {
           '/pages/tarot/index'
         ].includes(path)
         if (!isHome) {
-          document.documentElement.classList.remove('marketing-page', 'marketing-android', 'home-fixed-page')
-          document.body.classList.remove('marketing-page', 'marketing-android', 'home-fixed-page')
+          document.documentElement.classList.remove('marketing-page', 'marketing-android', 'marketing-wheel-scroll', 'home-fixed-page')
+          document.body.classList.remove('marketing-page', 'marketing-android', 'marketing-wheel-scroll', 'home-fixed-page')
           document.querySelectorAll('uni-page[data-marketing-hidden="true"]').forEach(function(page) {
             page.removeAttribute('aria-hidden')
             page.removeAttribute('data-marketing-hidden')
@@ -513,32 +520,32 @@ uni-tabbar, .uni-tabbar, .uni-tabbar-bottom {
 uni-page-wrapper{min-height:0!important}
 .page-root{padding-top:60px!important}@media(max-width:768px){.page-root{padding-top:56px!important}}
 body.marketing-page .page-root.marketing-active{padding-top:0!important}
-body:not(.home-fixed-page) .page-root{
+body:not(.home-fixed-page):not(.marketing-page) .page-root{
   height:auto!important;
   min-height:calc(100dvh - 60px)!important;
   overflow:visible!important;
 }
-body:not(.home-fixed-page) .page-wrap{
+body:not(.home-fixed-page):not(.marketing-page) .page-wrap{
   height:auto!important;
   min-height:0!important;
   overflow:visible!important;
 }
-body:not(.home-fixed-page) uni-page-body,
-body:not(.home-fixed-page) uni-page-wrapper{
+body:not(.home-fixed-page):not(.marketing-page) uni-page-body,
+body:not(.home-fixed-page):not(.marketing-page) uni-page-wrapper{
   overflow-y:auto!important;
   -webkit-overflow-scrolling:touch;
 }
-body:not(.home-fixed-page) uni-page-wrapper{
+body:not(.home-fixed-page):not(.marketing-page) uni-page-wrapper{
   height:100dvh!important;
   max-height:100dvh!important;
 }
-body:not(.home-fixed-page) uni-page-body{
+body:not(.home-fixed-page):not(.marketing-page) uni-page-body{
   height:auto!important;
   min-height:100%!important;
   overflow:visible!important;
 }
 @media(max-width:768px){
-  body:not(.home-fixed-page) .page-root{min-height:calc(100dvh - 56px)!important}
+  body:not(.home-fixed-page):not(.marketing-page) .page-root{min-height:calc(100dvh - 56px)!important}
 }
 
 /* 第二批工具页视觉优化：统一术数工具台的密度、层次和可点击状态 */
@@ -824,7 +831,7 @@ body:not(.home-fixed-page) .btn-row .btn-ghost{
   justify-content:center!important;
 }
 @media(max-width:480px){
-  body:not(.home-fixed-page) .page-root{padding-top:52px!important}
+  body:not(.home-fixed-page):not(.marketing-page) .page-root{padding-top:52px!important}
   body:not(.home-fixed-page) .tool-hero,
   body:not(.home-fixed-page) .tarot-hero{padding:18px 14px 10px!important}
   body:not(.home-fixed-page) .tool-hero-title,
@@ -1291,7 +1298,7 @@ body:not(.home-fixed-page) .llm-sheet-panel{
 }
 
 /* 第七批移动与暗黑一致性：安全区、阅读宽度、降级动效 */
-body:not(.home-fixed-page) .page-root{
+body:not(.home-fixed-page):not(.marketing-page) .page-root{
   padding-bottom:max(34px,env(safe-area-inset-bottom))!important;
 }
 body:not(.home-fixed-page) .qai-result,
@@ -1391,7 +1398,7 @@ body:not(.home-fixed-page) .history-markdown{
   --xc-red: #d87578;
   --xc-green: #78c89e;
 }
-body:not(.home-fixed-page) .page-root{
+body:not(.home-fixed-page):not(.marketing-page) .page-root{
   background:
     linear-gradient(90deg,rgba(178,149,93,.045) 1px,transparent 1px),
     linear-gradient(180deg,rgba(178,149,93,.035) 1px,transparent 1px),

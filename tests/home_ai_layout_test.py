@@ -131,12 +131,32 @@ def test_top_nav_distinguishes_agent_query_from_plain_home():
     assert "if (href === '#/') target = '/pages/index/index'" not in source
 
 
-def test_desktop_shell_does_not_auto_open_login_over_bottom_agent_input():
+def test_agent_entry_does_not_auto_open_login_over_bottom_agent_input():
     source = _source()
+    top_nav_source = TOP_NAV_VUE.read_text(encoding="utf-8")
 
-    assert "function isDesktopNativeShell()" in source
-    assert "window.shianDesktop && window.shianDesktop.platform" in source
-    assert "wantsToolHome && !isLoggedIn.value && !isDesktopNativeShell()" in source
+    assert "wantsToolHome && !isLoggedIn.value" in source
+    assert "marketingMode.value = true" in source
+    assert "wantsAppHome && !localLoggedIn.value" in top_nav_source
+    assert "xc-show-marketing-home" in top_nav_source
+    assert "function openMarketingLogin()" in source
+    assert "marketingPendingEnterAfterLogin" not in source
+
+
+def test_home_agent_defaults_to_light_until_user_selects_theme():
+    source = _source()
+    app_source = APP_VUE.read_text(encoding="utf-8")
+    top_nav_source = TOP_NAV_VUE.read_text(encoding="utf-8")
+
+    assert "xc_theme_user_selected" in app_source
+    assert "saved = 'light'" in app_source
+    assert "window.matchMedia && window.matchMedia('(prefers-color-scheme" not in app_source
+    assert "function readInitialTheme()" in source
+    assert "if (!hasUserSelectedTheme()) return 'light'" in source
+    assert "const theme = ref(readInitialTheme())" in source
+    assert "uni.setStorageSync('xc_theme_user_selected', '1')" in source
+    assert "localStorage.setItem('xc_theme_user_selected', '1')" in top_nav_source
+    assert "theme: { type: String, default: 'light' }" in top_nav_source
 
 
 def test_marketing_home_keeps_shian_agent_entry_and_contextual_auth_cta():
@@ -146,6 +166,7 @@ def test_marketing_home_keeps_shian_agent_entry_and_contextual_auth_cta():
     assert 'data-enter-app="1"' in source
     assert ">时安agent</text>" in source
     assert "{{ isLoggedIn ? '进入应用' : '登录/注册' }}" in source
+    assert "min-width: 104px;" in source
     assert ".marketing-nav-links .marketing-agent-link" in source
     assert ".marketing-login" not in source
 

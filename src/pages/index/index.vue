@@ -810,7 +810,30 @@ import {
 } from './homeAiUtils.js'
 
 // ── 主题 ──
-const theme = ref(uni.getStorageSync('xc_theme') || 'dark')
+function hasUserSelectedTheme() {
+  try {
+    const v = uni.getStorageSync('xc_theme_user_selected')
+    if (v === '1' || v === true) return true
+  } catch(_) {}
+  // #ifdef H5
+  try {
+    return localStorage.getItem('xc_theme_user_selected') === '1'
+  } catch(_) {}
+  // #endif
+  return false
+}
+function readInitialTheme() {
+  if (!hasUserSelectedTheme()) return 'light'
+  let saved = ''
+  try { saved = uni.getStorageSync('xc_theme') || '' } catch(_) {}
+  // #ifdef H5
+  if (!saved) {
+    try { saved = localStorage.getItem('xc_theme') || '' } catch(_) {}
+  }
+  // #endif
+  return saved === 'dark' ? 'dark' : 'light'
+}
+const theme = ref(readInitialTheme())
 const topNavRef = ref(null)
 const marketingMode = ref(true)
 const marketingAndroid = ref(false)
@@ -842,7 +865,6 @@ const marketingFaqs = [
 ]
 const marketingActiveFaq = ref(null)
 let marketingObserver = null
-let marketingPendingEnterAfterLogin = false
 let marketingScrollRestoration = ''
 let marketingTopResetTimer = null
 let marketingEnterLastTouch = 0
@@ -895,15 +917,6 @@ function shouldForceToolRoute() {
   return false
 }
 
-function isDesktopNativeShell() {
-  // #ifdef H5
-  try {
-    return !!(window.shianDesktop && window.shianDesktop.platform)
-  } catch(_) {}
-  // #endif
-  return false
-}
-
 function refreshMarketingMode(query) {
   if (shouldForceToolRoute()) {
     marketingMode.value = false
@@ -913,14 +926,12 @@ function refreshMarketingMode(query) {
     return
   }
   const wantsToolHome = shouldOpenToolHome(query)
-  if (wantsToolHome && !isLoggedIn.value && !isDesktopNativeShell()) {
-    marketingPendingEnterAfterLogin = true
-    marketingMode.value = false
+  if (wantsToolHome && !isLoggedIn.value) {
+    marketingMode.value = true
     // #ifdef H5
     try {
-      if (window.location.hash !== '#/?app=1') window.history.replaceState({ app: 'home' }, '', '#/?app=1')
+      if (window.location.hash !== '#/') window.history.replaceState({ marketing: 'home' }, '', '#/')
     } catch(_) {}
-    nextTick(openMarketingLogin)
     // #endif
   } else {
     marketingMode.value = !wantsToolHome
@@ -938,7 +949,6 @@ function refreshMarketingMode(query) {
 }
 
 function showMarketingHome() {
-  marketingPendingEnterAfterLogin = false
   marketingMode.value = true
   marketingCriticalVisible.value = false
   resetMarketingVisibleSections()
@@ -957,12 +967,17 @@ function syncMarketingPageClass() {
   try {
     const active = !!marketingMode.value
     window.__xcHomeMode = active ? 'marketing' : 'app'
-    const isAndroid = /Android/i.test(window.navigator && window.navigator.userAgent ? window.navigator.userAgent : '')
+    const nav = window.navigator || {}
+    const ua = nav.userAgent || ''
+    const isAndroid = /Android/i.test(ua)
+    const isWindows = /Windows NT/i.test(ua)
     marketingAndroid.value = active && isAndroid
     document.documentElement.classList.toggle('marketing-page', active)
     document.body.classList.toggle('marketing-page', active)
     document.documentElement.classList.toggle('marketing-android', marketingAndroid.value)
     document.body.classList.toggle('marketing-android', marketingAndroid.value)
+    document.documentElement.classList.toggle('marketing-wheel-scroll', active && isWindows)
+    document.body.classList.toggle('marketing-wheel-scroll', active && isWindows)
     syncMarketingDomIsolation(active)
     if (active) {
       document.documentElement.classList.remove('home-fixed-page')
@@ -1018,7 +1033,7 @@ function restoreMarketingScrollRestoration() {
 
 function enterMarketingApp() {
   if (!isLoggedIn.value) {
-    marketingPendingEnterAfterLogin = true
+    showMarketingHome()
     openMarketingLogin()
     return
   }
@@ -1032,6 +1047,22 @@ function enterMarketingApp() {
     window.scrollTo(0, 0)
   } catch(_) {}
   scheduleHomeVideoLoad()
+  // #endif
+}
+
+function openMarketingLogin() {
+  // #ifdef H5
+  nextTick(function() {
+    setTimeout(function() {
+      try {
+        if (window._openLoginModal) {
+          window._openLoginModal()
+        } else {
+          uni.showToast({ title: '请先登录或注册', icon: 'none' })
+        }
+      } catch(_) {}
+    }, 160)
+  })
   // #endif
 }
 
@@ -1139,22 +1170,6 @@ function scrollMarketingHero() {
   // #endif
 }
 
-function openMarketingLogin() {
-  // #ifdef H5
-  nextTick(function() {
-    setTimeout(function() {
-      try {
-        if (window._openLoginModal) {
-          window._openLoginModal()
-        } else {
-          uni.showToast({ title: '请先登录或注册', icon: 'none' })
-        }
-      } catch(_) {}
-    }, 180)
-  })
-  // #endif
-}
-
 function disconnectMarketingObserver() {
   // #ifdef H5
   if (marketingObserver) {
@@ -1231,7 +1246,10 @@ function setupMarketingObserver() {
 function toggleTheme() {
   theme.value = theme.value === 'dark' ? 'light' : 'dark'
   uni.setStorageSync('xc_theme', theme.value)
+  uni.setStorageSync('xc_theme_user_selected', '1')
   try {
+    localStorage.setItem('xc_theme', theme.value)
+    localStorage.setItem('xc_theme_user_selected', '1')
     document.documentElement.setAttribute('data-theme', theme.value); document.body.setAttribute('data-theme', theme.value); const root = document.querySelector('.page-root')
     if (root) root.setAttribute('data-theme', theme.value)
     const icon = document.getElementById('themeToggleIcon')
@@ -1295,7 +1313,6 @@ function toggleSubmenu(key) { submenuOpen[key] = !submenuOpen[key] }
 // ── 登录状态 ──
 const isLoggedIn = ref(!!uni.getStorageSync('xc_token'))
 function resetHomeAuthState() {
-  marketingPendingEnterAfterLogin = false
   clearHomeAgentSelectionStorage()
   currentPoints.value = 0
   profiles.value = []
@@ -1320,10 +1337,6 @@ window.addEventListener('xc-auth-changed', function(e) {
   if (loggedIn) {
     loadComprehensiveOptions()
     loadProfiles()
-    if (marketingPendingEnterAfterLogin) {
-      marketingPendingEnterAfterLogin = false
-      nextTick(function() { enterMarketingApp() })
-    }
   } else {
     resetHomeAuthState()
   }
@@ -4260,8 +4273,10 @@ function clearAllData() {
     success: (res) => {
       if (res.confirm) {
         var _savedTheme = uni.getStorageSync('xc_theme')
+        var _savedThemeChoice = uni.getStorageSync('xc_theme_user_selected')
         uni.clearStorageSync()
         if (_savedTheme) uni.setStorageSync('xc_theme', _savedTheme)
+        if (_savedThemeChoice) uni.setStorageSync('xc_theme_user_selected', _savedThemeChoice)
         uni.showToast({ title: '已清空', icon: 'success' })
       }
     }
@@ -4277,8 +4292,8 @@ onLoad((query) => {
 onShow(() => {
   refreshMarketingMode()
   setHomeFixedPage(!marketingMode.value)
-  var t = uni.getStorageSync('xc_theme')
-  if (t && t !== theme.value) {
+  var t = readInitialTheme()
+  if (t !== theme.value) {
     theme.value = t
     try {
       document.documentElement.setAttribute('data-theme', t)
@@ -4540,6 +4555,18 @@ onBeforeUnmount(() => {
   height: 0;
   display: none;
 }
+@media (hover: hover) and (pointer: fine) {
+  :global(body.marketing-wheel-scroll .marketing-landing) {
+    scroll-snap-type: none;
+  }
+  :global(body.marketing-wheel-scroll .marketing-hero),
+  :global(body.marketing-wheel-scroll .marketing-critical),
+  :global(body.marketing-wheel-scroll .marketing-tools),
+  :global(body.marketing-wheel-scroll .marketing-core),
+  :global(body.marketing-wheel-scroll .marketing-final) {
+    scroll-snap-align: none;
+  }
+}
 .marketing-auth-host {
   position: fixed;
   inset: 0;
@@ -4651,6 +4678,7 @@ onBeforeUnmount(() => {
 .marketing-secondary::after { border: 0; }
 .marketing-enter {
   min-height: 40px;
+  min-width: 104px;
   padding: 0 24px;
   display: inline-flex;
   align-items: center;
@@ -6585,7 +6613,7 @@ onBeforeUnmount(() => {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 78px;
+    min-width: 94px;
     min-height: 42px;
     padding: 10px 12px;
     font-size: 13px;

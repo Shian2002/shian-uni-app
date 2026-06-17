@@ -329,7 +329,7 @@ async function checkUnauthAgentEntry(browser) {
     assertCondition(entryState.hasAgent, '营销首页缺少时安agent入口')
     assertCondition(entryState.authCtaText === '登录/注册', `未登录辅助按钮文案异常: ${entryState.authCtaText}`)
     await clickVisibleMarketingAgentEntry(page)
-    await page.waitForTimeout(800)
+    await waitForRenderedApp(page, 'The Oriental Insight Agent')
     const modal = await page.evaluate(() => {
       const loginModal = document.querySelector('#topnavLoginModal.open')
       const text = loginModal ? loginModal.innerText || '' : ''
@@ -338,14 +338,15 @@ async function checkUnauthAgentEntry(browser) {
         hasPassword: text.includes('密码登录'),
         hasCode: text.includes('验证码登录'),
         hasGitee: text.includes('Gitee 验证登录'),
+        theme: document.documentElement.getAttribute('data-theme') || document.body.getAttribute('data-theme') || '',
       }
     })
-    assertCondition(modal.open, '未登录点击时安agent未弹出登录弹窗')
-    assertCondition(modal.hasPassword, '旧登录弹窗缺少密码登录')
-    assertCondition(modal.hasCode, '旧登录弹窗缺少验证码登录')
-    assertCondition(modal.hasGitee, '旧登录弹窗缺少 Gitee 验证登录')
-    await assertHealthyPage(page, '未登录时安Agent', ['登录', '密码登录', '验证码登录', 'Gitee 验证登录'])
-    return { name: '未登录时安 Agent 拦截', passed: true }
+    assertCondition(modal.open, '未登录点击时安agent应弹出登录弹窗')
+    assertCondition(modal.hasPassword && modal.hasCode && modal.hasGitee, '登录弹窗缺少密码/验证码/Gitee 登录入口')
+    assertCondition(modal.theme === 'light', `未显式选择主题时登录弹窗应为亮色，实际: ${modal.theme}`)
+    const summary = await assertHealthyPage(page, '未登录时安Agent', ['The Oriental Insight Agent', '开始解读'])
+    assertCondition(!summary.text.includes('选择命盘'), '未登录不应进入时安 Agent 应用态')
+    return { name: '未登录时安 Agent 登录弹窗', passed: true, summary, modal }
   } catch (error) {
     await captureFailure(page, '未登录时安Agent', error)
     throw error

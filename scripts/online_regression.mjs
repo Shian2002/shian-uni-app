@@ -228,8 +228,6 @@ async function checkLoginModal(browser) {
     assertCondition(modal.passInput, '登录密码输入框不存在')
     assertCondition(modal.oldModeTabs.length === 0, `登录弹窗仍存在旧三 tab: ${modal.oldModeTabs.join(',')}`)
     assertCondition(modal.modeTabs.includes('密码登录') && modal.modeTabs.includes('验证码登录'), '登录方式缺少密码/验证码切换')
-    assertCondition(!modal.visibleText.includes('手机'), '登录弹窗仍出现手机相关入口')
-
     const measureLoginBox = () => {
       const box = Array.from(document.querySelectorAll('#topnavLoginModal.open .modal-box')).find((el) => {
         const r = el.getBoundingClientRect()
@@ -261,7 +259,7 @@ async function checkLoginModal(browser) {
       }
     })
     assertCondition(codeModeState.active, '验证码登录切换未激活')
-    assertCondition(codeModeState.accountPlaceholder === '邮箱', `验证码登录账号占位异常: ${codeModeState.accountPlaceholder}`)
+    assertCondition(codeModeState.accountPlaceholder === '邮箱/手机号', `验证码登录账号占位异常: ${codeModeState.accountPlaceholder}`)
     assertCondition(codeModeState.hasCode && codeModeState.hasCodeButton, '验证码登录缺少验证码输入或获取按钮')
     assertCondition(codeModeState.passwordDisplay === 'none', '验证码登录时密码输入未隐藏')
     const codeBox = await page.evaluate(measureLoginBox)

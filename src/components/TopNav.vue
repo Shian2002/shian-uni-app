@@ -119,7 +119,7 @@
 import { ref, reactive, onMounted, nextTick } from 'vue'
 
 const props = defineProps({
-  theme: { type: String, default: 'dark' },
+  theme: { type: String, default: 'light' },
   isLoggedIn: { type: Boolean, default: false }
 })
 
@@ -1538,6 +1538,13 @@ function onToggleTheme() {
     var icon = document.getElementById('themeToggleIcon')
     if (icon) icon.textContent = newTheme === 'dark' ? '🌙' : '☀️'
     localStorage.setItem('xc_theme', newTheme)
+    localStorage.setItem('xc_theme_user_selected', '1')
+    try {
+      if (typeof uni !== 'undefined') {
+        uni.setStorageSync('xc_theme', newTheme)
+        uni.setStorageSync('xc_theme_user_selected', '1')
+      }
+    } catch(_) {}
   } catch(_) {}
   emit('toggle-theme')
 }
@@ -1615,6 +1622,27 @@ function go(hash) {
   var routeBeforeIsTab = TAB_PATHS.indexOf(routeBeforeNav) > -1 || routeBeforeNav === '/pages/index/index'
   var routeBeforeIsHome = routeBeforeNav === '/' || routeBeforeNav === '/pages/index/index'
   var shouldSwitchForAgentHome = wantsAppHome && !routeBeforeIsHome
+
+  if (wantsAppHome && !localLoggedIn.value) {
+    try {
+      sessionStorage.removeItem('_nav_query')
+      window.__xcHomeMode = 'marketing'
+      if (window.location.hash !== '#/') window.history.pushState({ marketing: 'home' }, '', '#/')
+      document.documentElement.classList.remove('home-fixed-page')
+      document.body.classList.remove('home-fixed-page')
+      document.documentElement.classList.add('marketing-page')
+      document.body.classList.add('marketing-page')
+      window.dispatchEvent(new CustomEvent('xc-show-marketing-home'))
+      window.dispatchEvent(new CustomEvent('xc-home-mode-changed', { detail: { mode: 'marketing' } }))
+      setTimeout(function() {
+        try {
+          if (window._openLoginModal) window._openLoginModal()
+          else uni.showToast({ title: '请先登录或注册', icon: 'none' })
+        } catch(__) {}
+      }, 180)
+    } catch(_) {}
+    return
+  }
 
   // 从其他术数页点“八字排盘”时，优先回到本次会话最后看的八字结果页。
   // 只使用 window 变量，刷新页面后失效，避免把旧结果永久记住。
