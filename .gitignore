@@ -1,4 +1,5 @@
 node_modules/
+.npm-cache/
 dist/
 .DS_Store
 *.log
@@ -26,6 +27,32 @@ test-*.mjs
 *.pyc
 __pycache__/
 .gstack/
+
+# 发行签名和商店敏感材料只能放在本机或密钥管理系统，不能入库。
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+*.cer
+*.pem
+*.key
+*.aab
+*.apk
+*.ipa
+*.dmg
+*.pkg
+*.exe
+*.msi
+*.app
+desktop/dist/
+desktop/release/
+desktop/node_modules/
+android-shell/local.properties
+android-shell/.gradle/
+android-shell/build/
+android-shell/app/build/
+graphify-out/
+unpackage/
 
 # Local Netlify folder
 .netlify
