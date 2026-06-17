@@ -290,7 +290,7 @@ onMounted(function() {
     var v = (value || '').trim()
     if (!v) return 'empty'
     if (v.indexOf('@') !== -1) return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? 'email' : 'invalid-email'
-    if (/^\d+$/.test(v)) return 'username'
+    if (/^\d{11,}$/.test(v)) return 'phone'
     return 'username'
   }
 
@@ -308,7 +308,7 @@ onMounted(function() {
     if (passwordRow) passwordRow.style.display = mode === 'code' ? 'none' : ''
     if (codeRow) codeRow.style.display = mode === 'code' ? '' : 'none'
     var account = modal.querySelector('#tnLoginUser')
-    if (account) account.placeholder = mode === 'code' ? '邮箱' : '用户名/邮箱'
+    if (account) account.placeholder = mode === 'code' ? '邮箱/手机号' : '用户名/邮箱/手机号'
     var code = modal.querySelector('#tnLoginCode')
     if (code && mode !== 'code') code.value = ''
   }
@@ -485,9 +485,9 @@ onMounted(function() {
       var accountEl = (modal || document).querySelector('#tnLoginUser')
       var account = accountEl ? accountEl.value.trim() : ''
       var idType = _xc_detectLoginIdentifier(account)
-      if (!account) { if (e) e.textContent = '请输入用户名或邮箱'; return }
-      if (mode === 'code' && idType !== 'email') {
-        if (e) e.textContent = '验证码登录需要输入邮箱'
+      if (!account) { if (e) e.textContent = '请输入用户名、邮箱或手机号'; return }
+      if (mode === 'code' && idType !== 'email' && idType !== 'phone') {
+        if (e) e.textContent = '验证码登录需要输入邮箱或手机号'
         return
       }
       var url = '/api/login'
@@ -501,8 +501,13 @@ onMounted(function() {
         var codeEl = (modal || document).querySelector('#tnLoginCode')
         var code = codeEl ? codeEl.value.trim() : ''
         if (!code) { if (e) e.textContent = '请输入验证码'; return }
-        url = '/api/email/login'
-        data = { email: account, code: code }
+        if (idType === 'phone') {
+          url = '/api/sms/login'
+          data = { phone: account, code: code }
+        } else {
+          url = '/api/email/login'
+          data = { email: account, code: code }
+        }
       }
       uni.request({ url: url, method: 'POST', data: data }).then(function(res) {
         var d = res.data
@@ -539,17 +544,17 @@ onMounted(function() {
       var accountEl = modal.querySelector('#tnLoginUser')
       var account = accountEl ? accountEl.value.trim() : ''
       var idType = _xc_detectLoginIdentifier(account)
-      if (idType !== 'email') {
+      if (idType !== 'email' && idType !== 'phone') {
         var e0 = modal.querySelector('#tnLoginError')
-        if (e0) e0.textContent = '验证码登录需要输入邮箱'
+        if (e0) e0.textContent = '验证码登录需要输入邮箱或手机号'
         return
       }
       _xc_sendCode({
         inputId: 'tnLoginUser',
         btnId: 'tnLoginCodeBtn',
-        key: 'email',
-        url: '/api/email/send',
-        errMsg: '请输入正确的邮箱',
+        key: idType === 'phone' ? 'phone' : 'email',
+        url: idType === 'phone' ? '/api/sms/send' : '/api/email/send',
+        errMsg: '请输入正确的邮箱或手机号',
         validate: function(){ return true },
       })
     }
@@ -1608,7 +1613,8 @@ function go(hash) {
   var wantsAppHome = pathOnly === '/' && /(?:[?&])app=(?:1|true)(?:&|$)/.test(queryStr)
   var wantsMarketingHome = pathOnly === '/' && !wantsAppHome
   var routeBeforeIsTab = TAB_PATHS.indexOf(routeBeforeNav) > -1 || routeBeforeNav === '/pages/index/index'
-  var shouldSwitchForAgentHome = wantsAppHome && !routeBeforeIsTab
+  var routeBeforeIsHome = routeBeforeNav === '/' || routeBeforeNav === '/pages/index/index'
+  var shouldSwitchForAgentHome = wantsAppHome && !routeBeforeIsHome
 
   // 从其他术数页点“八字排盘”时，优先回到本次会话最后看的八字结果页。
   // 只使用 window 变量，刷新页面后失效，避免把旧结果永久记住。
@@ -1780,11 +1786,32 @@ function isCurrent(pathPrefix) {
 
 // ── 按钮栏溢出检测（处理所有 TopNav 实例） ──
 function updateNavOverflow() {
+  function styleMoreMenuItem(el, isSection) {
+    if (!el || !el.style) return
+    el.style.display = 'block'
+    el.style.boxSizing = 'border-box'
+    el.style.width = '100%'
+    el.style.maxWidth = '100%'
+    el.style.overflow = 'hidden'
+    el.style.textOverflow = 'ellipsis'
+    el.style.whiteSpace = 'nowrap'
+    el.style.lineHeight = isSection ? '1.3' : '1.35'
+    el.style.padding = isSection ? '9px 16px 5px' : '10px 16px'
+    el.style.fontSize = isSection ? '0.74rem' : '0.86rem'
+    if (isSection) {
+      el.style.color = 'var(--accent)'
+      el.style.cursor = 'default'
+    } else {
+      el.style.cursor = 'pointer'
+    }
+  }
+
   function appendMoreItem(moreMenu, more, label, href) {
-    var clone = document.createElement('view')
+    var clone = document.createElement('div')
     clone.className = 'nav-btn-drop-item'
     if (href) clone.setAttribute('data-href', href)
     clone.textContent = label
+    styleMoreMenuItem(clone, false)
     clone.onclick = function(e) {
       var targetHref = clone.getAttribute('data-href')
       if (window._xc_dropItemGo) {
@@ -1839,9 +1866,10 @@ function updateNavOverflow() {
         btn.style.display = 'none'
         var nestedMenu = btn.querySelector('.nav-btn-drop-menu')
         if (nestedMenu) {
-          var section = document.createElement('view')
+          var section = document.createElement('div')
           section.className = 'nav-btn-drop-section'
           section.textContent = getTopLevelNavText(btn)
+          styleMoreMenuItem(section, true)
           moreMenu.appendChild(section)
           nestedMenu.querySelectorAll('.nav-btn-drop-item').forEach(function(item) {
             appendMoreItem(moreMenu, more, item.textContent.trim(), item.getAttribute('data-href'))
@@ -2513,10 +2541,52 @@ body > #navBtnMoreMenu.nav-btn-drop-menu {
 .avatar-dropdown-divider { height: 1px; background: var(--card-border); margin: 2px 0; }
 
 /* ═══ 登录/注册弹窗 ═══ */
-.modal-overlay { position: fixed; inset: 0; z-index: 999; background: rgba(20,16,10,0.48); display: none; align-items: center; justify-content: center; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.modal-overlay { position: fixed; inset: 0; z-index: 999; background: rgba(20,16,10,0.48); display: none; align-items: flex-end; justify-content: center; padding: 18px; padding-bottom: max(18px, calc(env(safe-area-inset-bottom) + 14px)); box-sizing: border-box; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 .modal-overlay.open { display: flex; }
-.modal-box { background: rgba(31, 29, 24, 0.94); border: 1px solid rgba(178,149,93,0.20); border-radius: 20px; padding: 28px 32px; max-width: 400px; width: min(400px, 90vw); min-height: 555px; box-sizing: border-box; box-shadow: 0 24px 80px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.08); -webkit-backdrop-filter: blur(28px) saturate(1.45); backdrop-filter: blur(28px) saturate(1.45); }
+.modal-box { background: rgba(31, 29, 24, 0.94); border: 1px solid rgba(178,149,93,0.20); border-radius: 22px 22px 16px 16px; padding: 28px 32px; max-width: 400px; width: min(400px, calc(100vw - 32px)); max-height: min(84dvh, 660px); min-height: 555px; overflow: auto; box-sizing: border-box; box-shadow: 0 24px 80px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.08); -webkit-backdrop-filter: blur(28px) saturate(1.45); backdrop-filter: blur(28px) saturate(1.45); }
 [data-theme="light"] .modal-box { background: rgba(255, 253, 248, 0.96); border: 1px solid rgba(178,149,93,0.18); box-shadow: 0 24px 80px rgba(60,40,15,0.16), inset 0 1px 0 rgba(255,255,255,0.85); }
+body.home-fixed-page #topnavLoginModal {
+  align-items: flex-end !important;
+  justify-content: center !important;
+  padding: 18px !important;
+  padding-bottom: max(18px, calc(env(safe-area-inset-bottom) + 14px)) !important;
+  box-sizing: border-box !important;
+  background: rgba(74,54,24,0.20) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(120%) !important;
+  backdrop-filter: blur(12px) saturate(120%) !important;
+}
+body.home-fixed-page #topnavLoginModal .modal-box {
+  width: min(440px, calc(100vw - 32px)) !important;
+  max-height: min(76dvh, 620px) !important;
+  overflow: auto !important;
+  border-radius: 22px 22px 16px 16px !important;
+  border: 1px solid rgba(178,149,93,0.24) !important;
+  background: linear-gradient(180deg, rgba(255,253,248,0.96), rgba(247,242,234,0.96)) !important;
+  box-shadow: 0 20px 58px rgba(74,54,24,0.18), inset 0 1px 0 rgba(255,255,255,0.78) !important;
+  color: rgba(34,25,12,0.96) !important;
+}
+body.home-fixed-page #topnavLoginModal .modal-title,
+body.home-fixed-page #topnavLoginModal .field-label,
+body.home-fixed-page #topnavLoginModal .btn-outline {
+  color: rgba(78,61,36,0.88) !important;
+}
+body.home-fixed-page #topnavLoginModal .field-input {
+  background: rgba(255,251,242,0.82) !important;
+  border-color: rgba(178,149,93,0.20) !important;
+  color: rgba(34,25,12,0.96) !important;
+}
+body.home-fixed-page #topnavLoginModal .modal-btns {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 10px !important;
+}
+body.home-fixed-page #topnavLoginModal .modal-btns .btn,
+body.home-fixed-page #topnavLoginModal .modal-btns > * {
+  min-height: 42px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
 .modal-title { font-family: var(--font-serif); font-size: 1.2rem; text-align: center; color: var(--text-1); margin-bottom: 20px; letter-spacing: 2px; }
 .field { margin-bottom: 14px; }
 .field-label { font-size: 0.75rem; color: var(--text-3); margin-bottom: 4px; display: block; }

@@ -13,7 +13,7 @@
         </view>
         <view class="marketing-nav-links">
           <text class="marketing-nav-link marketing-agent-link" data-enter-app="1" @tap="enterMarketingApp" @click="enterMarketingApp">时安agent</text>
-          <button class="marketing-enter" data-enter-app="1" @tap="enterMarketingApp" @click="enterMarketingApp">进入应用</button>
+          <button class="marketing-enter" data-enter-app="1" @tap="enterMarketingApp" @click="enterMarketingApp">{{ isLoggedIn ? '进入应用' : '登录/注册' }}</button>
         </view>
       </view>
 
@@ -390,6 +390,19 @@
               <view class="hero-brand-divider"></view>
             <view class="hero-brand-slogan">一念起，便可问</view>
             <view class="hero-brand-sub">心有所感，自有其路。我会先帮你理清所问，再为你择法解读。</view>
+            <view class="home-question-templates" v-if="showHomeQuestionTemplates">
+              <view
+                v-for="item in homeQuestionTemplates"
+                :key="item.key"
+                class="home-question-template"
+                :data-template-key="item.key"
+                @tap="selectHomeQuestionTemplate(item)"
+                @click="selectHomeQuestionTemplate(item)"
+              >
+                <text class="home-question-template-label">{{ item.label }}</text>
+                <text class="home-question-template-text">{{ item.short }}</text>
+              </view>
+            </view>
           </view>
 
           <view class="home-ai-console" :class="{ 'has-chat': comprehensiveMessages.length }">
@@ -882,6 +895,15 @@ function shouldForceToolRoute() {
   return false
 }
 
+function isDesktopNativeShell() {
+  // #ifdef H5
+  try {
+    return !!(window.shianDesktop && window.shianDesktop.platform)
+  } catch(_) {}
+  // #endif
+  return false
+}
+
 function refreshMarketingMode(query) {
   if (shouldForceToolRoute()) {
     marketingMode.value = false
@@ -891,7 +913,7 @@ function refreshMarketingMode(query) {
     return
   }
   const wantsToolHome = shouldOpenToolHome(query)
-  if (wantsToolHome && !isLoggedIn.value) {
+  if (wantsToolHome && !isLoggedIn.value && !isDesktopNativeShell()) {
     marketingPendingEnterAfterLogin = true
     marketingMode.value = false
     // #ifdef H5
@@ -1289,6 +1311,9 @@ window.addEventListener('xc-session-expired', function() {
 window.addEventListener('xc-show-marketing-home', function() {
   showMarketingHome()
 })
+window.addEventListener('xc-show-agent-home', function() {
+  enterMarketingApp()
+})
 window.addEventListener('xc-auth-changed', function(e) {
   const loggedIn = !!(e && e.detail && e.detail.loggedIn)
   isLoggedIn.value = loggedIn
@@ -1322,6 +1347,12 @@ const selectedToolsStorageKey = 'xc_home_selected_tools_v1'
 const sendConfirmSkipStorageKey = 'xc_home_send_confirm_skip_v1'
 const questionGuidanceEnabledStorageKey = 'xc_home_question_guidance_enabled_v1'
 const agentHandoffStorageKey = 'xc_agent_handoff_v1'
+const homeQuestionTemplates = [
+  { key: 'career', label: '事业', short: '跳槽时机', question: '我最近适合跳槽或换方向吗？请结合事业趋势、阻力和适合行动的时间窗口来判断。' },
+  { key: 'relationship', label: '感情', short: '关系走向', question: '我和对方接下来的关系走向如何？请看双方状态、沟通阻力和是否适合继续推进。' },
+  { key: 'partnership', label: '合作', short: '项目取舍', question: '这个合作或项目现在适合推进吗？请帮我看机会、风险和需要避开的关键点。' },
+  { key: 'annual', label: '年运', short: '年度重点', question: '我接下来一年最需要注意什么？请从事业、财运、关系和关键月份给出重点提醒。' },
+]
 const profileTypeQuickLabels = ['自己', '家人', '朋友', '伴侣', '客户', '名人', '收藏', '其他']
 const profileTypeQuickValues = ['self', 'family', 'friend', 'partner', 'customer', 'celebrity', 'collect', 'other']
 const genderOptions = ['男', '女']
@@ -1435,6 +1466,9 @@ const readingModeLabels = computed(() => readingModes.value.map(m => {
 }))
 const readingModeIdx = computed(() => Math.max(0, readingModes.value.findIndex(m => m.id === selectedReadingMode.value.id)))
 const comprehensivePlaceholder = computed(() => comprehensiveMessages.value.length ? '请继续输入你想问的问题' : '此刻最牵动你的，是哪一件事？')
+const showHomeQuestionTemplates = computed(() => {
+  return !comprehensiveMessages.value.length && !comprehensiveLoading.value
+})
 const showGuidanceHint = computed(() => {
   return questionGuidanceEnabled.value && !comprehensiveMessages.value.length && !comprehensiveLoading.value
 })
@@ -3828,6 +3862,15 @@ function resolveToolRecommendation(ok) {
   }
 }
 
+function selectHomeQuestionTemplate(item) {
+  if (!item || comprehensiveLoading.value) return
+  comprehensiveQuestion.value = item.question || ''
+  try {
+    const input = document.querySelector('.home-ai-input')
+    if (input && typeof input.focus === 'function') input.focus()
+  } catch (_) {}
+}
+
 async function startComprehensiveAsk(forcedQuestion) {
   if (comprehensiveLoading.value) return
   if (!isLoggedIn.value) return uni.showToast({ title: '请先登录', icon: 'none' })
@@ -4504,7 +4547,21 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 .marketing-auth-host :deep(.topnav) { display: none; }
-.marketing-auth-host :deep(.modal-overlay) { pointer-events: auto; }
+.marketing-auth-host :deep(.modal-overlay) {
+  pointer-events: auto;
+  align-items: flex-end !important;
+  justify-content: center !important;
+  padding: 18px !important;
+  padding-bottom: max(18px, calc(env(safe-area-inset-bottom) + 14px)) !important;
+  box-sizing: border-box !important;
+}
+.marketing-auth-host :deep(.modal-overlay.open) {
+  display: flex !important;
+}
+.marketing-auth-host :deep(.modal-box) {
+  margin-top: auto !important;
+  margin-bottom: 0 !important;
+}
 .marketing-nav {
   position: fixed;
   inset: 0 0 auto;
@@ -7189,12 +7246,19 @@ onBeforeUnmount(() => {
 .hero-brand-divider { width: 50px; height: 2px; background: var(--accent); margin: 12px auto; border-radius: 1px; box-shadow: 0 0 12px var(--accent-glow); }
 .hero-brand-slogan { font-family: var(--font-serif); font-size: 0.95rem; letter-spacing: 4px; color: var(--accent); margin-bottom: 6px; }
 .hero-brand-sub { font-size: 0.78rem; color: var(--text-3); letter-spacing: 1px; }
+.home-question-templates { width: min(760px, calc(100vw - 44px)); margin: 18px auto 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; pointer-events: auto; }
+.home-question-template { min-width: 0; min-height: 58px; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(178,149,93,0.16); background: rgba(255,255,255,0.045); color: var(--text-2); display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px; cursor: pointer; box-sizing: border-box; box-shadow: inset 0 1px 0 rgba(255,255,255,0.06); transition: border-color .18s ease, background .18s ease, transform .18s ease, box-shadow .18s ease; }
+[data-theme="light"] .home-question-template { background: rgba(255,253,248,0.72); box-shadow: 0 8px 24px rgba(60,40,15,0.06), inset 0 1px 0 rgba(255,255,255,0.82); }
+.home-question-template:hover { transform: translateY(-1px); border-color: rgba(178,149,93,0.34); background: rgba(178,149,93,0.10); box-shadow: 0 10px 28px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.08); }
+.home-question-template-label { color: var(--accent); font-size: 0.72rem; font-weight: 800; line-height: 1.2; letter-spacing: 0; }
+.home-question-template-text { width: 100%; color: var(--text-2); font-size: 0.78rem; line-height: 1.25; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hero-home.chat-active .hero-brand-icon-wrap { width: 58px; height: 58px; margin: 0; animation: none; }
 .hero-home.chat-active .hero-brand-icon { width: 48px; height: 48px; transform: none; }
 .hero-home.chat-active .hero-brand-name { font-size: 1.28rem; letter-spacing: 5px; margin: 0; text-indent: 5px; }
 .hero-home.chat-active .hero-brand-divider { display: none; }
 .hero-home.chat-active .hero-brand-slogan { display: none; }
 .hero-home.chat-active .hero-brand-sub { display: none; }
+.hero-home.chat-active .home-question-templates { display: none; }
 
 .home-scan-panel { width: min(920px, 100%); margin: 0 auto 18px; display: grid; grid-template-columns: 1fr; gap: 10px; flex: 0 0 auto; }
 .home-scan-status { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
@@ -7729,6 +7793,22 @@ onBeforeUnmount(() => {
 .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
 .modal-btns .btn { flex: 1; text-align: center; }
 .modal-error { color: var(--danger); font-size: 0.75rem; text-align: center; margin-top: 10px; min-height: 18px; }
+:global(body #topnavLoginModal) {
+  align-items: flex-end !important;
+  justify-content: center !important;
+  padding: 18px !important;
+  padding-bottom: max(18px, calc(env(safe-area-inset-bottom) + 14px)) !important;
+  box-sizing: border-box !important;
+}
+:global(body #topnavLoginModal.open),
+:global(body #topnavLoginModal.modal-overlay.open) {
+  display: flex !important;
+}
+:global(body #topnavLoginModal .modal-box) {
+  margin-top: auto !important;
+  margin-bottom: 0 !important;
+  border-radius: 22px 22px 16px 16px !important;
+}
 
 /* ═══ 响应式 ═══ */
 @media (max-width: 1024px) {
@@ -7744,6 +7824,10 @@ onBeforeUnmount(() => {
   .hero-brand-divider { margin: 8px auto; }
   .hero-brand-slogan { font-size: 0.82rem; letter-spacing: 3px; }
   .hero-brand-sub { display: none; }
+  .home-question-templates { margin-top: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .home-question-template { min-height: 48px; padding: 8px 10px; border-radius: 12px; }
+  .home-question-template-label { font-size: 0.66rem; }
+  .home-question-template-text { font-size: 0.72rem; }
   .home-scan-panel { margin-bottom: 12px; }
   .home-scan-status-item, .home-scan-action { padding-top: 8px; padding-bottom: 8px; }
   .home-scan-action-sub { display: none; }
@@ -7764,6 +7848,8 @@ onBeforeUnmount(() => {
   .hero-brand-icon { width: 64px; height: 64px; transform: translateY(2px); }
   .hero-brand-name { font-size: 1.45rem; letter-spacing: 4px; margin-bottom: 6px; text-indent: 4px; }
   .hero-brand-divider, .hero-brand-slogan, .hero-brand-sub { display: none; }
+  .home-question-templates { width: min(620px, calc(100vw - 36px)); margin-top: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .home-question-template { min-height: 46px; padding: 8px 10px; border-radius: 12px; }
   .home-scan-panel { margin-bottom: 8px; gap: 8px; }
   .home-scan-status { display: none; }
   .home-scan-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -7797,6 +7883,10 @@ onBeforeUnmount(() => {
   .hero-home.chat-active .hero-brand-slogan { font-size: 0.68rem; letter-spacing: 2px; }
   .hero-brand-name { font-size: 2rem; letter-spacing: 6px; }
   .hero-brand-slogan { font-size: 0.875rem; letter-spacing: 3px; }
+  .home-question-templates { grid-template-columns: repeat(2, minmax(0, 1fr)); width: calc(100vw - 34px); gap: 8px; margin-top: 14px; }
+  .home-question-template { min-height: 50px; padding: 8px 10px; }
+  .home-question-template-label { font-size: 0.66rem; }
+  .home-question-template-text { font-size: 0.72rem; }
   .home-scan-panel { width: 100%; margin-bottom: 12px; gap: 8px; }
   .home-scan-status { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
   .home-scan-status-item { padding: 8px 10px; border-radius: 10px; }

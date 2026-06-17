@@ -261,8 +261,8 @@
             <view class="footer-col-title">平台信息</view>
             <navigator url="/package-info/about/index">关于我们</navigator>
             <view class="footer-link" @tap="showFooterInfo('contact')">联系方式</view>
-            <view class="footer-link" @tap="showFooterInfo('terms')">用户协议</view>
-            <view class="footer-link" @tap="showFooterInfo('privacy')">隐私政策</view>
+            <view class="footer-link" @tap="goToLegal('terms')">用户协议</view>
+            <view class="footer-link" @tap="goToLegal('privacy')">隐私政策</view>
             <view class="footer-link" @tap="showFooterInfo('disclaimer')">完整免责声明</view>
           </view>
           <view class="footer-col">
@@ -439,6 +439,9 @@ export default {
     },
     goToPage(url) {
       uni.switchTab({ url: url })
+    },
+    goToLegal(type) {
+      uni.navigateTo({ url: '/pages/legal/index?type=' + type })
     },
     goScenario(key) {
       try { sessionStorage.setItem('_nav_query', '?scenario=' + key) } catch(_) {}

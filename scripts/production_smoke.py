@@ -53,7 +53,7 @@ def require(condition, message, failures):
 
 def main():
     parser = argparse.ArgumentParser(description="检查线上健康、前端资源、登录和后台权限")
-    parser.add_argument("--base-url", default=os.environ.get("SMOKE_BASE_URL", "http://119.29.128.18"))
+    parser.add_argument("--base-url", default=os.environ.get("SMOKE_BASE_URL", "https://shianjieyouwu.com"))
     parser.add_argument("--normal-user", default=os.environ.get("SMOKE_NORMAL_USER"))
     parser.add_argument("--normal-password", default=os.environ.get("SMOKE_NORMAL_PASSWORD"))
     parser.add_argument("--admin-user", default=os.environ.get("SMOKE_ADMIN_USER"))

@@ -25,12 +25,26 @@
       var o = document.getElementById('xc-overlay');
       var f = document.getElementById('xc-boot-fallback');
       var bootFailed = false;
+      function getAppText(){
+        var app=document.getElementById('app');
+        return app&&app.innerText ? app.innerText.replace(/\s/g,'') : '';
+      }
+      function hideFallbackIfAppReady(){
+        if(getAppText()){
+          bootFailed = false;
+          if(f)f.style.display='none';
+          if(o)o.style.display='none';
+          var a=document.getElementById('app');
+          if(a)a.style.setProperty('visibility','visible','important');
+          return true;
+        }
+        return false;
+      }
       function markBootFailed(){
+        if(hideFallbackIfAppReady())return;
         bootFailed = true;
         if(o)o.style.display='none';
-        var app=document.getElementById('app');
-        var appText=app&&app.innerText ? app.innerText.replace(/\s/g,'') : '';
-        if(f && !appText) f.style.display='block';
+        if(f) f.style.display='block';
       }
       window.addEventListener('error', function(e){
         var target = e && e.target;
@@ -41,13 +55,18 @@
         if(msg && (/Failed to fetch dynamically imported module|Importing a module script failed|Loading chunk|NetworkError/i).test(msg)) markBootFailed();
       });
       function hide(){
-        if(bootFailed)return;
+        if(bootFailed && !hideFallbackIfAppReady())return;
         if(!o)return;
         o.style.display='none';
+        if(f)f.style.display='none';
         var a=document.getElementById('app');
         if(a)a.style.setProperty('visibility','visible','important');
       }
       var t = setInterval(function(){
+        if(hideFallbackIfAppReady()){
+          clearInterval(t);
+          return;
+        }
         var nav = document.querySelector('.topnav,.topnav-wrap,.marketing-nav');
         if(!nav)return;
         var btn = nav.querySelector('.nav-btn');
@@ -57,13 +76,28 @@
           setTimeout(hide,120);
         }
       }, 60);
+      var readyChecks = 0;
+      var readyTimer = setInterval(function(){
+        readyChecks++;
+        if(hideFallbackIfAppReady() || readyChecks > 250) clearInterval(readyTimer);
+      }, 120);
+      try {
+        var appNode = document.getElementById('app');
+        if (appNode && typeof MutationObserver !== 'undefined') {
+          var appObserver = new MutationObserver(function(){
+            if (hideFallbackIfAppReady()) appObserver.disconnect();
+          });
+          appObserver.observe(appNode, { childList: true, subtree: true, characterData: true });
+          setTimeout(function(){ try { appObserver.disconnect(); } catch(_) {} }, 30000);
+        }
+      } catch(_) {}
       setTimeout(function(){
         clearInterval(t);
+        clearInterval(readyTimer);
         hide();
         setTimeout(function(){
-          var app=document.getElementById('app');
-          var appText=app&&app.innerText ? app.innerText.replace(/\s/g,'') : '';
-          if(!appText) markBootFailed();
+          if(!getAppText()) markBootFailed();
+          else hideFallbackIfAppReady();
         }, 1200);
       }, 1500);
     })();

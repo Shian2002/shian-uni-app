@@ -22,6 +22,19 @@ def test_production_smoke_does_not_embed_default_login_credentials():
     assert 'default=os.environ.get("SMOKE_ADMIN_PASSWORD")' in script
     assert '"shian"' not in script
     assert '"asdzxc"' not in script
+    assert "https://shianjieyouwu.com" in script
+
+
+def test_online_ops_defaults_use_https_domain_for_production_checks():
+    monitor = (ROOT / "scripts" / "production_monitor.sh").read_text(encoding="utf-8")
+    preflight = (ROOT / "scripts" / "preflight_release.sh").read_text(encoding="utf-8")
+    online_regression = (ROOT / "scripts" / "online_regression.mjs").read_text(encoding="utf-8")
+    user_acceptance = (ROOT / "scripts" / "user_acceptance_full.mjs").read_text(encoding="utf-8")
+
+    assert 'BASE_URL="${BASE_URL:-https://shianjieyouwu.com}"' in monitor
+    assert 'BASE_URL="${BASE_URL:-https://shianjieyouwu.com}"' in preflight
+    assert "process.env.REGRESSION_BASE_URL || 'https://shianjieyouwu.com'" in online_regression
+    assert "process.env.REGRESSION_BASE_URL || 'https://shianjieyouwu.com'" in user_acceptance
 
 
 def test_production_alert_runs_database_audit_when_db_path_is_configured(tmp_path):

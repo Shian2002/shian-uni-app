@@ -1,44 +1,188 @@
 {
   "pages": [
-    {"path": "pages/index/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": ""}},
-    {"path": "pages/bazi-index/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "八字排盘"}},
-    {"path": "pages/bazi-result/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "排盘结果"}},
-    {"path": "pages/qimen/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "奇门遁甲"}},
-    {"path": "pages/liuyao/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "六爻排盘"}},
-    {"path": "pages/meihua/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "梅花易数"}},
-    {"path": "pages/ziwei/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "紫微斗数"}},
-    {"path": "pages/tarot/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "塔罗牌"}},
-    {"path": "pages/calendar/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "专属日历"}},
-    {"path": "pages/community/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "社区"}},
-    {"path": "pages/admin/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "后台管理"}},
-    {"path": "pages/profile/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "个人中心"}},
-    {"path": "pages/user-management/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "档案列表"}},
-    {"path": "pages/error/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "错误页面"}},
-    {"path": "pages/tool-coming/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "即将上线"}},
-    {"path": "pages/zeji/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "择吉工具"}},
-    {"path": "pages/about/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "关于我们"}},
-    {"path": "pages/points/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "积分中心"}}
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": ""
+      }
+    },
+    {
+      "path": "pages/bazi-index/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "八字排盘"
+      }
+    },
+    {
+      "path": "pages/bazi-result/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "排盘结果"
+      }
+    },
+    {
+      "path": "pages/qimen/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "奇门遁甲"
+      }
+    },
+    {
+      "path": "pages/liuyao/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "六爻排盘"
+      }
+    },
+    {
+      "path": "pages/meihua/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "梅花易数"
+      }
+    },
+    {
+      "path": "pages/ziwei/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "紫微斗数"
+      }
+    },
+    {
+      "path": "pages/tarot/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "塔罗牌"
+      }
+    },
+    {
+      "path": "pages/calendar/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "专属日历"
+      }
+    },
+    {
+      "path": "pages/admin/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "后台管理"
+      }
+    },
+    {
+      "path": "pages/profile/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "个人中心"
+      }
+    },
+    {
+      "path": "pages/user-management/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "档案列表"
+      }
+    },
+    {
+      "path": "pages/error/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "错误页面"
+      }
+    },
+    {
+      "path": "pages/tool-coming/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "即将上线"
+      }
+    },
+    {
+      "path": "pages/zeji/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "择吉工具"
+      }
+    },
+    {
+      "path": "pages/about/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "关于我们"
+      }
+    },
+    {
+      "path": "pages/legal/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "法律条款"
+      }
+    },
+    {
+      "path": "pages/points/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "积分中心"
+      }
+    }
   ],
   "subPackages": [
     {
       "root": "package-tools",
       "pages": [
-        {"path": "hepan/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "八字合盘"}},
-        {"path": "bazi-pro/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "专业细盘"}}
+        {
+          "path": "hepan/index",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "八字合盘"
+          }
+        },
+        {
+          "path": "bazi-pro/index",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "专业细盘"
+          }
+        }
       ]
     },
     {
       "root": "package-user",
       "pages": [
-        {"path": "history/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "排盘历史"}},
-        {"path": "points/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "积分中心"}}
+        {
+          "path": "history/index",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "排盘历史"
+          }
+        },
+        {
+          "path": "points/index",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "积分中心"
+          }
+        }
       ]
     },
     {
       "root": "package-info",
       "pages": [
-        {"path": "about/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "关于我们"}},
-        {"path": "algorithm-review/index", "style": {"navigationStyle": "custom", "navigationBarTitleText": "算法开源审查"}}
+        {
+          "path": "about/index",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "关于我们"
+          }
+        },
+        {
+          "path": "algorithm-review/index",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "算法开源审查"
+          }
+        }
       ]
     }
   ],
@@ -109,12 +253,6 @@
         "text": "专属日历",
         "iconPath": "static/tab/home.png",
         "selectedIconPath": "static/tab/home-active.png"
-      },
-      {
-        "pagePath": "pages/community/index",
-        "text": "社区",
-        "iconPath": "static/tab/community.png",
-        "selectedIconPath": "static/tab/community-active.png"
       },
       {
         "pagePath": "pages/user-management/index",

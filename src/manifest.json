@@ -1,9 +1,10 @@
 {
   "name": "xuan-cet-tai",
-  "appid": "",
+  "appid": "__UNI__FB9C76F",
   "description": "时安解忧屋 - Flask 1:1 UniApp 多端复刻",
   "versionName": "1.0.0",
   "versionCode": "100",
+  "vueVersion": "3",
   "transformPx": false,
   "h5": {
     "devServer": {
@@ -31,5 +32,27 @@
   },
   "mp-toutiao": {
     "usingComponents": true
+  },
+  "app-plus": {
+    "usingComponents": true,
+    "nvueStyleCompiler": "uni-app",
+    "compilerVersion": 3,
+    "splashscreen": {
+      "alwaysShowBeforeRender": true,
+      "waiting": true,
+      "autoclose": true,
+      "delay": 0
+    },
+    "modules": {},
+    "distribute": {
+      "android": {
+        "packagename": "com.shian.xuanctai",
+        "permissions": []
+      },
+      "ios": {
+        "bundleIdentifier": "com.shian.xuanctai"
+      },
+      "sdkConfigs": {}
+    }
   }
 }

@@ -7,10 +7,15 @@ Copyright (c) 2026 JunJunXu. All rights reserved.
 export default {
   onLaunch() {
     // #ifdef H5
+    var isDesktopShell = false
+    try { isDesktopShell = !!(window.shianDesktop && window.shianDesktop.platform) } catch(_) {}
     var saved = ''
     try { saved = localStorage.getItem('xc_theme') || '' } catch(_) {}
     if (!saved) {
       try { saved = uni ? uni.getStorageSync('xc_theme') : '' } catch(_) {}
+    }
+    if (isDesktopShell) {
+      saved = 'light'
     }
     if (!saved) {
       try {
@@ -26,6 +31,10 @@ export default {
     } catch(_) {}
     document.documentElement.setAttribute('data-theme', saved)
     document.body.setAttribute('data-theme', saved)
+    try {
+      document.documentElement.classList.toggle('desktop-native-shell', isDesktopShell)
+      document.body.classList.toggle('desktop-native-shell', isDesktopShell)
+    } catch(_) {}
     function _hasAppHomeFlag() {
       try {
         var href = window.location.href || ''
@@ -188,6 +197,7 @@ export default {
         if (!path || path === '/pages/index/index') path = '/'
         queryStr = queryStr || ''
         var isHome = path === '/'
+        var isAppHome = isHome && /(?:[?&])app=(?:1|true)(?:&|$)/.test(queryStr)
         var isQimen = path === '/pages/qimen/index'
         var isBaziTool = path === '/pages/bazi-index/index'
         var isCompactTool = [
@@ -199,8 +209,17 @@ export default {
           '/pages/calendar/index',
           '/pages/tarot/index'
         ].includes(path)
-        document.documentElement.classList.toggle('home-fixed-page', isHome)
-        document.body.classList.toggle('home-fixed-page', isHome)
+        if (!isHome) {
+          document.documentElement.classList.remove('marketing-page', 'marketing-android', 'home-fixed-page')
+          document.body.classList.remove('marketing-page', 'marketing-android', 'home-fixed-page')
+          document.querySelectorAll('uni-page[data-marketing-hidden="true"]').forEach(function(page) {
+            page.removeAttribute('aria-hidden')
+            page.removeAttribute('data-marketing-hidden')
+            try { page.inert = false } catch(_) {}
+          })
+        }
+        document.documentElement.classList.toggle('home-fixed-page', isAppHome)
+        document.body.classList.toggle('home-fixed-page', isAppHome)
         document.documentElement.classList.toggle('qimen-page-active', isQimen)
         document.body.classList.toggle('qimen-page-active', isQimen)
         document.documentElement.classList.toggle('tool-compact-page', isCompactTool)
@@ -1198,6 +1217,11 @@ body:not(.home-fixed-page) .modal-overlay{
   box-sizing:border-box!important;
   overscroll-behavior:contain!important;
 }
+body:not(.home-fixed-page) #topnavLoginModal{
+  align-items:flex-end!important;
+  justify-content:center!important;
+  padding-bottom:max(18px,calc(env(safe-area-inset-bottom) + 14px))!important;
+}
 body:not(.home-fixed-page) .modal-box{
   width:min(92vw,460px)!important;
   max-height:min(82dvh,720px)!important;
@@ -1206,6 +1230,9 @@ body:not(.home-fixed-page) .modal-box{
   border:1px solid rgba(178,149,93,.18)!important;
   background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.03)),var(--card-bg)!important;
   box-shadow:0 24px 76px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.08)!important;
+}
+body:not(.home-fixed-page) #topnavLoginModal .modal-box{
+  border-radius:22px 22px 16px 16px!important;
 }
 body:not(.home-fixed-page) .modal-title{
   margin-bottom:18px!important;
@@ -1621,6 +1648,11 @@ body.home-fixed-page .home-summary-card{
   background:rgba(255,255,255,.24)!important;
 }
 body.home-fixed-page .home-ai-main{
+  position:fixed!important;
+  top:auto!important;
+  left:50%!important;
+  right:auto!important;
+  transform:translateX(-50%)!important;
   border-top:1px solid rgba(178,149,93,.12)!important;
   background:linear-gradient(180deg,rgba(247,242,234,.68),rgba(247,242,234,.92))!important;
   bottom:max(12px,calc(env(safe-area-inset-bottom) + 8px))!important;
@@ -1752,6 +1784,11 @@ body.home-fixed-page .hero-brand-icon::after{
   content:none!important;
 }
 body.home-fixed-page .home-ai-main{
+  position:fixed!important;
+  top:auto!important;
+  left:50%!important;
+  right:auto!important;
+  transform:translateX(-50%)!important;
   bottom:max(12px,calc(env(safe-area-inset-bottom) + 10px))!important;
 }
 body.home-fixed-page .home-ai-toolbar{
@@ -1799,9 +1836,160 @@ body.home-fixed-page:not(:has(.home-ai-console.has-chat)) .hero-home{
   overflow:hidden!important;
 }
 body.home-fixed-page:not(:has(.home-ai-console.has-chat)) .home-ai-main{
+  position:fixed!important;
+  top:auto!important;
+  left:50%!important;
+  right:auto!important;
+  transform:translateX(-50%)!important;
   bottom:max(18px,calc(env(safe-area-inset-bottom) + 14px))!important;
   max-height:min(128px,calc(100dvh - 120px))!important;
   overflow:hidden!important;
+}
+body.home-fixed-page .modal-overlay{
+  align-items:flex-end!important;
+  justify-content:center!important;
+  padding:18px!important;
+  padding-bottom:max(18px,calc(env(safe-area-inset-bottom) + 14px))!important;
+  box-sizing:border-box!important;
+  background:rgba(74,54,24,.20)!important;
+  backdrop-filter:blur(12px) saturate(120%)!important;
+}
+body #topnavLoginModal,
+body #topnavLoginModal.modal-overlay{
+  display:none!important;
+  align-items:flex-end!important;
+  justify-content:center!important;
+  padding:18px!important;
+  padding-bottom:max(18px,calc(env(safe-area-inset-bottom) + 14px))!important;
+  box-sizing:border-box!important;
+}
+body #topnavLoginModal.open,
+body #topnavLoginModal.modal-overlay.open{
+  display:flex!important;
+}
+body #topnavLoginModal .modal-box{
+  margin-top:auto!important;
+  margin-bottom:0!important;
+}
+body.home-fixed-page .modal-box{
+  width:min(440px,calc(100vw - 32px))!important;
+  max-height:min(76dvh,620px)!important;
+  overflow:auto!important;
+  border-radius:22px 22px 16px 16px!important;
+  border:1px solid rgba(178,149,93,.24)!important;
+  background:linear-gradient(180deg,rgba(255,253,248,.96),rgba(247,242,234,.96))!important;
+  box-shadow:0 20px 58px rgba(74,54,24,.18),inset 0 1px 0 rgba(255,255,255,.78)!important;
+  color:rgba(34,25,12,.96)!important;
+}
+body.home-fixed-page .modal-title,
+body.home-fixed-page .field-label,
+body.home-fixed-page .modal-box .btn-outline{
+  color:rgba(78,61,36,.88)!important;
+}
+body.home-fixed-page .field-input{
+  background:rgba(255,251,242,.82)!important;
+  border-color:rgba(178,149,93,.20)!important;
+  color:rgba(34,25,12,.96)!important;
+}
+body.home-fixed-page .modal-btns{
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  gap:10px!important;
+}
+body.home-fixed-page .modal-btns .btn,
+body.home-fixed-page .modal-btns > *{
+  min-height:42px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+html.desktop-native-shell,
+body.desktop-native-shell{
+  --desktop-chrome-bg:#f1e7d7;
+  --desktop-chrome-bg-2:#eadcc7;
+  --desktop-chrome-line:rgba(120,88,42,0.16);
+  background:var(--desktop-chrome-bg)!important;
+}
+body.desktop-native-shell .topnav-wrap{
+  -webkit-app-region:drag!important;
+  background:var(--desktop-chrome-bg)!important;
+  box-shadow:0 1px 0 var(--desktop-chrome-line),0 10px 28px rgba(70,48,18,0.08)!important;
+}
+body.desktop-native-shell .topnav{
+  --nav-bg:rgba(241,231,215,0.98)!important;
+  --text-1:rgba(34,25,12,0.96)!important;
+  --text-2:rgba(78,61,36,0.90)!important;
+  --text-3:rgba(116,94,62,0.72)!important;
+  --card-border:rgba(120,88,42,0.11)!important;
+  --accent:hsl(38,72%,30%)!important;
+  --accent-glow:rgba(150,100,24,0.10)!important;
+  height:36px!important;
+  padding-left:72px!important;
+  padding-right:16px!important;
+  background:linear-gradient(180deg,var(--desktop-chrome-bg),var(--desktop-chrome-bg-2))!important;
+  border-bottom:1px solid var(--desktop-chrome-line)!important;
+  box-shadow:none!important;
+}
+body.desktop-native-shell .page-root{
+  padding-top:36px!important;
+}
+body.desktop-native-shell .topnav-sidebar-btn{
+  height:28px!important;
+  width:28px!important;
+  font-size:1.2rem!important;
+  margin-top:0!important;
+  color:rgba(78,61,36,0.86)!important;
+}
+body.desktop-native-shell .nav-btn{
+  font-size:.88rem!important;
+  color:rgba(78,61,36,0.88)!important;
+}
+body.desktop-native-shell .nav-btn.current,
+body.desktop-native-shell .nav-btn:hover{
+  color:hsl(38,72%,30%)!important;
+  background:rgba(150,100,24,0.10)!important;
+}
+body.desktop-native-shell .theme-toggle-nav,
+body.desktop-native-shell .nav-avatar-text{
+  color:rgba(78,61,36,0.74)!important;
+}
+body.desktop-native-shell .nav-avatar-inner{
+  width:30px!important;
+  height:30px!important;
+  background:rgba(255,253,248,0.66)!important;
+  border-color:rgba(120,88,42,0.12)!important;
+}
+body.desktop-native-shell .topnav-wrap button,
+body.desktop-native-shell .topnav-wrap input,
+body.desktop-native-shell .topnav-wrap select,
+body.desktop-native-shell .topnav-wrap textarea,
+body.desktop-native-shell .topnav-wrap a,
+body.desktop-native-shell .topnav-wrap .nav-btn,
+body.desktop-native-shell .topnav-wrap .topnav-sidebar-btn,
+body.desktop-native-shell .topnav-wrap .theme-toggle-nav,
+body.desktop-native-shell .topnav-wrap .nav-avatar-wrap,
+body.desktop-native-shell .topnav-wrap .nav-auth-btns{
+  -webkit-app-region:no-drag!important;
+}
+body.desktop-native-shell.home-fixed-page:not(:has(.home-ai-console.has-chat)) .page-wrap,
+body.desktop-native-shell.home-fixed-page:not(:has(.home-ai-console.has-chat)) .hero-home{
+  height:calc(100dvh - 36px)!important;
+  min-height:calc(100dvh - 36px)!important;
+  max-height:calc(100dvh - 36px)!important;
+}
+body.desktop-native-shell.home-fixed-page:not(:has(.home-ai-console.has-chat)) .hero-home-content{
+  transform:none!important;
+}
+body.desktop-native-shell.home-fixed-page:not(:has(.home-ai-console.has-chat)) .home-ai-main{
+  position:fixed!important;
+  top:auto!important;
+  left:50%!important;
+  right:auto!important;
+  transform:translateX(-50%)!important;
+  bottom:12px!important;
+}
+body.desktop-native-shell.home-fixed-page .hero-brand{
+  margin-top:0!important;
 }
 
 /* 工具页默认输入态：内容短时不让外层产生无意义滚动；结果和长列表仍恢复滚动 */
@@ -1966,6 +2154,38 @@ body.home-fixed-page:not(:has(.home-ai-console.has-chat)) .home-ai-main{
     overflow-y:auto!important;
     -webkit-overflow-scrolling:touch!important;
   }
+}
+
+/* 最终兜底：登录弹窗和首页输入框必须贴底，避免页面级弹窗/旧 WebView 抢回居中定位 */
+html.home-fixed-page body .home-ai-main,
+body.home-fixed-page .home-ai-main,
+body.desktop-native-shell.home-fixed-page .home-ai-main{
+  position:fixed!important;
+  top:auto!important;
+  left:50%!important;
+  right:auto!important;
+  bottom:max(12px,calc(env(safe-area-inset-bottom) + 10px))!important;
+  transform:translateX(-50%)!important;
+}
+body #topnavLoginModal,
+body #topnavLoginModal.modal-overlay,
+body .modal-overlay#topnavLoginModal{
+  align-items:flex-end!important;
+  justify-content:center!important;
+  padding:18px!important;
+  padding-bottom:max(18px,calc(env(safe-area-inset-bottom) + 14px))!important;
+  box-sizing:border-box!important;
+}
+body #topnavLoginModal.open,
+body #topnavLoginModal.modal-overlay.open,
+body .modal-overlay#topnavLoginModal.open{
+  display:flex!important;
+}
+body #topnavLoginModal .modal-box,
+body .modal-overlay#topnavLoginModal .modal-box{
+  margin-top:auto!important;
+  margin-bottom:0!important;
+  transform:none!important;
 }
 
 @media(max-width:360px){

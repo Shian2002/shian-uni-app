@@ -1,10 +1,20 @@
 import re
+import json
 from pathlib import Path
 
 
 INDEX_VUE = Path(__file__).resolve().parents[1] / "src" / "pages" / "index" / "index.vue"
+APP_VUE = Path(__file__).resolve().parents[1] / "src" / "App.vue"
 TOP_NAV_VUE = Path(__file__).resolve().parents[1] / "src" / "components" / "TopNav.vue"
 QIMEN_VUE = Path(__file__).resolve().parents[1] / "src" / "pages" / "qimen" / "index.vue"
+PROFILE_VUE = Path(__file__).resolve().parents[1] / "src" / "pages" / "profile" / "index.vue"
+VITE_CONFIG = Path(__file__).resolve().parents[1] / "vite.config.js"
+PACKAGE_JSON = Path(__file__).resolve().parents[1] / "package.json"
+ONLINE_LOGIN_DEV_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "dev_h5_online_login.mjs"
+ONLINE_LOGIN_SMOKE_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "local_online_login_smoke.mjs"
+AUDIT_ACCOUNT_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "audit_account_preflight.mjs"
+AUDIT_ACCOUNT_SEED_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "seed_audit_account_assets.py"
+LOGIN_EVIDENCE_DOC = Path(__file__).resolve().parents[1] / "docs" / "release" / "login-agent-entry-evidence.md"
 
 
 def _source():
@@ -48,6 +58,46 @@ def test_home_ai_input_is_compressed_and_chat_has_mobile_bottom_buffer():
     )
 
 
+def test_home_ai_composer_is_forced_to_viewport_bottom_by_global_shell_styles():
+    app_source = Path(__file__).resolve().parents[1].joinpath("src", "App.vue").read_text(encoding="utf-8")
+
+    fixed_blocks = re.findall(
+        r"body(?:\.desktop-native-shell)?\.home-fixed-page(?:\:not\(\:has\(\.home-ai-console\.has-chat\)\))? \.home-ai-main\{(?P<body>.*?)\n\}",
+        app_source,
+        re.S,
+    )
+    assert fixed_blocks, "缺少首页 AI 输入框的全局底部兜底样式"
+    assert any("position:fixed!important" in block for block in fixed_blocks)
+    assert any("top:auto!important" in block for block in fixed_blocks)
+    assert any("left:50%!important" in block for block in fixed_blocks)
+    assert any("right:auto!important" in block for block in fixed_blocks)
+    assert any("transform:translateX(-50%)!important" in block for block in fixed_blocks)
+    assert "html.home-fixed-page body .home-ai-main" in app_source
+    assert "body.desktop-native-shell.home-fixed-page .home-ai-main" in app_source
+    assert "bottom:max(12px,calc(env(safe-area-inset-bottom) + 10px))!important" in app_source
+    for block in fixed_blocks:
+        assert "top:50%!important" not in block
+        assert "translate(-50%,-50%)!important" not in block
+
+
+def test_marketing_login_modal_is_also_forced_to_bottom():
+    source = _source()
+
+    host_modal = re.search(
+        r"\.marketing-auth-host :deep\(\.modal-overlay\) \{(?P<body>.*?)\n\}",
+        source,
+        re.S,
+    )
+    assert host_modal, "营销页登录 host 缺少弹窗底部兜底样式"
+    assert "align-items: flex-end !important" in host_modal.group("body")
+    assert "justify-content: center !important" in host_modal.group("body")
+    assert "padding-bottom: max(18px, calc(env(safe-area-inset-bottom) + 14px)) !important" in host_modal.group("body")
+    assert ".marketing-auth-host :deep(.modal-overlay.open)" in source
+    assert ".marketing-auth-host :deep(.modal-box)" in source
+    assert "margin-top: auto !important" in source
+    assert "margin-bottom: 0 !important" in source
+
+
 def test_home_ai_auto_follow_only_when_near_bottom():
     source = _source()
 
@@ -81,12 +131,174 @@ def test_top_nav_distinguishes_agent_query_from_plain_home():
     assert "if (href === '#/') target = '/pages/index/index'" not in source
 
 
+def test_desktop_shell_does_not_auto_open_login_over_bottom_agent_input():
+    source = _source()
+
+    assert "function isDesktopNativeShell()" in source
+    assert "window.shianDesktop && window.shianDesktop.platform" in source
+    assert "wantsToolHome && !isLoggedIn.value && !isDesktopNativeShell()" in source
+
+
+def test_marketing_home_keeps_shian_agent_entry_and_contextual_auth_cta():
+    source = _source()
+
+    assert 'class="marketing-nav-link marketing-agent-link"' in source
+    assert 'data-enter-app="1"' in source
+    assert ">时安agent</text>" in source
+    assert "{{ isLoggedIn ? '进入应用' : '登录/注册' }}" in source
+    assert ".marketing-nav-links .marketing-agent-link" in source
+    assert ".marketing-login" not in source
+
+
+def test_home_agent_exposes_four_question_templates_without_auto_sending():
+    source = _source()
+
+    assert "const homeQuestionTemplates = [" in source
+    for key, label, short in [
+        ("career", "事业", "跳槽时机"),
+        ("relationship", "感情", "关系走向"),
+        ("partnership", "合作", "项目取舍"),
+        ("annual", "年运", "年度重点"),
+    ]:
+        assert f"key: '{key}'" in source
+        assert f"label: '{label}'" in source
+        assert f"short: '{short}'" in source
+    assert 'class="home-question-templates"' in source
+    assert 'class="home-question-template"' in source
+    assert "showHomeQuestionTemplates" in source
+    assert "function selectHomeQuestionTemplate(item)" in source
+    assert "comprehensiveQuestion.value = item.question || ''" in source
+    assert "startComprehensiveAsk(item.question" not in source
+    assert ".home-question-templates { grid-template-columns: repeat(2, minmax(0, 1fr));" in source
+
+
+def test_top_nav_login_modal_keeps_legacy_login_choices():
+    source = TOP_NAV_VUE.read_text(encoding="utf-8")
+
+    assert 'id="topnavLoginModal"' in source
+    assert 'data-tab="password"' in source
+    assert "密码登录" in source
+    assert 'data-tab="code"' in source
+    assert "验证码登录" in source
+    assert "Gitee 验证登录" in source
+
+
+def test_top_nav_login_modal_is_forced_to_bottom_globally():
+    app_source = APP_VUE.read_text(encoding="utf-8")
+    home_source = INDEX_VUE.read_text(encoding="utf-8")
+
+    assert "body #topnavLoginModal" in app_source
+    assert "body #topnavLoginModal.modal-overlay" in app_source
+    assert "body .modal-overlay#topnavLoginModal" in app_source
+    assert "align-items:flex-end!important" in app_source
+    assert "body #topnavLoginModal.modal-overlay.open" in app_source
+    assert "body .modal-overlay#topnavLoginModal.open" in app_source
+    assert "display:flex!important" in app_source
+    assert "body #topnavLoginModal .modal-box" in app_source
+    assert "body .modal-overlay#topnavLoginModal .modal-box" in app_source
+    assert "margin-top:auto!important" in app_source
+    assert "transform:none!important" in app_source
+    assert ":global(body #topnavLoginModal)" in home_source
+    assert "align-items: flex-end !important" in home_source
+    assert ":global(body #topnavLoginModal.open)" in home_source
+    assert ":global(body #topnavLoginModal .modal-box)" in home_source
+    assert "margin-top: auto !important" in home_source
+
+
+def test_top_nav_reuses_online_login_endpoints_for_local_app_shell():
+    source = TOP_NAV_VUE.read_text(encoding="utf-8")
+
+    assert "用户名/邮箱/手机号" in source
+    assert "邮箱/手机号" in source
+    assert "验证码登录需要输入邮箱或手机号" in source
+    assert "url = '/api/sms/login'" in source
+    assert "url = '/api/email/login'" in source
+    assert "url: idType === 'phone' ? '/api/sms/send' : '/api/email/send'" in source
+    assert "url: '/api/oauth/' + provider + '/url'" in source
+
+
+def test_local_h5_can_proxy_api_to_online_login_without_new_auth_stack():
+    vite_source = VITE_CONFIG.read_text(encoding="utf-8")
+    package_json = json.loads(PACKAGE_JSON.read_text(encoding="utf-8"))
+    dev_script = ONLINE_LOGIN_DEV_SCRIPT.read_text(encoding="utf-8")
+    smoke_script = ONLINE_LOGIN_SMOKE_SCRIPT.read_text(encoding="utf-8")
+    audit_account_script = AUDIT_ACCOUNT_SCRIPT.read_text(encoding="utf-8")
+    evidence_doc = LOGIN_EVIDENCE_DOC.read_text(encoding="utf-8")
+
+    assert "process.env.VITE_API_PROXY_TARGET || 'http://localhost:5199'" in vite_source
+    assert "target: apiProxyTarget" in vite_source
+    assert package_json["scripts"]["dev:h5:online-login"] == "node scripts/dev_h5_online_login.mjs"
+    assert package_json["scripts"]["qa:agent:local-online-login"] == (
+        "QA_MODE=online QA_BASE_URL=${QA_BASE_URL:-http://localhost:5173} node scripts/user_acceptance_full.mjs"
+    )
+    assert package_json["scripts"]["qa:login:local-online"] == (
+        "QA_BASE_URL=${QA_BASE_URL:-http://localhost:5173} node scripts/local_online_login_smoke.mjs"
+    )
+    assert package_json["scripts"]["qa:audit-account"] == (
+        "QA_BASE_URL=${QA_BASE_URL:-http://localhost:5173} node scripts/audit_account_preflight.mjs"
+    )
+    assert package_json["scripts"]["qa:audit-account:seed"] == "python3 scripts/seed_audit_account_assets.py"
+    assert "process.env.VITE_API_PROXY_TARGET || 'https://shianjieyouwu.com'" in dev_script
+    assert "manifest.h5.devServer.proxy['/api'].target = target" in dev_script
+    assert "restoreManifest" in dev_script
+    assert "body: { username: qaUser, password: qaPassword }" in smoke_script
+    assert "await request('/api/me', {}, login.cookie)" in smoke_script
+    assert "线上登录未返回 session cookie" in smoke_script
+    assert "/api/comprehensive/options" in audit_account_script
+    assert "fullAgentReady" in audit_account_script
+    assert "这条预检只读取账号资产，不发起 Agent stream，不扣积分。" in audit_account_script
+    assert "npm run dev:h5:online-login" in evidence_doc
+    assert "npm run qa:login:local-online" in evidence_doc
+    assert "npm run qa:agent:local-online-login" in evidence_doc
+    assert "不触发真实短信、邮件和支付" in evidence_doc
+
+
+def test_audit_account_seed_script_is_staging_local_only_by_default():
+    source = AUDIT_ACCOUNT_SEED_SCRIPT.read_text(encoding="utf-8")
+
+    assert "默认 dry-run" in source
+    assert "parser.add_argument(\"--apply\"" in source
+    assert "def assert_safe_target" in source
+    assert "拒绝在 production 环境预置审核账号资产" in source
+    assert "/home/lighthouse/tianji/flask-source/backend/tianji.db" in source
+    assert "audit_seed_points" in source
+    assert "audit_seed_ai_single" in source
+    assert "audit_seed_ai_combo" in source
+    assert "point_log" in source
+    assert "membership" in source
+
+
+def test_profile_page_exposes_account_deletion_for_store_review():
+    source = PROFILE_VUE.read_text(encoding="utf-8")
+
+    assert "注销账号与删除数据" in source
+    assert "输入：注销账号" in source
+    assert "/api/account/delete" in source
+    assert "uni.removeStorageSync('xc_token')" in source
+    assert "xc-auth-changed" in source
+    assert ".btn-danger" in source
+    assert ".danger-group" in source
+
+
+def test_profile_page_normalizes_cached_user_before_rendering_username():
+    source = PROFILE_VUE.read_text(encoding="utf-8")
+
+    assert "function normalizeUsername(value)" in source
+    assert "username: normalizeUsername(uni.getStorageSync('xc_user'))" in source
+    assert "const displayUsername = computed(() => normalizeUsername(userInfo.username))" in source
+    assert "const profileInitial = computed(() => displayUsername.value.charAt(0).toUpperCase())" in source
+    assert "{{ profileInitial }}" in source
+    assert "{{ displayUsername }}" in source
+    assert "(userInfo.username || '用').charAt(0)" not in source
+
+
 def test_top_nav_switches_back_to_home_before_rendering_agent_from_non_tab_pages():
     source = TOP_NAV_VUE.read_text(encoding="utf-8")
 
     assert "var routeBeforeNav = getCurrentRoute()" in source
     assert "var routeBeforeIsTab = TAB_PATHS.indexOf(routeBeforeNav) > -1 || routeBeforeNav === '/pages/index/index'" in source
-    assert "var shouldSwitchForAgentHome = wantsAppHome && !routeBeforeIsTab" in source
+    assert "var routeBeforeIsHome = routeBeforeNav === '/' || routeBeforeNav === '/pages/index/index'" in source
+    assert "var shouldSwitchForAgentHome = wantsAppHome && !routeBeforeIsHome" in source
     assert "if (wantsAppHome && !shouldSwitchForAgentHome)" in source
     assert "if (shouldSwitchForAgentHome)" in source
     assert "uni.switchTab({" in source

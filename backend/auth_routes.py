@@ -1,5 +1,7 @@
 """基础账号认证与绑定 API。"""
 
+from datetime import datetime
+
 from flask import jsonify, request
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import or_
@@ -7,7 +9,30 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from extensions import csrf
 from avatar_utils import visible_avatar_url
-from models import User
+from models import (
+    AiRun,
+    BaziConversation,
+    BaziRecord,
+    Collection,
+    Comment,
+    CommentLike,
+    ComprehensiveConversation,
+    FollowUp,
+    LiuyaoConversation,
+    MeihuaConversation,
+    Membership,
+    Notification,
+    PointLog,
+    Post,
+    PostLike,
+    QimenConversation,
+    Record,
+    Report,
+    TarotConversation,
+    User,
+    UserProfile,
+    ZiweiConversation,
+)
 
 
 def _user_payload(user, include_admin=False):
@@ -32,6 +57,68 @@ def register_auth_routes(app, db, services):
     """
     check_rate_limit = services['check_rate_limit']
     check_code = services['check_code']
+
+    def _delete_account_personal_data(user_id):
+        """删除可直接归属于用户的个人内容，保留订单类法定记录。"""
+        deleted = {}
+
+        def delete_query(label, model, **filters):
+            count = model.query.filter_by(**filters).delete(synchronize_session=False)
+            deleted[label] = deleted.get(label, 0) + count
+            return count
+
+        user_posts = [row[0] for row in db.session.query(Post.id).filter_by(user_id=user_id).all()]
+        if user_posts:
+            post_comment_ids = [
+                row[0]
+                for row in db.session.query(Comment.id).filter(Comment.post_id.in_(user_posts)).all()
+            ]
+            if post_comment_ids:
+                CommentLike.query.filter(CommentLike.comment_id.in_(post_comment_ids)).delete(synchronize_session=False)
+                Notification.query.filter(Notification.comment_id.in_(post_comment_ids)).delete(synchronize_session=False)
+                Report.query.filter(Report.target_type == 'comment', Report.target_id.in_(post_comment_ids)).delete(synchronize_session=False)
+            Comment.query.filter(Comment.post_id.in_(user_posts)).delete(synchronize_session=False)
+            PostLike.query.filter(PostLike.post_id.in_(user_posts)).delete(synchronize_session=False)
+            Notification.query.filter(Notification.post_id.in_(user_posts)).delete(synchronize_session=False)
+            Report.query.filter(Report.target_type == 'post', Report.target_id.in_(user_posts)).delete(synchronize_session=False)
+            deleted['posts'] = Post.query.filter(Post.id.in_(user_posts)).delete(synchronize_session=False)
+
+        user_comments = [row[0] for row in db.session.query(Comment.id).filter_by(user_id=user_id).all()]
+        if user_comments:
+            Comment.query.filter(Comment.parent_id.in_(user_comments)).delete(synchronize_session=False)
+            CommentLike.query.filter(CommentLike.comment_id.in_(user_comments)).delete(synchronize_session=False)
+            Notification.query.filter(Notification.comment_id.in_(user_comments)).delete(synchronize_session=False)
+            Report.query.filter(Report.target_type == 'comment', Report.target_id.in_(user_comments)).delete(synchronize_session=False)
+            deleted['comments'] = Comment.query.filter(Comment.id.in_(user_comments)).delete(synchronize_session=False)
+
+        delete_query('profiles', UserProfile, user_id=user_id)
+        delete_query('followups', FollowUp, user_id=user_id)
+        delete_query('records', Record, user_id=user_id)
+        delete_query('bazi_records', BaziRecord, user_id=user_id)
+        delete_query('collections', Collection, user_id=user_id)
+        delete_query('post_likes', PostLike, user_id=user_id)
+        delete_query('comment_likes', CommentLike, user_id=user_id)
+        delete_query('notifications', Notification, user_id=user_id)
+        Notification.query.filter_by(from_user_id=user_id).delete(synchronize_session=False)
+        delete_query('reports', Report, user_id=user_id)
+        delete_query('membership', Membership, user_id=user_id)
+        delete_query('tarot_conversations', TarotConversation, user_id=user_id)
+        delete_query('liuyao_conversations', LiuyaoConversation, user_id=user_id)
+        delete_query('meihua_conversations', MeihuaConversation, user_id=user_id)
+        delete_query('qimen_conversations', QimenConversation, user_id=user_id)
+        delete_query('bazi_conversations', BaziConversation, user_id=user_id)
+        delete_query('ziwei_conversations', ZiweiConversation, user_id=user_id)
+        delete_query('comprehensive_conversations', ComprehensiveConversation, user_id=user_id)
+
+        AiRun.query.filter_by(user_id=user_id).update(
+            {'request_json': '', 'response_json': '', 'error': '[account deleted]'},
+            synchronize_session=False,
+        )
+        PointLog.query.filter_by(user_id=user_id).update(
+            {'description': '[account deleted]'},
+            synchronize_session=False,
+        )
+        return deleted
 
     def _has_login_after_oauth_unbind(provider):
         oauth_fields = {
@@ -95,6 +182,47 @@ def register_auth_routes(app, db, services):
     def api_logout():
         logout_user()
         return jsonify({'ok': True})
+
+    @app.route('/api/account/delete', methods=['POST'])
+    @login_required
+    @csrf.exempt
+    def api_account_delete():
+        """注销当前账号并清理个人内容。
+
+        订单、充值和必要审计记录保留，但账号身份字段会匿名化。
+        """
+        if not check_rate_limit('account_delete_' + str(current_user.id), 5, 3600):
+            return jsonify({'error': '注销尝试过于频繁，请稍后再试'}), 429
+
+        data = request.get_json(silent=True) or {}
+        confirm = (data.get('confirm') or '').strip()
+        if confirm != '注销账号':
+            return jsonify({'error': '请输入“注销账号”确认'}), 400
+
+        if current_user.has_password:
+            password = data.get('password') or ''
+            if not password:
+                return jsonify({'error': '请输入当前密码'}), 400
+            if not check_password_hash(current_user.password_hash, password):
+                return jsonify({'error': '当前密码错误'}), 403
+
+        user_id = current_user.id
+        deleted = _delete_account_personal_data(user_id)
+        deleted_username = f'deleted_user_{user_id}_{int(datetime.utcnow().timestamp())}'
+        current_user.username = deleted_username
+        current_user.email = None
+        current_user.phone = None
+        current_user.oauth_qq = None
+        current_user.oauth_wechat = None
+        current_user.oauth_gitee = None
+        current_user.avatar = ''
+        current_user.password_hash = generate_password_hash(deleted_username, method='pbkdf2:sha256')
+        current_user.has_password = True
+        current_user.daily_tool_count = 0
+        current_user.last_tool_date = None
+        db.session.commit()
+        logout_user()
+        return jsonify({'ok': True, 'deleted': deleted})
 
     @app.route('/api/me')
     def api_me():

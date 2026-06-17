@@ -21,10 +21,10 @@
           <view class="profile-card" v-if="isLoggedIn">
             <view class="profile-card-avatar" @tap="clickProfileAvatar" title="点击更换头像">
               <image v-if="userInfo.avatar" :src="userInfo.avatar" class="profile-card-avatar-img" mode="aspectFill" @error="handleProfileAvatarError" />
-              <text v-else class="profile-card-avatar-text">{{ (userInfo.username || '用').charAt(0).toUpperCase() }}</text>
+              <text v-else class="profile-card-avatar-text">{{ profileInitial }}</text>
             </view>
             <view class="profile-card-info">
-              <text class="profile-card-name">{{ userInfo.username }}</text>
+              <text class="profile-card-name">{{ displayUsername }}</text>
               <text class="profile-card-meta">注册于 {{ userInfo.regDate }} · {{ profiles.length }} 个存档</text>
             </view>
           </view>
@@ -44,7 +44,7 @@
               <view class="settings-item" @tap="toggleAccordion('username')">
                 <text class="settings-item-icon settings-icon-user">ID</text>
                 <text class="settings-item-label">修改用户名</text>
-                <text class="settings-item-value" id="bindUsername">{{ userInfo.username }}</text>
+                <text class="settings-item-value" id="bindUsername">{{ displayUsername }}</text>
                 <text class="settings-item-arrow">{{ accordionOpen === 'username' ? '▲' : '›' }}</text>
               </view>
               <view class="settings-accordion" v-show="accordionOpen === 'username'">
@@ -132,6 +132,29 @@
             </view>
           </view>
 
+          <view class="settings-group danger-group" v-if="isLoggedIn">
+            <view class="settings-group-title">账号注销</view>
+            <view class="settings-list">
+              <view class="settings-item" @tap="toggleAccordion('deleteAccount')">
+                <text class="settings-item-icon settings-icon-danger">删</text>
+                <view class="settings-item-main">
+                  <text class="settings-item-label">注销账号与删除数据</text>
+                  <text class="settings-item-desc">清除命盘、历史、对话和个人资料；订单与必要审计记录会按合规要求保留。</text>
+                </view>
+                <text class="settings-item-arrow">{{ accordionOpen === 'deleteAccount' ? '▲' : '›' }}</text>
+              </view>
+              <view class="settings-accordion" v-show="accordionOpen === 'deleteAccount'">
+                <view class="settings-accordion-inner">
+                  <text class="delete-account-warning">此操作不可恢复。请先确认已导出需要保留的记录。</text>
+                  <view class="field"><view id="asDeleteConfirm-wrap" class="dom-input-wrap"></view></view>
+                  <view class="field" v-if="hasPassword"><view id="asDeletePassword-wrap" class="dom-input-wrap"></view></view>
+                  <view class="modal-error" id="asDeleteError"></view>
+                  <view class="btn btn-danger btn-sm" id="asDeleteAccountBtn" @tap="deleteAccount">确认注销账号</view>
+                </view>
+              </view>
+            </view>
+          </view>
+
           <!-- 退出登录 -->
           <view class="settings-logout" v-if="isLoggedIn" @tap="doLogout">
             <text class="settings-logout-text">退出登录</text>
@@ -203,6 +226,15 @@ function normalizeAvatarUrl(src) {
   if (!value || value.includes('/static/images/logo.') || value.includes('/logo.webp')) return ''
   return value
 }
+function normalizeUsername(value) {
+  if (!value) return '用户'
+  if (typeof value === 'string') return value.trim() || '用户'
+  if (typeof value === 'number') return String(value)
+  if (typeof value === 'object') {
+    return String(value.username || value.phone || value.id || '用户').trim() || '用户'
+  }
+  return String(value).trim() || '用户'
+}
 function toggleAccordion(name) {
   accordionOpen.value = accordionOpen.value === name ? '' : name
   if (accordionOpen.value === name && !accordionInputsCreated[name]) {
@@ -213,7 +245,8 @@ function createAccordionInputs(name) {
   var wrapMap = {
     username: ['asNewUsername-wrap', 'asCurrPassForUser-wrap'],
     password: ['asOldPass-wrap', 'asNewPass-wrap'],
-    email: ['asBindEmail-wrap', 'asBindEmailCode-wrap']
+    email: ['asBindEmail-wrap', 'asBindEmailCode-wrap'],
+    deleteAccount: ['asDeleteConfirm-wrap', 'asDeletePassword-wrap']
   }
   var wraps = wrapMap[name] || []
   wraps.forEach(function(wrapId) {
@@ -234,8 +267,10 @@ function createAccordionInputs(name) {
       else if (wrapId === 'asNewPass-wrap') inp.placeholder = '输入新密码（至少4位）'
       else if (wrapId === 'asBindEmail-wrap') inp.placeholder = 'your@email.com'
       else if (wrapId === 'asBindEmailCode-wrap') inp.placeholder = '验证码'
+      else if (wrapId === 'asDeleteConfirm-wrap') inp.placeholder = '输入：注销账号'
+      else if (wrapId === 'asDeletePassword-wrap') inp.placeholder = '输入当前密码'
       else inp.placeholder = '至少4个字符'
-      if (wrapId === 'asCurrPassForUser-wrap' && !hasPassword.value) { el.style.display = 'none'; return }
+      if ((wrapId === 'asCurrPassForUser-wrap' || wrapId === 'asDeletePassword-wrap') && !hasPassword.value) { el.style.display = 'none'; return }
       el.appendChild(inp)
     }
   })
@@ -267,6 +302,60 @@ async function doLogout() {
     uni.switchTab({ url: '/pages/index/index' })
   } catch(_) {}
   uni.showToast({ title: '已退出登录', icon: 'none' })
+}
+
+async function deleteAccount() {
+  var btn = document.getElementById('asDeleteAccountBtn')
+  var origText = btn ? btn.textContent : ''
+  var confirmEl = document.querySelector('#asDeleteConfirm-wrap input')
+  var passwordEl = document.querySelector('#asDeletePassword-wrap input')
+  var errorEl = document.getElementById('asDeleteError')
+  var confirmText = confirmEl ? confirmEl.value.trim() : ''
+  var password = passwordEl ? passwordEl.value : ''
+  if (errorEl) errorEl.textContent = ''
+  if (confirmText !== '注销账号') {
+    if (errorEl) errorEl.textContent = '请完整输入“注销账号”'
+    return
+  }
+  if (hasPassword.value && !password) {
+    if (errorEl) errorEl.textContent = '请输入当前密码'
+    return
+  }
+  uni.showModal({
+    title: '确认注销账号',
+    content: '注销后命盘、历史、对话和个人资料将被删除或匿名化，此操作不可恢复。',
+    confirmText: '确认注销',
+    confirmColor: '#d76d5f',
+    success: async function(result) {
+      if (!result.confirm) return
+      if (btn) { btn.textContent = '注销中...'; btn.style.opacity = '0.6'; btn.style.pointerEvents = 'none' }
+      try {
+        var res = await uni.request({ url: '/api/account/delete', method: 'POST', data: { confirm: confirmText, password: password } })
+        var data = res.data || {}
+        if (data.error) {
+          if (errorEl) errorEl.textContent = data.error
+          if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }
+          return
+        }
+        uni.removeStorageSync('xc_token')
+        uni.removeStorageSync('xc_user')
+        uni.removeStorageSync('xc_avatar')
+        uni.removeStorageSync('xc_has_password')
+        resetProfileSessionState()
+        try {
+          window.dispatchEvent(new CustomEvent('xc-auth-changed', { detail: { type: 'logout', loggedIn: false } }))
+          uni.$emit('xc-auth-changed', { type: 'logout', loggedIn: false })
+          window.__xcHomeMode = 'marketing'
+          if (window.location.hash !== '#/') window.history.replaceState({ marketing: 'home' }, '', '#/')
+          uni.switchTab({ url: '/pages/index/index' })
+        } catch(_) {}
+        uni.showToast({ title: '账号已注销', icon: 'success' })
+      } catch (e) {
+        if (errorEl) errorEl.textContent = '注销失败，请稍后再试'
+        if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }
+      }
+    }
+  })
 }
 
 function showAccountSettings() {
@@ -320,7 +409,7 @@ async function changeUsername() {
     var res = await uni.request({ url: '/api/user/change-username', method: 'POST', data: data })
     var d = res.data
     if (d.error) { try { document.querySelectorAll('#asUsernameError').forEach(function(el) { el.textContent = d.error }) } catch(_) {}; if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' }; return }
-    userInfo.username = newUsername; uni.setStorageSync('xc_user', newUsername)
+    userInfo.username = normalizeUsername(newUsername); uni.setStorageSync('xc_user', { username: normalizeUsername(newUsername) })
     closeAccountSettings(); uni.showToast({ title: '用户名已更新', icon: 'success' }); setTimeout(function() { location.reload() }, 800)
   } catch (e) { try { document.querySelectorAll('#asUsernameError').forEach(function(el) { el.textContent = '网络错误' }) } catch(_) {}; if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto' } }
 }
@@ -346,10 +435,12 @@ async function changePassword() {
 }
 
 const userInfo = reactive({
-  username: uni.getStorageSync('xc_user') || '用户',
+  username: normalizeUsername(uni.getStorageSync('xc_user')),
   regDate: '—',
   avatar: normalizeAvatarUrl(uni.getStorageSync('xc_avatar'))
 })
+const displayUsername = computed(() => normalizeUsername(userInfo.username))
+const profileInitial = computed(() => displayUsername.value.charAt(0).toUpperCase())
 function setProfileAvatar(src, shouldCache) {
   const avatar = normalizeAvatarUrl(src)
   userInfo.avatar = avatar
@@ -376,7 +467,7 @@ async function refreshProfileSessionState() {
   }
   isLoggedIn.value = true
   const cachedUser = uni.getStorageSync('xc_user')
-  if (cachedUser) userInfo.username = cachedUser
+  if (cachedUser) userInfo.username = normalizeUsername(cachedUser)
   try {
     const res = await uni.request({ url: '/api/me', method: 'GET' })
     const d = res.data && res.data[0] ? res.data[0] : res.data
@@ -389,11 +480,11 @@ async function refreshProfileSessionState() {
     if (d && d.username) {
       isLoggedIn.value = true
       uni.setStorageSync('xc_token', 'session')
-      uni.setStorageSync('xc_user', d.username)
+      uni.setStorageSync('xc_user', { username: normalizeUsername(d.username), id: d.id, phone: d.phone || '' })
       uni.setStorageSync('xc_has_password', d.has_password !== false ? '1' : '0')
       hasPassword.value = d.has_password !== false
       window.__xc_hasPassword = hasPassword.value
-      userInfo.username = d.username
+      userInfo.username = normalizeUsername(d.username)
       if (d.created_at) userInfo.regDate = new Date(d.created_at).toLocaleString('zh-CN')
       setProfileAvatar(d.avatar, !!normalizeAvatarUrl(d.avatar))
       if (typeof window !== 'undefined' && window._xc_loadBindings) window._xc_loadBindings()
@@ -410,8 +501,8 @@ function onProfileAuthChanged(event) {
   }
   if (detail.type === 'login' || detail.loggedIn === true) {
     isLoggedIn.value = true
-    if (detail.user && detail.user.username) userInfo.username = detail.user.username
-    else if (uni.getStorageSync('xc_user')) userInfo.username = uni.getStorageSync('xc_user')
+    if (detail.user && detail.user.username) userInfo.username = normalizeUsername(detail.user.username)
+    else if (uni.getStorageSync('xc_user')) userInfo.username = normalizeUsername(uni.getStorageSync('xc_user'))
     if (detail.user && detail.user.avatar) setProfileAvatar(detail.user.avatar, true)
     refreshProfileSessionState()
   }
@@ -1051,6 +1142,7 @@ onBeforeUnmount(function() {
 }
 .settings-icon-phone { font-size: 0.54rem; }
 .settings-icon-oauth { font-size: 0.82rem; }
+.settings-icon-danger { background: rgba(215,109,95,0.12); border-color: rgba(215,109,95,0.26); color: #d76d5f; font-size: 0.72rem; }
 .settings-item-label { flex: 1; font-size: 0.875rem; color: var(--text-1); }
 .settings-item-main { flex: 1; display: grid; gap: 4px; min-width: 0; }
 .settings-item-main .settings-item-label { flex: none; }
@@ -1062,6 +1154,11 @@ onBeforeUnmount(function() {
 .settings-switch text { display: block; width: 18px; height: 18px; border-radius: 50%; background: var(--text-3); transition: transform .18s ease, background .18s ease; }
 .settings-switch.active { background: var(--accent-glow); border-color: rgba(178,149,93,0.45); }
 .settings-switch.active text { transform: translateX(18px); background: var(--accent); }
+.danger-group .settings-list { border-color: rgba(215,109,95,0.26); background: rgba(215,109,95,0.045); }
+.danger-group .settings-item:hover { background: rgba(215,109,95,0.08); }
+.delete-account-warning { display: block; margin-bottom: 12px; color: #d76d5f; font-size: 0.78rem; line-height: 1.65; }
+.btn-danger { background: rgba(215,109,95,0.14); border: 1px solid rgba(215,109,95,0.38); color: #ffb5aa; }
+.btn-danger:hover { background: rgba(215,109,95,0.22); border-color: rgba(215,109,95,0.58); }
 
 /* ═══ Accordion 展开区 ═══ */
 .settings-accordion { border-top: 1px solid var(--card-border); background: rgba(0,0,0,0.08); }

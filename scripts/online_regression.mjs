@@ -4,7 +4,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
 
-const baseUrl = process.env.REGRESSION_BASE_URL || 'http://119.29.128.18'
+const baseUrl = process.env.REGRESSION_BASE_URL || 'https://shianjieyouwu.com'
 const timeoutMs = Number(process.env.REGRESSION_TIMEOUT_MS || 15000)
 const artifactDir = process.env.REGRESSION_ARTIFACT_DIR || join('artifacts', 'qa', new Date().toISOString().replace(/[:.]/g, '-'))
 

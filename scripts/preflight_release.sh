@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-BASE_URL="${BASE_URL:-http://119.29.128.18}"
+BASE_URL="${BASE_URL:-https://shianjieyouwu.com}"
 RUN_PROD_SMOKE="${RUN_PROD_SMOKE:-0}"
 ALLOW_KNOWN_AUDIT="${ALLOW_KNOWN_AUDIT:-1}"
 
@@ -24,7 +24,7 @@ if [ -n "$DIRTY_BACKEND" ]; then
 fi
 
 section "Shell 脚本语法"
-bash -n deploy-to-server.sh deploy-to-staging.sh scripts/*.sh
+bash -n deploy-to-server.sh deploy-h5-to-server.sh rollback-h5-on-server.sh deploy-to-staging.sh scripts/*.sh
 
 section "Python 语法"
 python3 -m py_compile backend/*.py scripts/*.py

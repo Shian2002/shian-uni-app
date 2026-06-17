@@ -114,6 +114,80 @@ def test_unbind_oauth_clears_provider_when_password_exists(app_module, user_fact
         assert refreshed.oauth_gitee is None
 
 
+def test_delete_account_requires_password_and_anonymizes_personal_data(app_module, user_factory):
+    user = user_factory("delete-owner")
+    other = user_factory("delete-other")
+    models = importlib.import_module("models")
+    with app_module.app.app_context():
+        db_user = app_module.db.session.get(app_module.User, user.id)
+        db_user.email = "delete-owner@example.com"
+        db_user.phone = "13900000000"
+        db_user.oauth_gitee = "gitee-delete-id"
+        db_user.avatar = "/static/uploads/delete-owner.png"
+        record = models.Record(user_id=user.id, app_type="qimen", question="注销测试", result_html="ok")
+        post = models.Post(user_id=user.id, title="注销帖子", content="注销帖子内容")
+        app_module.db.session.add_all([
+            db_user,
+            models.UserProfile(user_id=user.id, name="注销命盘", birth_time="1990-01-01 08:00"),
+            record,
+            models.BaziRecord(user_id=user.id, name="注销八字", birth_time="1990-01-01 08:00"),
+            models.Membership(user_id=user.id, points=88, ai_single_credits=2, ai_combo_credits=1),
+            models.PointLog(user_id=user.id, action="admin_add", points=88, description="人工加积分"),
+            models.AiRun(kind="comprehensive", user_id=user.id, request_json='{"q":"隐私"}', response_json='{"a":"answer"}'),
+            post,
+        ])
+        app_module.db.session.flush()
+        app_module.db.session.add_all([
+            models.FollowUp(user_id=user.id, record_id=record.id, note="跟进记录"),
+            models.Collection(user_id=user.id, target_type="record", target_id=record.id),
+            models.Comment(user_id=user.id, post_id=post.id, content="注销评论"),
+            models.Comment(user_id=other.id, post_id=post.id, content="别人评论"),
+            models.PostLike(user_id=other.id, post_id=post.id),
+            models.Notification(user_id=other.id, from_user_id=user.id, type="like", post_id=post.id, content="点赞"),
+            models.Report(user_id=other.id, target_type="post", target_id=post.id, reason="测试"),
+        ])
+        app_module.db.session.commit()
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(user.id)
+        sess["_fresh"] = True
+
+    wrong_password = client.post("/api/account/delete", json={"confirm": "注销账号", "password": "wrong"})
+    assert wrong_password.status_code == 403
+    with app_module.app.app_context():
+        assert models.UserProfile.query.filter_by(user_id=user.id).count() == 1
+        assert app_module.db.session.get(app_module.User, user.id).username == "delete-owner"
+
+    response = client.post("/api/account/delete", json={"confirm": "注销账号", "password": "secret123"})
+    assert response.status_code == 200
+    assert response.get_json()["ok"] is True
+    assert client.get("/api/me").get_json() == {"guest": True}
+
+    old_login = client.post("/api/login", json={"username": "delete-owner", "password": "secret123"})
+    assert old_login.status_code == 401
+
+    with app_module.app.app_context():
+        refreshed = app_module.db.session.get(app_module.User, user.id)
+        assert refreshed.username.startswith(f"deleted_user_{user.id}_")
+        assert refreshed.email is None
+        assert refreshed.phone is None
+        assert refreshed.oauth_gitee is None
+        assert refreshed.avatar == ""
+        assert refreshed.has_password is True
+        assert not check_password_hash(refreshed.password_hash, "secret123")
+        assert models.UserProfile.query.filter_by(user_id=user.id).count() == 0
+        assert models.Record.query.filter_by(user_id=user.id).count() == 0
+        assert models.BaziRecord.query.filter_by(user_id=user.id).count() == 0
+        assert models.FollowUp.query.filter_by(user_id=user.id).count() == 0
+        assert models.Collection.query.filter_by(user_id=user.id).count() == 0
+        assert models.Membership.query.filter_by(user_id=user.id).count() == 0
+        assert models.Post.query.filter_by(user_id=user.id).count() == 0
+        assert models.Comment.query.filter_by(user_id=user.id).count() == 0
+        assert models.PointLog.query.filter_by(user_id=user.id).one().description == "[account deleted]"
+        assert models.AiRun.query.filter_by(user_id=user.id).one().request_json == ""
+
+
 def test_add_points_can_participate_in_existing_transaction(app_module, user_factory):
     user = user_factory()
 
@@ -641,6 +715,29 @@ def test_email_code_login_uses_shared_verification_store(app_module, user_factor
     assert response.status_code == 200
     body = response.get_json()
     assert body["username"] == "email-code-user"
+
+
+def test_sms_code_login_uses_shared_verification_store(app_module, user_factory):
+    member = user_factory("sms-code-user")
+    phone = "13900002222"
+
+    with app_module.app.app_context():
+        user = app_module.db.session.get(app_module.User, member.id)
+        user.phone = phone
+        app_module.db.session.commit()
+
+    import auth_channel_routes
+    auth_channel_routes._store_code(f"sms_{phone}", "222333")
+
+    client = app_module.app.test_client()
+    response = client.post("/api/sms/login", json={
+        "phone": phone,
+        "code": "222333",
+    })
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["username"] == "sms-code-user"
 
 
 def test_password_reset_by_bound_email_updates_password(app_module, user_factory):

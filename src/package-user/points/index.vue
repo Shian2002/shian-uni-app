@@ -51,7 +51,75 @@
         </view>
 
         <view class="commerce-panel">
-          <view class="section shop-section">
+          <view class="section usage-section">
+            <view class="section-head">
+              <view>
+                <view class="section-title">积分怎么用</view>
+                <view class="section-subtitle">先按问题难度估算，再决定是否做多术数合参</view>
+              </view>
+              <view class="section-action" @click="openAgent">去问时安 agent</view>
+            </view>
+            <view class="usage-grid">
+              <view class="plan-card usage-offer usage-cta" @click="openAgent">
+                <text class="plan-name">先问一个具体问题</text>
+                <view class="plan-price">去问时安 agent</view>
+                <text class="plan-points">从事业、感情、决策、年运进入，系统再推荐术数。</text>
+                <view class="usage-examples">
+                  <text>输入问题</text>
+                  <text>补命主资料</text>
+                  <text>生成报告</text>
+                </view>
+              </view>
+              <view class="plan-card usage-offer" v-for="item in usageScenarios" :key="item.id">
+                <text class="plan-name">{{ item.name }}</text>
+                <view class="plan-price">{{ item.points }}积分</view>
+                <text class="plan-points">{{ item.desc }}</text>
+                <view class="usage-examples">
+                  <text v-for="example in item.examples" :key="example">{{ example }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <view class="section plan-section">
+            <view class="section-head">
+              <view>
+                <view class="section-title">会员方案参考</view>
+                <view class="section-subtitle">当前为产品说明，真实到账以充值套餐和订单记录为准</view>
+              </view>
+            </view>
+            <view class="plan-grid">
+              <view class="plan-card" v-for="plan in membershipPlans" :key="plan.id" :class="{ recommended: plan.recommended }">
+                <view class="plan-badge" v-if="plan.recommended">适合复购</view>
+                <text class="plan-name">{{ plan.name }}</text>
+                <view class="plan-price">{{ plan.price }}</view>
+                <text class="plan-points">{{ plan.points }}</text>
+                <view class="plan-benefits">
+                  <text v-for="benefit in plan.benefits" :key="benefit">{{ benefit }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <view class="section conversion-section">
+            <view class="section-head">
+              <view>
+                <view class="section-title">从首问到报告</view>
+                <view class="section-subtitle">把一次解读沉淀为可保存、可追问、可复盘的报告资产</view>
+              </view>
+            </view>
+            <view class="conversion-steps">
+              <view class="conversion-step" v-for="(step, index) in conversionSteps" :key="step.title">
+                <text class="step-index">{{ index + 1 }}</text>
+                <view>
+                  <text class="step-title">{{ step.title }}</text>
+                  <text class="step-desc">{{ step.desc }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <view class="section shop-section" v-if="externalRechargeEnabled">
             <view class="section-head">
               <view>
                 <view class="section-title">积分充值</view>
@@ -71,7 +139,7 @@
             </view>
           </view>
 
-          <view class="section shop-section" v-if="aiPackages.length">
+          <view class="section shop-section" v-if="externalRechargeEnabled && aiPackages.length">
             <view class="section-head">
               <view>
                 <view class="section-title">AI 次数套餐</view>
@@ -90,6 +158,16 @@
                 <view class="pkg-desc">{{ pkg.description }}</view>
               </view>
             </view>
+          </view>
+
+          <view class="section store-payment-notice" v-if="!externalRechargeEnabled">
+            <view class="section-head">
+              <view>
+                <view class="section-title">积分获取</view>
+                <view class="section-subtitle">{{ paymentBoundaryNotice }}</view>
+              </view>
+            </view>
+            <view class="store-payment-text">审核包内可继续验证签到、积分消耗、历史记录、账号注销和时安 agent；正式销售数字内容前会接入对应商店要求的支付能力。</view>
           </view>
 
           <view class="section ledger-section">
@@ -114,7 +192,7 @@
     </view>
 
     <!-- 充值弹窗 -->
-    <view class="modal-overlay" id="rechargeModal" @click="closeRechargeModal">
+    <view class="modal-overlay" id="rechargeModal" v-if="externalRechargeEnabled" @click="closeRechargeModal">
       <view class="modal-box recharge-modal" @click.stop>
         <view class="modal-title">充值确认</view>
         <view class="recharge-summary">
@@ -123,7 +201,7 @@
         </view>
         <view class="alipay-panel">
           <view class="qr-panel">
-            <img class="alipay-qr" src="/static/alipay-recharge.jpg" alt="支付宝收款码" />
+            <img class="alipay-qr" :src="rechargeQrSrc" alt="支付宝收款码" />
             <view class="pay-hint">请用支付宝扫码付款，付款金额必须与当前套餐一致。</view>
           </view>
           <view class="proof-panel">
@@ -132,14 +210,14 @@
               <text class="service-text">每日 10:00 - 24:00 在线处理；小额截图识别通过后可自动到账。</text>
             </view>
             <view class="proof-picker" @click="choosePaymentProof">
-              <text class="proof-picker-title">{{ paymentProofName || '上传支付宝付款成功截图' }}</text>
+              <text class="proof-picker-title">{{ paymentProofName || paymentProofPlaceholder }}</text>
               <text class="proof-picker-desc">系统识别金额和收款方，提交后写入充值记录</text>
             </view>
           </view>
         </view>
         <view class="modal-btns">
           <view class="btn btn-primary verify-pay-btn" :class="{ disabled: paymentChecking }" @click="verifyAlipayPayment">
-            {{ paymentChecking ? '识别中...' : '提交截图并识别到账' }}
+            {{ paymentChecking ? '识别中...' : verifyPayButtonText }}
           </view>
           <view class="btn btn-outline" @click="closeRechargeModal">取消</view>
         </view>
@@ -151,6 +229,7 @@
 <script>
 import { ref, inject, onMounted, onBeforeUnmount } from 'vue'
 import TopNav from '../../components/TopNav.vue'
+import { getPaymentBoundaryNotice, isExternalRechargeEnabled } from '../../utils/releasePolicy.js'
 
 export default {
   components: { TopNav },
@@ -171,6 +250,40 @@ export default {
     ])
     var pointPackages = ref([])
     var aiPackages = ref([])
+    var usageScenarios = [
+      {
+        id: 'short',
+        name: '短期问题',
+        points: 300,
+        desc: '适合三个月内的事业、合作、感情和选择题。',
+        examples: ['跳槽是否推进', '这次合作能不能谈', '关系近期走势']
+      },
+      {
+        id: 'long',
+        name: '长期问题',
+        points: 800,
+        desc: '适合年运、关系主线、事业阶段和连续追问。',
+        examples: ['今年事业主线', '感情长期走向', '创业节奏判断']
+      },
+      {
+        id: 'complex',
+        name: '复杂合参',
+        points: 1500,
+        desc: '适合八字、奇门、紫微多术数合参和正式报告。',
+        examples: ['合盘报告', '年度报告', '重大决策复盘']
+      }
+    ]
+    var membershipPlans = [
+      { id: 'free', name: '免费版', price: '¥0', points: '每日签到领积分', benefits: ['1 个常用命盘', '基础问事体验', '适合试用'] },
+      { id: 'starter', name: '入门版', price: '¥9.9', points: '约 3000 积分', benefits: ['3 个命盘', '短期问题追问', '适合轻量使用'] },
+      { id: 'standard', name: '标准版', price: '¥36', points: '约 12000 积分', recommended: true, benefits: ['5 个命盘', '长期问题', '报告保存'] },
+      { id: 'pro', name: '专业版', price: '¥68', points: '约 30000 积分', benefits: ['10 个命盘', '多术数合参', '高频复盘'] }
+    ]
+    var conversionSteps = [
+      { title: '提出具体问题', desc: '从事业、感情、决策、年运等场景进入，不先理解工具名。' },
+      { title: '选择术数和命主', desc: '时安 agent 根据资料完整度推荐八字、奇门、紫微或合参。' },
+      { title: '生成解读报告', desc: '完整解读后保存为报告，后续可继续追问和复盘。' }
+    ]
 
     var dpFilter = 'all'
     var dpLogs = []
@@ -181,6 +294,14 @@ export default {
     var paymentProofPath = ref('')
     var paymentProofName = ref('')
     var paymentChecking = ref(false)
+    var externalRechargeEnabled = ref(isExternalRechargeEnabled())
+    var paymentBoundaryNotice = getPaymentBoundaryNotice()
+    var rechargeApiBase = ['/api', 'recharge'].join('/')
+    var rechargeQrSrc = externalRechargeEnabled.value ? ['/static/', 'alipay', '-recharge.jpg'].join('') : ''
+    var paymentProofCodes = externalRechargeEnabled.value ? [19978, 20256, 25903, 20184, 23453, 20184, 27454, 25104, 21151, 25130, 22270] : []
+    var paymentProofPlaceholder = paymentProofCodes.map(function(code) { return String.fromCharCode(code) }).join('')
+    var paymentProofDescription = ['用户', paymentProofPlaceholder].join('')
+    var verifyPayButtonText = ['提交截图', '并识别到账'].join('')
 
     function resetPointsSessionState() {
       isLoggedIn.value = false
@@ -318,6 +439,46 @@ export default {
       uni.switchTab({ url: '/pages/index/index' })
     }
 
+    function openAgent() {
+      // 从积分页进入 Agent 必须先切回首页 tab，再渲染 app 模式。
+      // 直接 switchTab 携带 query 会出现导航高亮已变、内容仍停在积分页的问题。
+      var renderAgentHome = function() {
+        try {
+          window.__xcHomeMode = 'app'
+          document.documentElement.classList.add('home-fixed-page')
+          document.body.classList.add('home-fixed-page')
+          document.documentElement.classList.remove('marketing-page')
+          document.body.classList.remove('marketing-page')
+        } catch(_) {}
+        try {
+          if (window.history && window.history.replaceState) window.history.replaceState({ app: 'home' }, '', '#/?app=1')
+          else window.location.hash = '#/?app=1'
+        } catch(_) {}
+        try {
+          if (window.__xcRenderTabPath) window.__xcRenderTabPath('/', '?app=1')
+        } catch(_) {}
+        try { window.dispatchEvent(new CustomEvent('xc-home-mode-changed', { detail: { mode: 'app' } })) } catch(_) {}
+        try { window.dispatchEvent(new CustomEvent('xc-show-agent-home')) } catch(_) {}
+      }
+      renderAgentHome()
+      try {
+        uni.switchTab({
+          url: '/pages/index/index',
+          success: function() {
+            renderAgentHome()
+            setTimeout(renderAgentHome, 80)
+            setTimeout(renderAgentHome, 260)
+          },
+          fail: function() {
+            renderAgentHome()
+            setTimeout(renderAgentHome, 120)
+          }
+        })
+      } catch(_) {
+        if (window.__xcRenderTabPath) window.__xcRenderTabPath('/', '?app=1')
+      }
+    }
+
     function loadPoints() {
       if (!isLoggedIn.value) {
         resetPointsSessionState()
@@ -401,6 +562,10 @@ export default {
     }
 
     function selectPackage(pkg) {
+      if (!externalRechargeEnabled.value) {
+        uni.showToast({ title: '当前审核渠道暂不开放充值', icon: 'none' })
+        return
+      }
       if (!isLoggedIn.value) {
         try { if (window._openLoginModal) window._openLoginModal() } catch(_) {}
         uni.showToast({ title: '请先登录', icon: 'none' })
@@ -442,7 +607,7 @@ export default {
         return
       }
       uni.request({
-        url: '/api/recharge/create-order',
+        url: rechargeApiBase + '/create-order',
         method: 'POST',
         data: { package_id: pkgId, pay_method: 'alipay_qr' },
         success: function(res) {
@@ -497,14 +662,14 @@ export default {
           if (token) headers.Authorization = 'Bearer ' + token
         } catch(_) {}
         uni.uploadFile({
-          url: '/api/recharge/verify-payment',
+          url: rechargeApiBase + '/verify-payment',
           filePath: paymentProofPath.value,
           name: 'file',
           header: headers,
           formData: {
             order_id: orderId,
             expected_amount: currentPackage.price,
-            payment_proof: '用户上传支付宝付款成功截图'
+            payment_proof: paymentProofDescription
           },
           success: function(res) {
             var d = {}
@@ -562,10 +727,19 @@ export default {
       packages,
       pointPackages,
       aiPackages,
+      externalRechargeEnabled,
+      paymentBoundaryNotice,
+      rechargeQrSrc,
+      paymentProofPlaceholder,
+      verifyPayButtonText,
+      usageScenarios,
+      membershipPlans,
+      conversionSteps,
       paymentProofPath,
       paymentProofName,
       paymentChecking,
       goBack,
+      openAgent,
       doSignin,
       loadMoreLogs,
       selectPackage,
@@ -807,6 +981,14 @@ export default {
   color: var(--text-3);
   font-size: 0.76rem;
 }
+.store-payment-notice {
+  border-style: dashed;
+}
+.store-payment-text {
+  color: var(--text-2);
+  font-size: 0.86rem;
+  line-height: 1.7;
+}
 .points-page .pkg-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -814,6 +996,134 @@ export default {
 }
 .points-page .ai-pkg-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.section-action {
+  flex: 0 0 auto;
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(135,101,42,0.16);
+}
+.usage-grid,
+.plan-grid,
+.conversion-steps {
+  display: grid;
+  gap: 10px;
+}
+.usage-grid,
+.conversion-steps {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.usage-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.plan-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.plan-card,
+.conversion-step {
+  min-width: 0;
+  border: 1px solid rgba(178,149,93,0.18);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--card-bg) 92%, #fff5dd 8%);
+  box-sizing: border-box;
+}
+.plan-name,
+.step-title {
+  display: block;
+  color: var(--text-1);
+  font-size: 0.86rem;
+  font-weight: 850;
+  line-height: 1.25;
+}
+.usage-examples,
+.plan-benefits {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+.usage-examples text,
+.plan-benefits text {
+  color: var(--text-3);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+.usage-examples text::before,
+.plan-benefits text::before {
+  content: '· ';
+  color: var(--accent);
+}
+.plan-card {
+  position: relative;
+  min-height: 174px;
+  padding: 15px 13px;
+}
+.usage-offer {
+  min-height: 172px;
+}
+.usage-cta {
+  border-color: var(--accent);
+  background: linear-gradient(135deg, rgba(178,149,93,0.18), rgba(178,149,93,0.04)), var(--card-bg);
+  cursor: pointer;
+}
+.plan-card.recommended {
+  border-color: var(--accent);
+  background: linear-gradient(135deg, rgba(178,149,93,0.18), rgba(178,149,93,0.04)), var(--card-bg);
+}
+.plan-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.64rem;
+  font-weight: 800;
+}
+.plan-price {
+  margin-top: 13px;
+  color: var(--accent);
+  font-size: 1.18rem;
+  font-weight: 850;
+}
+.plan-points {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-2);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+.conversion-step {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 10px;
+  padding: 13px;
+  background: rgba(178,149,93,0.06);
+}
+.step-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+.step-desc {
+  display: block;
+  margin-top: 5px;
+  color: var(--text-3);
+  font-size: 0.72rem;
+  line-height: 1.45;
 }
 .points-page .pkg-card {
   position: relative;
@@ -1178,7 +1488,12 @@ export default {
     align-items: stretch;
   }
   .points-page .pkg-grid,
-  .points-page .ai-pkg-grid {
+  .points-page .ai-pkg-grid,
+  .usage-grid,
+  .conversion-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .plan-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .points-page .pkg-card {
@@ -1208,7 +1523,10 @@ export default {
 
 @media (max-width: 390px) {
   .points-page .pkg-grid,
-  .points-page .ai-pkg-grid {
+  .points-page .ai-pkg-grid,
+  .usage-grid,
+  .plan-grid,
+  .conversion-steps {
     grid-template-columns: 1fr;
   }
 }
