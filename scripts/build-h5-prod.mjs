@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 
 const pagesJsonPath = new URL('../src/pages.json', import.meta.url)
+const publicDir = new URL('../public/', import.meta.url)
+const h5DistDir = new URL('../dist/build/h5/', import.meta.url)
+const seoPublicFiles = ['robots.txt', 'sitemap.xml', 'manifest.json', 'indexnow-key.txt']
 const lockParentDir = new URL('../node_modules/.cache', import.meta.url)
 const lockDir = new URL('../node_modules/.cache/build-h5-prod.lock', import.meta.url)
 let lockAcquired = false
@@ -44,6 +47,16 @@ function hideCommunityForProduction(original) {
   writeFileSync(pagesJsonPath, JSON.stringify(config, null, 2) + '\n')
 }
 
+function copySeoPublicFiles() {
+  if (!existsSync(h5DistDir)) return
+  for (const fileName of seoPublicFiles) {
+    const source = new URL(fileName, publicDir)
+    if (!existsSync(source)) continue
+    copyFileSync(source, new URL(fileName, h5DistDir))
+    console.log(`[build-h5-prod] 已复制公开 SEO 文件: ${fileName}`)
+  }
+}
+
 try {
   acquireLock()
   original = readFileSync(pagesJsonPath, 'utf8')
@@ -60,6 +73,9 @@ try {
     shell: process.platform === 'win32',
   })
   if (result.error) throw result.error
+  if ((result.status || 0) === 0) {
+    copySeoPublicFiles()
+  }
   process.exitCode = result.status || 0
 } finally {
   try {

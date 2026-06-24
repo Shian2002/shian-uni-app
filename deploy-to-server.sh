@@ -69,6 +69,10 @@ echo "[3/5] 上传前端..."
 eval "$RSYNC_CMD" \
     --exclude '/static/uploads/' \
     "$LOCAL_DIR/dist/build/h5/index.html" \
+    "$LOCAL_DIR/dist/build/h5/robots.txt" \
+    "$LOCAL_DIR/dist/build/h5/sitemap.xml" \
+    "$LOCAL_DIR/dist/build/h5/manifest.json" \
+    "$LOCAL_DIR/dist/build/h5/indexnow-key.txt" \
     "$LOCAL_DIR/dist/build/h5/assets" \
     "$LOCAL_DIR/dist/build/h5/static" \
     "$SERVER:/var/www/xuan-cet/"

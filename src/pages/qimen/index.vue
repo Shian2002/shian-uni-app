@@ -396,43 +396,67 @@ function renderQimenPalaceGrid(data) {
   const C_RIGAN = '#E74C3C', C_SHIGAN = '#E74C3C', C_DIGAN = '#555', C_YINGAN = '#AAA', C_MAHORSE = '#D4A017'
   const zhiFuStar = data.zhiFuStar || ''; const zhiShiMen = data.zhiShiMen || ''
   const baguaSimple = {'坎':'坎','坤':'坤','震':'震','巽':'巽','中':'中','乾':'乾','兌':'兑','艮':'艮','離':'离'}
+  function qimenStemTone(g, jiSet, ruSet, defaultColor) {
+    const hasJiXing = jiSet.has(g)
+    const hasRuMu = ruSet.has(g)
+    if (hasJiXing && hasRuMu) return { color: C_XINGMU, weight: '700' }
+    if (hasJiXing) return { color: C_JIXING, weight: '700' }
+    if (hasRuMu) return { color: C_RUMU, weight: '700' }
+    return { color: defaultColor, weight: '400' }
+  }
+  function qimenTailAlignClass(value, baseClass) {
+    const text = String(value || '').replace(/\s/g, '')
+    const cls = text.length > 1 ? 'qm-align-tail' : ''
+    return [baseClass || '', cls].filter(Boolean).join(' ')
+  }
   let html = `<div class="qf-result-card">`
   // 概要信息区
-  html += `<div style="margin-bottom:16px;border-bottom:1px solid var(--card-border);padding-bottom:12px;">`
-  html += `<div style="font-size:1.1rem;font-weight:700;margin-bottom:10px;color:var(--accent);letter-spacing:2px;">奇门遁甲排盘</div>`
-  html += `<div style="display:flex;flex-wrap:wrap;gap:6px 16px;font-size:0.82rem;color:var(--text-2);margin-bottom:6px;">`
-  html += `<span><b style="color:var(--text-1);">盘式：</b>转盘奇门 · ${data.panType || '拆补法'}</span>`
-  if (data.solarDate) html += `<span><b style="color:var(--text-1);">时间：</b>${data.solarDate}</span>`
-  html += `</div>`
-  html += `<div style="display:flex;flex-wrap:wrap;gap:6px 14px;font-size:0.82rem;margin-bottom:6px;">`
-  if (fp.year) html += `<span><b style="color:var(--text-1);">年柱</b> ${fp.year}</span>`
-  if (fp.month) html += `<span><b style="color:var(--text-1);">月柱</b> ${fp.month}</span>`
-  if (fp.day) html += `<span><b style="color:var(--text-1);">日柱</b> ${fp.day}</span>`
-  if (fp.hour) html += `<span><b style="color:var(--text-1);">时柱</b> ${fp.hour}</span>`
-  html += `</div>`
   const xk = data.xunKong || data.xunkong || {}
-  if (xk.day || xk.hour) {
-    html += `<div style="font-size:0.82rem;margin-bottom:6px;"><b style="color:var(--text-1);">旬空：</b>`
-    if (xk.day) html += `日空${xk.day}`
-    if (xk.day && xk.hour) html += ` `
-    if (xk.hour) html += `时空${xk.hour}`
-    html += `</div>`
-  }
-  html += `<div style="display:flex;flex-wrap:wrap;gap:6px 16px;font-size:0.82rem;margin-bottom:6px;">`
-  if (data.solarTerm) html += `<span><b style="color:var(--text-1);">节气：</b>${data.solarTerm}</span>`
-  if (data.ju) html += `<span><b style="color:var(--text-1);">局数：</b>${data.ju}</span>`
-  if (data.xunShou) html += `<span><b style="color:var(--text-1);">旬首：</b>${data.xunShou}</span>`
-  html += `</div>`
-  html += `<div style="display:flex;flex-wrap:wrap;gap:6px 16px;font-size:0.82rem;">`
-  if (data.zhiFu) html += `<span style="font-weight:600;"><b>值符：</b>${data.zhiFu}</span>`
-  if (data.zhiShi) html += `<span style="font-weight:600;"><b>值使：</b>${data.zhiShi}</span>`
-  if (data.tianYi) html += `<span style="font-weight:500;"><b>天乙：</b>${data.tianYi}</span>`
   const mx = data.maXing || {}
   const maList = []
   if (mx['驛馬'] || mx['驿马']) maList.push('驿马→' + (mx['驛馬']||mx['驿马']))
   if (mx['丁馬'] || mx['丁马']) maList.push('丁马→' + (mx['丁馬']||mx['丁马']))
   if (mx['天馬'] || mx['天马']) maList.push('天马→' + (mx['天馬']||mx['天马']))
-  if (maList.length) html += `<span><b style="color:var(--text-1);">马星：</b>${maList.join(' ')}</span>`
+  function metaPair(label, value, strong) {
+    if (!value) return ''
+    return `<span class="qf-meta-pair${strong ? ' is-strong' : ''}"><em>${label}</em><b>${value}</b></span>`
+  }
+  function pillarPair(label, value, strong) {
+    if (!value) return ''
+    return `<span class="qf-pillar${strong ? ' is-strong' : ''}"><em>${label}</em><b>${value}</b></span>`
+  }
+  const pillarPairs = [
+    pillarPair('年柱', fp.year),
+    pillarPair('月柱', fp.month),
+    pillarPair('日柱', fp.day, true),
+    pillarPair('时柱', fp.hour, true),
+  ].join('')
+  const timingPairs = [
+    metaPair('节气', data.solarTerm),
+    metaPair('局数', data.ju, true),
+    metaPair('旬首', data.xunShou),
+  ].join('')
+  const voidPairs = [
+    metaPair('日空', xk.day),
+    metaPair('时空', xk.hour),
+  ].join('')
+  const anchorPairs = [
+    metaPair('值符', data.zhiFu, true),
+    metaPair('值使', data.zhiShi, true),
+    metaPair('天乙', data.tianYi),
+    metaPair('马星', maList.join(' ')),
+  ].join('')
+  const solarText = data.solarDate || ''
+  html += `<div class="qf-meta-panel">`
+  html += `<div class="qf-meta-head">`
+  html += `<div><div class="qf-meta-kicker">奇门遁甲排盘</div><div class="qf-meta-title">转盘奇门 · ${data.panType || '拆补法'}</div></div>`
+  if (solarText) html += `<div class="qf-meta-time"><em>起局</em><b>${solarText}</b></div>`
+  html += `</div>`
+  if (pillarPairs) html += `<div class="qf-pillar-strip">${pillarPairs}</div>`
+  html += `<div class="qf-meta-groups">`
+  if (timingPairs) html += `<div class="qf-meta-group"><span class="qf-meta-label">时令</span><div>${timingPairs}</div></div>`
+  if (voidPairs) html += `<div class="qf-meta-group"><span class="qf-meta-label">旬空</span><div>${voidPairs}</div></div>`
+  if (anchorPairs) html += `<div class="qf-meta-group qf-meta-anchor"><span class="qf-meta-label">关键</span><div>${anchorPairs}</div></div>`
   html += `</div></div>`
   // 九宫格
   html += `<div class="qm-scale-shell"><div class="qm-palace-grid">`
@@ -464,19 +488,19 @@ function renderQimenPalaceGrid(data) {
       const zhiFuNum = BAGUA_NUM[data.zhiFuGong] || 5
       const zhiShiNum = BAGUA_NUM[data.zhiShiGong] || 2
       const FS_C = 'var(--qm-center-font)', FS_S = 'var(--qm-center-small-font)'
-      html += `<div class="qm-palace-cell qm-center-cell" style="color:${C_DEFAULT};font-size:${FS_C};">`
+      html += `<div class="qm-palace-cell qm-center-cell" style="color:${C_DEFAULT};font-size:${FS_C};"><div class="qm-center-stack">`
       const dateStr = (data.solarDate || '').split(' ')[0]
-      if (dateStr) html += `<div style="font-weight:700;font-size:var(--qm-center-date-font);">${dateStr}</div>`
-      html += `<div>${wxSpan(xunRaw + '旬')}`
+      if (dateStr) html += `<div class="qm-center-date">${dateStr}</div>`
+      html += `<div class="qm-center-xun">${wxSpan(xunRaw + '旬')}`
       if (xkHour) html += ` ${wxSpan(xkHour)}<span style="color:${C_DEFAULT};">空</span>`
       html += `</div>`
       const zhuArr = []; const zhuLabels = ['年','月','日','时']
       ;['year','month','day','hour'].forEach((k,i) => { const v = fp5[k]; if (v) zhuArr.push(wxSpan(v) + `<span style="color:${C_DEFAULT};font-weight:400;">${zhuLabels[i]}</span>`) })
-      html += `<div style="font-size:${FS_S};">${zhuArr.join(' ')}</div>`
-      html += `<div style="font-weight:600;">${data.solarTerm || ''} ${juYuan} ${juDisplay}</div>`
-      html += `<div>值符天${data.zhiFuStar || ''}落${NUM_CN[zhiFuNum]}宫</div>`
-      html += `<div>值使${(data.zhiShiMen || '') + '门'}落${NUM_CN[zhiShiNum]}宫</div>`
-      html += `</div>`; continue
+      html += `<div class="qm-center-pillars" style="font-size:${FS_S};">${zhuArr.join(' ')}</div>`
+      html += `<div class="qm-center-rule">${data.solarTerm || ''} ${juYuan} ${juDisplay}</div>`
+      html += `<div class="qm-center-line">值符天${data.zhiFuStar || ''}落${NUM_CN[zhiFuNum]}宫</div>`
+      html += `<div class="qm-center-line">值使${(data.zhiShiMen || '') + '门'}落${NUM_CN[zhiShiNum]}宫</div>`
+      html += `</div></div>`; continue
     }
     const xingArr = Array.isArray(p.xing) ? p.xing : (p.xing ? [p.xing] : [])
     const tianGanArr = Array.isArray(p.tianGan) ? p.tianGan : (p.tianGan ? [p.tianGan] : [])
@@ -494,25 +518,26 @@ function renderQimenPalaceGrid(data) {
     let menColor = C_DEFAULT; let menWeight = '500'
     if (isZhiShi) { menColor = C_ZHISHI; menWeight = '700' }
     if (hasMenPo) { menColor = C_MENPO; menWeight = '700' }
-    let tianHtml = ''; tianGanArr.filter(Boolean).forEach(g => { let c = C_DEFAULT, w = '400'; if (jiXingTianSet.has(g)) { c = C_JIXING; w = '700' } else if (ruMuTianSet.has(g)) { c = C_RUMU; w = '700' }; tianHtml += `<span class="qm-heaven-stem" style="color:${c};font-weight:${w};">${g}</span>` })
-    let diHtml = ''; diGanArr.filter(Boolean).forEach(g => { let c = C_DIGAN, w = '400'; if (jiXingDiSet.has(g)) { c = C_JIXING; w = '700' } else if (ruMuDiSet.has(g)) { c = C_RUMU; w = '700' }; diHtml += `<span style="color:${c};font-weight:${w};">${g}</span>` })
-    const gongLabel = `${gongNum}·${baguaSimple[p.bagua]||p.bagua}`
+    let tianHtml = ''; tianGanArr.filter(Boolean).forEach(g => { const tone = qimenStemTone(g, jiXingTianSet, ruMuTianSet, C_DEFAULT); tianHtml += `<span class="qm-heaven-stem" style="color:${tone.color};font-weight:${tone.weight};">${g}</span>` })
+    let diHtml = ''; diGanArr.filter(Boolean).forEach(g => { const tone = qimenStemTone(g, jiXingDiSet, ruMuDiSet, C_DIGAN); diHtml += `<span style="color:${tone.color};font-weight:${tone.weight};">${g}</span>` })
+    const gongBagua = baguaSimple[p.bagua] || p.bagua
+    const gongLabel = `<span class="qm-gong-num">${gongNum}</span><span class="qm-gong-dot">·</span><span class="qm-gong-name">${gongBagua}</span>`
     const FS = 'var(--qm-cell-font)'
     html += `<div class="qm-palace-cell" style="color:${C_DEFAULT};">`
-    html += `<div style="display:flex;justify-content:space-between;align-items:center;">`
-    html += `<span style="color:${shenColor};font-weight:${shenWeight};font-size:${FS};white-space:nowrap;">${p.shenFull||''}${p.isKong?`<span style="color:${C_KONG};font-size:var(--qm-kong-font);font-weight:700;margin-left:2px;">○</span>`:''}</span>`
-    html += `<span class="qm-tian-gan" style="font-size:${FS};">${p.isMa?`<span class="qm-ma-marker" style="color:${C_MAHORSE};">🐎</span>`:''}${tianHtml}</span></div>`
-    html += `<div style="display:flex;justify-content:space-between;align-items:center;">`
+    html += `<div class="qm-palace-row qm-row-top">`
+    html += `<span class="${qimenTailAlignClass(p.shenFull || '', 'qm-kong-anchor')}" style="color:${shenColor};font-weight:${shenWeight};font-size:${FS};white-space:nowrap;">${p.shenFull||''}${p.isKong?`<span class="qm-kong-marker" style="color:${C_KONG};">○</span>`:''}</span>`
+    html += `<span class="${qimenTailAlignClass(tianGanArr.filter(Boolean).join(''), 'qm-tian-gan')}" style="font-size:${FS};">${p.isMa?`<span class="qm-ma-marker" style="color:${C_MAHORSE};">🐎</span>`:''}<span class="qm-tian-gan-text">${tianHtml}</span></span></div>`
+    html += `<div class="qm-palace-row qm-row-middle">`
     const xingDisplay = xingFullArr.length > 1 ? xingArr.filter(Boolean).join("") : xingFullArr.filter(Boolean).join("")
-    html += `<span style="color:${xingColor};font-weight:${xingWeight};font-size:${FS};white-space:nowrap;">${xingDisplay}</span>`
-    html += `<span style="font-size:${FS};white-space:nowrap;">${diHtml}</span></div>`
-    html += `<div style="display:flex;justify-content:space-between;align-items:center;">`
+    html += `<span class="${qimenTailAlignClass(xingDisplay)}" style="color:${xingColor};font-weight:${xingWeight};font-size:${FS};white-space:nowrap;">${xingDisplay}</span>`
+    html += `<span class="${qimenTailAlignClass(diGanArr.filter(Boolean).join(''))}" style="font-size:${FS};white-space:nowrap;">${diHtml}</span></div>`
+    html += `<div class="qm-palace-row qm-row-bottom">`
     const isDayYin = dayGan && p.yinGan === dayGan
     const isHourYin = hourGan && p.yinGan === hourGan
     let yinColor = C_YINGAN; let yinWeight = '400'
-    html += `<span style="white-space:nowrap;">${p.menFull?`<span style="color:${menColor};font-weight:${menWeight};font-size:${FS};">${p.menFull}</span>`:''}</span>`
-    html += `<span style="color:${yinColor};font-weight:${yinWeight};font-size:${FS};white-space:nowrap;">${p.yinGan||''}</span></div>`
-    html += `<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:var(--qm-gong-label-font);color:#d0d0d0;font-weight:400;pointer-events:none;">${gongLabel}</div>`
+    html += `<span style="white-space:nowrap;">${p.menFull?`<span class="${qimenTailAlignClass(p.menFull)}" style="color:${menColor};font-weight:${menWeight};font-size:${FS};">${p.menFull}</span>`:''}</span>`
+    html += `<span class="${qimenTailAlignClass(p.yinGan || '')}" style="color:${yinColor};font-weight:${yinWeight};font-size:${FS};white-space:nowrap;">${p.yinGan||''}</span></div>`
+    html += `<div class="qm-gong-label">${gongLabel}</div>`
     html += `</div>`
   }
   html += `</div></div>`
@@ -521,6 +546,7 @@ function renderQimenPalaceGrid(data) {
   html += `<span><span style="color:${C_MENPO};font-weight:700;">门迫</span></span>`
   html += `<span><span style="color:${C_JIXING};font-weight:700;">击刑</span></span>`
   html += `<span><span style="color:${C_RUMU};font-weight:700;">入墓</span></span>`
+  html += `<span><span style="color:${C_XINGMU};font-weight:700;">刑+墓</span></span>`
   html += `<span><span style="color:${C_KONG};">○</span>空亡</span>`
   html += `<span><span style="color:${C_MAHORSE};">🐎</span>马星</span></div>`
   html += `<div style="text-align:center;font-size:0.65rem;color:var(--text-3);margin-top:8px;">⚠️ 以上内容仅为民俗文化参考，不构成任何决策建议</div>`
@@ -1286,6 +1312,155 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 .qf-result-card { background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid var(--card-border); }
 .qf-result-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 10px; color: var(--accent); letter-spacing: 2px; }
 .qf-result-row { font-size: 0.82rem; color: var(--text-2); margin-bottom: 6px; }
+.qf-result :deep(.qf-meta-panel) {
+  margin-bottom: clamp(14px, 2vw, 20px);
+  padding-bottom: clamp(12px, 1.7vw, 18px);
+  border-bottom: 1px solid rgba(178,149,93,0.18);
+}
+.qf-result :deep(.qf-meta-head) {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 12px;
+}
+.qf-result :deep(.qf-meta-kicker) {
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+}
+.qf-result :deep(.qf-meta-title) {
+  margin-top: 3px;
+  color: var(--text-1);
+  font-family: var(--font-serif);
+  font-size: clamp(1rem, 1.8vw, 1.28rem);
+  font-weight: 500;
+  letter-spacing: 1.5px;
+}
+.qf-result :deep(.qf-meta-time) {
+  flex: 0 0 auto;
+  max-width: 46%;
+  text-align: right;
+  color: var(--text-2);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+.qf-result :deep(.qf-meta-time em) {
+  display: block;
+  color: var(--text-3);
+  font-size: 0.68rem;
+  font-style: normal;
+  letter-spacing: 1px;
+}
+.qf-result :deep(.qf-meta-time b) {
+  color: var(--text-1);
+  font-weight: 600;
+}
+.qf-result :deep(.qf-meta-groups) {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr 1.7fr;
+  gap: 10px 18px;
+  align-items: start;
+}
+.qf-result :deep(.qf-meta-group) {
+  min-width: 0;
+  padding-left: 12px;
+  border-left: 1px solid rgba(178,149,93,0.22);
+}
+.qf-result :deep(.qf-meta-label) {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text-3);
+  font-size: 0.68rem;
+  letter-spacing: 1.2px;
+}
+.qf-result :deep(.qf-meta-group > div) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+  align-items: baseline;
+}
+.qf-result :deep(.qf-meta-anchor > div) {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+  align-items: stretch;
+}
+.qf-result :deep(.qf-pillar-strip) {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 12px 0 13px;
+  border: 1px solid rgba(178,149,93,0.16);
+  border-radius: 8px;
+  background: rgba(178,149,93,0.045);
+  overflow: hidden;
+}
+.qf-result :deep(.qf-pillar) {
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 4px;
+  min-height: 54px;
+  padding: 9px 6px 8px;
+  border-left: 1px solid rgba(178,149,93,0.14);
+  box-sizing: border-box;
+}
+.qf-result :deep(.qf-pillar:first-child) {
+  border-left: none;
+}
+.qf-result :deep(.qf-pillar em) {
+  color: var(--text-3);
+  font-style: normal;
+  font-size: 0.66rem;
+  letter-spacing: 1px;
+}
+.qf-result :deep(.qf-pillar b) {
+  color: var(--text-1);
+  font-size: clamp(0.98rem, 1.55vw, 1.16rem);
+  font-weight: 700;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+.qf-result :deep(.qf-pillar.is-strong) {
+  background: rgba(178,149,93,0.075);
+}
+.qf-result :deep(.qf-pillar.is-strong b) {
+  color: var(--accent);
+}
+.qf-result :deep(.qf-meta-pair) {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  min-width: 0;
+  color: var(--text-2);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.qf-result :deep(.qf-meta-anchor .qf-meta-pair) {
+  display: grid;
+  grid-template-columns: 2.4em minmax(0, 1fr);
+  gap: 6px;
+  white-space: normal;
+  line-height: 1.35;
+}
+.qf-result :deep(.qf-meta-anchor .qf-meta-pair em) {
+  padding-top: 1px;
+}
+.qf-result :deep(.qf-meta-pair em) {
+  color: var(--text-3);
+  font-style: normal;
+  font-size: 0.7rem;
+}
+.qf-result :deep(.qf-meta-pair b) {
+  color: var(--text-1);
+  font-weight: 600;
+}
+.qf-result :deep(.qf-meta-pair.is-strong b) {
+  color: var(--accent);
+  font-weight: 750;
+}
 .qf-loading-card { min-height: 360px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; }
 .qf-loading-title { color: var(--accent); font-size: 0.92rem; font-weight: 700; letter-spacing: 2px; }
 .qf-loading-grid { width: min(100%, 420px); aspect-ratio: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 12px; background: rgba(178,149,93,0.18); border: 1px solid var(--card-border); box-sizing: border-box; }
@@ -1302,6 +1477,7 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
 }
 .qf-result :deep(.qf-result-card) { background: var(--card-bg); border-radius: 12px; padding: clamp(14px, 2.2vw, 24px); border: 1px solid var(--card-border); }
 .qf-result :deep(.qm-scale-shell) {
+  --qm-plate-font: 'Yuanti SC', 'STYuanti', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
   --qm-grid-size: clamp(300px, min(72vw, 72dvh), 760px);
   --qm-cell-font: clamp(0.66rem, calc(var(--qm-grid-size) / 40), 1.24rem);
   --qm-center-font: clamp(0.58rem, calc(var(--qm-grid-size) / 48), 1.02rem);
@@ -1309,13 +1485,25 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   --qm-center-date-font: clamp(0.6rem, calc(var(--qm-grid-size) / 45), 1.08rem);
   --qm-kong-font: clamp(0.68rem, calc(var(--qm-grid-size) / 40), 1.24rem);
   --qm-gong-label-font: clamp(0.62rem, calc(var(--qm-grid-size) / 46), 1.08rem);
-  --qm-cell-pad: clamp(7px, calc(var(--qm-grid-size) / 54), 15px);
+  --qm-cell-pad: 0px;
+  --qm-row-width-current: 92%;
+  --qm-row-width-compact: 82%;
+  --qm-row-width-tight: 60%;
+  --qm-row-width-rollback: 68%;
+  --qm-row-width: var(--qm-row-width-current);
+  --qm-row-left: calc((100% - var(--qm-row-width)) / 2);
+  --qm-row-top: 24%;
+  --qm-row-middle: 50%;
+  --qm-row-bottom: 76%;
   width: min(100%, var(--qm-grid-size));
+  max-width: 100%;
+  box-sizing: border-box;
   margin: 0 auto;
 }
 .qf-result :deep(.qm-palace-grid) {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
   gap: clamp(2px, 0.35vw, 4px);
   width: 100%;
   aspect-ratio: 1;
@@ -1324,6 +1512,9 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   overflow: hidden;
   border: 2px solid #b8b0a0;
   box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  font-family: var(--qm-plate-font);
+  text-rendering: geometricPrecision;
+  box-sizing: border-box;
 }
 .qf-result :deep(.qm-palace-cell) {
   aspect-ratio: 1;
@@ -1331,29 +1522,124 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   background: #fff;
   padding: var(--qm-cell-pad);
   font-size: var(--qm-cell-font);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  display: block;
   box-sizing: border-box;
   min-width: 0;
+  min-height: 0;
   line-height: 1.18;
+  overflow: hidden;
+}
+.qf-result :deep(.qm-row-top) { top: var(--qm-row-top); }
+.qf-result :deep(.qm-row-middle) { top: var(--qm-row-middle); }
+.qf-result :deep(.qm-row-bottom) { top: var(--qm-row-bottom); }
+.qf-result :deep(.qm-palace-row) {
+  position: absolute;
+  left: var(--qm-row-left);
+  width: var(--qm-row-width);
+  transform: translateY(-50%);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  justify-items: center;
+  align-items: center;
+  column-gap: 0;
+}
+.qf-result :deep(.qm-palace-row > span:first-child) {
+  text-align: center;
+}
+.qf-result :deep(.qm-palace-row > span:last-child) {
+  text-align: center;
+}
+.qf-result :deep(.qm-align-tail) {
+  display: inline-block;
+  transform: translateX(-0.5em);
+}
+.qf-result :deep(.qm-tian-gan.qm-align-tail) {
+  display: inline-flex;
+}
+.qf-result :deep(.qm-kong-anchor) {
+  position: relative;
+}
+.qf-result :deep(.qm-kong-marker) {
+  position: absolute;
+  left: calc(100% + 0.08em);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: var(--qm-kong-font);
+  font-weight: 700;
+  line-height: 1;
+}
+.qf-result :deep(.qm-gong-label) {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: var(--qm-gong-label-font);
+  color: rgba(160, 160, 160, 0.22);
+  font-weight: 400;
+  pointer-events: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  width: 3.25em;
+}
+.qf-result :deep(.qm-gong-num) {
+  text-align: right;
+}
+.qf-result :deep(.qm-gong-dot) {
+  text-align: center;
+}
+.qf-result :deep(.qm-gong-name) {
+  text-align: left;
 }
 .qf-result :deep(.qm-center-cell) {
   background: #f0ede5;
+  display: flex;
+  align-items: center;
   justify-content: center;
-  gap: clamp(1px, 0.45vw, 4px);
+  padding: clamp(7px, calc(var(--qm-grid-size) / 76), 13px);
   text-align: center;
-  line-height: 1.25;
+  line-height: 1.22;
+}
+.qf-result :deep(.qm-center-stack) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 92%;
+  gap: clamp(1px, calc(var(--qm-grid-size) / 210), 5px);
+}
+.qf-result :deep(.qm-center-date) {
+  font-weight: 700;
+  font-size: var(--qm-center-date-font);
+}
+.qf-result :deep(.qm-center-xun),
+.qf-result :deep(.qm-center-rule),
+.qf-result :deep(.qm-center-line) {
+  white-space: nowrap;
+}
+.qf-result :deep(.qm-center-pillars) {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 0.35em;
+  max-width: 100%;
+  line-height: 1.16;
+}
+.qf-result :deep(.qm-center-rule) {
+  font-weight: 600;
 }
 .qf-result :deep(.qm-empty-cell) { background: #f5f0e8; }
 .qf-result :deep(.qm-tian-gan) {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
+  position: relative;
+  display: inline-block;
   white-space: nowrap;
 }
 .qf-result :deep(.qm-ma-marker) {
-  flex: 0 0 auto;
+  position: absolute;
+  right: calc(100% + 0.1em);
+  top: 50%;
+  transform: translateY(-50%);
   font-size: 0.82em;
   line-height: 1;
 }
@@ -1400,7 +1686,11 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   .qf-datetime-row { flex-wrap: wrap; }
   .qf-dt-col { flex: 1 1 calc(33% - 8px); min-width: 60px; }
   .qf-json-copy-btn { position: static; width: 100%; min-height: 42px; margin-top: 10px; }
-  .qf-result :deep(.qm-scale-shell) { --qm-grid-size: clamp(280px, 92vw, 560px); }
+  .qf-result :deep(.qm-scale-shell) { --qm-grid-size: clamp(280px, calc(100vw - 96px), 560px); }
+  .qf-result :deep(.qf-meta-head) { flex-direction: column; gap: 8px; }
+  .qf-result :deep(.qf-meta-time) { max-width: none; text-align: left; }
+  .qf-result :deep(.qf-meta-groups) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .qf-result :deep(.qf-meta-anchor) { grid-column: span 2; }
   .qf-loading-card { min-height: 320px; }
 }
 @media (max-width: 480px) {
@@ -1416,7 +1706,13 @@ select.form-select-picker { appearance: none; -webkit-appearance: none; backgrou
   .agent-handoff-bar { align-items: stretch; flex-direction: column; gap: 10px; }
   .agent-handoff-btn { text-align: center; }
   .qf-result :deep(.qf-result-card) { padding: 12px; }
-  .qf-result :deep(.qm-scale-shell) { --qm-grid-size: clamp(260px, 92vw, 420px); }
+  .qf-result :deep(.qm-scale-shell) { --qm-grid-size: clamp(250px, calc(100vw - 74px), 420px); }
+  .qf-result :deep(.qf-meta-groups) { grid-template-columns: 1fr; gap: 9px; }
+  .qf-result :deep(.qf-meta-anchor) { grid-column: auto; }
+  .qf-result :deep(.qf-meta-group) { padding-left: 10px; }
+  .qf-result :deep(.qf-pillar-strip) { margin: 10px 0 12px; }
+  .qf-result :deep(.qf-pillar) { min-height: 46px; padding: 7px 2px 6px; }
+  .qf-result :deep(.qf-pillar b) { font-size: 0.82rem; }
   .qf-loading-card { min-height: 280px; }
 }
 

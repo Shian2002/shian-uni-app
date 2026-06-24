@@ -22,6 +22,7 @@ artifacts/
 backups/
 scripts/capture_wenzhen_professional_pan.py
 *.png
+!src/static/images/logo-mark-transparent.png
 test_*.py
 test-*.mjs
 *.pyc

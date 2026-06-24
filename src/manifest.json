@@ -1,7 +1,7 @@
 {
-  "name": "xuan-cet-tai",
+  "name": "时安解忧屋",
   "appid": "__UNI__FB9C76F",
-  "description": "时安解忧屋 - Flask 1:1 UniApp 多端复刻",
+  "description": "时安解忧屋 - 八字奇门紫微 AI 合参解读",
   "versionName": "1.0.0",
   "versionCode": "100",
   "vueVersion": "3",
@@ -16,7 +16,7 @@
         }
       }
     },
-    "title": "时安解忧屋",
+    "title": "时安解忧屋｜八字奇门紫微 AI 合参解读",
     "router": {
       "mode": "hash"
     }

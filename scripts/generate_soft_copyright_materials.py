@@ -19,9 +19,30 @@ from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer
 
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT_DIR = ROOT / "artifacts" / "soft-copyright-application" / datetime.now().strftime("%Y%m%d-%H%M%S")
-SOFTWARE_NAME = "时安解忧屋玄学综合服务平台"
+OUTPUT_TIMESTAMP = os.environ.get("SOFT_COPYRIGHT_TIMESTAMP") or datetime.now().strftime("%Y%m%d-%H%M%S")
+OUT_DIR = ROOT / "artifacts" / "soft-copyright-application" / OUTPUT_TIMESTAMP
+SOFTWARE_NAME = "时安解忧屋综合服务平台"
 VERSION = "V1.0.0"
+SOURCE_PATHS = [
+    "package.json",
+    "vite.config.js",
+    "index.html",
+    "src/**",
+    "backend/**",
+    "database/schema.sql",
+    "scripts/**",
+    "configs/release/**",
+    "desktop/**",
+    "android-shell/**",
+    "deploy-h5-to-server.sh",
+    "deploy-to-server.sh",
+    "deploy-to-staging.sh",
+    "rollback-h5-on-server.sh",
+    "start-dev.sh",
+    "start-h5-preview.sh",
+    "start-macos-dev.sh",
+    "start-macos.sh",
+]
 
 
 def run_git(args: list[str]) -> str:
@@ -29,7 +50,7 @@ def run_git(args: list[str]) -> str:
 
 
 def selected_source_files() -> list[Path]:
-    raw = run_git(["ls-files", "src/**", "backend/**", "database/schema.sql", "scripts/**"])
+    raw = run_git(["ls-files", *SOURCE_PATHS])
     files: list[Path] = []
     excluded_parts = {
         "node_modules",
@@ -39,6 +60,8 @@ def selected_source_files() -> list[Path]:
         "server-backup",
         "uploads",
         "__pycache__",
+        ".gradle",
+        "build",
     }
     excluded_suffixes = {
         ".jpg",
@@ -50,8 +73,10 @@ def selected_source_files() -> list[Path]:
         ".db",
         ".pyc",
         ".map",
+        ".icns",
+        ".ico",
     }
-    excluded_names = {"html2canvas.min.js"}
+    excluded_names = {"html2canvas.min.js", "package-lock.json"}
     for line in raw.splitlines():
         path = Path(line)
         if any(part in excluded_parts for part in path.parts):
@@ -106,17 +131,18 @@ def generate_source_pdf(lines: list[str], out_file: Path) -> None:
 def manual_sections() -> list[tuple[str, list[str]]]:
     return [
         ("一、软件概述", [
-            f"{SOFTWARE_NAME}{VERSION} 是面向 H5 和多端构建的玄学综合服务平台。",
+            f"{SOFTWARE_NAME}{VERSION} 是面向 H5 和多端构建的综合服务平台。",
             "软件以 uni-app/Vue3 为前端技术基础，以 Python Flask 为后端服务基础，以 SQLite 保存用户、排盘、对话、积分和运营数据。",
-            "系统围绕八字、奇门遁甲、紫微斗数、塔罗、择吉、综合 AI 问答、用户账号、会员积分、付费内容和后台管理等模块提供在线服务。",
+            "系统围绕八字、奇门遁甲、紫微斗数、塔罗、择吉、综合 AI 问答、用户账号、会员积分、付费内容、后台管理和多端发行能力等模块提供在线服务。",
             "本说明书用于描述软件的功能构成、运行环境、业务流程、系统模块、数据结构和使用方式。",
         ]),
         ("二、运行环境", [
-            "客户端运行环境：支持现代浏览器访问 H5 页面，并可通过 uni-app 构建为微信小程序、支付宝小程序、头条小程序和 App。",
+            "客户端运行环境：支持现代浏览器访问 H5 页面，并可通过 uni-app 构建为微信小程序、支付宝小程序、头条小程序和 App；项目同时提供 Android 壳工程和桌面端壳工程作为多平台发布基础。",
             "前端技术环境：uni-app、Vue3、JavaScript、Pinia、Vite。",
             "服务端技术环境：Python、Flask、SQLAlchemy、SQLite。",
+            "桌面端和移动端扩展环境：Electron 桌面端、Android Gradle 工程、HBuilderX/DCloud 打包资源、平台图标和商店材料检查脚本。",
             "第三方服务：DeepSeek/SiliconFlow 兼容 AI 接口，邮件或验证码服务，支付与运营主体可按部署环境接入。",
-            "部署方式：前端执行 H5 构建后发布静态资源，后端以 Flask API 提供业务接口，配合脚本完成发布前检查、线上监控和回归测试。",
+            "部署方式：前端执行 H5 构建后发布静态资源，后端以 Flask API 提供业务接口，配合脚本完成发布前检查、线上监控、商店材料检查、多端资源打包和回归测试。",
         ]),
         ("三、主要功能", [
             "首页综合 AI：通过自然语言问事引导用户补充问题背景，自动推荐合适术数工具，并生成多术数合参总结。",
@@ -128,6 +154,7 @@ def manual_sections() -> list[tuple[str, list[str]]]:
             "择吉与黄历：提供日期评分、宜忌理由和结合八字的参考建议。",
             "用户中心：提供登录、资料、历史记录、积分中心、会员权益和个人内容管理。",
             "后台管理：提供用户管理、充值确认、积分调整、运营审计、安全检查和基础运维辅助。",
+            "多平台发布：提供应用图标校验、商店材料包、桌面端和 Android 壳工程。",
         ]),
         ("四、用户操作流程", [
             "用户进入首页后，可以直接输入具体问题，也可以进入八字、奇门、紫微、塔罗等单项工具。",
@@ -142,7 +169,10 @@ def manual_sections() -> list[tuple[str, list[str]]]:
             "src/package-tools 保存工具类功能页面，src/package-user 保存用户中心相关页面。",
             "backend 目录保存 Flask API、业务路由、排盘引擎、AI 服务、积分服务和数据模型。",
             "database/schema.sql 保存数据库表结构定义。",
-            "scripts 目录保存构建、发布、线上回归、数据库审计、备份和运维脚本。",
+            "scripts 目录保存构建、发布、线上回归、数据库审计、备份、运维、多端打包和商店材料检查脚本。",
+            "configs/release 目录保存多平台发行、图标、隐私披露、商店材料和审核账号检查配置。",
+            "desktop 目录保存桌面端壳工程入口、预加载脚本、图标和打包配置。",
+            "android-shell 目录保存 Android 壳工程、Manifest、Gradle 配置和主 Activity。",
         ]),
         ("六、数据结构", [
             "用户相关表保存账号、登录资料、个人档案和认证状态。",
@@ -194,7 +224,19 @@ def expanded_manual_lines() -> list[tuple[str, str]]:
             duty = "负责定义用户、会员、积分、排盘记录、对话历史和运营审计等数据表结构。"
         elif str(rel).startswith("scripts/"):
             module_type = "工程脚本模块"
-            duty = "负责构建、发布、回归测试、数据库审计、备份恢复和运维检查。"
+            duty = "负责构建、发布、回归测试、数据库审计、备份恢复、运维检查、多端打包和商店材料校验。"
+        elif str(rel).startswith("configs/"):
+            module_type = "发行配置模块"
+            duty = "负责多端发行范围、应用图标、商店材料、隐私披露、审核账号和发布证据要求配置。"
+        elif str(rel).startswith("desktop/"):
+            module_type = "桌面端壳工程模块"
+            duty = "负责桌面端窗口、预加载桥接、资源图标和桌面应用打包运行能力。"
+        elif str(rel).startswith("android-shell/"):
+            module_type = "Android 壳工程模块"
+            duty = "负责 Android 原生壳、应用清单、入口 Activity、资源图标和移动端打包基础。"
+        elif rel.name in {"package.json", "vite.config.js", "index.html"} or rel.suffix == ".sh":
+            module_type = "工程入口模块"
+            duty = "负责依赖、构建入口、页面入口、部署入口或本地启动流程。"
         else:
             module_type = "项目源程序模块"
             duty = "负责系统运行所需的业务或工程能力。"
@@ -223,6 +265,8 @@ def expanded_manual_lines() -> list[tuple[str, str]]:
     rows.extend([
         ("body", "发布前执行预检脚本，覆盖依赖、配置、测试、构建和基础安全项。"),
         ("body", "前端 H5 构建完成后发布静态资源，后端 Flask 服务通过部署脚本同步到服务器并重启服务。"),
+        ("body", "桌面端和 Android 壳工程通过独立脚本进行资源刷新、安装验证、用户材料包生成和平台状态检查。"),
+        ("body", "应用图标和商店材料通过配置化检查脚本固定尺寸、哈希、平台用途和缺口清单。"),
         ("body", "发布后执行生产监控和线上回归，检查首页、八字、奇门、紫微、塔罗、积分中心、登录和关键 API。"),
         ("body", "涉及支付、积分、账号、数据库、上传和后台权限的变更需要额外进行安全复核。"),
         ("body", "备份和恢复演练用于确认生产数据库可恢复，避免上线失败或数据异常时无法回滚。"),
@@ -319,15 +363,15 @@ def generate_application_draft(out_file: Path, source_count: int, line_count: in
             "- 开发方式：独立开发，若有合作事实需按真实情况改为合作开发并补协议",
             "- 软件分类：应用软件 / 行业应用软件 / 互联网服务软件，最终按系统选项选择",
             "- 硬件环境：云服务器、个人电脑、移动终端或浏览器访问设备",
-            "- 软件环境：现代浏览器、Python/Flask 服务端、SQLite 数据库、uni-app/Vue3 前端运行环境",
-            "- 编程语言：JavaScript、Python、SQL、HTML/CSS",
+            "- 软件环境：现代浏览器、Python/Flask 服务端、SQLite 数据库、uni-app/Vue3 前端运行环境、Electron 桌面端壳、Android Gradle 壳工程",
+            "- 编程语言：JavaScript、Python、SQL、HTML/CSS、Java、Gradle 配置脚本",
             "- 源程序量：以登记系统统计口径填写；本次抽取范围约覆盖 " + str(source_count) + " 个源文件、" + str(line_count) + " 行文本",
             "- 开发完成日期：建议结合真实完成时间填写；当前仓库首个提交记录为 " + first_commit,
             "- 首次发表日期：若已公开上线，填写首次上线日期；若未公开发表，选择未发表或按系统选项填写",
             "- 当前提交哈希：" + commit,
             "",
             "## 软件主要功能",
-            "本软件提供玄学综合服务，包含首页综合 AI 问事引导、八字排盘、奇门遁甲、紫微斗数、塔罗牌、择吉黄历、用户账号、历史记录、积分会员、付费内容和后台运营管理等功能。",
+            "本软件提供玄学综合服务，包含首页综合 AI 问事引导、八字排盘、奇门遁甲、紫微斗数、塔罗牌、择吉黄历、用户账号、历史记录、积分会员、付费内容、后台运营管理、多端发行、应用图标校验、商店材料包、桌面端壳和 Android 壳工程等功能。",
             "",
             "## 备注",
             "ICP备案、微信支付、客服、开票等运营主体信息不等同于软件著作权主体。若公司参与运营，建议另行签署项目权属与运营主体确认文件。",

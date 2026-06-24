@@ -59,9 +59,34 @@ export default {
         document.body.classList.toggle(name, !!enabled)
       } catch(_) {}
     }
+    function _titleForHash(hash) {
+      var raw = (hash || '').replace(/^#/, '') || '/'
+      var route = raw.split('?')[0] || '/'
+      if (route === '/pages/index/index') route = '/'
+      var titles = {
+        '/': '时安解忧屋',
+        '/pages/qimen/index': '时安解忧屋｜奇门遁甲',
+        '/pages/bazi-index/index': '时安解忧屋｜八字排盘',
+        '/pages/tarot/index': '时安解忧屋｜塔罗牌',
+        '/pages/liuyao/index': '时安解忧屋｜六爻排盘',
+        '/pages/meihua/index': '时安解忧屋｜梅花易数',
+        '/pages/ziwei/index': '时安解忧屋｜紫微斗数',
+        '/pages/zeji/index': '时安解忧屋｜择吉工具',
+        '/pages/calendar/index': '时安解忧屋｜专属日历',
+        '/pages/user-management/index': '时安解忧屋｜档案列表',
+        '/pages/profile/index': '时安解忧屋｜个人中心',
+        '/pages/about/index': '时安解忧屋｜关于我们',
+        '/pages/points/index': '时安解忧屋｜积分中心'
+      }
+      return titles[route] || '时安解忧屋'
+    }
+    function _syncDocumentTitle(hash) {
+      try { document.title = _titleForHash(hash) } catch(_) {}
+    }
     function _syncHomeFixedRoute() {
       try {
         var hash = window.location.hash || ''
+        _syncDocumentTitle(hash)
         var isHome = hash.indexOf('#/pages/index/index') === 0 || hash === '' || hash === '#/' || hash.indexOf('#/?') === 0
         var isQimen = hash.indexOf('#/pages/qimen/index') === 0
         var isBaziTool = hash.indexOf('#/pages/bazi-index/index') === 0

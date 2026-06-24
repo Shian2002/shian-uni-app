@@ -62,7 +62,7 @@ def test_user_management_page_is_registered_and_linked():
     assert "#/pages/user-management/index" in nav
     assert "'/pages/user-management/index'" in nav
     assert "'pages/user-management/index'" in nav
-    assert "'/pages/user-management/index': '档案列表'" in nav
+    assert "'/pages/user-management/index': '时安解忧屋｜档案列表'" in nav
     assert '"navigationBarTitleText": "档案列表"' in pages
 
 

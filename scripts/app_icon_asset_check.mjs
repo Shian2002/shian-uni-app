@@ -60,8 +60,23 @@ function pngInfo(path) {
     bytes: statSync(fullPath).size,
     width: buffer.readUInt32BE(16),
     height: buffer.readUInt32BE(20),
+    colorType: buffer[25],
+    hasAlpha: pngHasAlpha(buffer),
     sha256: sha256(fullPath),
   }
+}
+
+function pngHasAlpha(buffer) {
+  const colorType = buffer[25]
+  if (colorType === 4 || colorType === 6) return true
+  let offset = 8
+  while (offset + 12 <= buffer.length) {
+    const length = buffer.readUInt32BE(offset)
+    const type = buffer.subarray(offset + 4, offset + 8).toString('ascii')
+    if (type === 'tRNS') return true
+    offset += 12 + length
+  }
+  return false
 }
 
 function binaryInfo(path) {
@@ -77,7 +92,7 @@ function binaryInfo(path) {
   return { path, bytes: stat.size, sha256: sha256(fullPath) }
 }
 
-function checkPng(path, expectedSize, label) {
+function checkPng(path, expectedSize, label, options = {}) {
   const info = pngInfo(path)
   if (!info) {
     issues.push(`缺少 PNG 图标: ${path}`)
@@ -89,6 +104,9 @@ function checkPng(path, expectedSize, label) {
   if (info.width !== expectedSize || info.height !== expectedSize) {
     issues.push(`${label} 尺寸错误: ${path} 应为 ${expectedSize}x${expectedSize}，实际 ${info.width}x${info.height}`)
   }
+  if (info.hasAlpha && !options.allowAlpha) {
+    issues.push(`${label} 含透明通道: ${path}，应用上传图应使用不透明 PNG`)
+  }
   return { ...info, expectedSize, label }
 }
 
@@ -97,7 +115,11 @@ const iconResults = []
 const desktopResults = []
 
 if (config) {
+  const originalLogoMark = config.originalLogoMark
+    ? checkPng(config.originalLogoMark, 1024, 'originalLogoMark', { allowAlpha: true })
+    : null
   const source = checkPng(config.sourceLogo, 1024, 'sourceLogo')
+  if (originalLogoMark) iconResults.push({ ...originalLogoMark, id: 'originalLogoMark', platforms: ['ip-evidence'] })
   if (source) iconResults.push(source)
 
   for (const icon of config.requiredIcons || []) {
@@ -131,6 +153,7 @@ const report = {
   commit: git(['rev-parse', 'HEAD']) || '',
   config: configPath,
   sourceLogo: config?.sourceLogo || '',
+  originalLogoMark: config?.originalLogoMark || '',
   storeIcon: config?.storeIcon || '',
   passed: issues.length === 0,
   icons: iconResults,
@@ -163,6 +186,7 @@ const lines = [
   '',
   '## 说明',
   '',
+  '- `originalLogoMark` 是原始透明符号留档，用于知识产权证据链；上传到网站、打包工具和商店后台时使用不透明派生图。',
   '- HBuilderX、DCloud 云打包、Xcode、DevEco 和商店后台优先使用 1024x1024 母图。',
   '- 证书、密钥、keystore、p12、mobileprovision 和签名口令不进入 GitHub。',
   '- 本检查只验证图标资产和尺寸，不替代平台真实打包和真机安装截图。',

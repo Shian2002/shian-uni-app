@@ -5,7 +5,7 @@ export LC_ALL=C
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-timestamp="$(date +%Y%m%d-%H%M%S)"
+timestamp="${IP_EVIDENCE_TIMESTAMP:-$(date +%Y%m%d-%H%M%S)}"
 out_dir="artifacts/ip-evidence/${timestamp}"
 mkdir -p "$out_dir"
 
@@ -38,8 +38,11 @@ archive_file="${out_dir}/xuan-cet-tai-source-${timestamp}.tar.gz"
 
 git ls-files > "$file_list"
 git ls-files -z --cached --others --exclude-standard -- \
-  README.md AGENTS.md package.json package-lock.json vite.config.js index.html \
-  src backend database docs scripts \
+  README.md AGENTS.md AUTHORS.md COPYRIGHT.md NOTICE.md \
+  package.json package-lock.json vite.config.js index.html \
+  deploy-h5-to-server.sh deploy-to-server.sh deploy-to-staging.sh rollback-h5-on-server.sh \
+  start-dev.sh start-h5-preview.sh start-macos-dev.sh start-macos.sh \
+  src backend database docs scripts configs desktop android-shell \
   > "$archive_file_list_nul"
 tr '\0' '\n' < "$archive_file_list_nul" > "$archive_file_list"
 

@@ -10,6 +10,9 @@ QIMEN_VUE = Path(__file__).resolve().parents[1] / "src" / "pages" / "qimen" / "i
 PROFILE_VUE = Path(__file__).resolve().parents[1] / "src" / "pages" / "profile" / "index.vue"
 VITE_CONFIG = Path(__file__).resolve().parents[1] / "vite.config.js"
 PACKAGE_JSON = Path(__file__).resolve().parents[1] / "package.json"
+SRC_MANIFEST = Path(__file__).resolve().parents[1] / "src" / "manifest.json"
+PUBLIC_MANIFEST = Path(__file__).resolve().parents[1] / "public" / "manifest.json"
+INDEX_HTML = Path(__file__).resolve().parents[1] / "index.html"
 ONLINE_LOGIN_DEV_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "dev_h5_online_login.mjs"
 ONLINE_LOGIN_SMOKE_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "local_online_login_smoke.mjs"
 AUDIT_ACCOUNT_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "audit_account_preflight.mjs"
@@ -19,6 +22,26 @@ LOGIN_EVIDENCE_DOC = Path(__file__).resolve().parents[1] / "docs" / "release" / 
 
 def _source():
     return INDEX_VUE.read_text(encoding="utf-8")
+
+
+def test_android_browser_brand_identity_uses_shian_name():
+    src_manifest = json.loads(SRC_MANIFEST.read_text(encoding="utf-8"))
+    public_manifest = json.loads(PUBLIC_MANIFEST.read_text(encoding="utf-8"))
+    index_html = INDEX_HTML.read_text(encoding="utf-8")
+    top_nav = TOP_NAV_VUE.read_text(encoding="utf-8")
+    app_vue = APP_VUE.read_text(encoding="utf-8")
+
+    assert src_manifest["name"] == "时安解忧屋"
+    assert public_manifest["name"] == "时安解忧屋"
+    assert public_manifest["short_name"] == "时安解忧屋"
+    assert '<meta name="application-name" content="时安解忧屋" />' in index_html
+    assert '<meta name="apple-mobile-web-app-title" content="时安解忧屋" />' in index_html
+    assert "青囊八字" not in index_html
+    assert "'/pages/qimen/index': '时安解忧屋｜奇门遁甲'" in top_nav
+    assert "'/pages/bazi-index/index': '时安解忧屋｜八字排盘'" in top_nav
+    assert "function _syncDocumentTitle(hash)" in app_vue
+    assert "'/pages/qimen/index': '时安解忧屋｜奇门遁甲'" in app_vue
+    assert "document.title = _titleForHash(hash)" in app_vue
 
 
 def test_home_ai_reading_mode_claims_hero_space_without_locking_page_scroll():
@@ -169,6 +192,15 @@ def test_marketing_home_keeps_shian_agent_entry_and_contextual_auth_cta():
     assert "min-width: 104px;" in source
     assert ".marketing-nav-links .marketing-agent-link" in source
     assert ".marketing-login" not in source
+
+
+def test_marketing_login_success_enters_app_without_second_click():
+    source = _source()
+
+    assert "window.addEventListener('xc-auth-changed', function(e)" in source
+    assert "if (marketingMode.value)" in source
+    assert "nextTick(function() {\n        enterMarketingApp()" in source
+    assert "marketingPendingEnterAfterLogin" not in source
 
 
 def test_home_agent_exposes_four_question_templates_without_auto_sending():
@@ -437,3 +469,52 @@ def test_qimen_free_json_copy_is_member_only_and_uses_backend_pan_type_values():
     assert "JSON.stringify(qfRawResult.value, null, 2)" in source
     assert "const qimenPanTypeValues = [2]" in source
     assert "['拆补法', '置闰法']" not in source
+
+
+def test_qimen_free_grid_marks_xingmu_and_centers_palace_rows():
+    source = QIMEN_VUE.read_text(encoding="utf-8")
+
+    assert "function qimenStemTone(g, jiSet, ruSet, defaultColor)" in source
+    assert "if (hasJiXing && hasRuMu) return { color: C_XINGMU, weight: '700' }" in source
+    assert "刑+墓" in source
+    assert 'class="qm-palace-row qm-row-top"' in source
+    assert 'class="qm-palace-row qm-row-middle"' in source
+    assert 'class="qm-palace-row qm-row-bottom"' in source
+    assert "justify-content: center;" in source
+    assert ".qf-result :deep(.qm-palace-row)" in source
+    assert '--qm-row-width-current: 92%;' in source
+    assert '--qm-row-width-compact: 82%;' in source
+    assert '--qm-row-width-tight: 60%;' in source
+    assert '--qm-row-width-rollback: 68%;' in source
+    assert '--qm-row-width: var(--qm-row-width-current);' in source
+    assert '--qm-row-top: 24%;' in source
+    assert '--qm-row-middle: 50%;' in source
+    assert '--qm-row-bottom: 76%;' in source
+    assert 'left: var(--qm-row-left);' in source
+    assert 'width: var(--qm-row-width);' in source
+    assert ".qf-result :deep(.qm-row-top) { top: var(--qm-row-top); }" in source
+    assert ".qf-result :deep(.qm-row-bottom) { top: var(--qm-row-bottom); }" in source
+    assert 'class="qm-gong-dot"' in source
+    assert ".qf-result :deep(.qm-gong-dot)" in source
+    assert "--qm-gong-label-font: clamp(0.62rem, calc(var(--qm-grid-size) / 46), 1.08rem);" in source
+    assert "color: rgba(160, 160, 160, 0.22);" in source
+    assert "width: 3.25em;" in source
+    assert "qimenTailAlignClass(p.shenFull || '', 'qm-kong-anchor')" in source
+    assert 'class="qm-kong-marker"' in source
+    assert ".qf-result :deep(.qm-kong-marker)" in source
+    assert "--qm-plate-font: 'Yuanti SC', 'STYuanti', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;" in source
+    assert "font-family: var(--qm-plate-font);" in source
+
+
+def test_qimen_free_summary_uses_scannable_meta_groups():
+    source = QIMEN_VUE.read_text(encoding="utf-8")
+
+    assert 'class="qf-meta-panel"' in source
+    assert 'class="qf-meta-head"' in source
+    assert 'class="qf-meta-groups"' in source
+    assert "pillarPair('年柱', fp.year)" in source
+    assert 'class="qf-pillar-strip"' in source
+    assert "metaPair('值符', data.zhiFu, true)" in source
+    assert ".qf-result :deep(.qf-meta-groups)" in source
+    assert ".qf-result :deep(.qf-pillar-strip)" in source
+    assert "grid-template-columns: repeat(4, minmax(0, 1fr))" in source

@@ -380,8 +380,20 @@ def test_qimen_standalone_grid_scales_with_available_width():
     assert "--qm-cell-font: clamp(0.66rem, calc(var(--qm-grid-size) / 40), 1.24rem)" in source
     assert "--qm-kong-font" in source
     assert "--qm-gong-label-font" in source
-    assert "--qm-cell-pad: clamp(7px, calc(var(--qm-grid-size) / 54), 15px)" in source
+    assert "max-width: 100%;" in source
+    assert "grid-template-rows: repeat(3, minmax(0, 1fr));" in source
+    assert "box-sizing: border-box;" in source
+    assert "min-height: 0;" in source
+    assert "overflow: hidden;" in source
+    assert "--qm-grid-size: clamp(280px, calc(100vw - 96px), 560px);" in source
+    assert "--qm-grid-size: clamp(250px, calc(100vw - 74px), 420px);" in source
+    assert "--qm-grid-size: clamp(260px, 92vw, 420px);" not in source
+    assert "--qm-cell-pad: 0px" in source
     assert "padding: var(--qm-cell-pad)" in source
+    assert 'class="qm-palace-row qm-row-top"' in source
+    assert "--qm-row-width: var(--qm-row-width-current)" in source
+    assert "--qm-row-top: 24%" in source
+    assert "--qm-row-bottom: 76%" in source
     assert "p.isMa?`<span class=\"qm-ma-marker\"" in source
     assert "p.isMa?`<span class=\"qm-ma-marker\"" in source.split("${tianHtml}")[0]
     assert "class=\"qm-heaven-stem\"" in source

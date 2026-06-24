@@ -1337,6 +1337,11 @@ window.addEventListener('xc-auth-changed', function(e) {
   if (loggedIn) {
     loadComprehensiveOptions()
     loadProfiles()
+    if (marketingMode.value) {
+      nextTick(function() {
+        enterMarketingApp()
+      })
+    }
   } else {
     resetHomeAuthState()
   }

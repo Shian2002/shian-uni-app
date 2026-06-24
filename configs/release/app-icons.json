@@ -2,6 +2,7 @@
   "appName": "时安解忧屋",
   "versionName": "1.0.0",
   "status": "ready-for-build-handoff",
+  "originalLogoMark": "src/static/images/logo-mark-transparent.png",
   "sourceLogo": "src/static/images/logo.png",
   "storeIcon": "src/static/app-icons/app-icon-1024.png",
   "desktopIcons": {
@@ -12,7 +13,10 @@
   "policy": {
     "sensitiveFilesAllowed": false,
     "notes": [
-      "所有平台第一版使用同一个 logo 作为应用图标，避免桌面、移动端和商店素材不一致。",
+      "originalLogoMark 是原始透明符号留档，用于知识产权证据链；上传平台时不直接使用透明图。",
+      "sourceLogo 和 requiredIcons 仅为同一符号的实底派生图，方便网站、HBuilderX、DCloud、Xcode、DevEco 和商店后台识别。",
+      "所有平台第一版使用同一个 logo 符号作为应用图标，避免桌面、移动端和商店素材不一致。",
+      "不得用第三方图形、图库素材、未授权字体或外部生成图替换项目 logo。",
       "证书、keystore、p12、mobileprovision、签名口令和商店账号密码不进入 GitHub。",
       "HBuilderX、DCloud 云打包、Xcode、DevEco 或商店后台应优先使用 storeIcon 作为 1024x1024 母图。"
     ]

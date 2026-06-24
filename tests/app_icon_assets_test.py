@@ -39,6 +39,7 @@ def test_app_icon_release_surface_is_wired():
 
 def test_required_icon_files_exist():
     expected = [
+        "src/static/images/logo-mark-transparent.png",
         "src/static/images/logo.png",
         "src/static/app-icons/app-icon-1024.png",
         "src/static/app-icons/app-icon-512.png",
@@ -54,3 +55,15 @@ def test_required_icon_files_exist():
         full_path = ROOT / path
         assert full_path.exists(), path
         assert full_path.stat().st_size > 0, path
+
+
+def test_logo_ip_provenance_is_documented():
+    config = read_text("configs/release/app-icons.json")
+    ledger = read_text("docs/ip-protection/provenance-ledger.md")
+    checker = read_text("scripts/app_icon_asset_check.mjs")
+
+    assert "originalLogoMark" in config
+    assert "src/static/images/logo-mark-transparent.png" in config
+    assert "src/static/images/logo-mark-transparent.png" in ledger
+    assert "不得用第三方图形" in config
+    assert "allowAlpha: true" in checker

@@ -1,0 +1,33 @@
+{
+  "name": "时安解忧屋",
+  "short_name": "时安解忧屋",
+  "description": "八字、奇门、紫微与 AI 多模型合参解读。",
+  "start_url": "/#/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8f5f0",
+  "theme_color": "#f8f5f0",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "/static/images/favicon-48.png?v=8",
+      "sizes": "48x48",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/images/apple-touch-icon.png?v=8",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/app-icons/app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/app-icons/app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

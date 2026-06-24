@@ -92,6 +92,7 @@
     "store:account-access": "node scripts/store_account_access_check.mjs",
     "store:app-record": "node scripts/app_record_status_check.mjs",
     "domain:https": "node scripts/domain_https_check.mjs",
+    "seo:indexnow": "node scripts/submit_indexnow.mjs",
     "h5:legal-deploy-status": "node scripts/h5_legal_deploy_status_check.mjs",
     "release:manifest": "node scripts/release_manifest.mjs",
     "release:intake": "node scripts/release_artifact_intake.mjs",
@@ -142,10 +143,12 @@
     "@dcloudio/uni-app-harmony": "3.0.0-alpha-5000820260508001",
     "@dcloudio/uni-app-plus": "3.0.0-alpha-5000820260508001",
     "@dcloudio/vite-plugin-uni": "3.0.0-alpha-5000820260508001",
+    "playwright": "^1.61.0",
     "sass-embedded": "^1.99.0",
     "vite": "^5.2.8"
   },
   "overrides": {
+    "@babel/core": "7.29.7",
     "@intlify/core-base": "9.14.5",
     "@intlify/message-compiler": "9.14.5",
     "@intlify/shared": "9.14.5",
@@ -162,6 +165,7 @@
     "esbuild": "0.25.12",
     "jpeg-js": "0.4.4",
     "phin": "3.7.1",
-    "postcss": "8.5.15"
+    "postcss": "8.5.15",
+    "ws": "8.21.0"
   }
 }

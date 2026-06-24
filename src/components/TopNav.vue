@@ -1562,20 +1562,20 @@ var TAB_PATHS = ['/', '/pages/qimen/index', '/pages/bazi-index/index', '/pages/t
 var TAB_ROUTES = ['pages/index/index', 'pages/qimen/index', 'pages/bazi-index/index', 'pages/tarot/index', 'pages/liuyao/index', 'pages/meihua/index', 'pages/ziwei/index', 'pages/zeji/index', 'pages/calendar/index'].concat(showCommunityEntry ? ['pages/community/index'] : [], ['pages/user-management/index', 'pages/profile/index', 'pages/about/index', 'pages/points/index'])
 var TAB_TITLES = {
   '/': '时安解忧屋',
-  '/pages/qimen/index': '奇门遁甲',
-  '/pages/bazi-index/index': '八字排盘',
-  '/pages/tarot/index': '塔罗牌',
-  '/pages/liuyao/index': '六爻排盘',
-  '/pages/meihua/index': '梅花易数',
-  '/pages/ziwei/index': '紫微斗数',
-  '/pages/zeji/index': '择吉工具',
-  '/pages/calendar/index': '专属日历',
-  '/pages/user-management/index': '档案列表',
-  '/pages/profile/index': '个人中心',
-  '/pages/about/index': '关于我们',
-  '/pages/points/index': '积分中心',
+  '/pages/qimen/index': '时安解忧屋｜奇门遁甲',
+  '/pages/bazi-index/index': '时安解忧屋｜八字排盘',
+  '/pages/tarot/index': '时安解忧屋｜塔罗牌',
+  '/pages/liuyao/index': '时安解忧屋｜六爻排盘',
+  '/pages/meihua/index': '时安解忧屋｜梅花易数',
+  '/pages/ziwei/index': '时安解忧屋｜紫微斗数',
+  '/pages/zeji/index': '时安解忧屋｜择吉工具',
+  '/pages/calendar/index': '时安解忧屋｜专属日历',
+  '/pages/user-management/index': '时安解忧屋｜档案列表',
+  '/pages/profile/index': '时安解忧屋｜个人中心',
+  '/pages/about/index': '时安解忧屋｜关于我们',
+  '/pages/points/index': '时安解忧屋｜积分中心',
 }
-if (showCommunityEntry) TAB_TITLES['/pages/community/index'] = '社区'
+if (showCommunityEntry) TAB_TITLES['/pages/community/index'] = '时安解忧屋｜社区'
 function isOnTabPage() {
   try {
     var pages = getCurrentPages()
