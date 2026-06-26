@@ -67,12 +67,12 @@
     <view class="modal-box">
       <view class="modal-title">登录</view>
       <view class="login-tabs">
-        <view class="login-tab tn-tab-password active" data-tab="password" onclick="window._xc_switchTab(this)">密码登录</view>
-        <view class="login-tab tn-tab-code" data-tab="code" onclick="window._xc_switchTab(this)">验证码登录</view>
+        <view class="login-tab tn-tab-password active" data-tab="password" onclick="window._xc_switchTab(this)">账号</view>
+        <view class="login-tab tn-tab-code" data-tab="code" onclick="window._xc_switchTab(this)">邮箱</view>
       </view>
 
       <view class="tn-panel tn-panel-login" style="">
-        <view class="field"><text class="field-label">账号</text><view id="tnLoginUser-wrap" class="dom-input-wrap"></view></view>
+        <view class="field"><text class="field-label">用户名/邮箱</text><view id="tnLoginUser-wrap" class="dom-input-wrap"></view></view>
         <view class="field"><text class="field-label">密码</text><view id="tnLoginPass-wrap" class="dom-input-wrap"></view></view>
         <view class="field code-field" style="display:none;">
           <text class="field-label">验证码</text>
@@ -81,34 +81,16 @@
             <view class="btn btn-outline btn-sm code-btn" onclick="window._xc_sendLoginCode()" id="tnLoginCodeBtn">获取验证码</view>
           </view>
         </view>
-        <view class="modal-hint">没有账号？<text class="register-link" onclick="window._xc_doRegister()" style="color:var(--accent);cursor:pointer;text-decoration:underline;">立即注册</text> · <text class="forgot-link" onclick="window._xc_showForgotPassword()" style="color:var(--accent);cursor:pointer;text-decoration:underline;">忘记密码</text></view>
-      </view>
-
-      <!-- 忘记密码 -->
-      <view class="tn-panel tn-panel-reset" style="display:none;">
-        <view class="reset-methods">
-          <view class="reset-method active" data-method="email" onclick="window._xc_switchResetMethod(this)">邮箱</view>
-        </view>
-        <view class="field"><text class="field-label" id="tnResetTargetLabel">邮箱</text><view id="tnResetTarget-wrap" class="dom-input-wrap"></view></view>
-        <view class="field code-field">
-          <text class="field-label">验证码</text>
-          <view style="display:flex;gap:8px;">
-            <view id="tnResetCode-wrap" class="dom-input-wrap" style="flex:1;"></view>
-            <view class="btn btn-outline btn-sm code-btn" onclick="window._xc_sendResetCode()" id="tnResetCodeBtn">获取验证码</view>
-          </view>
-        </view>
-        <view class="field"><text class="field-label">新密码</text><view id="tnResetPassword-wrap" class="dom-input-wrap"></view></view>
-        <view class="modal-hint">想起来了？<text class="login-link" onclick="window._xc_switchToLogin()" style="color:var(--accent);cursor:pointer;text-decoration:underline;">返回登录</text></view>
+        <view class="modal-hint">已有账号直接登录 · <text class="register-link" onclick="window._xc_doRegister()" style="color:var(--accent);cursor:pointer;text-decoration:underline;">没有账号？立即注册</text></view>
       </view>
 
       <view class="modal-error" id="tnLoginError"></view>
       <view class="modal-btns"><view class="btn btn-outline" onclick="window._openLoginModal_Close()">取消</view><view class="btn btn-accent" onclick="window._xc_doLogin()">登录</view></view>
       <view class="oauth-divider"><text class="oauth-divider-text">第三方登录</text></view>
-      <view class="oauth-note">已绑定 Gitee 的账号，登录时仍需通过 Gitee 验证身份。</view>
       <view class="oauth-btns">
         <view class="oauth-btn oauth-btn-gitee" @tap="oauthLogin('gitee')">
           <text class="oauth-btn-icon">G</text>
-          <text class="oauth-btn-label">Gitee 验证登录</text>
+          <text class="oauth-btn-label">Gitee</text>
         </view>
       </view>
     </view>
@@ -290,7 +272,6 @@ onMounted(function() {
     var v = (value || '').trim()
     if (!v) return 'empty'
     if (v.indexOf('@') !== -1) return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? 'email' : 'invalid-email'
-    if (/^\d{11,}$/.test(v)) return 'phone'
     return 'username'
   }
 
@@ -308,7 +289,7 @@ onMounted(function() {
     if (passwordRow) passwordRow.style.display = mode === 'code' ? 'none' : ''
     if (codeRow) codeRow.style.display = mode === 'code' ? '' : 'none'
     var account = modal.querySelector('#tnLoginUser')
-    if (account) account.placeholder = mode === 'code' ? '邮箱/手机号' : '用户名/邮箱/手机号'
+    if (account) account.placeholder = mode === 'code' ? '邮箱' : '用户名/邮箱'
     var code = modal.querySelector('#tnLoginCode')
     if (code && mode !== 'code') code.value = ''
   }
@@ -432,7 +413,7 @@ onMounted(function() {
       var titleEl = (modal || document).querySelector('.modal-title')
       if (titleEl) titleEl.textContent = '登录'
       var hintEl = (modal || document).querySelector('.modal-hint')
-      if (hintEl) hintEl.innerHTML = '没有账号？<text class="register-link" onclick="window._xc_doRegister()" style="color:var(--accent);cursor:pointer;text-decoration:underline;">立即注册</text> · <text class="forgot-link" onclick="window._xc_showForgotPassword()" style="color:var(--accent);cursor:pointer;text-decoration:underline;">忘记密码</text>'
+      if (hintEl) hintEl.innerHTML = '已有账号直接登录 · <text class="register-link" onclick="window._xc_doRegister()" style="color:var(--accent);cursor:pointer;text-decoration:underline;">没有账号？立即注册</text>'
       var loginBtn = (modal || document).querySelector('.modal-btns .btn-accent')
       if (loginBtn) { loginBtn.textContent = '登录'; loginBtn.setAttribute('onclick', 'window._xc_doLogin()') }
       if (modal) {
@@ -485,9 +466,9 @@ onMounted(function() {
       var accountEl = (modal || document).querySelector('#tnLoginUser')
       var account = accountEl ? accountEl.value.trim() : ''
       var idType = _xc_detectLoginIdentifier(account)
-      if (!account) { if (e) e.textContent = '请输入用户名、邮箱或手机号'; return }
-      if (mode === 'code' && idType !== 'email' && idType !== 'phone') {
-        if (e) e.textContent = '验证码登录需要输入邮箱或手机号'
+      if (!account) { if (e) e.textContent = '请输入用户名或邮箱'; return }
+      if (mode === 'code' && idType !== 'email') {
+        if (e) e.textContent = '邮箱登录需要输入邮箱'
         return
       }
       var url = '/api/login'
@@ -501,13 +482,8 @@ onMounted(function() {
         var codeEl = (modal || document).querySelector('#tnLoginCode')
         var code = codeEl ? codeEl.value.trim() : ''
         if (!code) { if (e) e.textContent = '请输入验证码'; return }
-        if (idType === 'phone') {
-          url = '/api/sms/login'
-          data = { phone: account, code: code }
-        } else {
-          url = '/api/email/login'
-          data = { email: account, code: code }
-        }
+        url = '/api/email/login'
+        data = { email: account, code: code }
       }
       uni.request({ url: url, method: 'POST', data: data }).then(function(res) {
         var d = res.data
@@ -544,17 +520,17 @@ onMounted(function() {
       var accountEl = modal.querySelector('#tnLoginUser')
       var account = accountEl ? accountEl.value.trim() : ''
       var idType = _xc_detectLoginIdentifier(account)
-      if (idType !== 'email' && idType !== 'phone') {
+      if (idType !== 'email') {
         var e0 = modal.querySelector('#tnLoginError')
-        if (e0) e0.textContent = '验证码登录需要输入邮箱或手机号'
+        if (e0) e0.textContent = '邮箱登录需要输入邮箱'
         return
       }
       _xc_sendCode({
         inputId: 'tnLoginUser',
         btnId: 'tnLoginCodeBtn',
-        key: idType === 'phone' ? 'phone' : 'email',
-        url: idType === 'phone' ? '/api/sms/send' : '/api/email/send',
-        errMsg: '请输入正确的邮箱或手机号',
+        key: 'email',
+        url: '/api/email/send',
+        errMsg: '请输入正确的邮箱',
         validate: function(){ return true },
       })
     }

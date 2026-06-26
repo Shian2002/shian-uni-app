@@ -215,19 +215,26 @@ async function checkLoginModal(browser) {
       login.click()
     })
     await page.waitForTimeout(800)
-    const modal = await page.evaluate(() => ({
-      visible: Boolean(document.querySelector('#topnavLoginModal.open,.login-modal.open,[id*=login][class*=open]')),
-      userInput: Boolean(document.querySelector('#tnLoginUser')),
-      passInput: Boolean(document.querySelector('#tnLoginPass')),
-      oldModeTabs: Array.from(document.querySelectorAll('.login-tab')).map((el) => (el.textContent || '').trim()).filter((text) => ['账号', '手机', '邮箱'].includes(text)),
-      modeTabs: Array.from(document.querySelectorAll('.login-tab')).map((el) => (el.textContent || '').trim()),
-      visibleText: (document.querySelector('#topnavLoginModal.open')?.innerText || document.querySelector('#topnavLoginModal.open')?.textContent || '').trim(),
-    }))
+    const modal = await page.evaluate(() => {
+      const modalRoot = document.querySelector('#topnavLoginModal.open,.login-modal.open,[id*=login][class*=open]')
+      const visibleText = (modalRoot?.innerText || modalRoot?.textContent || '').trim()
+      return {
+        visible: Boolean(modalRoot),
+        userInput: Boolean(modalRoot?.querySelector('#tnLoginUser')),
+        passInput: Boolean(modalRoot?.querySelector('#tnLoginPass')),
+        modeTabs: Array.from(modalRoot?.querySelectorAll('.login-tab') || []).map((el) => (el.textContent || '').trim()),
+        forbiddenText: ['手机号', '验证码登录', '忘记密码', 'Gitee 验证登录'].filter((text) => visibleText.includes(text)),
+        visibleText,
+      }
+    })
     assertCondition(modal.visible, '登录弹窗未打开')
     assertCondition(modal.userInput, '登录账号输入框不存在')
     assertCondition(modal.passInput, '登录密码输入框不存在')
-    assertCondition(modal.oldModeTabs.length === 0, `登录弹窗仍存在旧三 tab: ${modal.oldModeTabs.join(',')}`)
-    assertCondition(modal.modeTabs.includes('密码登录') && modal.modeTabs.includes('验证码登录'), '登录方式缺少密码/验证码切换')
+    assertCondition(JSON.stringify(modal.modeTabs) === JSON.stringify(['账号', '邮箱']), `登录方式不是账号/邮箱: ${modal.modeTabs.join(',')}`)
+    assertCondition(modal.visibleText.includes('用户名/邮箱'), '账号输入框文案缺少用户名/邮箱')
+    assertCondition(modal.visibleText.includes('已有账号直接登录'), '登录提示未恢复旧版文案')
+    assertCondition(modal.visibleText.includes('Gitee'), '第三方登录缺少 Gitee')
+    assertCondition(modal.forbiddenText.length === 0, `登录弹窗仍存在不应显示的入口: ${modal.forbiddenText.join(',')}`)
     const measureLoginBox = () => {
       const box = Array.from(document.querySelectorAll('#topnavLoginModal.open .modal-box')).find((el) => {
         const r = el.getBoundingClientRect()
@@ -245,10 +252,10 @@ async function checkLoginModal(browser) {
     const passwordBoxBefore = await page.evaluate(measureLoginBox)
 
     const codeModeState = await page.evaluate(() => {
-      const tab = Array.from(document.querySelectorAll('.login-tab')).find((el) => (el.textContent || '').trim() === '验证码登录')
-      if (!tab) throw new Error('找不到验证码登录切换')
-      tab.click()
       const modalRoot = document.querySelector('#topnavLoginModal.open') || document
+      const tab = Array.from(modalRoot.querySelectorAll('.login-tab')).find((el) => (el.textContent || '').trim() === '邮箱')
+      if (!tab) throw new Error('找不到邮箱登录切换')
+      tab.click()
       const account = modalRoot.querySelector('#tnLoginUser')
       return {
         active: Boolean(tab.classList.contains('active')),
@@ -258,15 +265,16 @@ async function checkLoginModal(browser) {
         passwordDisplay: window.getComputedStyle(modalRoot.querySelector('#tnLoginPass-wrap')?.closest('.field')).display,
       }
     })
-    assertCondition(codeModeState.active, '验证码登录切换未激活')
-    assertCondition(codeModeState.accountPlaceholder === '邮箱/手机号', `验证码登录账号占位异常: ${codeModeState.accountPlaceholder}`)
-    assertCondition(codeModeState.hasCode && codeModeState.hasCodeButton, '验证码登录缺少验证码输入或获取按钮')
-    assertCondition(codeModeState.passwordDisplay === 'none', '验证码登录时密码输入未隐藏')
+    assertCondition(codeModeState.active, '邮箱登录切换未激活')
+    assertCondition(codeModeState.accountPlaceholder === '邮箱', `邮箱登录账号占位异常: ${codeModeState.accountPlaceholder}`)
+    assertCondition(codeModeState.hasCode && codeModeState.hasCodeButton, '邮箱登录缺少验证码输入或获取按钮')
+    assertCondition(codeModeState.passwordDisplay === 'none', '邮箱登录时密码输入未隐藏')
     const codeBox = await page.evaluate(measureLoginBox)
 
     await page.evaluate(() => {
-      const tab = Array.from(document.querySelectorAll('.login-tab')).find((el) => (el.textContent || '').trim() === '密码登录')
-      if (!tab) throw new Error('找不到密码登录切换')
+      const modalRoot = document.querySelector('#topnavLoginModal.open') || document
+      const tab = Array.from(modalRoot.querySelectorAll('.login-tab')).find((el) => (el.textContent || '').trim() === '账号')
+      if (!tab) throw new Error('找不到账号登录切换')
       tab.click()
     })
     const passwordBoxAfter = await page.evaluate(measureLoginBox)
@@ -302,23 +310,13 @@ async function checkLoginModal(browser) {
     assertCondition(loginState.hint.includes('没有账号？立即注册'), '返回登录提示文案异常')
 
     const resetState = await page.evaluate(() => {
-      const link = document.querySelector('.forgot-link')
-      if (!link) throw new Error('找不到忘记密码入口')
-      link.click()
       const modalRoot = document.querySelector('#topnavLoginModal.open') || document
-      const title = (modalRoot.querySelector('.modal-title')?.textContent || '').trim()
-      const primary = (modalRoot.querySelector('.modal-btns .btn-accent')?.textContent || '').trim()
-      const hasPhone = Boolean(modalRoot.querySelector('.reset-method[data-method="phone"]'))
-      const hasEmail = Boolean(modalRoot.querySelector('.reset-method[data-method="email"]'))
-      const hasTarget = Boolean(modalRoot.querySelector('#tnResetTarget'))
-      const hasCode = Boolean(modalRoot.querySelector('#tnResetCode'))
-      const hasPassword = Boolean(modalRoot.querySelector('#tnResetPassword'))
-      return { title, primary, hasPhone, hasEmail, hasTarget, hasCode, hasPassword }
+      return {
+        hasForgot: Boolean(modalRoot.querySelector('.forgot-link')),
+        hasResetPanel: Boolean(modalRoot.querySelector('.tn-panel-reset')),
+      }
     })
-    assertCondition(resetState.title === '重置密码', `忘记密码标题异常: ${resetState.title}`)
-    assertCondition(resetState.primary === '重置密码', `忘记密码主按钮异常: ${resetState.primary}`)
-    assertCondition(!resetState.hasPhone && resetState.hasEmail, '忘记密码仍显示手机找回入口或缺少邮箱入口')
-    assertCondition(resetState.hasTarget && resetState.hasCode && resetState.hasPassword, '忘记密码输入框缺失')
+    assertCondition(!resetState.hasForgot && !resetState.hasResetPanel, '登录弹窗仍显示忘记密码入口或重置面板')
 
     assertCondition(errors.length === 0, `登录弹窗控制台错误: ${errors.slice(0, 3).join(' | ')}`)
     await page.close()
