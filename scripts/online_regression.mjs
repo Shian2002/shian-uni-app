@@ -355,6 +355,77 @@ async function checkMobileHome(browser) {
   }
 }
 
+async function checkOAuthProfileNav(browser) {
+  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+  const errors = []
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') errors.push(msg.text())
+  })
+  page.on('pageerror', (error) => errors.push(error.message))
+  try {
+    await page.route('**/api/me', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 1,
+        username: 'shian',
+        has_password: true,
+        avatar: '',
+        created_at: '2026-05-21T11:15:43',
+        is_admin: false,
+      }),
+    }))
+    await page.route('**/api/membership', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ points: 100 }),
+    }))
+    await page.route('**/api/profiles**', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ profiles: [] }),
+    }))
+    await page.route('**/api/bindings', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ email: '904752171@qq.com', oauth_gitee: true }),
+    }))
+    const marker = `oauth-${Date.now()}`
+    await page.goto(`${baseUrl}/#/pages/profile/index?oauth_success=gitee&qa=${marker}`, { waitUntil: 'domcontentloaded', timeout: timeoutMs })
+    await page.waitForLoadState('networkidle', { timeout: timeoutMs }).catch(() => {})
+    await page.waitForTimeout(1200)
+    const state = await page.evaluate(() => {
+      const avatar = Array.from(document.querySelectorAll('.nav-avatar-wrap')).find((el) => {
+        const r = el.getBoundingClientRect()
+        return r.width > 0 && r.height > 0
+      })
+      const loginButtons = Array.from(document.querySelectorAll('.nav-auth-btns .btn')).filter((el) => {
+        const r = el.getBoundingClientRect()
+        return r.width > 0 && r.height > 0 && (el.innerText || el.textContent || '').trim() === '登录'
+      })
+      return {
+        token: localStorage.getItem('xc_token') || '',
+        hasVisibleAvatar: Boolean(avatar),
+        avatarText: (avatar?.innerText || avatar?.textContent || '').trim(),
+        visibleLoginCount: loginButtons.length,
+        bodyHasProfile: document.body.innerText.includes('个人中心'),
+      }
+    })
+    assertCondition(state.token === 'session', 'OAuth 回跳后未写入前端登录标记')
+    assertCondition(state.hasVisibleAvatar, 'OAuth 回跳后右上角未显示头像')
+    assertCondition(state.visibleLoginCount === 0, 'OAuth 回跳后右上角仍显示登录按钮')
+    assertCondition(state.bodyHasProfile, 'OAuth 回跳后个人中心未正常渲染')
+    const blockingErrors = errors.filter((item) => !/401 (?:\(\)|\(UNAUTHORIZED\))/i.test(item))
+    assertCondition(blockingErrors.length === 0, `OAuth 回跳控制台错误: ${blockingErrors.slice(0, 3).join(' | ')}`)
+    await page.close()
+    return { name: 'OAuth 回跳导航状态', ...state }
+  } catch (error) {
+    await captureFailure(page, 'OAuth回跳导航状态', error)
+    await page.close()
+    throw error
+  }
+}
+
 async function main() {
   const browser = await chromium.launch({ headless: true })
   try {
@@ -367,6 +438,7 @@ async function main() {
       results.push(await checkRoute(browser, pages[i], i))
     }
     results.push(await checkLoginModal(browser))
+    results.push(await checkOAuthProfileNav(browser))
     results.push(await checkMobileHome(browser))
     const report = { baseUrl, passed: true, artifactDir, results }
     writeArtifact('report.json', report)

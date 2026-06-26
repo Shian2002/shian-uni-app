@@ -1058,6 +1058,8 @@ onMounted(() => {
     if (oauthSuccess) {
       isLoggedIn.value = true
       uni.setStorageSync('xc_token', 'session')
+      try { window.dispatchEvent(new CustomEvent('xc-auth-changed', { detail: { type: 'login', loggedIn: true } })) } catch (_) {}
+      try { uni.$emit('xc-auth-changed', { type: 'login', loggedIn: true }) } catch (_) {}
       uni.showToast({ title: oauthSuccess === 'qq' ? 'QQ登录成功' : oauthSuccess === 'gitee' ? 'Gitee绑定成功' : oauthSuccess === 'wechat' ? '微信登录成功' : '登录成功', icon: 'success' })
       loadProfiles()
       loadBindings()

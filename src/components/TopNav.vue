@@ -98,7 +98,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, onMounted, nextTick, watch } from 'vue'
 
 const props = defineProps({
   theme: { type: String, default: 'light' },
@@ -117,6 +117,20 @@ function isLocalUploadAvatar(src) {
   return value.indexOf('/static/uploads/') === 0
 }
 const localLoggedIn = ref(props.isLoggedIn || !!uni.getStorageSync('xc_token'))
+watch(
+  () => props.isLoggedIn,
+  function(loggedIn) {
+    if (loggedIn) {
+      localLoggedIn.value = true
+      _avatarInstanceLoaded = false
+      pointsLoaded = false
+      loadAvatar()
+      loadPointsSummary()
+    } else if (!uni.getStorageSync('xc_token')) {
+      localLoggedIn.value = false
+    }
+  }
+)
 
 if (typeof window !== 'undefined') {
   window.addEventListener('xc-auth-changed', function(e) {
