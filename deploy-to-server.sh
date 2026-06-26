@@ -14,6 +14,7 @@ LOCAL_DIR="$(cd "$(dirname "$0")" && pwd)"
 LIVE_DB="/home/lighthouse/tianji/flask-source/backend/tianji.db"
 DATABASE_URL="sqlite:////home/lighthouse/tianji/flask-source/backend/tianji.db"
 DB_BACKUP_DIR="/home/lighthouse/backups/xuan-cet/db"
+PRODUCTION_BASE_URL="${PRODUCTION_BASE_URL:-https://shianjieyouwu.com}"
 
 require_clean_backend_python() {
     if ! git -C "$LOCAL_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -81,6 +82,18 @@ eval "$RSYNC_CMD" \
 echo "[4/5] 重启后端..."
 $SSH_CMD "$SERVER" "if [ -f '$LIVE_DB' ]; then mkdir -p '$DB_BACKUP_DIR'; cp '$LIVE_DB' '$DB_BACKUP_DIR/tianji-deploy-'\$(date -u +%Y%m%d-%H%M%S)'.db'; chmod 600 '$DB_BACKUP_DIR'/tianji-deploy-*.db; ls -1t '$DB_BACKUP_DIR'/tianji-deploy-*.db | tail -n +31 | xargs -r rm -f; else echo '[ERROR] 未找到线上生产库 $LIVE_DB，停止部署以避免创建空库'; exit 1; fi"
 $SSH_CMD "$SERVER" "cd /opt/xuan-cet/backend && ./venv/bin/pip install -q -c constraints.txt -r requirements.txt"
+$SSH_CMD "$SERVER" "set -e
+cd /opt/xuan-cet/backend
+mkdir -p /home/lighthouse/backups/xuan-cet/env
+if [ -f .env ]; then
+  cp .env /home/lighthouse/backups/xuan-cet/env/backend-env-\$(date -u +%Y%m%d-%H%M%S).env
+fi
+touch .env
+if grep -q '^OAUTH_ORIGIN=' .env; then
+  sed -i 's|^OAUTH_ORIGIN=.*|OAUTH_ORIGIN=$PRODUCTION_BASE_URL|' .env
+else
+  printf '\nOAUTH_ORIGIN=$PRODUCTION_BASE_URL\n' >> .env
+fi"
 $SSH_CMD "$SERVER" "sudo tee /etc/systemd/system/xuan-cet-flask.service > /dev/null <<'EOF'
 [Unit]
 Description=时安解忧屋 Gunicorn Backend
@@ -92,6 +105,7 @@ User=$SERVER_USER
 WorkingDirectory=/opt/xuan-cet/backend
 Environment=FLASK_ENV=production
 Environment=DATABASE_URL=$DATABASE_URL
+Environment=OAUTH_ORIGIN=$PRODUCTION_BASE_URL
 Environment=UPLOAD_FOLDER=/var/www/xuan-cet/static/uploads
 EnvironmentFile=-/opt/xuan-cet/backend/.env
 ExecStart=/opt/xuan-cet/backend/venv/bin/gunicorn --workers 2 --threads 4 --timeout 180 --bind 127.0.0.1:5199 app:app

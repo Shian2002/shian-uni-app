@@ -189,6 +189,36 @@
         </view>
       </view>
     </view>
+
+    <view class="profile-modal delete-confirm-modal" v-if="deleteConfirmOpen">
+      <view class="profile-modal-mask delete-confirm-mask" @tap="closeDeleteConfirm"></view>
+      <view class="delete-confirm-panel" @tap.stop>
+        <view class="delete-confirm-head">
+          <view class="delete-confirm-mark">!</view>
+          <view class="delete-confirm-copy">
+            <view class="delete-confirm-title">删除档案</view>
+            <view class="delete-confirm-desc">确定删除「{{ deleteConfirmName }}」吗？</view>
+          </view>
+          <view class="delete-confirm-close" @tap="closeDeleteConfirm">×</view>
+        </view>
+        <view class="delete-confirm-body">
+          <view class="delete-confirm-row">
+            <text>档案</text>
+            <text>{{ deleteConfirmName }}</text>
+          </view>
+          <view class="delete-confirm-row">
+            <text>来源</text>
+            <text>{{ deleteConfirmSource }}</text>
+          </view>
+          <view class="delete-confirm-note">删除后此档案不会再出现在八字、紫微和时安 agent 中。</view>
+          <view class="delete-confirm-subnote">相关历史记录不会自动删除。</view>
+        </view>
+        <view class="delete-confirm-actions">
+          <view class="delete-confirm-btn secondary" @tap="closeDeleteConfirm">取消</view>
+          <view class="delete-confirm-btn danger" :class="{ loading: deleteDeleting }" @tap="confirmDeleteProfile">{{ deleteDeleting ? '删除中...' : '删除' }}</view>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -212,6 +242,9 @@ const formError = ref('')
 const profilesLoadedAt = ref(0)
 const mobileTipClosed = ref(!!uni.getStorageSync('xc_profile_mobile_tip_closed'))
 const activeMobileActionsId = ref(null)
+const deleteConfirmOpen = ref(false)
+const deleteConfirmProfile = ref(null)
+const deleteDeleting = ref(false)
 let profilesLoadingPromise = null
 
 const sourceTabs = [
@@ -243,6 +276,8 @@ const recentLabel = computed(() => {
   const p = profiles.value[0]
   return p && p.name ? p.name.slice(0, 4) : '未命名'
 })
+const deleteConfirmName = computed(() => (deleteConfirmProfile.value && deleteConfirmProfile.value.name) || '未命名')
+const deleteConfirmSource = computed(() => deleteConfirmProfile.value ? sourceLabel(deleteConfirmProfile.value) : '手动档案')
 const profileTypeIndex = computed(() => Math.max(0, profileTypeValues.indexOf(form.profileType)))
 
 const filteredProfiles = computed(() => {
@@ -542,29 +577,38 @@ async function setDefault(profile) {
 }
 
 function deleteProfile(profile) {
-  uni.showModal({
-    title: '删除档案',
-    content: `确定删除「${profile.name || '未命名'}」吗？`,
-    confirmText: '删除',
-    cancelText: '取消',
-    success: async function(res) {
-      if (!res.confirm) return
-      try {
-        const deleteRes = await uni.request({ url: `/api/profiles/${profile.id}`, method: 'DELETE' })
-        const data = deleteRes.data || {}
-        if ((deleteRes.statusCode && deleteRes.statusCode >= 400) || data.error) {
-          throw new Error(data.error || 'delete profile failed')
-        }
-        profiles.value = profiles.value.filter(item => item.id !== profile.id)
-        activeMobileActionsId.value = null
-        profilesLoadedAt.value = 0
-        await loadProfiles(true)
-        uni.showToast({ title: '已删除', icon: 'none' })
-      } catch (_) {
-        uni.showToast({ title: '删除失败', icon: 'none' })
-      }
+  deleteConfirmProfile.value = profile
+  deleteConfirmOpen.value = true
+}
+
+function closeDeleteConfirm() {
+  if (deleteDeleting.value) return
+  deleteConfirmOpen.value = false
+  deleteConfirmProfile.value = null
+}
+
+async function confirmDeleteProfile() {
+  const profile = deleteConfirmProfile.value
+  if (!profile || deleteDeleting.value) return
+  deleteDeleting.value = true
+  try {
+    const deleteRes = await uni.request({ url: `/api/profiles/${profile.id}`, method: 'DELETE' })
+    const data = deleteRes.data || {}
+    if ((deleteRes.statusCode && deleteRes.statusCode >= 400) || data.error) {
+      throw new Error(data.error || 'delete profile failed')
     }
-  })
+    profiles.value = profiles.value.filter(item => item.id !== profile.id)
+    activeMobileActionsId.value = null
+    profilesLoadedAt.value = 0
+    await loadProfiles(true)
+    deleteConfirmOpen.value = false
+    deleteConfirmProfile.value = null
+    uni.showToast({ title: '已删除', icon: 'none' })
+  } catch (_) {
+    uni.showToast({ title: '删除失败', icon: 'none' })
+  } finally {
+    deleteDeleting.value = false
+  }
 }
 
 function storageProfile(profile) {
@@ -1194,6 +1238,160 @@ onShow(function() {
   background: var(--accent);
   color: #fff8ea;
   font-weight: 800;
+}
+.delete-confirm-modal {
+  z-index: 1100;
+}
+.delete-confirm-mask {
+  background: rgba(20, 16, 10, 0.46);
+  backdrop-filter: blur(10px) saturate(120%);
+}
+.delete-confirm-panel {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(430px, calc(100vw - 30px));
+  transform: translate(-50%, -50%);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--card-border));
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.72), rgba(255,255,255,0.28)),
+    var(--bg-grad-1);
+  box-shadow: 0 24px 72px rgba(68, 45, 18, 0.18), inset 0 1px 0 rgba(255,255,255,0.72);
+  padding: 18px;
+  box-sizing: border-box;
+}
+[data-theme="dark"] .delete-confirm-panel {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)),
+    rgba(31, 29, 24, 0.94);
+  box-shadow: 0 24px 78px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.delete-confirm-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.delete-confirm-mark {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--danger) 44%, transparent);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+  font-weight: 900;
+  line-height: 1;
+}
+.delete-confirm-copy {
+  min-width: 0;
+  flex: 1;
+}
+.delete-confirm-title {
+  color: var(--text-1);
+  font-family: var(--font-serif);
+  font-size: 1.02rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+.delete-confirm-desc {
+  margin-top: 4px;
+  color: var(--text-3);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+.delete-confirm-close {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.delete-confirm-close:hover {
+  color: var(--accent);
+  background: var(--accent-glow);
+}
+.delete-confirm-body {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+.delete-confirm-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--card-border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--card-bg) 72%, transparent);
+  color: var(--text-2);
+  font-size: 0.78rem;
+}
+.delete-confirm-row text:first-child {
+  flex-shrink: 0;
+  color: var(--text-4);
+}
+.delete-confirm-row text:last-child {
+  min-width: 0;
+  color: var(--text-1);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.delete-confirm-note {
+  margin-top: 2px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 18%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--danger) 7%, transparent);
+  color: var(--text-2);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+.delete-confirm-subnote {
+  color: var(--text-4);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+.delete-confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 18px;
+}
+.delete-confirm-btn {
+  min-height: 38px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, opacity 0.16s ease;
+}
+.delete-confirm-btn:hover {
+  transform: translateY(-1px);
+}
+.delete-confirm-btn.secondary {
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--card-border));
+  background: var(--input-bg);
+  color: var(--text-2);
+}
+.delete-confirm-btn.danger {
+  border: 1px solid color-mix(in srgb, var(--danger) 48%, transparent);
+  background: var(--danger);
+  color: #fff8ea;
+}
+.delete-confirm-btn.loading {
+  opacity: 0.68;
+  pointer-events: none;
 }
 [data-theme="dark"] {
   --bg-grad-1: #161a2a;

@@ -230,10 +230,10 @@ def test_top_nav_login_modal_keeps_legacy_login_choices():
 
     assert 'id="topnavLoginModal"' in source
     assert 'data-tab="password"' in source
-    assert "密码登录" in source
+    assert "账号" in source
     assert 'data-tab="code"' in source
-    assert "验证码登录" in source
-    assert "Gitee 验证登录" in source
+    assert "邮箱" in source
+    assert "Gitee" in source
 
 
 def test_top_nav_login_modal_is_forced_to_bottom_globally():
@@ -261,13 +261,16 @@ def test_top_nav_login_modal_is_forced_to_bottom_globally():
 def test_top_nav_reuses_online_login_endpoints_for_local_app_shell():
     source = TOP_NAV_VUE.read_text(encoding="utf-8")
 
-    assert "用户名/邮箱/手机号" in source
-    assert "邮箱/手机号" in source
-    assert "验证码登录需要输入邮箱或手机号" in source
-    assert "url = '/api/sms/login'" in source
+    assert "用户名/邮箱" in source
+    assert "邮箱登录需要输入邮箱" in source
     assert "url = '/api/email/login'" in source
-    assert "url: idType === 'phone' ? '/api/sms/send' : '/api/email/send'" in source
+    assert "url: '/api/email/send'" in source
     assert "url: '/api/oauth/' + provider + '/url'" in source
+    assert "用户名/邮箱/手机号" not in source
+    assert "邮箱/手机号" not in source
+    assert "验证码登录需要输入邮箱或手机号" not in source
+    assert "url = '/api/sms/login'" not in source
+    assert "url: idType === 'phone' ? '/api/sms/send' : '/api/email/send'" not in source
 
 
 def test_local_h5_can_proxy_api_to_online_login_without_new_auth_stack():

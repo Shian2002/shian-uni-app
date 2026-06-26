@@ -378,6 +378,41 @@
     <TopNav :theme="theme" :is-logged-in="isLoggedIn"
       @toggle-theme="toggleTheme" ref="topNavRef" />
 
+    <view
+      v-if="showStickyArtifactNav"
+      class="home-artifact-sticky-nav"
+      :class="{ collapsed: artifactNavStickyCollapsed }"
+    >
+      <view
+        v-if="artifactNavStickyCollapsed"
+        class="home-artifact-sticky-mini"
+        @tap="artifactNavStickyCollapsed = false"
+      >
+        <text class="home-artifact-sticky-mini-title">shian 导航</text>
+        <text class="home-artifact-sticky-mini-current">{{ stickyActiveArtifactTitle }}</text>
+      </view>
+      <view v-else class="home-artifact-sticky-panel">
+        <view class="home-artifact-sticky-head">
+          <view class="home-artifact-sticky-title">
+            <text>shian 导航</text>
+            <text>{{ stickyActiveArtifactTitle }}</text>
+          </view>
+          <view class="home-artifact-sticky-actions">
+            <view class="home-artifact-sticky-btn" @tap.stop="artifactNavStickyCollapsed = true">收起</view>
+            <view class="home-artifact-sticky-btn" @tap.stop="toggleArtifactNavSticky">取消置顶</view>
+          </view>
+        </view>
+        <HomeArtifactTabs
+          compact
+          :artifacts="stickyArtifactTabs"
+          :active-key="stickyActiveArtifactKey"
+          :summary-active="stickySummaryActive"
+          :show-summary="stickyShowSummary"
+          @select="selectStickyArtifact"
+        />
+      </view>
+    </view>
+
     <view class="page-wrap">
 
       <!-- ═══ 首屏 Hero ═══ -->
@@ -418,6 +453,7 @@
                 v-for="(msg, idx) in comprehensiveMessages"
                 :key="idx"
                 class="home-ai-message"
+                :data-home-message-index="idx"
                 :class="msg.role === 'user' ? 'user' : 'assistant'"
               >
                 <text class="home-ai-role" v-if="msg.role === 'user'">你</text>
@@ -451,6 +487,15 @@
                   <view class="home-ai-progress-bar"></view>
                 </view>
                 <view class="home-tool-cards" v-if="visibleArtifactList(msg).length">
+                  <view class="home-artifact-nav-bar">
+                    <view class="home-artifact-nav-title">
+                      <text>shian 导航</text>
+                      <text>{{ artifactNavStickyEnabled ? '已置顶' : '未置顶' }}</text>
+                    </view>
+                    <view class="home-artifact-nav-actions">
+                      <view class="home-artifact-nav-btn" @tap.stop="toggleArtifactNavSticky">{{ artifactNavStickyEnabled ? '取消置顶' : '置顶' }}</view>
+                    </view>
+                  </view>
                   <HomeArtifactTabs
                     :artifacts="artifactTabsForMessage(msg)"
                     :active-key="activeArtifactKeyForMessage(msg, idx)"
@@ -1334,6 +1379,7 @@ window.addEventListener('xc-show-agent-home', function() {
 window.addEventListener('xc-auth-changed', function(e) {
   const loggedIn = !!(e && e.detail && e.detail.loggedIn)
   isLoggedIn.value = loggedIn
+  refreshArtifactNavStickyPreference()
   if (loggedIn) {
     loadComprehensiveOptions()
     loadProfiles()
@@ -1364,6 +1410,7 @@ const selectedProfilesStorageKey = 'xc_home_selected_profiles_v1'
 const selectedToolsStorageKey = 'xc_home_selected_tools_v1'
 const sendConfirmSkipStorageKey = 'xc_home_send_confirm_skip_v1'
 const questionGuidanceEnabledStorageKey = 'xc_home_question_guidance_enabled_v1'
+const artifactNavStickyEnabledStorageKey = 'xc_home_artifact_nav_sticky_enabled_v1'
 const agentHandoffStorageKey = 'xc_agent_handoff_v1'
 const homeQuestionTemplates = [
   { key: 'career', label: '事业', short: '跳槽时机', question: '我最近适合跳槽或换方向吗？请结合事业趋势、阻力和适合行动的时间窗口来判断。' },
@@ -1440,6 +1487,9 @@ const aiSingleCredits = ref(0)
 const aiComboCredits = ref(0)
 const dailyLightAvailable = ref(false)
 const comprehensiveMessages = ref([])
+const artifactNavStickyEnabled = ref(readArtifactNavStickyEnabled())
+const artifactNavStickyCollapsed = ref(false)
+const artifactNavStickyVisible = ref(false)
 const currentComprehensiveConvId = ref(null)
 const currentPaipanContext = ref({})
 const currentArtifacts = ref({})
@@ -1677,6 +1727,29 @@ function currentUserScopedStorageKey(base) {
     userKey = String((user && (user.id || user.username || user.phone)) || 'guest')
   } catch (_) {}
   return base + ':' + userKey
+}
+
+function readArtifactNavStickyEnabled() {
+  return readStorageJson(currentUserScopedStorageKey(artifactNavStickyEnabledStorageKey), true) !== false
+}
+
+function writeArtifactNavStickyEnabled(enabled) {
+  writeStorageJson(currentUserScopedStorageKey(artifactNavStickyEnabledStorageKey), !!enabled)
+}
+
+function refreshArtifactNavStickyPreference() {
+  artifactNavStickyEnabled.value = readArtifactNavStickyEnabled()
+  if (!artifactNavStickyEnabled.value) {
+    artifactNavStickyVisible.value = false
+    artifactNavStickyCollapsed.value = false
+  }
+}
+
+function enableArtifactNavStickyForHistory() {
+  artifactNavStickyEnabled.value = true
+  artifactNavStickyCollapsed.value = false
+  writeArtifactNavStickyEnabled(true)
+  nextTick(updateArtifactNavStickyVisibility)
 }
 
 function clearHomeAgentSelectionStorage() {
@@ -2168,6 +2241,109 @@ function currentArtifactForMessage(msg, messageIndex) {
   const list = visibleArtifactList(msg)
   const key = activeArtifactKeyForMessage(msg, messageIndex)
   return list.find(function(item) { return item.key === key }) || list[0] || null
+}
+
+const stickyArtifactMessageIndex = computed(function() {
+  for (let i = comprehensiveMessages.value.length - 1; i >= 0; i--) {
+    const msg = comprehensiveMessages.value[i]
+    if (msg && msg.role === 'assistant' && visibleArtifactList(msg).length) return i
+  }
+  return -1
+})
+
+const stickyArtifactMessage = computed(function() {
+  const idx = stickyArtifactMessageIndex.value
+  return idx >= 0 ? comprehensiveMessages.value[idx] : null
+})
+
+const stickyArtifactTabs = computed(function() {
+  return stickyArtifactMessage.value ? artifactTabsForMessage(stickyArtifactMessage.value) : []
+})
+
+const stickyShowSummary = computed(function() {
+  const msg = stickyArtifactMessage.value
+  return !!msg && msg.role === 'assistant' && (!!msg.content || !!msg._streaming)
+})
+
+const stickySummaryActive = computed(function() {
+  const idx = stickyArtifactMessageIndex.value
+  return idx >= 0 && isSummaryActive(stickyArtifactMessage.value, idx)
+})
+
+const stickyActiveArtifactKey = computed(function() {
+  const idx = stickyArtifactMessageIndex.value
+  if (idx < 0) return ''
+  return activeArtifactKeyForMessage(stickyArtifactMessage.value, idx)
+})
+
+const stickyActiveArtifactTitle = computed(function() {
+  if (stickySummaryActive.value || stickyActiveArtifactKey.value === '__summary__') return '综合结论'
+  const current = currentArtifactForMessage(stickyArtifactMessage.value, stickyArtifactMessageIndex.value)
+  return current && current.title ? current.title : 'shian 导航'
+})
+
+const showStickyArtifactNav = computed(function() {
+  return artifactNavStickyEnabled.value && artifactNavStickyVisible.value && stickyArtifactMessageIndex.value >= 0
+})
+
+function updateArtifactNavStickyVisibility() {
+  // #ifdef H5
+  try {
+    if (!artifactNavStickyEnabled.value || stickyArtifactMessageIndex.value < 0) {
+      artifactNavStickyVisible.value = false
+      return
+    }
+    const message = document.querySelector('[data-home-message-index="' + stickyArtifactMessageIndex.value + '"]')
+    const anchor = message && message.querySelector ? message.querySelector('.home-artifact-nav-bar') : null
+    if (!message || !anchor) {
+      artifactNavStickyVisible.value = false
+      return
+    }
+    const chat = document.querySelector('.home-ai-chat')
+    const chatRect = chat ? chat.getBoundingClientRect() : null
+    const topLimit = chatRect ? Math.max(60, chatRect.top + 8) : 74
+    const messageRect = message.getBoundingClientRect()
+    const anchorRect = anchor.getBoundingClientRect()
+    artifactNavStickyVisible.value = anchorRect.bottom < topLimit && messageRect.bottom > topLimit + 132
+  } catch (_) {
+    artifactNavStickyVisible.value = false
+  }
+  // #endif
+}
+
+function scrollToArtifactSection(messageIndex, key) {
+  // #ifdef H5
+  nextTick(function() {
+    try {
+      const message = document.querySelector('[data-home-message-index="' + messageIndex + '"]')
+      if (!message) return
+      const selector = key === '__summary__' ? '.home-ai-summary-panel' : '.home-tool-card'
+      const target = message.querySelector(selector) || message.querySelector('.home-tool-cards')
+      if (target && target.scrollIntoView) target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      setTimeout(updateArtifactNavStickyVisibility, 260)
+    } catch (_) {}
+  })
+  // #endif
+}
+
+function selectStickyArtifact(key) {
+  const idx = stickyArtifactMessageIndex.value
+  if (idx < 0 || !key) return
+  setActiveArtifact(idx, key)
+  scrollToArtifactSection(idx, key)
+}
+
+function toggleArtifactNavSticky() {
+  const next = !artifactNavStickyEnabled.value
+  artifactNavStickyEnabled.value = next
+  writeArtifactNavStickyEnabled(next)
+  if (!next) {
+    artifactNavStickyVisible.value = false
+    artifactNavStickyCollapsed.value = false
+  } else {
+    updateArtifactNavStickyVisibility()
+  }
+  uni.showToast({ title: next ? '已开启置顶' : '已取消置顶', icon: 'none' })
 }
 
 function revealArtifact(aiIndex, artifactKey) {
@@ -3306,7 +3482,15 @@ function applyComprehensiveDraft(draft) {
     })
     comprehensiveLoading.value = false
     shouldAutoFollowChat.value = true
-    scrollComprehensiveChatToBottom('auto', true)
+    const restoredHistory = !!currentComprehensiveConvId.value && comprehensiveMessages.value.some(function(message) {
+      return message && message.role === 'assistant' && visibleArtifactList(message).length
+    })
+    if (restoredHistory) {
+      enableArtifactNavStickyForHistory()
+      scrollComprehensiveChatToTop('auto')
+    } else {
+      scrollComprehensiveChatToBottom('auto', true)
+    }
     return true
 }
 
@@ -4108,6 +4292,7 @@ async function restoreComprehensiveConversation(id) {
     currentPaipanContext.value = data.paipan || {}
     currentArtifacts.value = data.artifacts || {}
     selectedToolModels.value = data.models && data.models.length ? data.models : ['bazi']
+    Object.keys(activeArtifactKeyByMessage).forEach(function(key) { delete activeArtifactKeyByMessage[key] })
     const restoredArtifacts = artifactListFromMap(currentArtifacts.value)
     let attached = false
     comprehensiveMessages.value = (data.messages || []).map(function(m) {
@@ -4140,8 +4325,9 @@ async function restoreComprehensiveConversation(id) {
       source: p.source || 'profile',
     }] : []
     shouldAutoFollowChat.value = true
+    enableArtifactNavStickyForHistory()
     saveComprehensiveDraftNow()
-    scrollComprehensiveChatToBottom('smooth', true)
+    scrollComprehensiveChatToTop('auto')
   } catch (_) {}
 }
 
@@ -4177,11 +4363,13 @@ function updateComprehensiveAutoFollowFromScroll() {
 
 function onHomeChatScroll() {
   updateComprehensiveAutoFollowFromScroll()
+  updateArtifactNavStickyVisibility()
 }
 
 function onHomePageScroll() {
   if (!comprehensiveMessages.value.length) return
   updateComprehensiveAutoFollowFromScroll()
+  updateArtifactNavStickyVisibility()
 }
 
 function getComprehensiveScrollTarget() {
@@ -4208,6 +4396,23 @@ function scrollComprehensiveChatToBottom(behavior, force) {
         el.scrollTo({ top: el.scrollHeight, behavior: behavior || 'auto' })
         lastComprehensiveScrollTop = Number(el.scrollHeight || 0)
       }
+    } catch(_) {}
+  })
+  // #endif
+}
+
+function scrollComprehensiveChatToTop(behavior) {
+  // #ifdef H5
+  if (comprehensiveScrollTimer) cancelAnimationFrame(comprehensiveScrollTimer)
+  comprehensiveScrollTimer = requestAnimationFrame(function() {
+    comprehensiveScrollTimer = null
+    try {
+      const el = getComprehensiveScrollTarget()
+      if (el) {
+        el.scrollTo({ top: 0, behavior: behavior || 'auto' })
+        lastComprehensiveScrollTop = 0
+      }
+      updateArtifactNavStickyVisibility()
     } catch(_) {}
   })
   // #endif
@@ -4297,6 +4502,7 @@ onLoad((query) => {
 onShow(() => {
   refreshMarketingMode()
   setHomeFixedPage(!marketingMode.value)
+  refreshArtifactNavStickyPreference()
   var t = readInitialTheme()
   if (t !== theme.value) {
     theme.value = t
@@ -4323,6 +4529,7 @@ onShow(() => {
     } else {
       restoreComprehensiveDraft()
     }
+    nextTick(updateArtifactNavStickyVisibility)
   })
 })
 
@@ -7382,6 +7589,137 @@ onBeforeUnmount(() => {
 @keyframes progress-sweep { 0% { transform: translateX(-110%); } 100% { transform: translateX(280%); } }
 .home-ai-content { display: block; white-space: pre-wrap; font-size: 0.9rem; color: var(--text-2); line-height: 1.86; letter-spacing: 0; word-break: break-word; }
 .home-tool-cards { display: grid; gap: 10px; margin: 10px 0 12px; }
+.home-artifact-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 34px;
+  padding: 0 2px 2px;
+}
+.home-artifact-nav-title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-1);
+  font-size: .76rem;
+  font-weight: 800;
+}
+.home-artifact-nav-title text:last-child {
+  color: var(--text-3);
+  font-size: .66rem;
+  font-weight: 500;
+}
+.home-artifact-nav-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.home-artifact-nav-btn,
+.home-artifact-sticky-btn {
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(178,149,93,.2);
+  background: rgba(178,149,93,.08);
+  color: var(--accent);
+  font-size: .66rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  box-sizing: border-box;
+  white-space: nowrap;
+  user-select: none;
+}
+.home-artifact-nav-btn:hover,
+.home-artifact-sticky-btn:hover { border-color: rgba(178,149,93,.44); background: rgba(178,149,93,.14); }
+.home-artifact-sticky-nav {
+  position: fixed;
+  left: max(32px, calc((100vw - 1180px) / 2));
+  top: 74px;
+  z-index: 92;
+  width: min(1180px, calc(100vw - 48px));
+  pointer-events: none;
+  box-sizing: border-box;
+}
+.home-artifact-sticky-nav.collapsed {
+  top: 80px;
+}
+.home-artifact-sticky-panel,
+.home-artifact-sticky-mini {
+  pointer-events: auto;
+  border: 1px solid rgba(178,149,93,.22);
+  background: rgba(31,29,24,.82);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  backdrop-filter: blur(22px) saturate(150%);
+  box-shadow: 0 16px 44px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.08);
+  box-sizing: border-box;
+}
+[data-theme="light"] .home-artifact-sticky-panel,
+[data-theme="light"] .home-artifact-sticky-mini {
+  background: rgba(255,253,248,.92);
+  box-shadow: 0 14px 38px rgba(60,40,15,.12), inset 0 1px 0 rgba(255,255,255,.82);
+}
+.home-artifact-sticky-panel {
+  border-radius: 16px;
+  padding: 9px 10px 8px;
+}
+.home-artifact-sticky-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.home-artifact-sticky-title {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.home-artifact-sticky-title text:first-child {
+  color: var(--text-1);
+  font-size: .76rem;
+  font-weight: 800;
+}
+.home-artifact-sticky-title text:last-child {
+  min-width: 0;
+  color: var(--text-3);
+  font-size: .64rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.home-artifact-sticky-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.home-artifact-sticky-mini {
+  width: max-content;
+  max-width: min(360px, calc(100vw - 48px));
+  min-height: 38px;
+  margin: 0 0 0 auto;
+  border-radius: 999px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+.home-artifact-sticky-mini-title {
+  flex-shrink: 0;
+  color: var(--accent);
+  font-size: .72rem;
+  font-weight: 800;
+}
+.home-artifact-sticky-mini-current {
+  min-width: 0;
+  color: var(--text-2);
+  font-size: .66rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.home-tool-cards,
+.home-ai-summary-panel { scroll-margin-top: 136px; }
 .home-tool-card { min-height: 92px; border: 1px solid rgba(178,149,93,0.18); border-radius: 12px; background: rgba(178,149,93,0.055); overflow: hidden; contain: layout; }
 .home-artifact-switcher { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 8px; overflow: visible; padding: 2px 0 10px; margin-bottom: 10px; contain: layout; }
 .home-artifact-switcher::-webkit-scrollbar { display: none; }
@@ -7931,6 +8269,15 @@ onBeforeUnmount(() => {
   .home-ai-console { margin-top: 0; padding-bottom: 0; }
   .home-ai-console.has-chat { width: calc(100vw - 32px); padding: 0; margin-top: 0; }
   .home-ai-console.has-chat .home-ai-chat { flex: 1 1 auto; min-height: 0; max-height: calc(100dvh - 60px - var(--home-ai-dock-space) - 10px); padding-bottom: var(--home-ai-chat-bottom-buffer); overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; scroll-padding-bottom: var(--home-ai-chat-bottom-buffer); }
+  .home-artifact-sticky-nav { left: 16px; top: 66px; width: calc(100vw - 32px); }
+  .home-artifact-sticky-nav.collapsed { top: 72px; }
+  .home-artifact-sticky-panel { padding: 8px; border-radius: 14px; }
+  .home-artifact-sticky-head { gap: 8px; margin-bottom: 5px; }
+  .home-artifact-sticky-title { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .home-artifact-sticky-actions { gap: 4px; }
+  .home-artifact-sticky-btn { height: 26px; padding: 0 8px; font-size: .62rem; }
+  .home-tool-cards,
+  .home-ai-summary-panel { scroll-margin-top: 122px; }
   .home-ai-main { bottom: 8px; width: calc(100vw - 18px); border-radius: 16px; }
   .home-ai-main { padding: 9px 10px; gap: 6px; }
   .home-ai-input { min-height: 40px; max-height: 58px; font-size: 0.88rem; }
@@ -8017,6 +8364,14 @@ onBeforeUnmount(() => {
   .hero-home.chat-active .hero-brand-slogan { display: none; }
   .home-ai-console.has-chat { width: calc(100vw - 32px); padding-top: 0; }
   .home-ai-console.has-chat .home-ai-chat { flex: 1 1 auto; min-height: 0; max-height: calc(100dvh - 60px - var(--home-ai-dock-space) - 8px); padding: 10px 10px var(--home-ai-chat-bottom-buffer); overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; scroll-padding-bottom: var(--home-ai-chat-bottom-buffer); }
+  .home-artifact-sticky-nav { left: 16px; top: 62px; width: calc(100vw - 32px); }
+  .home-artifact-sticky-nav.collapsed { top: 68px; }
+  .home-artifact-sticky-mini { max-width: calc(100vw - 42px); min-height: 34px; padding: 0 12px; }
+  .home-artifact-sticky-mini-title { font-size: .66rem; }
+  .home-artifact-sticky-mini-current { font-size: .6rem; }
+  .home-artifact-nav-title { gap: 5px; font-size: .7rem; }
+  .home-artifact-nav-title text:last-child { font-size: .58rem; }
+  .home-artifact-nav-btn { height: 26px; padding: 0 8px; font-size: .6rem; }
   .home-ai-main { padding: 7px 9px; gap: 4px; border-radius: 15px; }
   .home-ai-input { min-height: 34px; max-height: 50px; font-size: 0.84rem; padding: 3px 4px 0; }
   .home-ai-toolbar { grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr) 72px 72px 28px; gap: 3px; overflow: visible; box-sizing: border-box; }

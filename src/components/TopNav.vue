@@ -3,7 +3,7 @@
     <!-- 顶部固定导航 — 两行结构 -->
     <nav class="topnav topnav-solid">
       <!-- 单行：☰ + 按钮栏 + 右侧 -->
-      <view class="topnav-sidebar-btn" id="topnavSidebarBtn" onclick="window._xc_toggleSidebar(event)" ontouchstart="window._xc_toggleSidebar(event)" onpointerdown="window._xc_toggleSidebar(event)">☰</view>
+      <view class="topnav-sidebar-btn" id="topnavSidebarBtn">☰</view>
       <view class="nav-btn-bar" id="navBtnBar">
         <view class="nav-btn" data-href="#/?app=1" @click="goAsync('#/?app=1', $event)">时安agent</view>
 
@@ -41,7 +41,7 @@
            <view class="nav-avatar-trigger nav-avatar-trigger-global" id="avatarGlobalTrigger">
              <view class="nav-avatar-inner">
                <image v-if="avatarUrl" class="nav-avatar-img" :src="avatarUrl" mode="aspectFill" @error="onAvatarError"></image>
-              <text v-else class="nav-avatar-text">{{ avatarLetter }}</text>
+              <text v-else class="nav-avatar-text">{{ avatarLetter || '我' }}</text>
              </view>
            </view>
            <view class="nav-avatar-dropdown" id="avatarDropdown">
@@ -201,7 +201,12 @@ function ensureGlobalSidebar() {
   sidebar.setAttribute('aria-hidden', 'true')
   sidebar.innerHTML = '<div class="sidebar-brand"><span class="sidebar-brand-icon-wrap"><img class="sidebar-brand-icon" src="/static/images/logo.svg?v=7"></span><span class="sidebar-brand-name">时安解忧屋</span></div>'
     + '<div class="sidebar-header"><span class="sidebar-title">对话历史</span><button class="sidebar-new-chat-btn" id="sidebarNewChatBtn" type="button" onclick="window._xc_startNewConversation(\'comprehensive\')">新对话</button></div>'
-    + '<div class="sidebar-tabs"><span class="sidebar-tab active" id="sidebarTabFlat" onclick="window._xc_setSidebarView(\'flat\')">全部</span></div>'
+    + '<div class="sidebar-tabs">'
+    + '<span class="sidebar-tab active" data-sidebar-view="all" id="sidebarTabFlat" onclick="window._xc_setSidebarView(\'all\')">全部</span>'
+    + '<span class="sidebar-tab" data-sidebar-view="today" onclick="window._xc_setSidebarView(\'today\')">今天</span>'
+    + '<span class="sidebar-tab" data-sidebar-view="favorite" onclick="window._xc_setSidebarView(\'favorite\')">收藏</span>'
+    + '<span class="sidebar-tab" data-sidebar-view="archived" onclick="window._xc_setSidebarView(\'archived\')">已归档</span>'
+    + '</div>'
     + '<div class="sidebar-content" id="sidebarListGlobal"><div class="sidebar-empty">加载中...</div></div>'
     + '<div class="sidebar-detail" id="sidebarDetailGlobal" style="display:none;">'
     + '<div class="sidebar-detail-back" onclick="window._xc_backToSidebarList()">← 返回</div>'
@@ -225,11 +230,160 @@ function ensureGlobalSidebar() {
 
   document.body.appendChild(overlay)
   document.body.appendChild(sidebar)
+  ensureHistoryDeleteConfirm()
   _bindSidebarScrollIsolation(sidebar)
   _bindSidebarListInteractions(sidebar)
   _restoreSidebarView()
   var cachedAvatar = normalizeAvatarUrl(uni.getStorageSync('xc_avatar'))
   applySidebarAvatar(isLocalUploadAvatar(cachedAvatar) ? '' : cachedAvatar, false)
+}
+
+var _sidebarPendingDelete = null
+var _sidebarDeleteBusy = false
+
+function ensureHistoryDeleteConfirm() {
+  var existing = document.getElementById('historyDeleteConfirmGlobal')
+  if (existing && existing.parentNode) existing.parentNode.removeChild(existing)
+  var overlay = document.createElement('div')
+  overlay.className = 'history-delete-overlay'
+  overlay.id = 'historyDeleteConfirmGlobal'
+  overlay.setAttribute('aria-hidden', 'true')
+  overlay.innerHTML = '<div class="history-delete-panel" role="dialog" aria-modal="true" aria-labelledby="historyDeleteTitle">'
+    + '<div class="history-delete-head">'
+    + '<span class="history-delete-mark">!</span>'
+    + '<span class="history-delete-copy"><span class="history-delete-title" id="historyDeleteTitle">删除对话历史</span><span class="history-delete-desc">确定删除这条对话记录吗？删除后将无法在历史列表中找回。</span></span>'
+    + '<button class="history-delete-close" type="button" id="historyDeleteClose" aria-label="关闭">×</button>'
+    + '</div>'
+    + '<div class="history-delete-body">'
+    + '<div class="history-delete-row"><span>对话</span><strong id="historyDeleteName">历史记录</strong></div>'
+    + '<div class="history-delete-row"><span>时间</span><strong id="historyDeleteTime">暂无</strong></div>'
+    + '<label class="history-delete-check"><input id="historyDeleteNoRemind" type="checkbox"><span>本次之后不再提醒</span></label>'
+    + '<div class="history-delete-error" id="historyDeleteError"></div>'
+    + '</div>'
+    + '<div class="history-delete-actions">'
+    + '<button class="history-delete-btn secondary" type="button" id="historyDeleteCancel">取消</button>'
+    + '<button class="history-delete-btn danger" type="button" id="historyDeleteConfirm">删除</button>'
+    + '</div>'
+    + '</div>'
+  overlay.addEventListener('click', function(e) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation()
+    if (e.target === overlay) _closeHistoryDeleteConfirm()
+  })
+  document.body.appendChild(overlay)
+  var panel = overlay.querySelector('.history-delete-panel')
+  if (panel) panel.onclick = function(e) { e.stopPropagation() }
+  document.getElementById('historyDeleteClose').onclick = _closeHistoryDeleteConfirm
+  document.getElementById('historyDeleteCancel').onclick = _closeHistoryDeleteConfirm
+  document.getElementById('historyDeleteConfirm').onclick = _confirmHistoryDelete
+}
+
+function _closeHistoryDeleteConfirm() {
+  if (_sidebarDeleteBusy) return
+  var overlay = document.getElementById('historyDeleteConfirmGlobal')
+  if (overlay) {
+    overlay.classList.remove('open')
+    overlay.setAttribute('aria-hidden', 'true')
+  }
+  _sidebarPendingDelete = null
+  var err = document.getElementById('historyDeleteError')
+  if (err) err.textContent = ''
+}
+
+function _showHistoryDeleteSuccessToast() {
+  try {
+    var old = document.getElementById('historyDeleteToast')
+    if (old && old.parentNode) old.parentNode.removeChild(old)
+    var toast = document.createElement('div')
+    toast.className = 'history-delete-toast'
+    toast.id = 'historyDeleteToast'
+    toast.setAttribute('role', 'status')
+    toast.setAttribute('aria-live', 'polite')
+    toast.textContent = '已删除'
+    document.body.appendChild(toast)
+    setTimeout(function() { toast.classList.add('show') }, 16)
+    setTimeout(function() {
+      toast.classList.remove('show')
+      setTimeout(function() {
+        if (toast.parentNode) toast.parentNode.removeChild(toast)
+      }, 180)
+    }, 1500)
+  } catch (_) {
+    try { uni.showToast({ title: '已删除', icon: 'success' }) } catch (__) {}
+  }
+}
+
+function _openHistoryDeleteConfirm(record, el) {
+  if (!record) return
+  if (localStorage.getItem('xc_no_delete_confirm') === '1') {
+    var directTarget = _sidebarDeleteTarget(record)
+    window._xc_deleteHistoryItem(directTarget.appType, directTarget.realId, el, null, directTarget.url)
+    return
+  }
+  ensureHistoryDeleteConfirm()
+  var target = _sidebarDeleteTarget(record)
+  _sidebarPendingDelete = {
+    appType: target.appType,
+    realId: target.realId,
+    url: target.url,
+    el: el,
+    title: record.question || '历史记录',
+    time: _formatSidebarTime(record.created_at) || '暂无'
+  }
+  var nameEl = document.getElementById('historyDeleteName')
+  var timeEl = document.getElementById('historyDeleteTime')
+  var checkEl = document.getElementById('historyDeleteNoRemind')
+  var err = document.getElementById('historyDeleteError')
+  if (nameEl) nameEl.textContent = _sidebarPendingDelete.title
+  if (timeEl) timeEl.textContent = _sidebarPendingDelete.time
+  if (checkEl) checkEl.checked = false
+  if (err) err.textContent = ''
+  var overlay = document.getElementById('historyDeleteConfirmGlobal')
+  if (overlay) {
+    overlay.classList.add('open')
+    overlay.setAttribute('aria-hidden', 'false')
+  }
+}
+
+function _confirmHistoryDelete() {
+  if (!_sidebarPendingDelete || _sidebarDeleteBusy) return
+  var pending = _sidebarPendingDelete
+  var btn = document.getElementById('historyDeleteConfirm')
+  var err = document.getElementById('historyDeleteError')
+  var checkEl = document.getElementById('historyDeleteNoRemind')
+  _sidebarDeleteBusy = true
+  if (btn) {
+    btn.textContent = '删除'
+    btn.classList.add('loading')
+    btn.setAttribute('disabled', 'disabled')
+    btn.setAttribute('aria-busy', 'true')
+  }
+  if (err) err.textContent = ''
+  if (checkEl && checkEl.checked) localStorage.setItem('xc_no_delete_confirm', '1')
+  window._xc_deleteHistoryItem(pending.appType, pending.realId, pending.el, {
+    success: function() {
+      _sidebarDeleteBusy = false
+      if (btn) {
+        btn.textContent = '删除'
+        btn.classList.remove('loading')
+        btn.removeAttribute('disabled')
+        btn.removeAttribute('aria-busy')
+      }
+      _closeHistoryDeleteConfirm()
+      _showHistoryDeleteSuccessToast()
+    },
+    fail: function(message) {
+      _sidebarDeleteBusy = false
+      if (btn) {
+        btn.textContent = '删除'
+        btn.classList.remove('loading')
+        btn.removeAttribute('disabled')
+        btn.removeAttribute('aria-busy')
+      }
+      if (err) err.textContent = message || '删除失败，请重试'
+    }
+  }, pending.url)
 }
 
 onMounted(function() {
@@ -256,8 +410,6 @@ onMounted(function() {
       toggleSidebar()
     }
     document.addEventListener('click', handleSidebarNav, true)
-    document.addEventListener('touchstart', handleSidebarNav, true)
-    document.addEventListener('pointerdown', handleSidebarNav, true)
   }
 
   // 获取可见弹窗的辅助函数 — 兼容 uni-app H5 页面结构
@@ -414,10 +566,11 @@ onMounted(function() {
       uni.request({ url: '/api/register', method: 'POST', data: { username: u, password: p } }).then(function(res) {
         var d = res.data
         if (d.error) { if (e) e.textContent = d.error; return }
-        uni.setStorageSync('xc_token', 'session'); uni.setStorageSync('xc_user', d.username || u); uni.setStorageSync('xc_has_password', '1')
+        uni.setStorageSync('xc_token', 'session')
+        var nextUser = cacheAuthUser(d, u)
         window._openLoginModal_Close()
         uni.showToast({ title: '注册成功', icon: 'success' })
-        setTimeout(function() { applyLoginSuccess() }, 120)
+        setTimeout(function() { applyLoginSuccess(nextUser) }, 120)
       }).catch(function() { if (e) e.textContent = '网络错误' })
     }
     window._xc_switchToLogin = function() {
@@ -503,11 +656,10 @@ onMounted(function() {
         var d = res.data
         if (d.error) { if (e) e.textContent = d.error; return }
         uni.setStorageSync('xc_token', 'session')
-        uni.setStorageSync('xc_user', d.username || account)
-        uni.setStorageSync('xc_has_password', d.has_password !== false ? '1' : '0')
+        var nextUser = cacheAuthUser(d, account)
         window._openLoginModal_Close()
         uni.showToast({ title: '登录成功', icon: 'success' })
-        applyLoginSuccess()
+        applyLoginSuccess(nextUser)
       }).catch(function() { if (e) e.textContent = '网络错误' })
     }
     // 通用验证码发送（邮箱登录/找回密码共用）
@@ -663,6 +815,133 @@ if (!window.__sidebarTypes) {
 }
 var _groupRecords = window.__sidebarTypes.groupRecords
 var _escHtml = window.__sidebarTypes.escHtml
+var SIDEBAR_STATE_KEY = 'xc_sidebar_record_state'
+
+function _emptySidebarState() {
+  return { favorite: {}, pinned: {}, archived: {} }
+}
+
+function _loadSidebarState() {
+  try {
+    var raw = localStorage.getItem(SIDEBAR_STATE_KEY)
+    var parsed = raw ? JSON.parse(raw) : {}
+    return {
+      favorite: parsed.favorite || {},
+      pinned: parsed.pinned || {},
+      archived: parsed.archived || {}
+    }
+  } catch(_) {
+    return _emptySidebarState()
+  }
+}
+
+function _saveSidebarState(state) {
+  try { localStorage.setItem(SIDEBAR_STATE_KEY, JSON.stringify(state || _emptySidebarState())) } catch(_) {}
+}
+
+function _recordRealId(r) {
+  return r._comprehensiveConvId || r._tarotConvId || r._lyConvId || r._mhConvId || r._qaiConvId || r._baziConvId || r._zwConvId || r.id
+}
+
+function _sidebarDeleteTarget(r) {
+  if (r && r._comprehensiveConvId) return { appType: 'comprehensive', realId: r._comprehensiveConvId, url: '/api/comprehensive/conversations/' + r._comprehensiveConvId }
+  if (r && r._tarotConvId) return { appType: 'tarot', realId: r._tarotConvId, url: '/api/tarot/conversations/' + r._tarotConvId }
+  if (r && r._lyConvId) return { appType: 'liuyao', realId: r._lyConvId, url: '/api/liuyao/conversations/' + r._lyConvId }
+  if (r && r._mhConvId) return { appType: 'meihua', realId: r._mhConvId, url: '/api/meihua/conversations/' + r._mhConvId }
+  if (r && r._qaiConvId) return { appType: 'qimen', realId: r._qaiConvId, url: '/api/qimen/conversations/' + r._qaiConvId }
+  if (r && r._baziConvId) return { appType: 'bazi', realId: r._baziConvId, url: '/api/bazi/conversations/' + r._baziConvId }
+  if (r && r._zwConvId) return { appType: 'ziwei', realId: r._zwConvId, url: '/api/ziwei/conversations/' + r._zwConvId }
+  return { appType: (r && r.app_type) || 'record', realId: r && r.id, url: '/api/records/' + (r && r.id) }
+}
+
+function _sidebarRecordKey(r) {
+  return (r.app_type || 'record') + ':' + String(_recordRealId(r) || r.id || '')
+}
+
+function _sidebarTypeLabel(appType) {
+  var map = {
+    comprehensive: '问',
+    qimen: '奇',
+    paipan: '八字',
+    bazi: '八字',
+    liuyao: '六爻',
+    meihua: '梅',
+    ziwei: '紫',
+    taluo: '塔',
+    tarot: '塔'
+  }
+  return map[appType || ''] || '问'
+}
+
+function _escAttr(value) {
+  return _escHtml(String(value || '')).replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+}
+
+function _sidebarDateParts(createdAt) {
+  var t = new Date(createdAt)
+  if (!createdAt || isNaN(t.getTime())) return null
+  var local = new Date(t.getTime() + 8 * 60 * 60 * 1000)
+  return {
+    y: local.getUTCFullYear(),
+    m: local.getUTCMonth(),
+    d: local.getUTCDate(),
+    hh: ('0' + local.getUTCHours()).slice(-2),
+    mm: ('0' + local.getUTCMinutes()).slice(-2)
+  }
+}
+
+function _sameSidebarDay(a, b) {
+  return !!a && !!b && a.y === b.y && a.m === b.m && a.d === b.d
+}
+
+function _sidebarDayStart(parts) {
+  return parts ? Date.UTC(parts.y, parts.m, parts.d) : 0
+}
+
+function _isTodaySidebarRecord(r) {
+  return _sameSidebarDay(_sidebarDateParts(r.created_at), _sidebarDateParts(new Date().toISOString()))
+}
+
+function _isThisWeekSidebarRecord(r) {
+  var current = _sidebarDateParts(new Date().toISOString())
+  var parts = _sidebarDateParts(r.created_at)
+  if (!current || !parts) return false
+  var ageDays = Math.floor((_sidebarDayStart(current) - _sidebarDayStart(parts)) / 86400000)
+  return ageDays > 0 && ageDays <= 7
+}
+
+function _buildSidebarSections(records, view) {
+  var state = _loadSidebarState()
+  var list = (records || []).slice().filter(function(r) {
+    var key = _sidebarRecordKey(r)
+    var archived = !!state.archived[key]
+    if (view === 'archived') return archived
+    if (archived) return false
+    if (view === 'favorite') return !!state.favorite[key]
+    if (view === 'today') return _isTodaySidebarRecord(r)
+    return true
+  })
+  list.sort(function(a, b) { return (b.created_at || '').localeCompare(a.created_at || '') })
+
+  var pinned = []
+  var today = []
+  var week = []
+  var earlier = []
+  list.forEach(function(r) {
+    var key = _sidebarRecordKey(r)
+    if (view !== 'archived' && state.pinned[key]) pinned.push(r)
+    else if (_isTodaySidebarRecord(r)) today.push(r)
+    else if (_isThisWeekSidebarRecord(r)) week.push(r)
+    else earlier.push(r)
+  })
+
+  var sections = []
+  if (pinned.length) sections.push({ key: 'pinned', label: '置顶', records: pinned })
+  if (today.length) sections.push({ key: 'today', label: '今天', records: today })
+  if (week.length) sections.push({ key: 'week', label: '本周', records: week })
+  if (earlier.length) sections.push({ key: 'earlier', label: view === 'archived' ? '已归档' : '更早', records: earlier })
+  return sections
+}
 
 function _loadSidebarUserPanel() {
   var loggedEl = document.getElementById('sidebarUserLogged')
@@ -708,6 +987,9 @@ function toggleSidebar() {
     var s = document.getElementById('tarotSidebarGlobal')
     var target = e && e.target
     if (target && target.closest && target.closest('#topnavSidebarBtn')) return
+    if (target && target.closest && target.closest('.history-delete-overlay')) return
+    var deleteOverlay = document.getElementById('historyDeleteConfirmGlobal')
+    if (deleteOverlay && deleteOverlay.classList.contains('open')) return
     if (s && s.classList.contains('open') && !s.contains(target)) {
       e.stopPropagation()
       var ov = document.getElementById('sidebarOverlayGlobal')
@@ -731,7 +1013,7 @@ function toggleSidebar() {
   var now = Date.now()
   if (window.__sidebarCache && (now - window.__sidebarCache.ts) < 30000) {
     _restoreSidebarView()
-    window._xc_setSidebarView('flat')
+    window._xc_setSidebarView()
     return
   }
   listEl.innerHTML = '<div class="sidebar-empty">加载中...</div>'
@@ -763,9 +1045,9 @@ function toggleSidebar() {
     if (!allRecords.length) { listEl.innerHTML = '<div class="sidebar-empty">暂无历史记录</div>'; return }
     var groups = _groupRecords(allRecords)
     window.__sidebarCache = { ts: Date.now(), groups: groups, flat: allRecords }
-    // 对话历史只保留全部视图。
+    // 对话历史按置顶和时间分组，筛选状态由本地侧栏状态控制。
     _restoreSidebarView()
-    window._xc_setSidebarView('flat')
+    window._xc_setSidebarView()
   }
   uni.request({ url: '/api/records?per_page=50', method: 'GET', success: function(res) {
     allRecords = res.data.records || []; recordsLoaded = true; _renderMerged()
@@ -817,6 +1099,18 @@ function _renderSidebarGroups(groups, listEl) {
   listEl.innerHTML = h
 }
 
+function _renderSidebarSections(sections, listEl) {
+  var h = ''
+  sections.forEach(function(section) {
+    h += '<div class="sidebar-section" data-section="' + section.key + '">'
+      + '<div class="sidebar-section-header"><span class="sidebar-section-label">' + section.label + '</span><span class="sidebar-section-count">' + section.records.length + '</span></div>'
+      + '<div class="sidebar-section-items">'
+    section.records.forEach(function(r) { h += _renderSidebarItem(r) })
+    h += '</div></div>'
+  })
+  listEl.innerHTML = h || '<div class="sidebar-empty">暂无历史记录</div>'
+}
+
 function _renderNewConversationItem(type, label) {
   var text = '＋ 新对话'
   if (label) text += ' · ' + _escHtml(label)
@@ -831,8 +1125,14 @@ function _renderNewConversationItem(type, label) {
 function _renderSidebarItem(r) {
   var time = _formatSidebarTime(r.created_at)
   var text = _escHtml(r.question || '(无问题)')
-  var realId = r._comprehensiveConvId || r._tarotConvId || r._lyConvId || r._mhConvId || r._qaiConvId || r._baziConvId || r._zwConvId || r.id
+  var realId = _recordRealId(r)
   var appType = r.app_type || ''
+  var state = _loadSidebarState()
+  var key = _sidebarRecordKey(r)
+  var isFavorite = !!state.favorite[key]
+  var isPinned = !!state.pinned[key]
+  var isArchived = !!state.archived[key]
+  var stateClass = (isFavorite ? ' is-favorite' : '') + (isPinned ? ' is-pinned' : '') + (isArchived ? ' is-archived' : '')
   var clickAction = function() {
     if (r._comprehensiveConvId) window._showComprehensiveConv(r._comprehensiveConvId)
     else if (r._tarotConvId) window._showTarotConv(r._tarotConvId)
@@ -849,16 +1149,39 @@ function _renderSidebarItem(r) {
     else window._showHistoryDetail(r.id)
   }
   var clickActionId = _registerSidebarAction(clickAction)
-  var deleteActionId = _registerSidebarAction(function(el) {
-    if (confirm('确定要删除这条记录吗？')) window._xc_deleteHistoryItem(appType, realId, el)
-  })
-  return '<div class="sidebar-item" data-click-action="' + clickActionId + '">'
-    + '<div class="sidebar-item-body">'
-    + '<span class="sidebar-item-text">' + text + '</span>'
+  var favoriteActionId = _registerSidebarAction(function(el) { _toggleSidebarRecordState('favorite', key, el) })
+  var pinActionId = _registerSidebarAction(function(el) { _toggleSidebarRecordState('pinned', key, el) })
+  var archiveActionId = _registerSidebarAction(function(el) { _toggleSidebarRecordState('archived', key, el) })
+  var deleteActionId = _registerSidebarAction(function(el) { _openHistoryDeleteConfirm(r, el) })
+  return '<div class="sidebar-item' + stateClass + '" data-click-action="' + clickActionId + '" data-sidebar-key="' + _escAttr(key) + '">'
+    + '<span class="sidebar-item-badge">' + _escHtml(_sidebarTypeLabel(appType)) + '</span>'
+    + '<div class="sidebar-item-main">'
+    + '<span class="sidebar-item-text" title="' + _escAttr(r.question || '(无问题)') + '">' + text + '</span>'
+    + '</div>'
+    + '<span class="sidebar-item-trail">'
     + '<span class="sidebar-item-time">' + time + '</span>'
+    + '<span class="sidebar-item-actions">'
+    + _renderSidebarActionButton(favoriteActionId, isFavorite ? '★' : '☆', isFavorite ? '取消收藏' : '收藏', isFavorite ? ' active' : '')
+    + _renderSidebarActionButton(pinActionId, '⌖', isPinned ? '取消置顶' : '置顶', isPinned ? ' active' : '')
+    + _renderSidebarActionButton(archiveActionId, '▤', isArchived ? '取消归档' : '归档', isArchived ? ' active' : '')
+    + _renderSidebarActionButton(deleteActionId, '×', '删除', ' danger')
+    + '</span></span>'
     + '</div>'
-    + '<span class="sidebar-item-del" data-delete-action="' + deleteActionId + '" title="删除">✕</span>'
-    + '</div>'
+}
+
+function _renderSidebarActionButton(actionId, label, title, extraClass) {
+  return '<button class="sidebar-item-action' + (extraClass || '') + '" type="button" data-sidebar-action="' + actionId + '" title="' + _escAttr(title) + '" aria-label="' + _escAttr(title) + '">' + label + '</button>'
+}
+
+function _toggleSidebarRecordState(bucket, key) {
+  var state = _loadSidebarState()
+  if (!state[bucket]) state[bucket] = {}
+  if (state[bucket][key]) delete state[bucket][key]
+  else state[bucket][key] = 1
+  _saveSidebarState(state)
+  if (window.__sidebarCache && window.__sidebarCache.flat) {
+    window._xc_setSidebarView()
+  }
 }
 
 function _registerSidebarAction(fn) {
@@ -941,6 +1264,13 @@ function _bindSidebarListInteractions(sidebar) {
 
 function _handleSidebarActionEvent(e) {
   var target = e.target
+  var action = target && target.closest ? target.closest('[data-sidebar-action]') : null
+  if (action) {
+    e.preventDefault()
+    e.stopPropagation()
+    _runSidebarAction(action.getAttribute('data-sidebar-action'), action)
+    return
+  }
   var del = target && target.closest ? target.closest('[data-delete-action]') : null
   if (del) {
     e.preventDefault()
@@ -1032,12 +1362,16 @@ window._showComprehensiveConv = function(cid) {
     window._xc_toggleSidebar()
     try { sessionStorage.setItem('xc_comprehensive_resume_id', String(d.id)) } catch(_) {}
     var restore = function() {
+      _forceAgentHomeMode()
       setTimeout(function() {
+        _forceAgentHomeMode()
         if (window._xc_restoreComprehensive) window._xc_restoreComprehensive(d.id)
       }, 200)
+      setTimeout(_forceAgentHomeMode, 450)
     }
-    uni.switchTab({ url: '/pages/index/index', success: restore, fail: restore })
+    go('#/?app=1')
     restore()
+    setTimeout(restore, 320)
   }, fail: function() { uni.showToast({ title: '加载失败', icon: 'none' }) } })
 }
 
@@ -1065,7 +1399,10 @@ window._xc_startNewConversation = function(type) {
   window._xc_toggleSidebar()
 
   function runReset() {
-    if (t === 'comprehensive' && window._xc_newComprehensive) window._xc_newComprehensive()
+    if (t === 'comprehensive') {
+      _forceAgentHomeMode()
+      if (window._xc_newComprehensive) window._xc_newComprehensive()
+    }
     else if ((t === 'bazi' || t === 'paipan') && window._xc_newBazi) window._xc_newBazi()
     else if (t === 'qimen' && window._xc_newQimen) window._xc_newQimen()
     else if (t === 'liuyao' && window._xc_newLiuyao) window._xc_newLiuyao()
@@ -1074,10 +1411,20 @@ window._xc_startNewConversation = function(type) {
     else if ((t === 'tarot' || t === 'taluo') && window._xc_newTarot) window._xc_newTarot()
   }
 
+  if (t === 'comprehensive') {
+    go('#/?app=1')
+    setTimeout(runReset, 80)
+    setTimeout(runReset, 250)
+    setTimeout(runReset, 650)
+    return
+  }
+
   uni.switchTab({ url: route, success: function() {
+    if (t === 'comprehensive') _forceAgentHomeMode()
     setTimeout(runReset, 250)
     setTimeout(runReset, 650)
   }, fail: function() {
+    if (t === 'comprehensive') _forceAgentHomeMode()
     setTimeout(runReset, 250)
   }})
   setTimeout(runReset, 80)
@@ -1098,6 +1445,19 @@ function _isOnPage(route) {
   // 使用 location.hash 判断当前页面（比 getCurrentPages 在 H5 tabBar 下更可靠）
   try { return location.hash.indexOf(route) !== -1 } catch(e) {}
   return false
+}
+
+function _forceAgentHomeMode() {
+  try {
+    window.__xcHomeMode = 'app'
+    if (window.__xcRenderTabPath) window.__xcRenderTabPath('/', '?app=1')
+    document.documentElement.classList.add('home-fixed-page')
+    document.body.classList.add('home-fixed-page')
+    document.documentElement.classList.remove('marketing-page', 'marketing-android', 'marketing-wheel-scroll')
+    document.body.classList.remove('marketing-page', 'marketing-android', 'marketing-wheel-scroll')
+    if (window.location.hash !== '#/?app=1') window.history.replaceState({ app: 'home' }, '', '#/?app=1')
+    window.dispatchEvent(new CustomEvent('xc-home-mode-changed', { detail: { mode: 'app' } }))
+  } catch(_) {}
 }
 
 // 六爻对话查看 — 跳转到六爻页面恢复对话
@@ -1238,48 +1598,43 @@ window._showZwConvDetail = function(cid) {
   }, fail: function() { uni.showToast({ title: '加载失败', icon: 'none' }) } })
 }
 
-// 对话历史只保留全部视图。
 function _restoreSidebarView() {
-  var flatTab = document.getElementById('sidebarTabFlat')
-  if (flatTab) flatTab.classList.add('active')
-  try { localStorage.setItem('xc_sidebar_view', 'flat') } catch(_) {}
+  var view = 'all'
+  try { view = localStorage.getItem('xc_sidebar_view') || 'all' } catch(_) {}
+  if (view === 'flat') view = 'all'
+  document.querySelectorAll('.sidebar-tab[data-sidebar-view]').forEach(function(tab) {
+    tab.classList.toggle('active', tab.getAttribute('data-sidebar-view') === view)
+  })
 }
 
-// 侧边栏视图切换：保留兼容入口，统一渲染全部。
-window._xc_setSidebarView = function() {
-  var flatTab = document.getElementById('sidebarTabFlat')
+window._xc_setSidebarView = function(view) {
   var listEl = document.getElementById('sidebarListGlobal')
-  if (!flatTab || !listEl) return
+  if (!listEl) return
   var cache = window.__sidebarCache
   if (!cache || !cache.flat) return
-  try { localStorage.setItem('xc_sidebar_view', 'flat') } catch(_) {}
-  flatTab.classList.add('active')
-  var flat = cache.flat || []
-  flat.sort(function(a, b) { return (b.created_at || '').localeCompare(a.created_at || '') })
-  var h = ''
-  flat.forEach(function(r) {
-    h += _renderSidebarItem(r)
+  if (!view) {
+    try { view = localStorage.getItem('xc_sidebar_view') || 'all' } catch(_) { view = 'all' }
+  }
+  if (view === 'flat') view = 'all'
+  if (['all', 'today', 'favorite', 'archived'].indexOf(view) === -1) view = 'all'
+  try { localStorage.setItem('xc_sidebar_view', view) } catch(_) {}
+  document.querySelectorAll('.sidebar-tab[data-sidebar-view]').forEach(function(tab) {
+    tab.classList.toggle('active', tab.getAttribute('data-sidebar-view') === view)
   })
-  if (!flat.length) h = '<div class="sidebar-empty">暂无历史记录</div>'
-  listEl.innerHTML = h
+  var flat = cache.flat || []
+  _renderSidebarSections(_buildSidebarSections(flat, view), listEl)
 }
 
 function _formatSidebarTime(created_at) {
   if (!created_at) return ''
-  var t = new Date(created_at)
-  if (isNaN(t.getTime())) return ''
-  var offset = 8 * 60
-  var local = new Date(t.getTime() + offset * 60 * 1000)
-  var y = local.getUTCFullYear()
-  var M = ('0' + (local.getUTCMonth() + 1)).slice(-2)
-  var d = ('0' + local.getUTCDate()).slice(-2)
-  var hh = ('0' + local.getUTCHours()).slice(-2)
-  var mm = ('0' + local.getUTCMinutes()).slice(-2)
-  return y + '-' + M + '-' + d + ' ' + hh + ':' + mm
+  var parts = _sidebarDateParts(created_at)
+  if (!parts) return ''
+  if (_sameSidebarDay(parts, _sidebarDateParts(new Date().toISOString()))) return parts.hh + ':' + parts.mm
+  return ('0' + (parts.m + 1)).slice(-2) + '-' + ('0' + parts.d).slice(-2)
 }
 
 // 删除历史记录项（支持 records/tarot/liuyao/meihua/qimen）
-window._xc_deleteHistoryItem = function(appType, realId, el) {
+window._xc_deleteHistoryItem = function(appType, realId, el, hooks, explicitUrl) {
   if (!realId) return
   var urlMap = {
     comprehensive: '/api/comprehensive/conversations/',
@@ -1287,14 +1642,28 @@ window._xc_deleteHistoryItem = function(appType, realId, el) {
     liuyao: '/api/liuyao/conversations/',
     meihua: '/api/meihua/conversations/',
     qimen: '/api/qimen/conversations/',
-    bazi: '/api/bazi/conversations/'
+    bazi: '/api/bazi/conversations/',
+    ziwei: '/api/ziwei/conversations/'
   }
-  var url = urlMap[appType] || '/api/records/'
+  var url = explicitUrl || ((urlMap[appType] || '/api/records/') + realId)
   var sidebarItem = el && el.closest ? el.closest('.sidebar-item') : null
-  uni.request({ url: url + realId, method: 'DELETE', success: function() {
+  uni.request({ url: url, method: 'DELETE', success: function(res) {
+    var data = res && res.data
+    if ((res && res.statusCode && res.statusCode >= 400) || (data && data.error)) {
+      var message = (data && data.error) || '删除失败，请重试'
+      if (hooks && hooks.fail) hooks.fail(message)
+      else uni.showToast({ title: message, icon: 'none' })
+      return
+    }
     if (sidebarItem) sidebarItem.remove()
     window.__sidebarCache = null
-  }, fail: function(err) { console.error('删除失败:', err) }})
+    if (hooks && hooks.success) hooks.success()
+    else _showHistoryDeleteSuccessToast()
+  }, fail: function(err) {
+    console.error('删除失败:', err)
+    if (hooks && hooks.fail) hooks.fail('删除失败，请重试')
+    else uni.showToast({ title: '删除失败', icon: 'none' })
+  }})
 }
 
 // 历史详情弹窗（在侧边栏内展开）
@@ -1321,6 +1690,33 @@ function onAvatarError() {
   avatarUrl.value = ''
   applySidebarAvatar('', false)
 }
+function cacheAuthUser(data, fallbackName) {
+  var d = data || {}
+  var username = String(d.username || d.nickname || fallbackName || '用户').trim() || '用户'
+  var user = {
+    username: username,
+    id: d.id || '',
+    email: d.email || '',
+    phone: d.phone || ''
+  }
+  avatarLetter.value = username.charAt(0).toUpperCase()
+  try {
+    uni.setStorageSync('xc_user', user)
+    if (user.id) uni.setStorageSync('xc_user_id', user.id)
+    else uni.removeStorageSync('xc_user_id')
+    uni.setStorageSync('xc_has_password', d.has_password !== false ? '1' : '0')
+  } catch(_) {}
+  var nextAvatar = normalizeAvatarUrl(d.avatar)
+  if (nextAvatar) {
+    avatarUrl.value = nextAvatar
+    try { uni.setStorageSync('xc_avatar', nextAvatar) } catch(_) {}
+  } else {
+    avatarUrl.value = ''
+    try { uni.removeStorageSync('xc_avatar') } catch(_) {}
+  }
+  applySidebarAvatar(nextAvatar, !!nextAvatar)
+  return user
+}
 function loadAvatar() {
   if (!localLoggedIn.value) return
   var cachedUser = uni.getStorageSync('xc_user')
@@ -1344,11 +1740,7 @@ function loadAvatar() {
     var d = res.data
     if (d && d.guest) {
     } else if (d && d.username) {
-      avatarLetter.value = d.username.charAt(0).toUpperCase()
-      var nextAvatar = normalizeAvatarUrl(d.avatar)
-      if (nextAvatar) { avatarUrl.value = nextAvatar; uni.setStorageSync('xc_avatar', nextAvatar) }
-      else { avatarUrl.value = ''; uni.removeStorageSync('xc_avatar') }
-      applySidebarAvatar(nextAvatar, !!nextAvatar)
+      cacheAuthUser(d, d.username)
       document.querySelectorAll('#avatarAdminEntry').forEach(function(el) {
         el.style.display = d.is_admin ? '' : 'none'
       })
@@ -1369,15 +1761,15 @@ function loadPointsSummary() {
   }).catch(function() {})
 }
 
-function applyLoginSuccess() {
+function applyLoginSuccess(user) {
   localLoggedIn.value = true
   _avatarInstanceLoaded = false
   pointsLoaded = false
   loadAvatar()
   loadPointsSummary()
   try { _loadSidebarUserPanel() } catch(_) {}
-  try { window.dispatchEvent(new CustomEvent('xc-auth-changed', { detail: { loggedIn: true } })) } catch(_) {}
-  try { uni.$emit('xc-auth-changed', { loggedIn: true }) } catch(_) {}
+  try { window.dispatchEvent(new CustomEvent('xc-auth-changed', { detail: { loggedIn: true, user: user || uni.getStorageSync('xc_user') } })) } catch(_) {}
+  try { uni.$emit('xc-auth-changed', { loggedIn: true, user: user || uni.getStorageSync('xc_user') }) } catch(_) {}
 }
 
 function applyLogoutState() {
@@ -2544,9 +2936,13 @@ body > #navBtnMoreMenu.nav-btn-drop-menu {
 
 /* ═══ 用户头像 ═══ */
 .nav-avatar-wrap { position: relative; display: flex; align-items: center; cursor: pointer; margin-left: 8px; }
-.nav-avatar-inner { width: 38px; height: 38px; border-radius: 50%; overflow: hidden; background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.12); }
+.nav-avatar-inner {
+  width: 38px; height: 38px; border-radius: 50%; overflow: hidden;
+  background: rgba(178,149,93,0.14); display: flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(178,149,93,0.28); box-shadow: inset 0 1px 0 rgba(255,255,255,0.34);
+}
 .nav-avatar-img { width: 100%; height: 100%; object-fit: cover; }
-.nav-avatar-text { font-size: 0.95rem; font-weight: 700; color: var(--text-3); }
+.nav-avatar-text { font-size: 0.95rem; font-weight: 800; color: var(--accent); line-height:1; }
 .nav-avatar-dropdown { position: absolute; top: 100%; right: 0; margin-top: 8px; background: rgba(48, 53, 76, 0.94); border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; padding: 4px 0; min-width: 120px; display: none; box-shadow: 0 8px 32px rgba(0,0,0,0.25); z-index: 200; -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6); }
 [data-theme="light"] .nav-avatar-dropdown { background: rgba(255, 253, 248, 0.94); border: 1px solid rgba(0,0,0,0.07); box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
 .nav-avatar-dropdown.open { display: block; }

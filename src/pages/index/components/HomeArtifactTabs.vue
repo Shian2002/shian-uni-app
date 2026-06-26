@@ -1,5 +1,5 @@
 <template>
-  <view class="home-artifact-switcher">
+  <view class="home-artifact-switcher" :class="{ compact: compact }">
     <view
       class="home-artifact-tab conclusion"
       :class="{ active: summaryActive }"
@@ -28,6 +28,7 @@ defineProps({
   activeKey: { type: String, default: '' },
   summaryActive: { type: Boolean, default: false },
   showSummary: { type: Boolean, default: false },
+  compact: { type: Boolean, default: false },
 })
 
 defineEmits(['select'])
@@ -41,11 +42,34 @@ defineEmits(['select'])
 .home-artifact-tab.conclusion { border-color: rgba(120,150,110,.24); }
 .home-artifact-tab-title { display: block; color: var(--text-1); font-size: .76rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .home-artifact-tab-sub { display: block; margin-top: 3px; color: var(--text-3); font-size: .62rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-artifact-switcher.compact {
+  display: flex;
+  grid-template-columns: none;
+  gap: 6px;
+  margin: 0;
+  padding: 2px 0 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  contain: layout;
+}
+.home-artifact-switcher.compact .home-artifact-tab {
+  flex: 0 0 auto;
+  width: 124px;
+  min-height: 42px;
+  padding: 7px 9px;
+  border-radius: 11px;
+}
+.home-artifact-switcher.compact .home-artifact-tab-title { font-size: .7rem; }
+.home-artifact-switcher.compact .home-artifact-tab-sub { margin-top: 2px; font-size: .56rem; }
 
 @media (max-width: 520px) {
   .home-artifact-switcher { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
   .home-artifact-tab { min-width: 0; max-width: none; padding: 7px 8px; }
   .home-artifact-tab-title { font-size: .7rem; }
   .home-artifact-tab-sub { font-size: .56rem; }
+  .home-artifact-switcher.compact { display: flex; grid-template-columns: none; }
+  .home-artifact-switcher.compact .home-artifact-tab { width: 112px; }
 }
 </style>

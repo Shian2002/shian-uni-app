@@ -180,11 +180,42 @@
         .history-item .hi-del:hover { background: var(--danger); color: #fff; opacity: 1; }
 
         /* 删除确认 */
-        .confirm-box { width: 340px; text-align: center; }
-        .confirm-box p { color: var(--text-2); font-size: 0.875rem; margin-bottom: 16px; line-height: 1.6; }
+        .confirm-box {
+            width: min(430px, calc(100vw - 30px));
+            text-align: left;
+            border-radius: 12px;
+            border-color: color-mix(in srgb, var(--accent) 22%, var(--card-border));
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.72), rgba(255,255,255,0.28)),
+                var(--bg-grad-1);
+            box-shadow: 0 24px 72px rgba(68,45,18,0.18), inset 0 1px 0 rgba(255,255,255,0.72);
+        }
+        [data-theme="dark"] .confirm-box {
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)),
+                rgba(31,29,24,0.94);
+        }
+        .confirm-head { display: flex; align-items: flex-start; gap: 12px; }
+        .confirm-mark {
+            width: 30px; height: 30px; flex: 0 0 30px; border-radius: 50%;
+            display: grid; place-items: center; color: var(--danger);
+            border: 1px solid color-mix(in srgb, var(--danger) 44%, transparent);
+            background: color-mix(in srgb, var(--danger) 10%, transparent);
+            font-weight: 900; line-height: 1;
+        }
+        .confirm-copy { min-width: 0; flex: 1; }
+        .modal-box.confirm-box h3 {
+            margin: 0 0 4px;
+            text-align: left;
+            color: var(--text-1);
+            font-size: 1.02rem;
+            font-weight: 800;
+            letter-spacing: 2px;
+        }
+        .confirm-box p { color: var(--text-3); font-size: 0.78rem; margin-bottom: 16px; line-height: 1.55; }
         .confirm-box .no-remind {
-            display: flex; align-items: center; justify-content: center; gap: 6px;
-            margin-bottom: 18px; font-size: 0.8125rem; color: var(--text-3); cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: flex-start; gap: 8px;
+            margin: 14px 0 0; font-size: 0.76rem; color: var(--text-3); cursor: pointer;
             user-select: none;
         }
         .confirm-box .no-remind input { cursor: pointer; accent-color: var(--accent); }
@@ -266,6 +297,12 @@
             border: 1px solid var(--card-border);
         }
         .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-danger {
+            background: var(--danger);
+            color: #fff8ea;
+            border: 1px solid color-mix(in srgb, var(--danger) 48%, transparent);
+        }
+        .btn-danger:hover { filter: saturate(1.04) brightness(0.98); transform: translateY(-1px); }
         .btn-ghost { background: transparent; color: var(--text-3); }
         .btn-ghost:hover { color: var(--accent); }
         .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }

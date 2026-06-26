@@ -514,8 +514,33 @@ function shouldConfirmDelete(){
     return localStorage.getItem('xc_no_delete_confirm')!=='1';
 }
 
+function ensureDeleteModal(){
+    if($('deleteModal')) return;
+    const overlay=document.createElement('div');
+    overlay.className='modal-overlay';
+    overlay.id='deleteModal';
+    overlay.innerHTML=`<div class="modal-box confirm-box" onclick="event.stopPropagation()">
+        <div class="confirm-head">
+            <span class="confirm-mark">!</span>
+            <div class="confirm-copy">
+                <h3>删除对话历史</h3>
+                <p>确定删除这条对话记录吗？删除后将无法在历史列表中找回。</p>
+            </div>
+        </div>
+        <label class="no-remind"><input type="checkbox" id="noRemindCheck"><span>本次之后不再提醒</span></label>
+        <div class="modal-btns">
+            <button class="btn btn-secondary" id="cancelDeleteBtn" type="button">取消</button>
+            <button class="btn btn-danger" id="confirmDeleteBtn" type="button">删除</button>
+        </div>
+    </div>`;
+    overlay.addEventListener('click',function(){hideModal('deleteModal');pendingDeleteId=null;});
+    document.body.appendChild(overlay);
+    $('cancelDeleteBtn').addEventListener('click',function(){hideModal('deleteModal');pendingDeleteId=null;});
+}
+
 function requestDelete(id){
     if(shouldConfirmDelete()){
+        ensureDeleteModal();
         pendingDeleteId=id;
         $('noRemindCheck').checked=false;
         showModal('deleteModal');
@@ -536,6 +561,7 @@ async function doDelete(id){
 
 // 绑定删除确认按钮
 document.addEventListener('DOMContentLoaded',function(){
+    ensureDeleteModal();
     $('confirmDeleteBtn').addEventListener('click',function(){
         if($('noRemindCheck').checked){
             localStorage.setItem('xc_no_delete_confirm','1');

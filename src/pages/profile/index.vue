@@ -129,6 +129,16 @@
                   <text></text>
                 </view>
               </view>
+              <view class="settings-item guidance-setting-item" @tap="toggleArtifactNavSticky">
+                <text class="settings-item-icon settings-icon-oauth">导</text>
+                <view class="settings-item-main">
+                  <text class="settings-item-label">shian 导航置顶</text>
+                  <text class="settings-item-desc">开启后，阅读长解读时会固定 shian 导航，方便切换综合结论、命盘等结果。</text>
+                </view>
+                <view class="settings-switch" :class="{ active: artifactNavStickyEnabled }">
+                  <text></text>
+                </view>
+              </view>
             </view>
           </view>
 
@@ -191,7 +201,9 @@ const isLoggedIn = ref(!!uni.getStorageSync('xc_token'))
 window.addEventListener('xc-session-expired', function() { resetProfileSessionState() })
 const hasPassword = ref(uni.getStorageSync('xc_has_password') === '1')
 const questionGuidanceStorageKey = 'xc_home_question_guidance_enabled_v1'
+const artifactNavStickyEnabledStorageKey = 'xc_home_artifact_nav_sticky_enabled_v1'
 const questionGuidanceEnabled = ref(readQuestionGuidanceEnabled())
+const artifactNavStickyEnabled = ref(readArtifactNavStickyEnabled())
 const accordionOpen = ref('')
 const accordionInputsCreated = {}
 
@@ -216,10 +228,27 @@ function readQuestionGuidanceEnabled() {
   }
 }
 
+function readArtifactNavStickyEnabled() {
+  try {
+    const raw = uni.getStorageSync(currentUserScopedStorageKey(artifactNavStickyEnabledStorageKey))
+    if (raw === '' || raw === null || typeof raw === 'undefined') return true
+    if (typeof raw === 'boolean') return raw
+    return JSON.parse(raw) !== false
+  } catch(_) {
+    return true
+  }
+}
+
 function toggleQuestionGuidance() {
   questionGuidanceEnabled.value = !questionGuidanceEnabled.value
   uni.setStorageSync(currentUserScopedStorageKey(questionGuidanceStorageKey), JSON.stringify(questionGuidanceEnabled.value))
   uni.showToast({ title: questionGuidanceEnabled.value ? '已开启问事引导' : '已关闭问事引导', icon: 'none' })
+}
+
+function toggleArtifactNavSticky() {
+  artifactNavStickyEnabled.value = !artifactNavStickyEnabled.value
+  uni.setStorageSync(currentUserScopedStorageKey(artifactNavStickyEnabledStorageKey), JSON.stringify(artifactNavStickyEnabled.value))
+  uni.showToast({ title: artifactNavStickyEnabled.value ? '已开启 shian 导航置顶' : '已关闭 shian 导航置顶', icon: 'none' })
 }
 function normalizeAvatarUrl(src) {
   const value = String(src || '').trim()
@@ -495,6 +524,8 @@ async function refreshProfileSessionState() {
 
 function onProfileAuthChanged(event) {
   const detail = event && event.detail ? event.detail : {}
+  artifactNavStickyEnabled.value = readArtifactNavStickyEnabled()
+  questionGuidanceEnabled.value = readQuestionGuidanceEnabled()
   if (detail.type === 'logout' || detail.loggedIn === false) {
     resetProfileSessionState()
     return
@@ -1078,6 +1109,7 @@ onMounted(() => {
 
 onShow(function() {
   questionGuidanceEnabled.value = readQuestionGuidanceEnabled()
+  artifactNavStickyEnabled.value = readArtifactNavStickyEnabled()
   refreshProfileSessionState()
 })
 

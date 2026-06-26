@@ -6,6 +6,7 @@ set -euo pipefail
 BASE_URL="${BASE_URL:-https://shianjieyouwu.com}"
 RUN_PROD_SMOKE="${RUN_PROD_SMOKE:-0}"
 ALLOW_KNOWN_AUDIT="${ALLOW_KNOWN_AUDIT:-1}"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
@@ -27,10 +28,10 @@ section "Shell 脚本语法"
 bash -n deploy-to-server.sh deploy-h5-to-server.sh rollback-h5-on-server.sh deploy-to-staging.sh scripts/*.sh
 
 section "Python 语法"
-python3 -m py_compile backend/*.py scripts/*.py
+"$PYTHON_BIN" -m py_compile backend/*.py scripts/*.py
 
 section "后端测试"
-python3 -m pytest -q
+"$PYTHON_BIN" -m pytest -q
 
 section "H5 构建"
 npm run build:h5
@@ -55,7 +56,7 @@ fi
 
 if [ "$RUN_PROD_SMOKE" = "1" ]; then
   section "线上烟测"
-  python3 scripts/production_smoke.py --base-url "$BASE_URL"
+  "$PYTHON_BIN" scripts/production_smoke.py --base-url "$BASE_URL"
 else
   section "线上烟测"
   echo "跳过。需要时运行: RUN_PROD_SMOKE=1 BASE_URL=$BASE_URL bash scripts/preflight_release.sh"

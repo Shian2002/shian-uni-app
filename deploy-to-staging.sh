@@ -19,7 +19,7 @@ STAGING_DB="${STAGING_DB:-/home/lighthouse/tianji-staging/backend/tianji.db}"
 STAGING_DATABASE_URL="${STAGING_DATABASE_URL:-sqlite:///$STAGING_DB}"
 STAGING_SERVICE="${STAGING_SERVICE:-xuan-cet-staging-flask}"
 STAGING_PORT="${STAGING_PORT:-5299}"
-STAGING_BASE_URL="${STAGING_BASE_URL:-http://119.29.128.18:8081}"
+STAGING_BASE_URL="${STAGING_BASE_URL:-http://119.29.128.18}"
 
 SSH_CMD=(ssh -i "$SSH_KEY")
 RSYNC_CMD=(rsync -avz --progress -e "ssh -i $SSH_KEY")
