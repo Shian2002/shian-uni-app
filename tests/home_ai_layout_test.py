@@ -5,6 +5,7 @@ from pathlib import Path
 
 INDEX_VUE = Path(__file__).resolve().parents[1] / "src" / "pages" / "index" / "index.vue"
 APP_VUE = Path(__file__).resolve().parents[1] / "src" / "App.vue"
+MAIN_JS = Path(__file__).resolve().parents[1] / "src" / "main.js"
 TOP_NAV_VUE = Path(__file__).resolve().parents[1] / "src" / "components" / "TopNav.vue"
 QIMEN_VUE = Path(__file__).resolve().parents[1] / "src" / "pages" / "qimen" / "index.vue"
 PROFILE_VUE = Path(__file__).resolve().parents[1] / "src" / "pages" / "profile" / "index.vue"
@@ -144,6 +145,7 @@ def test_home_ai_auto_follow_only_when_near_bottom():
 def test_top_nav_distinguishes_agent_query_from_plain_home():
     source = TOP_NAV_VUE.read_text(encoding="utf-8")
     index_source = _source()
+    app_source = APP_VUE.read_text(encoding="utf-8")
 
     assert 'data-href="#/?app=1"' in source
     assert "function getCurrentRouteWithQuery()" in source
@@ -152,18 +154,73 @@ def test_top_nav_distinguishes_agent_query_from_plain_home():
     assert "xc-home-mode-changed" in source
     assert "window.__xcHomeMode = active ? 'marketing' : 'app'" in index_source
     assert "if (href === '#/') target = '/pages/index/index'" not in source
+    assert "window.__switchTabPageDom = function(path)" in app_source
+    assert "var raw = path ? String(path) : ((window.location.hash || '').replace('#', '') || '/')" in app_source
+    assert "window.__xcRenderTabPath(pathOnly, queryStr)" in app_source
+    assert "window.__switchTabPageDom = window.__xcRenderTabPath" not in app_source
 
 
-def test_agent_entry_does_not_auto_open_login_over_bottom_agent_input():
+def test_agent_entry_stays_in_app_mode_until_explicit_logout():
     source = _source()
     top_nav_source = TOP_NAV_VUE.read_text(encoding="utf-8")
+    app_source = APP_VUE.read_text(encoding="utf-8")
+    enter_marketing_app = source.split("function enterMarketingApp() {", 1)[1].split("\nfunction openMarketingLogin()", 1)[0]
+    agent_home_guard = top_nav_source.split("function go(hash) {", 1)[1].split("// 从其他术数页点", 1)[0]
 
-    assert "wantsToolHome && !isLoggedIn.value" in source
-    assert "marketingMode.value = true" in source
-    assert "wantsAppHome && !localLoggedIn.value" in top_nav_source
-    assert "xc-show-marketing-home" in top_nav_source
+    assert "wantsToolHome && !isLoggedIn.value" not in source
+    assert "showMarketingHome()" not in enter_marketing_app
+    assert "const shouldPromptLogin = !isLoggedIn.value" in enter_marketing_app
+    assert "if (shouldPromptLogin) openMarketingLogin()" in enter_marketing_app
+    assert "if (wantsAppHome && !localLoggedIn.value)" not in top_nav_source
+    assert "window.__xcHomeMode = 'marketing'" not in agent_home_guard
+    assert "xc-show-marketing-home" not in agent_home_guard
+    assert "var shouldPromptLoginForAgentHome = wantsAppHome && !localLoggedIn.value" in top_nav_source
+    assert "const pendingAgentHomeKey = '_xc_pending_agent_home'" in source
+    assert "sessionStorage.getItem(pendingAgentHomeKey) === '1'" in source
+    assert "function ensureAgentHomeHash()" in source
+    assert "sessionStorage.setItem(pendingAgentHomeKey, '1')" in enter_marketing_app
+    assert "var pendingAgentHomeKey = '_xc_pending_agent_home'" in top_nav_source
+    assert "sessionStorage.setItem(pendingAgentHomeKey, '1')" in top_nav_source
+    assert "pendingAgentHome = sessionStorage.getItem('_xc_pending_agent_home') === '1'" in app_source
+    assert "window.history.replaceState({ app: 'home' }, '', '#/?app=1')" in app_source
     assert "function openMarketingLogin()" in source
+    assert "function showMarketingHomeAfterAuthChange()" in top_nav_source
+    assert "showMarketingHomeAfterAuthChange()" in top_nav_source
+    assert "resetHomeAuthState({ returnMarketing: detail.type === 'logout' })" in source
+    assert "resetHomeAuthState({ returnMarketing: false })" in source
     assert "marketingPendingEnterAfterLogin" not in source
+
+
+def test_session_expiry_updates_auth_state_without_marketing_redirect():
+    main_source = MAIN_JS.read_text(encoding="utf-8")
+    home_source = _source()
+
+    assert "function handleSessionExpired(options)" in main_source
+    assert "function inspectSessionResponse(url, statusCode, data, method)" in main_source
+    assert "path === '/api/me' && data && data.guest && hasCachedAuthMarker()" in main_source
+    assert "handleSessionExpired({ reason: 'me-returned-guest', openLogin: false })" in main_source
+    assert "statusCode === 401 && !isAuthEndpoint(path)" in main_source
+    assert "const methodName = String(method || 'GET').toUpperCase()" in main_source
+    assert "openLogin: methodName !== 'GET'" in main_source
+    assert "登录状态已过期，请重新登录" in main_source
+    assert "window.dispatchEvent(new CustomEvent('xc-session-expired'" in main_source
+    assert "window.dispatchEvent(new CustomEvent('xc-auth-changed'" in main_source
+    assert "showMarketingHome" not in main_source
+    assert "xc-show-marketing-home" not in main_source
+    assert "window.location.href" not in main_source
+    assert "const isToolRoute = shouldForceToolRoute()" in home_source
+    assert "if (isToolRoute) return" in home_source
+    assert "resetHomeAuthState({ returnMarketing: false })" in home_source
+    assert "resetHomeAuthState({ returnMarketing: detail.type === 'logout' })" in home_source
+
+
+def test_top_nav_clears_pending_agent_flag_when_switching_to_tool_routes():
+    source = TOP_NAV_VUE.read_text(encoding="utf-8")
+    go_body = source.split("function go(hash) {", 1)[1].split("\n// ── 当前路由检测", 1)[0]
+
+    assert "if (!wantsAppHome && !wantsMarketingHome)" in go_body
+    assert "sessionStorage.removeItem(pendingAgentHomeKey)" in go_body
+    assert go_body.find("sessionStorage.removeItem(pendingAgentHomeKey)") < go_body.find("if (wantsAppHome)")
 
 
 def test_home_agent_defaults_to_light_until_user_selects_theme():
@@ -229,6 +286,9 @@ def test_top_nav_login_modal_keeps_legacy_login_choices():
     source = TOP_NAV_VUE.read_text(encoding="utf-8")
 
     assert 'id="topnavLoginModal"' in source
+    assert "window._openLoginModal = function(options)" in source
+    assert "modalOptions.reason === 'expired'" in source
+    assert "if (msgEl) msgEl.textContent = String(modalOptions.message)" in source
     assert 'data-tab="password"' in source
     assert "账号" in source
     assert 'data-tab="code"' in source

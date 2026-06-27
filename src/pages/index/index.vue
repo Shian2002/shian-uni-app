@@ -913,6 +913,7 @@ let marketingObserver = null
 let marketingScrollRestoration = ''
 let marketingTopResetTimer = null
 let marketingEnterLastTouch = 0
+const pendingAgentHomeKey = '_xc_pending_agent_home'
 
 function resetMarketingVisibleSections() {
   marketingVisibleSections.hero = true
@@ -940,6 +941,7 @@ function shouldOpenToolHome(query) {
   if (query && (query.app === '1' || query.app === 'true')) return true
   // #ifdef H5
   try {
+    if (sessionStorage.getItem(pendingAgentHomeKey) === '1') return true
     const href = window.location.href || ''
     const hash = window.location.hash || ''
     const search = window.location.search || ''
@@ -962,6 +964,20 @@ function shouldForceToolRoute() {
   return false
 }
 
+function ensureAgentHomeHash() {
+  // #ifdef H5
+  try {
+    const hash = window.location.hash || ''
+    const isPlainHome = hash === '' ||
+      hash === '#/' ||
+      /^#\/pages\/index\/index(?:\?|$)/.test(hash)
+    if (isPlainHome && !/(?:[?&])app=(?:1|true)(?:&|$)/.test(hash)) {
+      window.history.replaceState({ app: 'home' }, '', '#/?app=1')
+    }
+  } catch(_) {}
+  // #endif
+}
+
 function refreshMarketingMode(query) {
   if (shouldForceToolRoute()) {
     marketingMode.value = false
@@ -971,16 +987,8 @@ function refreshMarketingMode(query) {
     return
   }
   const wantsToolHome = shouldOpenToolHome(query)
-  if (wantsToolHome && !isLoggedIn.value) {
-    marketingMode.value = true
-    // #ifdef H5
-    try {
-      if (window.location.hash !== '#/') window.history.replaceState({ marketing: 'home' }, '', '#/')
-    } catch(_) {}
-    // #endif
-  } else {
-    marketingMode.value = !wantsToolHome
-  }
+  if (wantsToolHome) ensureAgentHomeHash()
+  marketingMode.value = !wantsToolHome
   if (marketingMode.value) {
     marketingCriticalVisible.value = false
     resetMarketingVisibleSections()
@@ -994,6 +1002,9 @@ function refreshMarketingMode(query) {
 }
 
 function showMarketingHome() {
+  // #ifdef H5
+  try { sessionStorage.removeItem(pendingAgentHomeKey) } catch(_) {}
+  // #endif
   marketingMode.value = true
   marketingCriticalVisible.value = false
   resetMarketingVisibleSections()
@@ -1077,22 +1088,20 @@ function restoreMarketingScrollRestoration() {
 }
 
 function enterMarketingApp() {
-  if (!isLoggedIn.value) {
-    showMarketingHome()
-    openMarketingLogin()
-    return
-  }
+  const shouldPromptLogin = !isLoggedIn.value
   marketingMode.value = false
   syncMarketingPageClass()
   disconnectMarketingObserver()
   // #ifdef H5
   try {
+    sessionStorage.setItem(pendingAgentHomeKey, '1')
     const targetHash = '#/?app=1'
     if (window.location.hash !== targetHash) window.history.pushState({ app: 'home' }, '', targetHash)
     window.scrollTo(0, 0)
   } catch(_) {}
   scheduleHomeVideoLoad()
   // #endif
+  if (shouldPromptLogin) openMarketingLogin()
 }
 
 function openMarketingLogin() {
@@ -1357,18 +1366,26 @@ function toggleSubmenu(key) { submenuOpen[key] = !submenuOpen[key] }
 
 // ── 登录状态 ──
 const isLoggedIn = ref(!!uni.getStorageSync('xc_token'))
-function resetHomeAuthState() {
+function resetHomeAuthState(options) {
+  const shouldReturnMarketing = !!(options && options.returnMarketing)
+  const isToolRoute = shouldForceToolRoute()
+  const wasAppHome = !marketingMode.value || shouldOpenToolHome()
   clearHomeAgentSelectionStorage()
   currentPoints.value = 0
   profiles.value = []
   selectedProfiles.value = []
   startNewComprehensiveConversation()
   clearHomeAgentSelectionStorage()
-  showMarketingHome()
+  if (shouldReturnMarketing) {
+    showMarketingHome()
+    return
+  }
+  if (isToolRoute) return
+  if (wasAppHome) enterMarketingApp()
 }
 window.addEventListener('xc-session-expired', function() {
   isLoggedIn.value = false
-  resetHomeAuthState()
+  resetHomeAuthState({ returnMarketing: false })
 })
 window.addEventListener('xc-show-marketing-home', function() {
   showMarketingHome()
@@ -1389,7 +1406,8 @@ window.addEventListener('xc-auth-changed', function(e) {
       })
     }
   } else {
-    resetHomeAuthState()
+    const detail = (e && e.detail) || {}
+    resetHomeAuthState({ returnMarketing: detail.type === 'logout' })
   }
 })
 

@@ -679,19 +679,44 @@ async function wzInstantPaipan() {
   }
 }
 
-async function baziFreePaipan() {
-  // 从原生DOM select读取值（绕过Vue 3.4.21 render effect bug）
+function readCompleteBaziDateSelection() {
   var yEl = document.getElementById('baziYear')
   var mEl = document.getElementById('baziMonth')
   var dEl = document.getElementById('baziDay')
+  var yRaw = yEl ? String(yEl.value || '').trim() : ''
+  var mRaw = mEl ? String(mEl.value || '').trim() : ''
+  var dRaw = dEl ? String(dEl.value || '').trim() : ''
+  if (!yRaw || !mRaw || !dRaw) return null
+  var y = parseInt(yRaw, 10)
+  var m = parseInt(mRaw, 10)
+  var d = parseInt(dRaw, 10)
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return null
+  if (y < 1 || m < 1 || m > 12) return null
+  var maxDay = getDaysInMonth(y, m)
+  if (d < 1 || d > maxDay) return null
+  return {
+    year: y,
+    month: m,
+    day: d,
+    date: String(y).padStart(4, '0') + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0')
+  }
+}
+
+async function baziFreePaipan() {
+  // 从原生DOM select读取值（绕过Vue 3.4.21 render effect bug）
   var hEl = document.getElementById('baziHour')
   var miEl = document.getElementById('baziMinute')
-  if (yEl && mEl && dEl) {
-    baziDate.value = yEl.value + '-' + String(mEl.value).padStart(2,'0') + '-' + String(dEl.value).padStart(2,'0')
+  if (hEl) baziHourIdx.value = parseInt(hEl.value) || 0
+  if (miEl) baziMinuteIdx.value = parseInt(miEl.value) || 0
+  if (baziCalType.value !== '四柱') {
+    var selectedDate = readCompleteBaziDateSelection()
+    if (!selectedDate) {
+      baziDate.value = ''
+      uni.showToast({ title: '请选择完整出生年月日', icon: 'none' })
+      return
+    }
+    baziDate.value = selectedDate.date
   }
-  if (hEl) baziHourIdx.value = parseInt(hEl.value)
-  if (miEl) baziMinuteIdx.value = parseInt(miEl.value)
-  if (!baziDate.value && baziCalType.value !== '四柱') { uni.showToast({ title: '请选择出生时间', icon: 'none' }); return }
   try {
     const nameVal = document.getElementById('baziName') ? document.getElementById('baziName').value : baziName.value
     const siziY = document.getElementById('siziYear') ? document.getElementById('siziYear').value : siziYear.value

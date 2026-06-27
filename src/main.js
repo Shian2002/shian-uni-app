@@ -9,6 +9,7 @@ const csrfWriteMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 const productionApiOrigin = 'https://shianjieyouwu.com'
 let csrfToken = ''
 let csrfTokenPromise = null
+let sessionExpiredNoticeAt = 0
 
 function isRelativeApiUrl(url) {
   return typeof url === 'string' && (url === '/api' || url.indexOf('/api/') === 0)
@@ -52,6 +53,131 @@ function isApiUrl(url) {
     }
   }
   return false
+}
+
+function apiPathFromUrl(url) {
+  if (!url || typeof url !== 'string') return ''
+  try {
+    const base = typeof window !== 'undefined' && window.location ? window.location.origin : productionApiOrigin
+    return new URL(url, base).pathname || ''
+  } catch (_) {
+    const queryIndex = url.indexOf('?')
+    const clean = queryIndex > -1 ? url.slice(0, queryIndex) : url
+    if (clean.indexOf('/api/') === 0 || clean === '/api') return clean
+  }
+  return ''
+}
+
+function isAuthEndpoint(path) {
+  return path === '/api/login' ||
+    path === '/api/register' ||
+    path === '/api/logout' ||
+    path === '/api/csrf-token' ||
+    path === '/api/email/login' ||
+    path === '/api/email/send' ||
+    path === '/api/sms/login' ||
+    path === '/api/sms/send' ||
+    path.indexOf('/api/oauth/') === 0
+}
+
+function hasCachedAuthMarker() {
+  try {
+    if (typeof uni !== 'undefined' && uni.getStorageSync && uni.getStorageSync('xc_token')) return true
+  } catch (_) {}
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('xc_token')) return true
+  } catch (_) {}
+  return false
+}
+
+function clearCachedAuthMarkers() {
+  try {
+    if (typeof uni !== 'undefined' && uni.removeStorageSync) {
+      uni.removeStorageSync('xc_token')
+      uni.removeStorageSync('xc_user')
+      uni.removeStorageSync('xc_has_password')
+      uni.removeStorageSync('xc_avatar')
+    }
+  } catch (_) {}
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('xc_token')
+      localStorage.removeItem('xc_user')
+      localStorage.removeItem('xc_has_password')
+      localStorage.removeItem('xc_avatar')
+    }
+  } catch (_) {}
+}
+
+function openExpiredLoginPrompt(message) {
+  if (typeof window === 'undefined') return
+  const text = message || '登录状态已过期，请重新登录'
+  if (window._openLoginModal) {
+    window._openLoginModal({ message: text, reason: 'expired' })
+    return
+  }
+  try {
+    setTimeout(function() {
+      if (window._openLoginModal) window._openLoginModal({ message: text, reason: 'expired' })
+    }, 120)
+  } catch (_) {}
+  try {
+    if (typeof uni !== 'undefined' && uni.showToast) uni.showToast({ title: text, icon: 'none' })
+  } catch (_) {}
+}
+
+function handleSessionExpired(options) {
+  const opts = options || {}
+  const openLogin = !!opts.openLogin
+  const hadCachedAuth = hasCachedAuthMarker()
+  clearCachedAuthMarkers()
+  if (typeof window !== 'undefined') {
+    try {
+      window.dispatchEvent(new CustomEvent('xc-session-expired', {
+        detail: {
+          type: 'expired',
+          reason: opts.reason || 'session-expired',
+          openLogin,
+        },
+      }))
+    } catch (_) {}
+    try {
+      window.dispatchEvent(new CustomEvent('xc-auth-changed', {
+        detail: {
+          type: 'expired',
+          loggedIn: false,
+        },
+      }))
+    } catch (_) {}
+  }
+  try {
+    if (typeof uni !== 'undefined' && uni.$emit) {
+      uni.$emit('xc-auth-changed', { type: 'expired', loggedIn: false })
+    }
+  } catch (_) {}
+  if (openLogin) {
+    const now = Date.now()
+    if (!hadCachedAuth && now - sessionExpiredNoticeAt < 800) return
+    sessionExpiredNoticeAt = now
+    openExpiredLoginPrompt(opts.message)
+  }
+}
+
+function inspectSessionResponse(url, statusCode, data, method) {
+  if (!isApiUrl(url)) return
+  const path = apiPathFromUrl(url)
+  if (path === '/api/me' && data && data.guest && hasCachedAuthMarker()) {
+    handleSessionExpired({ reason: 'me-returned-guest', openLogin: false })
+    return
+  }
+  if (statusCode === 401 && !isAuthEndpoint(path)) {
+    const methodName = String(method || 'GET').toUpperCase()
+    handleSessionExpired({
+      reason: 'api-unauthorized',
+      openLogin: methodName !== 'GET',
+      message: '登录状态已过期，请重新登录',
+    })
+  }
 }
 
 function requestMethod(options) {
@@ -133,18 +259,64 @@ function installCsrfProtection() {
       if (isApiUrl(normalizedUrl)) {
         options.credentials = options.credentials || 'include'
       }
-      if (!shouldAttachCsrf(normalizedUrl, { method })) {
-        return originalFetch(nextInput, isApiUrl(normalizedUrl) ? options : init)
-      }
-      return refreshCsrfToken().then(function(token) {
-        const headers = new Headers(options.headers || (input && input.headers) || {})
-        if (token) {
-          headers.set('X-CSRFToken', token)
+      const send = function() {
+        if (!shouldAttachCsrf(normalizedUrl, { method })) {
+          return originalFetch(nextInput, isApiUrl(normalizedUrl) ? options : init)
         }
-        options.headers = headers
-        options.credentials = options.credentials || 'include'
-        return originalFetch(nextInput, options)
+        return refreshCsrfToken().then(function(token) {
+          const headers = new Headers(options.headers || (input && input.headers) || {})
+          if (token) {
+            headers.set('X-CSRFToken', token)
+          }
+          options.headers = headers
+          options.credentials = options.credentials || 'include'
+          return originalFetch(nextInput, options)
+        })
+      }
+      return send().then(function(response) {
+        if (!isApiUrl(normalizedUrl)) return response
+        const cloned = response.clone()
+        return cloned.json()
+          .catch(function() { return null })
+          .then(function(data) {
+            inspectSessionResponse(normalizedUrl, response.status, data, method)
+            return response
+          })
       })
+    }
+  }
+
+  if (typeof uni !== 'undefined' && uni.request && !uni.__xuanCetSessionRequestInstalled) {
+    const originalUniRequest = uni.request.bind(uni)
+    uni.__xuanCetSessionRequestInstalled = true
+    uni.request = function sessionAwareRequest(options) {
+      if (!options || typeof options !== 'object') return originalUniRequest(options)
+      const requestUrl = options.url
+      const method = requestMethod(options)
+      const userSuccess = options.success
+      const nextOptions = Object.assign({}, options)
+      let inspected = false
+      const inspectOnce = function(res) {
+        if (inspected) return
+        inspected = true
+        inspectSessionResponse(requestUrl, res && res.statusCode, res && res.data, method)
+      }
+      nextOptions.success = function(res) {
+        try {
+          inspectOnce(res)
+        } catch (_) {}
+        if (typeof userSuccess === 'function') return userSuccess.apply(this, arguments)
+      }
+      const result = originalUniRequest(nextOptions)
+      if (result && typeof result.then === 'function') {
+        return result.then(function(res) {
+          try {
+            inspectOnce(res)
+          } catch (_) {}
+          return res
+        })
+      }
+      return result
     }
   }
 
@@ -167,8 +339,15 @@ function installCsrfProtection() {
       xhr.open = function open(method, url) {
         const args = Array.prototype.slice.call(arguments)
         args[1] = normalizeApiUrl(url)
+        xhr.__xuanCetApiUrl = args[1]
+        xhr.__xuanCetMethod = method
         return originalOpen.apply(xhr, args)
       }
+      try {
+        xhr.addEventListener('loadend', function() {
+          inspectSessionResponse(xhr.__xuanCetApiUrl, xhr.status, null, xhr.__xuanCetMethod)
+        })
+      } catch (_) {}
       return xhr
     }
     window.XMLHttpRequest.prototype = OriginalXMLHttpRequest.prototype

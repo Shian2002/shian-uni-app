@@ -99,6 +99,19 @@ def test_bazi_birth_date_selects_keep_natural_order():
     assert "dayOpts.push({ value: i, label: i + '日' })" in source
 
 
+def test_bazi_free_paipan_rejects_incomplete_birth_date_before_request():
+    source = BAZI_INDEX_VUE.read_text(encoding="utf-8")
+    read_date = _function_source(source, "readCompleteBaziDateSelection")
+    free_paipan = _function_source(source, "baziFreePaipan")
+
+    assert "function readCompleteBaziDateSelection()" in source
+    assert "if (!yRaw || !mRaw || !dRaw) return null" in read_date
+    assert "if (d < 1 || d > maxDay) return null" in read_date
+    assert "请选择完整出生年月日" in free_paipan
+    assert "readCompleteBaziDateSelection()" in free_paipan
+    assert free_paipan.find("请选择完整出生年月日") < free_paipan.find("uni.request({ url: '/api/bazi/paipan'")
+
+
 def test_bazi_mobile_free_paipan_action_stays_visible_before_advanced_options():
     source = BAZI_INDEX_VUE.read_text(encoding="utf-8")
 

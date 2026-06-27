@@ -100,7 +100,15 @@ export default {
           '#/pages/tarot/index'
         ]
         var isCompactTool = compactToolRoutes.some(function(route) { return hash.indexOf(route) === 0 })
-        var isAppHome = isHome && _hasAppHomeFlag()
+        var pendingAgentHome = false
+        try { pendingAgentHome = sessionStorage.getItem('_xc_pending_agent_home') === '1' } catch(_) {}
+        if (pendingAgentHome && isHome && !_hasAppHomeFlag()) {
+          try {
+            window.history.replaceState({ app: 'home' }, '', '#/?app=1')
+            hash = window.location.hash || '#/?app=1'
+          } catch(_) {}
+        }
+        var isAppHome = isHome && (_hasAppHomeFlag() || pendingAgentHome)
         var isMarketingHome = isHome && !isAppHome
 
         // app 首页是固定工作台，外层不参与滚动；长对话只在消息区内部滚动。
@@ -278,7 +286,17 @@ export default {
         console.warn('[tab-render-fallback]', err)
       }
     }
-    window.__switchTabPageDom = window.__xcRenderTabPath
+    window.__switchTabPageDom = function(path) {
+      try {
+        var raw = path ? String(path) : ((window.location.hash || '').replace('#', '') || '/')
+        var pathOnly = raw.split('?')[0] || '/'
+        var queryStr = raw.indexOf('?') > -1 ? raw.substring(raw.indexOf('?')) : ''
+        if (pathOnly === '/pages/index/index') pathOnly = '/'
+        window.__xcRenderTabPath(pathOnly, queryStr)
+      } catch (err) {
+        console.warn('[tab-render-fallback]', err)
+      }
+    }
     document.addEventListener('click', function(e) {
       let el = e.target
       while (el && el.tagName !== 'A') { el = el.parentElement }

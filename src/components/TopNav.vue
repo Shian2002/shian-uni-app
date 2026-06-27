@@ -483,7 +483,8 @@ onMounted(function() {
   }
 
   // 全局打开登录弹窗
-    window._openLoginModal = function() {
+    window._openLoginModal = function(options) {
+      var modalOptions = options || {}
       // 打开登录弹窗前关闭所有其他弹窗，防止 overlay 冲突
       try { document.querySelectorAll('#accountSettingsModal').forEach(function(el) { el.classList.remove('open') }) } catch(_) {}
       try { document.querySelectorAll('#topnavLoginModal').forEach(function(el) { el.classList.remove('open') }) } catch(_) {}
@@ -514,6 +515,13 @@ onMounted(function() {
             wrap.appendChild(inp)
           }
         })
+        if (modalOptions.reason === 'expired' && window._xc_switchToLogin) {
+          try { window._xc_switchToLogin() } catch(_) {}
+        }
+        if (modalOptions.message) {
+          var msgEl = modal.querySelector('#tnLoginError')
+          if (msgEl) msgEl.textContent = String(modalOptions.message)
+        }
         setTimeout(function() {
           try {
             var firstInput = modal.querySelector('#tnLoginUser')
@@ -2004,27 +2012,8 @@ function go(hash) {
   var routeBeforeIsTab = TAB_PATHS.indexOf(routeBeforeNav) > -1 || routeBeforeNav === '/pages/index/index'
   var routeBeforeIsHome = routeBeforeNav === '/' || routeBeforeNav === '/pages/index/index'
   var shouldSwitchForAgentHome = wantsAppHome && !routeBeforeIsHome
-
-  if (wantsAppHome && !localLoggedIn.value) {
-    try {
-      sessionStorage.removeItem('_nav_query')
-      window.__xcHomeMode = 'marketing'
-      if (window.location.hash !== '#/') window.history.pushState({ marketing: 'home' }, '', '#/')
-      document.documentElement.classList.remove('home-fixed-page')
-      document.body.classList.remove('home-fixed-page')
-      document.documentElement.classList.add('marketing-page')
-      document.body.classList.add('marketing-page')
-      window.dispatchEvent(new CustomEvent('xc-show-marketing-home'))
-      window.dispatchEvent(new CustomEvent('xc-home-mode-changed', { detail: { mode: 'marketing' } }))
-      setTimeout(function() {
-        try {
-          if (window._openLoginModal) window._openLoginModal()
-          else uni.showToast({ title: '请先登录或注册', icon: 'none' })
-        } catch(__) {}
-      }, 180)
-    } catch(_) {}
-    return
-  }
+  var shouldPromptLoginForAgentHome = wantsAppHome && !localLoggedIn.value
+  var pendingAgentHomeKey = '_xc_pending_agent_home'
 
   // 从其他术数页点“八字排盘”时，优先回到本次会话最后看的八字结果页。
   // 只使用 window 变量，刷新页面后失效，避免把旧结果永久记住。
@@ -2043,9 +2032,14 @@ function go(hash) {
     }
   } catch(_) {}
 
+  if (!wantsAppHome && !wantsMarketingHome) {
+    try { sessionStorage.removeItem(pendingAgentHomeKey) } catch(_) {}
+  }
+
   if (wantsAppHome && !shouldSwitchForAgentHome) {
     try {
       sessionStorage.removeItem('_nav_query')
+      sessionStorage.setItem(pendingAgentHomeKey, '1')
       window.__xcHomeMode = 'app'
       document.documentElement.classList.add('home-fixed-page')
       document.body.classList.add('home-fixed-page')
@@ -2057,6 +2051,7 @@ function go(hash) {
   } else if (wantsMarketingHome) {
     try {
       sessionStorage.removeItem('_nav_query')
+      sessionStorage.removeItem(pendingAgentHomeKey)
       window.__xcHomeMode = 'marketing'
       if (window.location.hash !== '#/') window.history.pushState({ marketing: 'home' }, '', '#/')
       window.dispatchEvent(new CustomEvent('xc-show-marketing-home'))
@@ -2067,6 +2062,7 @@ function go(hash) {
   }
 
   if (wantsAppHome) {
+    try { sessionStorage.setItem(pendingAgentHomeKey, '1') } catch(_) {}
     var renderAgentHome = function() {
       try {
         if (window.__xcRenderTabPath) window.__xcRenderTabPath('/', '?app=1')
@@ -2078,6 +2074,14 @@ function go(hash) {
         document.body.classList.remove('marketing-page')
         if (window.location.hash !== '#/?app=1') window.history.replaceState({ app: 'home' }, '', '#/?app=1')
         window.dispatchEvent(new CustomEvent('xc-home-mode-changed', { detail: { mode: 'app' } }))
+        if (shouldPromptLoginForAgentHome) {
+          setTimeout(function() {
+            try {
+              if (window._openLoginModal) window._openLoginModal()
+              else uni.showToast({ title: '请先登录或注册', icon: 'none' })
+            } catch(__) {}
+          }, 180)
+        }
       } catch(_) {}
     }
     try {
