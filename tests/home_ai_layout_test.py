@@ -63,6 +63,17 @@ def test_home_ai_reading_mode_claims_hero_space_without_locking_page_scroll():
     assert "scrollIntoView" not in scroll_fn.group("body")
 
 
+def test_profile_oauth_callback_reads_preserved_nav_query():
+    source = PROFILE_VUE.read_text(encoding="utf-8")
+
+    assert "var oauthQuery = window.location.hash.split('?')[1] || window.location.search" in source
+    assert "oauthQuery = sessionStorage.getItem('_nav_query') || ''" in source
+    assert "var params = new URLSearchParams(oauthQuery)" in source
+    assert "var oauthSuccess = params.get('oauth_success')" in source
+    assert "uni.setStorageSync('xc_token', 'session')" in source
+    assert "sessionStorage.removeItem('_nav_query')" in source
+
+
 def test_home_ai_input_is_compressed_and_chat_has_mobile_bottom_buffer():
     source = _source()
 

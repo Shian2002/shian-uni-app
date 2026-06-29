@@ -1083,12 +1083,17 @@ onMounted(() => {
 
   // OAuth 回调处理
   try {
-    var params = new URLSearchParams(window.location.hash.split('?')[1] || window.location.search)
+    var oauthQuery = window.location.hash.split('?')[1] || window.location.search
+    if (!oauthQuery) {
+      try { oauthQuery = sessionStorage.getItem('_nav_query') || '' } catch (_) {}
+    }
+    var params = new URLSearchParams(oauthQuery)
     var oauthSuccess = params.get('oauth_success')
     var oauthError = params.get('oauth_error')
     if (oauthSuccess) {
       isLoggedIn.value = true
       uni.setStorageSync('xc_token', 'session')
+      try { sessionStorage.removeItem('_nav_query') } catch (_) {}
       try { window.dispatchEvent(new CustomEvent('xc-auth-changed', { detail: { type: 'login', loggedIn: true } })) } catch (_) {}
       try { uni.$emit('xc-auth-changed', { type: 'login', loggedIn: true }) } catch (_) {}
       uni.showToast({ title: oauthSuccess === 'qq' ? 'QQ登录成功' : oauthSuccess === 'gitee' ? 'Gitee绑定成功' : oauthSuccess === 'wechat' ? '微信登录成功' : '登录成功', icon: 'success' })
@@ -1098,6 +1103,7 @@ onMounted(() => {
       window.history.replaceState({}, '', window.location.pathname + window.location.hash.split('?')[0])
     }
     if (oauthError) {
+      try { sessionStorage.removeItem('_nav_query') } catch (_) {}
       uni.showToast({ title: decodeURIComponent(oauthError), icon: 'none' })
       window.history.replaceState({}, '', window.location.pathname + window.location.hash.split('?')[0])
     }
