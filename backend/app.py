@@ -463,6 +463,10 @@ def migrate_db():
             ('payment_reference', 'VARCHAR(120) DEFAULT \'\''),
             ('payment_proof', 'TEXT DEFAULT \'\''),
             ('verified_at', 'DATETIME'),
+            ('amount_cents', 'INTEGER'),
+            ('refund_reference', 'VARCHAR(120) DEFAULT \'\''),
+            ('refund_proof', 'TEXT DEFAULT \'\''),
+            ('refunded_at', 'DATETIME'),
         ]:
             try:
                 db.session.execute(db.text(f'SELECT {col} FROM recharge_order LIMIT 1'))
@@ -474,6 +478,29 @@ def migrate_db():
                 except Exception as e:
                     db.session.rollback()
                     logger.warning(f"recharge_order.{col} 迁移失败: {e}")
+        try:
+            db.session.execute(db.text(
+                'UPDATE recharge_order '
+                'SET amount_cents = CAST(ROUND(amount * 100) AS INTEGER) '
+                'WHERE amount_cents IS NULL AND amount IS NOT NULL'
+            ))
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logger.warning(f"recharge_order.amount_cents 回填失败: {e}")
+        try:
+            dialect = db.session.bind.dialect.name if db.session.bind else ''
+            if dialect == 'sqlite':
+                db.session.execute(db.text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS ux_recharge_order_payment_reference_nonempty "
+                    "ON recharge_order (payment_reference) "
+                    "WHERE payment_reference IS NOT NULL AND payment_reference <> ''"
+                ))
+                db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            if 'already exists' not in str(e).lower() and 'duplicate' not in str(e).lower():
+                logger.warning(f"recharge_order.payment_reference 唯一索引迁移失败: {e}")
         try:
             dialect = db.session.bind.dialect.name if db.session.bind else ''
             if dialect == 'sqlite':
@@ -605,6 +632,7 @@ def migrate_db():
             ('ix_recharge_order_user_created', 'recharge_order', 'user_id, created_at'),
             ('ix_recharge_order_status_created', 'recharge_order', 'status, created_at'),
             ('ix_recharge_order_payment_reference', 'recharge_order', 'payment_reference'),
+            ('ux_recharge_order_payment_reference_nonempty', 'recharge_order', 'payment_reference'),
             ('ix_bazi_record_user_pinned_created', 'bazi_record', 'user_id, pinned, created_at'),
             ('ix_tarot_conversation_user_updated', 'tarot_conversation', 'user_id, updated_at'),
             ('ix_liuyao_conversation_user_updated', 'liuyao_conversation', 'user_id, updated_at'),
@@ -3776,6 +3804,7 @@ from recharge_routes import (
     RECHARGE_PACKAGES,
     _hupijiao_sign,
     make_confirm_recharge_order_once,
+    make_refund_recharge_order_once,
     register_recharge_routes,
 )
 from tool_run_routes import register_tool_run_routes
@@ -3785,6 +3814,7 @@ from ziwei_routes import register_ziwei_routes
 
 _build_one_tool = None
 confirm_recharge_order_once = make_confirm_recharge_order_once(db, get_or_create_membership, add_points)
+refund_recharge_order_once = make_refund_recharge_order_once(db, get_or_create_membership)
 register_ops_routes(app)
 register_auth_routes(app, db, {
     'check_rate_limit': _check_rate_limit,
@@ -3823,6 +3853,7 @@ register_calendar_routes(app, {
 })
 register_recharge_routes(app, db, {
     'confirm_recharge_order_once': confirm_recharge_order_once,
+    'refund_recharge_order_once': refund_recharge_order_once,
     'validate_image_upload': validate_image_upload,
 })
 register_community_routes(app, db, {
@@ -3899,6 +3930,7 @@ register_admin_routes(app, db, {
     'record_admin_audit': record_admin_audit,
     'add_points': add_points,
     'confirm_recharge_order_once': confirm_recharge_order_once,
+    'refund_recharge_order_once': refund_recharge_order_once,
 })
 register_paid_content_routes(app, db, {
     'use_points': use_points,

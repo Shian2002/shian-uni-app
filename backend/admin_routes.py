@@ -27,11 +27,13 @@ def register_admin_routes(app, db, services):
       - record_admin_audit
       - add_points
       - confirm_recharge_order_once
+      - refund_recharge_order_once
     """
 
     record_admin_audit = services['record_admin_audit']
     add_points = services['add_points']
     confirm_recharge_order_once = services['confirm_recharge_order_once']
+    refund_recharge_order_once = services['refund_recharge_order_once']
 
     @app.route('/api/admin/reports')
     @login_required
@@ -272,7 +274,7 @@ def register_admin_routes(app, db, services):
         status = (request.args.get('status') or 'all').strip()
 
         query = RechargeOrder.query
-        if status in ('pending', 'paid', 'cancelled'):
+        if status in ('pending', 'paid', 'refunded', 'cancelled'):
             query = query.filter_by(status=status)
 
         pagination = query.order_by(RechargeOrder.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
@@ -293,6 +295,7 @@ def register_admin_routes(app, db, services):
                 'created_at': order.created_at.isoformat() if order.created_at else None,
                 'verified_at': order.verified_at.isoformat() if order.verified_at else None,
                 'paid_at': order.updated_at.isoformat() if order.status == 'paid' and order.updated_at else None,
+                'refunded_at': order.refunded_at.isoformat() if order.refunded_at else None,
             })
 
         return jsonify({'orders': items, 'total': pagination.total, 'page': page, 'has_next': pagination.has_next})
@@ -414,6 +417,25 @@ def register_admin_routes(app, db, services):
             )
             db.session.commit()
             return jsonify({'ok': True, 'user_id': target_uid, 'username': target_user.username, 'points': new_total, 'added': points})
+
+        if action == 'refund':
+            result = refund_recharge_order_once(order_id)
+            if not result.get('ok'):
+                status_code = 404 if result.get('status') is None else 400
+                return jsonify({'error': result.get('error', '订单状态错误'), 'status': result.get('status')}), status_code
+            record_admin_audit(
+                'recharge_refund',
+                'recharge_order',
+                result.get('order_id'),
+                {
+                    'user_id': result.get('user_id'),
+                    'refunded': result.get('refunded'),
+                    'points': result.get('points'),
+                    'credit_type': result.get('credit_type'),
+                },
+            )
+            db.session.commit()
+            return jsonify(result)
 
         result = confirm_recharge_order_once(order_id)
         if not result.get('ok'):

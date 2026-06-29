@@ -199,8 +199,9 @@ PUBLIC_BASE_URL=https://shianjieyouwu.com
 
 - `HUPIJIAO_APPSECRET` 只能放服务器环境变量或受控 `.env`，不能提交到 Git，也不能写入前端。
 - `PUBLIC_BASE_URL` 必须是虎皮椒能公网访问的 HTTPS 域名，回调地址为 `/api/recharge/hupijiao/notify`。
-- 上线前先用测试包或一分钱订单做端到端验活，核对 `recharge_order.status`、`membership.points` / AI 次数和 `point_log` 只入账一次。
+- 上线前先用测试包或一分钱订单做端到端验活，核对 `recharge_order.status`、`membership.points` / AI 次数和 `point_log` 只入账一次；退款后必须看到订单进入 `refunded`，并产生一次 `recharge_refund` 或 `ai_credit_refund` 幂等日志。
 - 虎皮椒重复回调应返回 `success`，但不能重复加积分或 AI 次数。
+- 虎皮椒退款回调同样必须先验签、校验订单和金额；重复退款回调应返回 `success`，但不能重复扣积分或 AI 次数。
 
 改部署脚本、依赖、服务器配置或数据库迁移：
 

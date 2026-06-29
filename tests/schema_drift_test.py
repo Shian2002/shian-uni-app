@@ -112,6 +112,7 @@ def test_schema_sql_keeps_operational_indexes():
         "ix_recharge_order_user_created": "recharge_order",
         "ix_recharge_order_status_created": "recharge_order",
         "ix_recharge_order_payment_reference": "recharge_order",
+        "ux_recharge_order_payment_reference_nonempty": "recharge_order",
         "ix_bazi_record_user_pinned_created": "bazi_record",
         "ix_tarot_conversation_user_updated": "tarot_conversation",
         "ix_liuyao_conversation_user_updated": "liuyao_conversation",

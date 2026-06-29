@@ -37,6 +37,12 @@ def _table_exists(conn, table):
     return bool(row)
 
 
+def _column_exists(conn, table, column):
+    if not _table_exists(conn, table):
+        return False
+    return any(row[1] == column for row in conn.execute(f"PRAGMA table_info({table})"))
+
+
 def _count(conn, sql):
     row = conn.execute(sql).fetchone()
     return int(row[0] or 0)
@@ -126,6 +132,27 @@ def audit_database(path):
                     "code": "duplicate_point_dedupe_key",
                     "count": duplicate_dedupe,
                     "message": f"发现重复积分幂等键: {duplicate_dedupe}",
+                })
+
+        if _column_exists(conn, "recharge_order", "payment_reference"):
+            duplicate_payment_refs = _count(
+                conn,
+                """
+                SELECT COUNT(*) FROM (
+                    SELECT payment_reference
+                    FROM recharge_order
+                    WHERE payment_reference IS NOT NULL AND payment_reference != ''
+                    GROUP BY payment_reference
+                    HAVING COUNT(*) > 1
+                )
+                """,
+            )
+            if duplicate_payment_refs:
+                findings.append({
+                    "severity": "critical",
+                    "code": "duplicate_payment_reference",
+                    "count": duplicate_payment_refs,
+                    "message": f"发现重复支付网关流水: {duplicate_payment_refs}",
                 })
 
         return findings

@@ -248,11 +248,15 @@ class RechargeOrder(db.Model):
     package_name = db.Column(db.String(100))
     points = db.Column(db.Integer, nullable=False)
     amount = db.Column(db.Float, nullable=False)
+    amount_cents = db.Column(db.Integer)
     pay_method = db.Column(db.String(50), default='transfer')
-    status = db.Column(db.String(20), default='pending')  # pending/paid/cancelled
+    status = db.Column(db.String(20), default='pending')  # pending/paid/refunded/cancelled
     payment_reference = db.Column(db.String(120), default='')
     payment_proof = db.Column(db.Text, default='')
+    refund_reference = db.Column(db.String(120), default='')
+    refund_proof = db.Column(db.Text, default='')
     verified_at = db.Column(db.DateTime)
+    refunded_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     user = db.relationship('User', backref=db.backref('recharge_orders', lazy='dynamic'))

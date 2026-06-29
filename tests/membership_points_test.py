@@ -859,6 +859,46 @@ def test_admin_recharge_requires_is_admin_flag(app_module, user_factory):
         assert audit.admin_id == real_admin.id
 
 
+def test_admin_can_refund_paid_recharge_once(app_module, user_factory):
+    admin = user_factory("refund-admin", is_admin=True)
+    member = user_factory("refund-member")
+    with app_module.app.app_context():
+        app_module.db.session.add(app_module.Membership(user_id=member.id, points=61))
+        order = app_module.RechargeOrder(
+            user_id=member.id,
+            package_id="starter",
+            package_name="体验包",
+            points=60,
+            amount=9.9,
+            amount_cents=990,
+            pay_method="hupijiao",
+            status="paid",
+        )
+        app_module.db.session.add(order)
+        app_module.db.session.commit()
+        order_id = order.id
+
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(admin.id)
+        sess["_fresh"] = True
+
+    refunded = client.post("/api/admin/confirm-recharge", json={"action": "refund", "order_id": order_id})
+    duplicate = client.post("/api/admin/confirm-recharge", json={"action": "refund", "order_id": order_id})
+
+    assert refunded.status_code == 200
+    assert refunded.get_json()["refunded"] == 60
+    assert duplicate.status_code == 400
+    assert duplicate.get_json()["status"] == "refunded"
+    with app_module.app.app_context():
+        order = app_module.db.session.get(app_module.RechargeOrder, order_id)
+        membership = app_module.Membership.query.filter_by(user_id=member.id).one()
+        audit = app_module.AdminAuditLog.query.filter_by(action="recharge_refund").one()
+        assert order.status == "refunded"
+        assert membership.points == 1
+        assert audit.admin_id == admin.id
+
+
 def test_admin_can_add_points_by_username_and_users_endpoint_is_guarded(app_module, user_factory):
     member = user_factory("manual-user")
     fake_admin = user_factory("fake-admin", is_admin=False)
@@ -1006,6 +1046,35 @@ def test_hupijiao_create_order_returns_payment_urls(app_module, user_factory, mo
         order = app_module.RechargeOrder.query.filter_by(user_id=member.id).one()
         assert order.pay_method == "hupijiao"
         assert order.status == "pending"
+        assert order.amount_cents == 1
+
+
+def test_hupijiao_create_order_rate_limits_recent_pending_order(app_module, user_factory, monkeypatch):
+    import recharge_routes
+    _enable_hupijiao(monkeypatch)
+    member = user_factory("hupijiao-fast-buyer")
+
+    def fake_post(url, payload, timeout=10):
+        return {"errcode": 0, "url": "https://pay.example/order", "url_qrcode": "https://pay.example/qr.png"}
+
+    monkeypatch.setattr(recharge_routes, "_post_hupijiao_order", fake_post)
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(member.id)
+        sess["_fresh"] = True
+
+    first = client.post("/api/recharge/create-order", json={
+        "package_id": "test-cent",
+        "pay_method": "hupijiao",
+    })
+    second = client.post("/api/recharge/create-order", json={
+        "package_id": "test-cent",
+        "pay_method": "hupijiao",
+    })
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+    assert "下单过快" in second.get_json()["error"]
 
 
 def test_alipay_recharge_verification_is_disabled(app_module, user_factory):
@@ -1112,6 +1181,110 @@ def test_hupijiao_notify_pays_points_once_and_accepts_duplicate(app_module, user
         assert refreshed.payment_reference == "txn-001"
         assert membership.points == 60
         assert len(logs) == 1
+
+
+def test_hupijiao_refund_callback_reverses_points_once(app_module, user_factory, monkeypatch):
+    _enable_hupijiao(monkeypatch)
+    member = user_factory("hupijiao-refund-buyer")
+    with app_module.app.app_context():
+        order = app_module.RechargeOrder(
+            user_id=member.id,
+            package_id="starter",
+            package_name="体验包",
+            points=60,
+            amount=9.9,
+            amount_cents=990,
+            pay_method="hupijiao",
+            status="pending",
+        )
+        app_module.db.session.add(order)
+        app_module.db.session.commit()
+        order_id = order.id
+
+    client = app_module.app.test_client()
+    paid_payload = _signed_hupijiao_notify(app_module, trade_order_id=f"XC{order_id}", total_fee="9.90")
+    refund_payload = _signed_hupijiao_notify(app_module, trade_order_id=f"XC{order_id}", total_fee="9.90", status="CD")
+
+    paid = client.post("/api/recharge/hupijiao/notify", data=paid_payload)
+    first_refund = client.post("/api/recharge/hupijiao/notify", data=refund_payload)
+    duplicate_refund = client.post("/api/recharge/hupijiao/notify", data=refund_payload)
+
+    assert paid.status_code == 200
+    assert first_refund.status_code == 200
+    assert duplicate_refund.status_code == 200
+    with app_module.app.app_context():
+        refreshed = app_module.db.session.get(app_module.RechargeOrder, order_id)
+        membership = app_module.Membership.query.filter_by(user_id=member.id).one()
+        logs = app_module.PointLog.query.filter_by(user_id=member.id).order_by(app_module.PointLog.id.asc()).all()
+        assert refreshed.status == "refunded"
+        assert refreshed.refund_reference == "txn-001"
+        assert refreshed.refunded_at is not None
+        assert membership.points == 0
+        assert [log.action for log in logs] == ["recharge", "recharge_refund"]
+        assert [log.points for log in logs] == [60, -60]
+
+
+def test_hupijiao_refund_rejects_mismatched_amount(app_module, user_factory, monkeypatch):
+    _enable_hupijiao(monkeypatch)
+    member = user_factory("hupijiao-bad-refund")
+    with app_module.app.app_context():
+        order = app_module.RechargeOrder(
+            user_id=member.id,
+            package_id="starter",
+            package_name="体验包",
+            points=60,
+            amount=9.9,
+            amount_cents=990,
+            pay_method="hupijiao",
+            status="paid",
+        )
+        app_module.db.session.add(app_module.Membership(user_id=member.id, points=60))
+        app_module.db.session.add(order)
+        app_module.db.session.commit()
+        order_id = order.id
+
+    payload = _signed_hupijiao_notify(app_module, trade_order_id=f"XC{order_id}", total_fee="0.01", status="CD")
+    response = app_module.app.test_client().post("/api/recharge/hupijiao/notify", data=payload)
+
+    assert response.status_code == 400
+    with app_module.app.app_context():
+        refreshed = app_module.db.session.get(app_module.RechargeOrder, order_id)
+        membership = app_module.Membership.query.filter_by(user_id=member.id).one()
+        assert refreshed.status == "paid"
+        assert membership.points == 60
+
+
+def test_hupijiao_refund_fails_when_points_already_spent(app_module, user_factory, monkeypatch):
+    _enable_hupijiao(monkeypatch)
+    member = user_factory("hupijiao-refund-insufficient")
+    with app_module.app.app_context():
+        order = app_module.RechargeOrder(
+            user_id=member.id,
+            package_id="starter",
+            package_name="体验包",
+            points=60,
+            amount=9.9,
+            amount_cents=990,
+            pay_method="hupijiao",
+            status="paid",
+        )
+        app_module.db.session.add(app_module.Membership(user_id=member.id, points=10))
+        app_module.db.session.add(order)
+        app_module.db.session.commit()
+        order_id = order.id
+
+    payload = _signed_hupijiao_notify(app_module, trade_order_id=f"XC{order_id}", total_fee="9.90", status="CD")
+    response = app_module.app.test_client().post("/api/recharge/hupijiao/notify", data=payload)
+
+    assert response.status_code == 400
+    assert response.text == "failed"
+    with app_module.app.app_context():
+        refreshed = app_module.db.session.get(app_module.RechargeOrder, order_id)
+        membership = app_module.Membership.query.filter_by(user_id=member.id).one()
+        logs = app_module.PointLog.query.filter_by(user_id=member.id, action="recharge_refund").all()
+        assert refreshed.status == "paid"
+        assert membership.points == 10
+        assert logs == []
 
 
 def test_hupijiao_notify_adds_ai_quota_not_points(app_module, user_factory, monkeypatch):

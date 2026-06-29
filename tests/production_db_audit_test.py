@@ -31,7 +31,10 @@ def create_minimal_db(path):
             points INTEGER NOT NULL DEFAULT 0,
             dedupe_key TEXT
         );
-        CREATE TABLE recharge_order (id INTEGER PRIMARY KEY);
+        CREATE TABLE recharge_order (
+            id INTEGER PRIMARY KEY,
+            payment_reference TEXT
+        );
         CREATE TABLE admin_audit_log (id INTEGER PRIMARY KEY);
         CREATE TABLE migration_record (id INTEGER PRIMARY KEY);
         CREATE TABLE verification_code (id INTEGER PRIMARY KEY);
@@ -87,3 +90,18 @@ def test_production_db_audit_reports_points_data_anomalies(tmp_path):
     assert "negative_membership_points" in codes
     assert "orphan_membership" in codes
     assert "orphan_point_log" in codes
+
+
+def test_production_db_audit_reports_duplicate_payment_reference(tmp_path):
+    module = load_audit_module()
+    db_path = tmp_path / "bad-payment-ref.db"
+    create_minimal_db(db_path)
+    conn = sqlite3.connect(db_path)
+    conn.execute("INSERT INTO recharge_order (id, payment_reference) VALUES (1, 'txn-dup')")
+    conn.execute("INSERT INTO recharge_order (id, payment_reference) VALUES (2, 'txn-dup')")
+    conn.commit()
+    conn.close()
+
+    findings = module.audit_database(db_path)
+
+    assert any(item["code"] == "duplicate_payment_reference" for item in findings)

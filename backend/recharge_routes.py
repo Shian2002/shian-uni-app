@@ -6,7 +6,7 @@ import logging
 import os
 import secrets
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from urllib import parse as urlparse
 from urllib import request as urlrequest
@@ -34,6 +34,8 @@ RECHARGE_PACKAGES = [
 
 HUPIJIAO_GATEWAY_URL = os.environ.get('HUPIJIAO_GATEWAY_URL', 'https://api.xunhupay.com/payment/do.html')
 HUPIJIAO_TRADE_PREFIX = 'XC'
+RECHARGE_PENDING_EXPIRE_SECONDS = int(os.environ.get('RECHARGE_PENDING_EXPIRE_SECONDS', '1800'))
+RECHARGE_CREATE_RATE_SECONDS = int(os.environ.get('RECHARGE_CREATE_RATE_SECONDS', '10'))
 
 
 def _amount_decimal(value):
@@ -59,6 +61,16 @@ def _amount_cents(value):
     if amount is None:
         return None
     return int(amount * 100)
+
+
+def _order_amount_cents(order):
+    cents = getattr(order, 'amount_cents', None)
+    if cents is not None:
+        try:
+            return int(cents)
+        except (TypeError, ValueError):
+            return None
+    return _amount_cents(order.amount)
 
 
 def _hupijiao_sign(params, appsecret):
@@ -164,6 +176,49 @@ def _verify_hupijiao_hash(data, appsecret):
     return secrets.compare_digest(expected, actual)
 
 
+def _hupijiao_reference(data):
+    return (data.get('transaction_id') or data.get('open_order_id') or data.get('trade_order_id') or '')[:120]
+
+
+def _hupijiao_proof(data):
+    return {
+        'provider': 'hupijiao',
+        'trade_order_id': data.get('trade_order_id', ''),
+        'transaction_id': data.get('transaction_id', ''),
+        'open_order_id': data.get('open_order_id', ''),
+        'status': data.get('status', ''),
+        'total_fee': data.get('total_fee', ''),
+        'appid': data.get('appid', ''),
+        'time': data.get('time', ''),
+        'nonce_str': data.get('nonce_str', ''),
+        'attach': data.get('attach', ''),
+    }
+
+
+def _expire_stale_hupijiao_pending_orders(db, user_id=None):
+    """取消过期的虎皮椒待支付订单，避免同一用户长时间堆积无效账单。"""
+    now = datetime.utcnow()
+    cutoff = now - timedelta(seconds=max(RECHARGE_PENDING_EXPIRE_SECONDS, 60))
+    query = RechargeOrder.query.filter(
+        RechargeOrder.status == 'pending',
+        RechargeOrder.pay_method == 'hupijiao',
+        RechargeOrder.created_at < cutoff,
+    )
+    if user_id:
+        query = query.filter(RechargeOrder.user_id == user_id)
+    return query.update({'status': 'cancelled', 'updated_at': now}, synchronize_session=False)
+
+
+def _recent_pending_order_exists(user_id):
+    cutoff = datetime.utcnow() - timedelta(seconds=max(RECHARGE_CREATE_RATE_SECONDS, 1))
+    return RechargeOrder.query.filter(
+        RechargeOrder.user_id == user_id,
+        RechargeOrder.pay_method == 'hupijiao',
+        RechargeOrder.status == 'pending',
+        RechargeOrder.created_at >= cutoff,
+    ).first() is not None
+
+
 def make_confirm_recharge_order_once(db, get_or_create_membership, add_points):
     """构造幂等订单确认函数，供用户端和后台共用。"""
 
@@ -231,9 +286,84 @@ def make_confirm_recharge_order_once(db, get_or_create_membership, add_points):
     return confirm_recharge_order_once
 
 
+def make_refund_recharge_order_once(db, get_or_create_membership):
+    """构造幂等退款回退函数；只允许 paid 订单回退一次。"""
+
+    def refund_recharge_order_once(order_id, extra_update=None):
+        now = datetime.utcnow()
+        try:
+            update_data = {'status': 'refunded', 'updated_at': now, 'refunded_at': now}
+            if extra_update:
+                update_data.update(extra_update)
+            changed = RechargeOrder.query.filter_by(id=order_id, status='paid').update(
+                update_data,
+                synchronize_session=False,
+            )
+            if changed != 1:
+                db.session.rollback()
+                order = db.session.get(RechargeOrder, order_id)
+                if not order:
+                    return {'ok': False, 'error': '订单不存在', 'status': None}
+                return {'ok': False, 'error': '订单状态错误', 'status': order.status}
+
+            order = db.session.get(RechargeOrder, order_id)
+            pkg = next((p for p in RECHARGE_PACKAGES if p['id'] == order.package_id), None)
+            membership = get_or_create_membership(order.user_id, commit=False)
+            if pkg and pkg.get('package_type') == 'ai':
+                single = int(pkg.get('ai_single_credits') or 0)
+                combo = int(pkg.get('ai_combo_credits') or 0)
+                if int(membership.ai_single_credits or 0) < single or int(membership.ai_combo_credits or 0) < combo:
+                    db.session.rollback()
+                    return {'ok': False, 'error': 'AI 次数不足，无法自动回退', 'status': 'paid'}
+                membership.ai_single_credits = int(membership.ai_single_credits or 0) - single
+                membership.ai_combo_credits = int(membership.ai_combo_credits or 0) - combo
+                db.session.add(PointLog(
+                    user_id=order.user_id,
+                    action='ai_credit_refund',
+                    points=0,
+                    description=f"{order.package_name}退款回退: 单术数-{single}次 合参-{combo}次 (¥{order.amount})",
+                    dedupe_key=f'refund_order:{order.id}',
+                ))
+                new_total = membership.points
+                refunded = single or combo
+                credit_type = 'ai_single_credits' if single else 'ai_combo_credits'
+            else:
+                refund_points = int(order.points or 0)
+                if int(membership.points or 0) < refund_points:
+                    db.session.rollback()
+                    return {'ok': False, 'error': '积分不足，无法自动回退', 'status': 'paid'}
+                membership.points = int(membership.points or 0) - refund_points
+                db.session.add(PointLog(
+                    user_id=order.user_id,
+                    action='recharge_refund',
+                    points=-refund_points,
+                    description=f'充值退款回退: -{refund_points}分 (¥{order.amount})',
+                    dedupe_key=f'refund_order:{order.id}',
+                ))
+                new_total = membership.points
+                refunded = refund_points
+                credit_type = 'points'
+            db.session.commit()
+            return {
+                'ok': True,
+                'order_id': order.id,
+                'user_id': order.user_id,
+                'points': new_total,
+                'refunded': refunded,
+                'credit_type': credit_type,
+            }
+        except IntegrityError:
+            db.session.rollback()
+            order = db.session.get(RechargeOrder, order_id)
+            return {'ok': False, 'error': '订单状态错误', 'status': order.status if order else None}
+
+    return refund_recharge_order_once
+
+
 def register_recharge_routes(app, db, services):
     """注册 /api/recharge/* 路由。"""
     confirm_recharge_order_once = services['confirm_recharge_order_once']
+    refund_recharge_order_once = services['refund_recharge_order_once']
 
     @app.route('/api/recharge/packages', methods=['GET'])
     def api_recharge_packages():
@@ -256,6 +386,10 @@ def register_recharge_routes(app, db, services):
         config = _hupijiao_config()
         if config['missing']:
             return jsonify({'error': '虎皮椒支付暂未配置', 'missing': config['missing']}), 503
+        _expire_stale_hupijiao_pending_orders(db, current_user.id)
+        if _recent_pending_order_exists(current_user.id):
+            db.session.rollback()
+            return jsonify({'error': '下单过快，请稍后再试'}), 429
 
         order = RechargeOrder(
             user_id=current_user.id,
@@ -263,6 +397,7 @@ def register_recharge_routes(app, db, services):
             package_name=pkg['name'],
             points=pkg['points'],
             amount=pkg['price'],
+            amount_cents=_amount_cents(pkg['price']),
             pay_method=pay_method,
             status='pending',
         )
@@ -312,8 +447,9 @@ def register_recharge_routes(app, db, services):
         if not _verify_hupijiao_hash(data, config['appsecret']):
             logger.warning("虎皮椒回调失败: 签名错误")
             return Response('failed', mimetype='text/plain'), 400
-        if data.get('status') != 'OD':
-            logger.info(f"虎皮椒回调忽略非支付成功状态: status={data.get('status')}")
+        status = data.get('status')
+        if status not in ('OD', 'CD'):
+            logger.info(f"虎皮椒回调忽略非入账/退款状态: status={status}")
             return Response('success', mimetype='text/plain')
 
         order_id = _order_id_from_hupijiao_trade_id(data.get('trade_order_id'))
@@ -324,32 +460,50 @@ def register_recharge_routes(app, db, services):
         if order.pay_method != 'hupijiao':
             logger.warning(f"虎皮椒回调失败: 支付方式不匹配 order_id={order.id} pay_method={order.pay_method}")
             return Response('failed', mimetype='text/plain'), 400
-        if _amount_cents(order.amount) != _amount_cents(data.get('total_fee')):
+        if _order_amount_cents(order) != _amount_cents(data.get('total_fee')):
             logger.warning(f"虎皮椒回调失败: 金额不匹配 order_id={order.id}")
             return Response('failed', mimetype='text/plain'), 400
+
+        if status == 'CD':
+            if order.status == 'refunded':
+                return Response('success', mimetype='text/plain')
+            result = refund_recharge_order_once(order.id, {
+                'refund_reference': _hupijiao_reference(data),
+                'refund_proof': json.dumps(_hupijiao_proof(data), ensure_ascii=False, sort_keys=True),
+                'refunded_at': datetime.utcnow(),
+            })
+            if result.get('ok') or result.get('status') == 'refunded':
+                logger.info(
+                    "虎皮椒退款回退成功: order_id=%s user_id=%s refunded=%s credit_type=%s reference=%s",
+                    order.id,
+                    result.get('user_id', order.user_id),
+                    result.get('refunded', 0),
+                    result.get('credit_type', ''),
+                    _hupijiao_reference(data),
+                )
+                return Response('success', mimetype='text/plain')
+            logger.warning(f"虎皮椒退款回退失败: order_id={order.id} error={result.get('error')}")
+            return Response('failed', mimetype='text/plain'), 400
+
         if order.status == 'paid':
             return Response('success', mimetype='text/plain')
 
-        payment_reference = (data.get('transaction_id') or data.get('open_order_id') or data.get('trade_order_id') or '')[:120]
-        proof = {
-            'provider': 'hupijiao',
-            'trade_order_id': data.get('trade_order_id', ''),
-            'transaction_id': data.get('transaction_id', ''),
-            'open_order_id': data.get('open_order_id', ''),
-            'status': data.get('status', ''),
-            'total_fee': data.get('total_fee', ''),
-            'appid': data.get('appid', ''),
-            'time': data.get('time', ''),
-            'nonce_str': data.get('nonce_str', ''),
-            'attach': data.get('attach', ''),
-        }
+        payment_reference = _hupijiao_reference(data)
         result = confirm_recharge_order_once(order.id, {
             'pay_method': 'hupijiao',
             'payment_reference': payment_reference,
-            'payment_proof': json.dumps(proof, ensure_ascii=False, sort_keys=True),
+            'payment_proof': json.dumps(_hupijiao_proof(data), ensure_ascii=False, sort_keys=True),
             'verified_at': datetime.utcnow(),
         })
         if result.get('ok') or result.get('status') == 'paid':
+            logger.info(
+                "虎皮椒支付入账成功: order_id=%s user_id=%s added=%s credit_type=%s reference=%s",
+                order.id,
+                result.get('user_id', order.user_id),
+                result.get('added', 0),
+                result.get('credit_type', ''),
+                payment_reference,
+            )
             return Response('success', mimetype='text/plain')
         logger.warning(f"虎皮椒回调入账失败: order_id={order.id} error={result.get('error')}")
         return Response('failed', mimetype='text/plain'), 400

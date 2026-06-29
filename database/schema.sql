@@ -271,17 +271,22 @@ CREATE TABLE IF NOT EXISTS recharge_order (
     package_name VARCHAR(100),
     points INTEGER NOT NULL,
     amount FLOAT NOT NULL,
+    amount_cents INTEGER,
     pay_method VARCHAR(50) DEFAULT 'transfer',
     status VARCHAR(20) DEFAULT 'pending',
     payment_reference VARCHAR(120) DEFAULT '',
     payment_proof TEXT DEFAULT '',
+    refund_reference VARCHAR(120) DEFAULT '',
+    refund_proof TEXT DEFAULT '',
     verified_at DATETIME,
+    refunded_at DATETIME,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS ix_recharge_order_user_created ON recharge_order(user_id, created_at);
 CREATE INDEX IF NOT EXISTS ix_recharge_order_status_created ON recharge_order(status, created_at);
 CREATE INDEX IF NOT EXISTS ix_recharge_order_payment_reference ON recharge_order(payment_reference);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_recharge_order_payment_reference_nonempty ON recharge_order(payment_reference) WHERE payment_reference IS NOT NULL AND payment_reference <> '';
 
 -- 八字排盘/合盘历史记录
 CREATE TABLE IF NOT EXISTS bazi_record (
