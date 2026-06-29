@@ -21,7 +21,8 @@ def test_h5_only_deploy_script_requires_explicit_confirmation_and_dry_run():
         "--exclude '/static/uploads/'",
         "--exclude '/static/alipay-recharge.jpg'",
         "npm run h5:legal-deploy-status -- --strict",
-        "LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict",
+        "LEGAL_URL_CHECK_SCOPE=website LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict",
+        "STORE_SUBMISSION_CHECK=1",
         "bash scripts/production_monitor.sh",
     ]:
         assert expected in script

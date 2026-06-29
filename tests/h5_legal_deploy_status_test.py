@@ -20,7 +20,7 @@ def test_h5_legal_deploy_status_checker_tracks_local_dist_and_online_assets():
         "deployedLegalPage",
         "deployedIcpFooter",
         "粤ICP备",
-        "LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict",
+        "LEGAL_URL_CHECK_SCOPE=website LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict",
         "不得把 `configs/release/legal-urls.json` 的 `status` 改为 `ready`",
     ]:
         assert expected in source

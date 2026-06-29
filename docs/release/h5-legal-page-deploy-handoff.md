@@ -46,7 +46,7 @@ DRY_RUN=1 npm run deploy:h5
 CONFIRM_H5_DEPLOY=shianjieyouwu.com npm run deploy:h5
 ```
 
-该脚本只同步 `dist/build/h5/index.html`、`dist/build/h5/assets`、`dist/build/h5/static` 到服务器，不同步后端代码、不重启后端服务。部署前会备份当前线上 H5 静态资源，部署后会运行 `npm run h5:legal-deploy-status -- --strict`、`LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict` 和线上监控检查。
+该脚本只同步 `dist/build/h5/index.html`、`dist/build/h5/assets`、`dist/build/h5/static` 到服务器，不同步后端代码、不重启后端服务。部署前会备份当前线上 H5 静态资源，部署后会运行 `npm run h5:legal-deploy-status -- --strict`、`LEGAL_URL_CHECK_SCOPE=website LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict` 和线上监控检查。商店提审严格检查默认跳过，需要上架前再显式加 `STORE_SUBMISSION_CHECK=1`。
 
 默认不会上传 `static/alipay-recharge.jpg`，避免商店审核包混入外部充值素材。若正式官网需要同步充值二维码，必须显式加 `INCLUDE_RECHARGE_ASSETS=1`。
 
@@ -61,14 +61,14 @@ bash deploy-to-server.sh
 ## 部署后放行检查
 
 ```bash
-LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict
+LEGAL_URL_CHECK_SCOPE=website LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict
 npm run domain:https -- --strict
 npm run h5:legal-deploy-status -- --strict
 npm run release:package
 npm run release:summary
 ```
 
-只有线上法律 URL 严格验证通过、APP 备案或不适用说明完成、负责人别名和商店后台截图回填后，才能把相关发行台账标记为 ready。
+网站 H5 上线只要求法律页线上可访问、正文完整、HTTPS 和 ICP 页脚证据可核验。只有准备提交商店时，才运行 `STORE_SUBMISSION_CHECK=1 CONFIRM_H5_DEPLOY=shianjieyouwu.com npm run deploy:h5` 或 `LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict`；线上法律 URL 严格验证、APP 备案或不适用说明、负责人别名和商店后台截图都完成后，才能把相关发行台账标记为 ready。
 
 ## 回滚命令
 

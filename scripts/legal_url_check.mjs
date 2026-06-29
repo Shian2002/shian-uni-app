@@ -6,6 +6,8 @@ import { join, relative } from 'node:path'
 const root = process.cwd()
 const strict = process.argv.includes('--strict') || process.env.LEGAL_URL_CHECK_STRICT === '1'
 const online = process.argv.includes('--online') || process.env.LEGAL_URL_CHECK_ONLINE === '1'
+const scopeArg = process.argv.find((arg) => arg.startsWith('--scope='))
+const scope = process.env.LEGAL_URL_CHECK_SCOPE || (scopeArg ? scopeArg.split('=').slice(1).join('=') : 'store')
 const packageJson = readJson('package.json') || {}
 const version = process.env.LEGAL_URL_CHECK_VERSION || `v${packageJson.version || '0.0.0'}`
 const outDir = process.env.LEGAL_URL_CHECK_DIR || join(root, 'artifacts', 'legal-url-checks', `${localTimestamp()}-${version}`)
@@ -40,6 +42,10 @@ function readText(path) {
   return existsSync(fullPath) ? readFileSync(fullPath, 'utf8') : ''
 }
 
+function isWebsiteScope() {
+  return scope === 'website' || scope === 'h5'
+}
+
 function localChecks(legalUrls) {
   const page = readText('src/pages/legal/index.vue')
   const pagesJson = readText('src/pages.json')
@@ -70,7 +76,9 @@ function localChecks(legalUrls) {
     if (!url.startsWith('https://')) warnings.push(`${label} 不是 HTTPS，正式商店提交前不能标记 ready`)
     if (/119\.29\.128\.18|localhost|127\.0\.0\.1/.test(url)) warnings.push(`${label} 使用 IP 或本地地址，只能作为候选 URL`)
   }
-  if (legalUrls?.status !== 'ready') warnings.push(`legal-urls status=${legalUrls?.status || 'missing'}，线上验证通过后才能改为 ready`)
+  if (!isWebsiteScope() && legalUrls?.status !== 'ready') {
+    warnings.push(`legal-urls status=${legalUrls?.status || 'missing'}，线上验证通过后才能改为 ready`)
+  }
 
   return { issues, warnings, h5IndexExists }
 }
@@ -156,6 +164,7 @@ function writeReport(report) {
     '',
     `> 生成时间：${report.generatedAt}`,
     `> 模式：${report.online ? 'online' : 'local-static'}`,
+    `> 范围：${report.scope === 'website' ? 'website' : 'store'}`,
     `> 结论：${report.passed ? 'ready' : 'not-ready'}`,
     '',
     '## URL',
@@ -178,6 +187,7 @@ function writeReport(report) {
     '## 使用规则',
     '',
     '- 默认模式只做本地静态验证，不访问线上地址。',
+    '- 网站 H5 部署使用 `LEGAL_URL_CHECK_SCOPE=website LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict`，只校验网站法律页可访问性与正文。',
     '- 正式商店提交前必须先部署 H5，再执行 `LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict`。',
     '- 线上验证、HTTPS 域名和真实商店截图都通过后，才能把 `configs/release/legal-urls.json` 的 `status` 改为 `ready`。',
   ].join('\n') + '\n')
@@ -194,6 +204,7 @@ async function main() {
     version,
     strict,
     online,
+    scope: isWebsiteScope() ? 'website' : 'store',
     passed,
     legalUrls,
     local,
@@ -201,9 +212,10 @@ async function main() {
     outDir: rel(outDir),
   }
   writeReport(report)
-  console.log(JSON.stringify({ outDir: report.outDir, passed: report.passed, online: report.online, issues: local.issues.length, warnings: local.warnings.length }, null, 2))
+  console.log(JSON.stringify({ outDir: report.outDir, passed: report.passed, online: report.online, scope: report.scope, issues: local.issues.length, warnings: local.warnings.length }, null, 2))
   if (strict && !passed) {
-    console.error('严格模式失败：法律 URL 未达到正式商店提交条件。')
+    const target = report.scope === 'website' ? '网站 H5 上线' : '正式商店提交'
+    console.error(`严格模式失败：法律 URL 未达到${target}条件。`)
     process.exit(1)
   }
 }

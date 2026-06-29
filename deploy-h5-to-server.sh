@@ -3,6 +3,7 @@
 # 用法: CONFIRM_H5_DEPLOY=shianjieyouwu.com bash deploy-h5-to-server.sh
 # 可选: DRY_RUN=1 bash deploy-h5-to-server.sh 只打印将要同步的文件，不改线上。
 # 可选: INCLUDE_RECHARGE_ASSETS=1 同步旧充值二维码类静态资源；默认不上传，避免商店审核包混入外部充值素材。
+# 可选: STORE_SUBMISSION_CHECK=1 额外执行商店提审严格检查；默认只检查网站 H5 上线必需项。
 
 set -euo pipefail
 
@@ -16,6 +17,7 @@ BACKUP_DIR="${BACKUP_DIR:-/home/lighthouse/backups/xuan-cet/h5}"
 DRY_RUN="${DRY_RUN:-0}"
 CONFIRM_H5_DEPLOY="${CONFIRM_H5_DEPLOY:-}"
 INCLUDE_RECHARGE_ASSETS="${INCLUDE_RECHARGE_ASSETS:-0}"
+STORE_SUBMISSION_CHECK="${STORE_SUBMISSION_CHECK:-0}"
 LOCAL_DIR="$(cd "$(dirname "$0")" && pwd)"
 SSH_CMD=(ssh -i "$SSH_KEY")
 RSYNC_CMD=(rsync -avz --progress -e "ssh -i $SSH_KEY")
@@ -60,6 +62,11 @@ if [ "$INCLUDE_RECHARGE_ASSETS" = "1" ]; then
 else
   echo "充值素材: 默认跳过 static/alipay-recharge.jpg（旧支付宝素材）"
 fi
+if [ "$STORE_SUBMISSION_CHECK" = "1" ]; then
+  echo "商店提审严格检查: 执行"
+else
+  echo "商店提审严格检查: 跳过（网站部署默认只校验 H5 上线必需项）"
+fi
 if [ "$DRY_RUN" = "1" ]; then
   echo "模式: dry-run，不会修改线上文件。"
 fi
@@ -69,7 +76,7 @@ npm run build:h5
 require_dist
 
 section "本地发行检查"
-npm run store:legal-urls
+LEGAL_URL_CHECK_SCOPE=website npm run store:legal-urls
 npm run h5:legal-deploy-status
 
 section "备份线上 H5 静态资源"
@@ -118,7 +125,12 @@ fi
 
 section "部署后线上验证"
 H5_LEGAL_DEPLOY_BASE_URL="$BASE_URL" npm run h5:legal-deploy-status -- --strict
-LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict
+LEGAL_URL_CHECK_SCOPE=website LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict
+if [ "$STORE_SUBMISSION_CHECK" = "1" ]; then
+  LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict
+else
+  echo "商店提审严格检查已跳过；准备上架前再运行 STORE_SUBMISSION_CHECK=1。"
+fi
 BASE_URL="$BASE_URL" bash scripts/production_monitor.sh
 
 section "完成"

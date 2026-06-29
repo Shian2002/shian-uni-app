@@ -121,7 +121,7 @@ requireText('docs/release/artifact-intake.md', ['release:intake', 'artifacts/rel
 requireText('docs/release/real-user-acceptance.md', ['real-user:packet', 'real-user:dispatch', 'real-user:check', 'artifacts/real-user-packets', 'result.example.json', 'results/tester-1.json', '至少需要 2 个测试人', '占位内容', '测试包只是材料模板'])
 requireText('docs/release/legal-url-verification.md', ['store:legal-urls', 'LEGAL_URL_CHECK_ONLINE', 'configs/release/legal-urls.json', 'status', 'ready'])
 requireText('docs/release/h5-legal-page-deploy-handoff.md', ['h5:legal-deploy-status', 'pages-legal-index', 'https://shianjieyouwu.com/', 'LEGAL_URL_CHECK_ONLINE=1'])
-requireText('deploy-h5-to-server.sh', ['CONFIRM_H5_DEPLOY=shianjieyouwu.com', 'DRY_RUN=1', 'npm run h5:legal-deploy-status -- --strict', 'LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict'])
+requireText('deploy-h5-to-server.sh', ['CONFIRM_H5_DEPLOY=shianjieyouwu.com', 'DRY_RUN=1', 'npm run h5:legal-deploy-status -- --strict', 'LEGAL_URL_CHECK_SCOPE=website LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict', 'STORE_SUBMISSION_CHECK=1'])
 requireText('rollback-h5-on-server.sh', ['CONFIRM_H5_ROLLBACK=shianjieyouwu.com', 'ROLLBACK_ARCHIVE', 'h5-deploy-*.tar.gz', 'scripts/production_monitor.sh'])
 requireText('docs/release/privacy-disclosure.md', ['store:privacy', 'App Privacy', 'Data safety', 'privacy-disclosures.json', 'humanReviewStatus'])
 requireText('configs/release/privacy-disclosures.json', ['appleAppPrivacy', 'googlePlayDataSafety', 'dataDeletionAvailable', 'humanReviewStatus'])

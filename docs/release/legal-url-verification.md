@@ -24,11 +24,13 @@ artifacts/legal-url-checks/<timestamp>-v1.0.0/
 
 ## 线上验证
 
-线上 H5 部署完成后再执行：
+线上 H5 部署完成后，网站上线范围执行：
 
 ```bash
-LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls
+LEGAL_URL_CHECK_SCOPE=website LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls
 ```
+
+`website` 范围只校验网站法律页 URL 可访问、正文完整、HTTPS 域名可用，不要求商店提审台账已经 ready。
 
 正式提交商店前使用严格模式：
 
@@ -45,4 +47,4 @@ LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict
 
 ## 当前状态
 
-当前 `configs/release/legal-urls.json` 已切到 `https://shianjieyouwu.com/#/pages/legal/index?...`，线上域名 HTTPS 可访问。ICP备案号 `粤ICP备2026072162号-1` 已在营销页页脚和关于页展示；正式提交 Apple App Store、Google Play、应用宝、华为、小米、OPPO、vivo 前，还需要生成通过的 `LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict` 报告、回传商店后台 URL 截图，并在完成 APP 备案/不适用说明后把状态改为 `ready`。
+当前 `configs/release/legal-urls.json` 已切到 `https://shianjieyouwu.com/#/pages/legal/index?...`，线上域名 HTTPS 可访问。ICP备案号 `粤ICP备2026072162号-1` 已在营销页页脚和关于页展示；网站 H5 可使用 `LEGAL_URL_CHECK_SCOPE=website LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict` 验证。正式提交 Apple App Store、Google Play、应用宝、华为、小米、OPPO、vivo 前，还需要生成通过的 `LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict` 报告、回传商店后台 URL 截图，并在完成 APP 备案/不适用说明后把状态改为 `ready`。

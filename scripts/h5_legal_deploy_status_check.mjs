@@ -229,8 +229,8 @@ async function main() {
     '',
     '- 部署前必须先运行 `npm run build:h5`，并确认本地 `pages-legal-index.*.js` 包含隐私政策和用户协议正文。',
     `- ICP 备案号通常应包含 \`${icpRecordHint}\` 前缀；当前备案号来自 \`configs/release/domain-https.json\`。`,
-    '- 部署后必须运行 `npm run h5:legal-deploy-status -- --strict` 和 `LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict`。',
-    '- 通过前不得把 `configs/release/legal-urls.json` 的 `status` 改为 `ready`。',
+    '- 网站 H5 部署后必须运行 `npm run h5:legal-deploy-status -- --strict` 和 `LEGAL_URL_CHECK_SCOPE=website LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict`。',
+    '- 正式商店提交前再运行 `LEGAL_URL_CHECK_ONLINE=1 npm run store:legal-urls -- --strict`，通过前不得把 `configs/release/legal-urls.json` 的 `status` 改为 `ready`。',
     '',
   ].join('\n'))
 

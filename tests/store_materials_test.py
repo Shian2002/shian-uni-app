@@ -55,6 +55,7 @@ def test_legal_url_check_is_static_by_default_and_online_opt_in():
 
     for expected in [
         "LEGAL_URL_CHECK_ONLINE",
+        "LEGAL_URL_CHECK_SCOPE",
         "LEGAL_URL_CHECK_STRICT",
         "configs/release/legal-urls.json",
         "privacyPolicyUrl",
