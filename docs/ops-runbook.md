@@ -193,6 +193,7 @@ HUPIJIAO_APPID=你的虎皮椒APPID
 HUPIJIAO_APPSECRET=你的虎皮椒APPSECRET
 PUBLIC_BASE_URL=https://shianjieyouwu.com
 # 可选：HUPIJIAO_GATEWAY_URL=https://api.xunhupay.com/payment/do.html
+# 可选：HUPIJIAO_QUERY_URL=https://api.xunhupay.com/payment/query.html
 ```
 
 注意：
@@ -202,6 +203,8 @@ PUBLIC_BASE_URL=https://shianjieyouwu.com
 - 上线前先用测试包或一分钱订单做端到端验活，核对 `recharge_order.status`、`membership.points` / AI 次数和 `point_log` 只入账一次；退款后必须看到订单进入 `refunded`，并产生一次 `recharge_refund` 或 `ai_credit_refund` 幂等日志。
 - 虎皮椒重复回调应返回 `success`，但不能重复加积分或 AI 次数。
 - 虎皮椒退款回调同样必须先验签、校验订单和金额；重复退款回调应返回 `success`，但不能重复扣积分或 AI 次数。
+- 如果商户后台手动退款没有触发退款回调，线上 `xuan-cet-hupijiao-reconcile.timer` 会每 30 秒查询最近 paid 订单；虎皮椒查询状态为 `CD` 时，自动把本站订单改为 `refunded` 并生成一次 `refund_order:<id>` 扣减流水。
+- 手动核验退款对账可运行：`/opt/xuan-cet/backend/venv/bin/python /opt/xuan-cet/backend/scripts/reconcile_hupijiao_refunds.py --order-id <订单ID> --json`。
 
 改部署脚本、依赖、服务器配置或数据库迁移：
 

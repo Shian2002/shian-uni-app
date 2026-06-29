@@ -133,6 +133,38 @@ StandardError=journal
 WantedBy=multi-user.target
 EOF"
 $SSH_CMD "$SERVER" "sudo systemctl daemon-reload && sudo systemctl enable xuan-cet-flask >/dev/null && sudo systemctl restart xuan-cet-flask"
+$SSH_CMD "$SERVER" "sudo tee /etc/systemd/system/xuan-cet-hupijiao-reconcile.service > /dev/null <<'EOF'
+[Unit]
+Description=时安解忧屋 虎皮椒退款对账
+After=network.target xuan-cet-flask.service
+
+[Service]
+Type=oneshot
+User=$SERVER_USER
+WorkingDirectory=/opt/xuan-cet/backend
+Environment=FLASK_ENV=production
+Environment=DATABASE_URL=$DATABASE_URL
+Environment=PUBLIC_BASE_URL=$PRODUCTION_BASE_URL
+EnvironmentFile=-/opt/xuan-cet/backend/.env
+ExecStart=/opt/xuan-cet/backend/venv/bin/python /opt/xuan-cet/backend/scripts/reconcile_hupijiao_refunds.py --lookback-days 14 --limit 50 --json
+StandardOutput=journal
+StandardError=journal
+EOF"
+$SSH_CMD "$SERVER" "sudo tee /etc/systemd/system/xuan-cet-hupijiao-reconcile.timer > /dev/null <<'EOF'
+[Unit]
+Description=每 30 秒对账虎皮椒退款
+
+[Timer]
+OnActiveSec=30s
+OnBootSec=30s
+OnUnitActiveSec=30s
+AccuracySec=5s
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF"
+$SSH_CMD "$SERVER" "sudo systemctl daemon-reload && sudo systemctl enable --now xuan-cet-hupijiao-reconcile.timer >/dev/null"
 sleep 2
 echo "  等待服务启动..."
 RUNTIME_ENV="$($SSH_CMD "$SERVER" "systemctl show xuan-cet-flask -p Environment --value")"

@@ -33,6 +33,7 @@ RECHARGE_PACKAGES = [
 ]
 
 HUPIJIAO_GATEWAY_URL = os.environ.get('HUPIJIAO_GATEWAY_URL', 'https://api.xunhupay.com/payment/do.html')
+HUPIJIAO_QUERY_URL = os.environ.get('HUPIJIAO_QUERY_URL', 'https://api.xunhupay.com/payment/query.html')
 HUPIJIAO_TRADE_PREFIX = 'XC'
 RECHARGE_PENDING_EXPIRE_SECONDS = int(os.environ.get('RECHARGE_PENDING_EXPIRE_SECONDS', '1800'))
 RECHARGE_CREATE_RATE_SECONDS = int(os.environ.get('RECHARGE_CREATE_RATE_SECONDS', '10'))
@@ -93,6 +94,7 @@ def _hupijiao_config():
     appsecret = os.environ.get('HUPIJIAO_APPSECRET', '').strip()
     public_base_url = os.environ.get('PUBLIC_BASE_URL', '').strip().rstrip('/')
     gateway_url = os.environ.get('HUPIJIAO_GATEWAY_URL', HUPIJIAO_GATEWAY_URL).strip() or HUPIJIAO_GATEWAY_URL
+    query_url = os.environ.get('HUPIJIAO_QUERY_URL', HUPIJIAO_QUERY_URL).strip() or HUPIJIAO_QUERY_URL
     missing = []
     if not enabled:
         missing.append('HUPIJIAO_ENABLED')
@@ -108,6 +110,7 @@ def _hupijiao_config():
         'appsecret': appsecret,
         'public_base_url': public_base_url,
         'gateway_url': gateway_url,
+        'query_url': query_url,
         'missing': missing,
     }
 
@@ -168,6 +171,30 @@ def _post_hupijiao_order(gateway_url, payload, timeout=10):
     return json.loads(raw)
 
 
+def _build_hupijiao_query_payload(config, order):
+    payload = {
+        'appid': config['appid'],
+        'out_trade_order': _hupijiao_trade_order_id(order.id),
+        'time': str(int(time.time())),
+        'nonce_str': secrets.token_hex(16),
+    }
+    payload['hash'] = _hupijiao_sign(payload, config['appsecret'])
+    return payload
+
+
+def _post_hupijiao_query(query_url, payload, timeout=10):
+    body = urlparse.urlencode(payload).encode('utf-8')
+    req = urlrequest.Request(
+        query_url,
+        data=body,
+        headers={'Content-Type': 'application/x-www-form-urlencoded'},
+        method='POST',
+    )
+    with urlrequest.urlopen(req, timeout=timeout) as resp:
+        raw = resp.read().decode('utf-8', errors='replace')
+    return json.loads(raw)
+
+
 def _verify_hupijiao_hash(data, appsecret):
     expected = (data.get('hash') or '').strip().lower()
     if not expected:
@@ -193,6 +220,140 @@ def _hupijiao_proof(data):
         'nonce_str': data.get('nonce_str', ''),
         'attach': data.get('attach', ''),
     }
+
+
+def _hupijiao_query_reference(data):
+    return (data.get('transaction_id') or data.get('open_order_id') or data.get('trade_order_id') or '')[:120]
+
+
+def _hupijiao_query_proof(query_data):
+    data = query_data or {}
+    return {
+        'provider': 'hupijiao',
+        'source': 'query_reconcile',
+        'trade_order_id': data.get('trade_order_id', ''),
+        'transaction_id': data.get('transaction_id', ''),
+        'open_order_id': data.get('open_order_id', ''),
+        'status': data.get('status', ''),
+        'total_fee': data.get('total_fee', ''),
+    }
+
+
+def query_hupijiao_order(config, order):
+    payload = _build_hupijiao_query_payload(config, order)
+    result = _post_hupijiao_query(config['query_url'], payload)
+    errcode = int(result.get('errcode') or 0)
+    if errcode != 0:
+        return {
+            'ok': False,
+            'error': result.get('errmsg') or f'虎皮椒查询失败: {errcode}',
+            'errcode': errcode,
+        }
+    data = result.get('data') or {}
+    if not isinstance(data, dict):
+        return {'ok': False, 'error': '虎皮椒查询返回格式错误', 'errcode': errcode}
+    return {
+        'ok': True,
+        'status': (data.get('status') or '').strip(),
+        'reference': _hupijiao_query_reference(data),
+        'data': data,
+    }
+
+
+def reconcile_hupijiao_refunds(
+    db,
+    refund_recharge_order_once,
+    query_order_func=None,
+    *,
+    lookback_days=14,
+    limit=50,
+    order_id=None,
+    dry_run=False,
+):
+    """查询虎皮椒订单状态，把已退款的 paid 订单自动回退积分。"""
+    config = _hupijiao_config()
+    if config['missing']:
+        return {'ok': False, 'error': '虎皮椒支付暂未配置', 'missing': config['missing']}
+
+    lookback_days = max(int(lookback_days or 1), 1)
+    limit = min(max(int(limit or 1), 1), 200)
+    query_order = query_order_func or query_hupijiao_order
+
+    orders_query = RechargeOrder.query.filter(
+        RechargeOrder.pay_method == 'hupijiao',
+        RechargeOrder.status == 'paid',
+    )
+    if order_id:
+        orders_query = orders_query.filter(RechargeOrder.id == int(order_id))
+    else:
+        cutoff = datetime.utcnow() - timedelta(days=lookback_days)
+        orders_query = orders_query.filter(RechargeOrder.created_at >= cutoff)
+    orders = orders_query.order_by(RechargeOrder.id.desc()).limit(limit).all()
+
+    summary = {'ok': True, 'checked': len(orders), 'refunded': [], 'skipped': [], 'failed': []}
+    for order in orders:
+        try:
+            remote = query_order(config, order)
+        except Exception as exc:
+            db.session.rollback()
+            logger.warning("虎皮椒退款对账查询异常: order_id=%s error=%s", order.id, exc)
+            summary['failed'].append({'order_id': order.id, 'error': str(exc)})
+            continue
+
+        if not remote.get('ok'):
+            db.session.rollback()
+            summary['failed'].append({'order_id': order.id, 'error': remote.get('error', '查询失败')})
+            continue
+
+        remote_status = remote.get('status') or ''
+        if remote_status != 'CD':
+            summary['skipped'].append({'order_id': order.id, 'remote_status': remote_status})
+            continue
+
+        remote_reference = remote.get('reference') or ''
+        payment_reference = order.payment_reference or ''
+        if payment_reference and remote_reference and remote_reference != payment_reference:
+            summary['failed'].append({
+                'order_id': order.id,
+                'error': '支付流水号不匹配',
+                'remote_reference': remote_reference,
+            })
+            continue
+
+        if dry_run:
+            summary['skipped'].append({'order_id': order.id, 'remote_status': remote_status, 'dry_run': True})
+            continue
+
+        proof = _hupijiao_query_proof(remote.get('data') or {})
+        result = refund_recharge_order_once(order.id, {
+            'refund_reference': remote_reference or f'hupijiao-query:{order.id}',
+            'refund_proof': json.dumps(proof, ensure_ascii=False, sort_keys=True),
+            'refunded_at': datetime.utcnow(),
+        })
+        if result.get('ok') or result.get('status') == 'refunded':
+            logger.info(
+                "虎皮椒退款对账回退成功: order_id=%s user_id=%s refunded=%s credit_type=%s reference=%s",
+                order.id,
+                result.get('user_id', order.user_id),
+                result.get('refunded', 0),
+                result.get('credit_type', ''),
+                remote_reference,
+            )
+            summary['refunded'].append({
+                'order_id': order.id,
+                'user_id': result.get('user_id', order.user_id),
+                'refunded': result.get('refunded', 0),
+                'credit_type': result.get('credit_type', ''),
+            })
+        else:
+            logger.warning("虎皮椒退款对账回退失败: order_id=%s error=%s", order.id, result.get('error'))
+            summary['failed'].append({
+                'order_id': order.id,
+                'error': result.get('error', '退款回退失败'),
+                'status': result.get('status'),
+            })
+
+    return summary
 
 
 def _expire_stale_hupijiao_pending_orders(db, user_id=None):
