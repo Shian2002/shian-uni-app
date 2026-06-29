@@ -78,6 +78,15 @@ def test_online_regression_checks_deep_health():
     assert "/api/health/deep" in script
 
 
+def test_online_regression_oauth_mocks_logged_in_side_requests():
+    script = (ROOT / "scripts" / "online_regression.mjs").read_text(encoding="utf-8")
+
+    assert "**/api/user/bindings" in script
+    assert "**/api/bindings" in script
+    assert "**/api/comprehensive/options" in script
+    assert "**/api/points/log**" in script
+
+
 def test_baidu_backup_script_dry_run_validates_without_uploading(tmp_path):
     backup = tmp_path / "tianji-20260604.db"
     backup.write_bytes(b"sqlite backup")

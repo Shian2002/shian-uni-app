@@ -385,10 +385,25 @@ async function checkOAuthProfileNav(browser) {
       contentType: 'application/json',
       body: JSON.stringify({ profiles: [] }),
     }))
+    await page.route('**/api/user/bindings', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ email: '904752171@qq.com', oauth_gitee: true }),
+    }))
     await page.route('**/api/bindings', (route) => route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ email: '904752171@qq.com', oauth_gitee: true }),
+    }))
+    await page.route('**/api/comprehensive/options', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ profiles: [], tools: [], modes: [], points: 100 }),
+    }))
+    await page.route('**/api/points/log**', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ logs: [], total: 0, page: 1, per_page: 50 }),
     }))
     const marker = `oauth-${Date.now()}`
     await page.goto(`${baseUrl}/#/pages/profile/index?oauth_success=gitee&qa=${marker}`, { waitUntil: 'domcontentloaded', timeout: timeoutMs })
