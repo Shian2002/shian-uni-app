@@ -1485,12 +1485,18 @@ const questionGuideDraft = reactive({
 })
 let pendingToolRecommendResolve = null
 let questionGuideLoadingMessageIndex = -1
+const AGENT_SHORT_COST = 300
+const AGENT_STANDARD_COST = 800
+const AGENT_COMPLEX_COST = 1500
+const AGENT_FOLLOWUP_COST = 100
+const AGENT_SHORT_TOOLS = ['liuyao', 'meihua', 'tarot', 'zeji']
+
 const readingModes = ref([
-  { id: 'concise', name: '简约', cost_delta: -1, display_cost: 1 },
-  { id: 'standard', name: '标准', cost_delta: 0, display_cost: 2 },
-  { id: 'deep', name: '深度', cost_delta: 2, display_cost: 4 },
+  { id: 'concise', name: '简约', cost_delta: 0, display_cost: AGENT_SHORT_COST },
+  { id: 'standard', name: '标准', cost_delta: 0, display_cost: AGENT_STANDARD_COST },
+  { id: 'deep', name: '深度', cost_delta: 0, display_cost: AGENT_COMPLEX_COST },
 ])
-const llmModels = ref([{ id: 'basic', name: 'SHIAN-1.1', cost_base: 2, cost_multiplier: 0, followup_cost: 2 }])
+const llmModels = ref([{ id: 'basic', name: 'SHIAN-1.1', cost_base: AGENT_STANDARD_COST, cost_multiplier: 0, followup_cost: AGENT_FOLLOWUP_COST }])
 const toolModels = ref([
   { id: 'qimen', name: '奇门遁甲', cost: 3, needs_profile: false },
   { id: 'bazi', name: '八字', cost: 2, needs_profile: true },
@@ -1568,17 +1574,13 @@ const homeAiContextSummary = computed(() => {
   return profileText + ' · ' + toolText + ' · SHIAN-1.1 · ' + costText
 })
 const estimatedCost = computed(() => {
-  if (comprehensiveMessages.value.length > 0) return Math.max(0, (selectedLlmModel.value.followup_cost || 0) + modeCostDelta())
+  if (comprehensiveMessages.value.length > 0) return Number(selectedLlmModel.value.followup_cost || AGENT_FOLLOWUP_COST)
   const selected = selectedToolModels.value || []
   if (selected.length > 1 && aiComboCredits.value > 0) return 0
   if (selected.length === 1 && aiSingleCredits.value > 0) return 0
   const profileCount = Math.max(1, selectedProfiles.value.length)
-  const toolsCost = selected.reduce((sum, id) => {
-    const tool = toolModels.value.find(t => t.id === id)
-    return sum + (tool ? Number(tool.cost || 0) : 0)
-  }, 0)
-  const cost = Math.round((selectedLlmModel.value.cost_base || 0) + toolsCost * profileCount * (selectedLlmModel.value.cost_multiplier || 1) + modeCostDelta())
-  if (dailyLightAvailable.value && cost <= 2) return 0
+  const cost = calculateEstimatedAgentCost(selected, selectedReadingMode.value.id || 'standard', profileCount)
+  if (dailyLightAvailable.value && cost <= 0) return 0
   return cost
 })
 const selectedToolSummary = computed(() => {
@@ -1851,6 +1853,14 @@ function onReadingModeChange(e) {
 function modeCostDelta() {
   const mode = selectedReadingMode.value || readingModes.value[1] || {}
   return Number(mode.cost_delta || 0)
+}
+
+function calculateEstimatedAgentCost(selectedTools, modeId, profileCount) {
+  const selected = Array.isArray(selectedTools) ? selectedTools : []
+  const count = Math.max(1, Number(profileCount || 1))
+  if (modeId === 'deep' || count > 1 || selected.length >= 3) return AGENT_COMPLEX_COST
+  if (modeId === 'concise' || (selected.length <= 1 && (!selected.length || AGENT_SHORT_TOOLS.includes(selected[0])))) return AGENT_SHORT_COST
+  return AGENT_STANDARD_COST
 }
 
 function toggleToolModel(id) {

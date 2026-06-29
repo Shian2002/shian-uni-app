@@ -481,6 +481,17 @@ def test_top_nav_primary_buttons_have_native_data_href_fallback():
     assert "go(el.dataset.href)" in nav_btn_fallback.group("body")
 
 
+def test_top_nav_mobile_forces_secondary_links_into_more_menu():
+    source = TOP_NAV_VUE.read_text(encoding="utf-8")
+
+    assert "var forceMobileMore = window.innerWidth <= 560" in source
+    assert "var mobilePrimaryCount = 2" in source
+    assert "overflow = allBtns.slice(mobilePrimaryCount)" in source
+    assert "if (forceMobileMore && allBtns.length > mobilePrimaryCount)" in source
+    assert "window.addEventListener('orientationchange', scheduleNavOverflowUpdate)" in source
+    assert "window.visualViewport.addEventListener('resize', scheduleNavOverflowUpdate)" in source
+
+
 def test_top_nav_waits_for_switch_tab_before_rendering_from_non_tab_pages():
     source = TOP_NAV_VUE.read_text(encoding="utf-8")
 

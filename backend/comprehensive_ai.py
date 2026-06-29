@@ -2,13 +2,20 @@
 import json
 
 
+AGENT_SHORT_COST = 300
+AGENT_STANDARD_COST = 800
+AGENT_COMPLEX_COST = 1500
+AGENT_FOLLOWUP_COST = 100
+SHORT_QUESTION_TOOLS = {"liuyao", "meihua", "tarot", "zeji"}
+
+
 COMPREHENSIVE_LLM_MODELS = [
     {
         "id": "basic",
         "name": "SHIAN-1.1",
-        "cost_base": 2,
+        "cost_base": AGENT_STANDARD_COST,
         "cost_multiplier": 0,
-        "followup_cost": 2,
+        "followup_cost": AGENT_FOLLOWUP_COST,
         "enabled": True,
     }
 ]
@@ -17,25 +24,25 @@ _LEGACY_LLM_MODEL_CONFIG = {
     "advanced": {
         "id": "advanced",
         "name": "时安高级模型",
-        "cost_base": 4,
+        "cost_base": AGENT_STANDARD_COST,
         "cost_multiplier": 0,
-        "followup_cost": 4,
+        "followup_cost": AGENT_FOLLOWUP_COST,
         "enabled": False,
     },
     "expert": {
         "id": "expert",
         "name": "时安专家模型",
-        "cost_base": 8,
+        "cost_base": AGENT_STANDARD_COST,
         "cost_multiplier": 0,
-        "followup_cost": 8,
+        "followup_cost": AGENT_FOLLOWUP_COST,
         "enabled": False,
     },
 }
 
 COMPREHENSIVE_READING_MODES = [
-    {"id": "concise", "name": "简约", "cost_delta": -1, "display_cost": 1},
-    {"id": "standard", "name": "标准", "cost_delta": 0, "display_cost": 2},
-    {"id": "deep", "name": "深度", "cost_delta": 2, "display_cost": 4},
+    {"id": "concise", "name": "简约", "cost_delta": 0, "display_cost": AGENT_SHORT_COST},
+    {"id": "standard", "name": "标准", "cost_delta": 0, "display_cost": AGENT_STANDARD_COST},
+    {"id": "deep", "name": "深度", "cost_delta": 0, "display_cost": AGENT_COMPLEX_COST},
 ]
 
 
@@ -254,15 +261,16 @@ def build_question_guidance(question, messages=None, model_id="basic", reading_m
 
 def calculate_cost(model_id, tool_models, is_followup=False, profile_count=1, reading_mode='standard'):
     model = get_llm_model(model_id)
-    mode_delta = int(get_reading_mode(reading_mode).get("cost_delta", 0))
     if is_followup:
-        return max(0, int(model.get("followup_cost", 1)) + mode_delta)
+        return max(0, int(model.get("followup_cost", AGENT_FOLLOWUP_COST)))
     selected = normalize_tool_models(tool_models)
-    tool_cost_map = {item["id"]: int(item.get("cost", 0)) for item in COMPREHENSIVE_TOOL_MODELS}
-    tools_cost = sum(tool_cost_map.get(item, 0) for item in selected)
-    multiplier = float(model.get("cost_multiplier", 1))
     count = max(1, int(profile_count or 1))
-    return max(0, int(round(int(model.get("cost_base", 0)) + tools_cost * count * multiplier + mode_delta)))
+    mode_id = get_reading_mode(reading_mode).get("id")
+    if mode_id == "deep" or count > 1 or len(selected) >= 3:
+        return AGENT_COMPLEX_COST
+    if mode_id == "concise" or (len(selected) <= 1 and (not selected or selected[0] in SHORT_QUESTION_TOOLS)):
+        return AGENT_SHORT_COST
+    return AGENT_STANDARD_COST
 
 
 def _birth_time_parts(value):

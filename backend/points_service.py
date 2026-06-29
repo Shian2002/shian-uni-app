@@ -9,7 +9,7 @@ from models import Membership, PointLog
 
 
 POINT_RULES = {
-    'sign_in': 10,
+    'sign_in': 300,
     'tool_use': -5,
     'post': 5,
     'comment': 2,

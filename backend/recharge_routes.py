@@ -23,10 +23,10 @@ logger = logging.getLogger('xuancetai')
 
 RECHARGE_PACKAGES = [
     {'id': 'test-cent', 'name': '测试包', 'points': 1, 'price': 0.01, 'package_type': 'points'},
-    {'id': 'starter', 'name': '体验包', 'points': 60, 'price': 9.9, 'package_type': 'points'},
-    {'id': 'standard', 'name': '标准包', 'points': 240, 'price': 29.9, 'package_type': 'points'},
-    {'id': 'premium', 'name': '畅享包', 'points': 650, 'price': 68, 'package_type': 'points'},
-    {'id': 'vip', 'name': '尊享包', 'points': 2200, 'price': 198, 'package_type': 'points'},
+    {'id': 'starter', 'name': '入门版', 'points': 3000, 'price': 9.9, 'package_type': 'points'},
+    {'id': 'standard', 'name': '标准版', 'points': 12000, 'price': 36, 'package_type': 'points'},
+    {'id': 'premium', 'name': '专业版', 'points': 30000, 'price': 68, 'package_type': 'points'},
+    {'id': 'vip', 'name': '尊享版', 'points': 100000, 'price': 198, 'package_type': 'points'},
     {'id': 'ai-starter', 'name': '入门 AI 包', 'points': 0, 'price': 9.9, 'package_type': 'ai', 'ai_single_credits': 10, 'ai_combo_credits': 0, 'description': '10 次单术数 AI'},
     {'id': 'ai-standard', 'name': '标准 AI 包', 'points': 0, 'price': 19.9, 'package_type': 'ai', 'ai_single_credits': 25, 'ai_combo_credits': 0, 'description': '25 次单术数 AI'},
     {'id': 'ai-combo', 'name': '深度合参包', 'points': 0, 'price': 68, 'package_type': 'ai', 'ai_single_credits': 0, 'ai_combo_credits': 20, 'description': '20 次多术数合参'},

@@ -46,7 +46,7 @@ def register_points_routes(app, db, services):
     @app.route('/api/membership/sign-in', methods=['POST'])
     @login_required
     def api_membership_sign_in():
-        """每日签到（+10积分，每天 1 次）。"""
+        """每日签到（+300积分，每天 1 次）。"""
         result = create_daily_sign_in_once(current_user.id)
         if not result.get('ok'):
             return jsonify({'error': result.get('error', '今天已签到')}), 400

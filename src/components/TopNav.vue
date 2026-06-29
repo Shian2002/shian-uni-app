@@ -2309,6 +2309,36 @@ function updateNavOverflow() {
       allBtns.push(btn)
     })
     if (!allBtns.length) return
+    var forceMobileMore = window.innerWidth <= 560
+    var mobilePrimaryCount = 2
+
+    function moveButtonsToMore(overflow) {
+      if (!overflow || !overflow.length) return false
+      overflow.forEach(function(btn) {
+        btn.style.display = 'none'
+        var nestedMenu = btn.querySelector('.nav-btn-drop-menu')
+        if (nestedMenu) {
+          var section = document.createElement('div')
+          section.className = 'nav-btn-drop-section'
+          section.textContent = getTopLevelNavText(btn)
+          styleMoreMenuItem(section, true)
+          moreMenu.appendChild(section)
+          nestedMenu.querySelectorAll('.nav-btn-drop-item').forEach(function(item) {
+            appendMoreItem(moreMenu, more, item.textContent.trim(), item.getAttribute('data-href'))
+          })
+        } else {
+          appendMoreItem(moreMenu, more, getTopLevelNavText(btn), btn.getAttribute('data-href'))
+        }
+      })
+      more.style.display = ''
+      return true
+    }
+
+    if (forceMobileMore && allBtns.length > mobilePrimaryCount) {
+      var overflow = allBtns.slice(mobilePrimaryCount)
+      moveButtonsToMore(overflow)
+      return
+    }
 
     var gap = 2
     try {
@@ -2338,25 +2368,7 @@ function updateNavOverflow() {
       visibleCount -= 1
     }
 
-    if (overflow.length > 0) {
-      overflow.forEach(function(btn) {
-        btn.style.display = 'none'
-        var nestedMenu = btn.querySelector('.nav-btn-drop-menu')
-        if (nestedMenu) {
-          var section = document.createElement('div')
-          section.className = 'nav-btn-drop-section'
-          section.textContent = getTopLevelNavText(btn)
-          styleMoreMenuItem(section, true)
-          moreMenu.appendChild(section)
-          nestedMenu.querySelectorAll('.nav-btn-drop-item').forEach(function(item) {
-            appendMoreItem(moreMenu, more, item.textContent.trim(), item.getAttribute('data-href'))
-          })
-        } else {
-          appendMoreItem(moreMenu, more, getTopLevelNavText(btn), btn.getAttribute('data-href'))
-        }
-      })
-      more.style.display = ''
-    } else {
+    if (!moveButtonsToMore(overflow)) {
       more.style.display = 'none'
     }
   })
@@ -2847,13 +2859,20 @@ onMounted(() => {
   nextTick(() => { syncNavHighlight(); updateNavOverflow() })
   // 等布局稳定后再检测一次，防止字体加载导致的测量偏差
   setTimeout(updateNavOverflow, 500)
+  function scheduleNavOverflowUpdate() {
+    if (window._xc_closeAllDropdowns) window._xc_closeAllDropdowns()
+    setTimeout(updateNavOverflow, 0)
+    setTimeout(updateNavOverflow, 120)
+  }
   // 窗口 resize 时重新检测按钮溢出（仅注册一次，避免多实例重复监听）
   if (!window.__topnavResizeDelegated) {
     window.__topnavResizeDelegated = true
-    window.addEventListener('resize', function() {
-      if (window._xc_closeAllDropdowns) window._xc_closeAllDropdowns()
-      updateNavOverflow()
-    })
+    window.addEventListener('resize', scheduleNavOverflowUpdate)
+    window.addEventListener('orientationchange', scheduleNavOverflowUpdate)
+  }
+  if (window.visualViewport && !window.__topnavVisualViewportDelegated) {
+    window.__topnavVisualViewportDelegated = true
+    window.visualViewport.addEventListener('resize', scheduleNavOverflowUpdate)
   }
   // 初始主题DOM同步（render effect bug: :data-theme 不响应）
   try {

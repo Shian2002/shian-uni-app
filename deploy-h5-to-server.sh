@@ -106,6 +106,10 @@ fi
   "$LOCAL_DIR/dist/build/h5/static" \
   "$SERVER:$H5_DIR/"
 
+if [ "$INCLUDE_RECHARGE_ASSETS" != "1" ] && [ "$DRY_RUN" != "1" ]; then
+  "${SSH_CMD[@]}" "$SERVER" "rm -f '$H5_DIR/static/alipay-recharge.jpg'"
+fi
+
 if [ "$DRY_RUN" = "1" ]; then
   section "完成"
   echo "dry-run 完成，未修改线上。"

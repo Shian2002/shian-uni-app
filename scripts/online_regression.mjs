@@ -123,7 +123,7 @@ async function checkReadOnlyApis() {
   assertCondition(packagesCheck.response.ok, `充值套餐 HTTP 状态异常: ${packagesCheck.response.status}`)
   const packages = packagesCheck.data?.packages || []
   assertCondition(Array.isArray(packages) && packages.length >= 5, '充值套餐数量异常')
-  assertCondition(packages.some((item) => item.id === 'starter' && item.points === 60), '缺少体验包 starter')
+  assertCondition(packages.some((item) => item.id === 'starter' && item.name === '入门版' && item.points === 3000 && item.price === 9.9), '缺少入门版 starter')
   assertCondition(packages.some((item) => item.id === 'ai-starter' && item.ai_single_credits === 10), '缺少 AI 入门包')
   results.push({ name: '充值套餐接口', packageCount: packages.length })
 

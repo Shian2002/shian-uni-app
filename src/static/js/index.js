@@ -1828,7 +1828,7 @@ async function loadMembership(){
         if($('vipPointsText'))$('vipPointsText').textContent=pts;
         if($('vipExpireText'))$('vipExpireText').textContent=exp?new Date(exp).toLocaleDateString('zh-CN'):'永久';
         if($('vipLevelBadge')){$('vipLevelBadge').textContent=LEVEL_MAP[lv]||lv;$('vipLevelBadge').className='level-badge '+(LEVEL_CLASS[lv]||'level-free');}
-        if($('signInBtn')){$('signInBtn').disabled=!!d.signed_in_today;$('signInBtn').textContent=d.signed_in_today?'已签到 ✓':'每日签到 +10积分';}
+        if($('signInBtn')){$('signInBtn').disabled=!!d.signed_in_today;$('signInBtn').textContent=d.signed_in_today?'已签到 ✓':'每日签到 +300积分';}
     }catch(e){console.error('loadMembership error:',e);}
 }
 
@@ -1838,7 +1838,7 @@ async function doSignIn(){
         const res=await apiFetch('/api/membership/sign-in',{method:'POST'});
         const d=await res.json();
         if(d.error){alert(d.error);return;}
-        alert('签到成功！获得 +10 积分');
+        alert('签到成功！获得 +300 积分');
         loadMembership();loadPointLog();
     }catch(e){alert('签到失败，请重试');}
 }

@@ -214,7 +214,7 @@ const modeCostText = computed(() => {
   const delta = Number(props.selectedReadingMode.cost_delta || 0)
   if (delta > 0) return '+' + delta + '积分'
   if (delta < 0) return delta + '积分'
-  return '2积分'
+  return '800积分'
 })
 
 const compactLlmName = computed(() => {
@@ -231,13 +231,12 @@ function modeOptionMeta(label) {
 }
 
 function toolCostText(tool) {
-  const cost = Number(tool && tool.cost || 0)
-  return cost > 0 ? cost + '积分' : '选择'
+  return tool && tool.id ? '影响估算' : '选择'
 }
 
 const llmCostText = computed(() => {
   const cost = Number(props.selectedLlmModel.cost_base || props.estimatedCost || 0)
-  return cost > 0 ? cost + '积分' : '0积分'
+  return cost > 0 ? cost + '积分' : '800积分'
 })
 
 onMounted(() => {

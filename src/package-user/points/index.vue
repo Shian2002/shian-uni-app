@@ -32,7 +32,7 @@
             <view class="account-actions">
               <view class="signin-btn" id="signinBtn" @click="doSignin">
                 <text id="signinText">每日签到</text>
-                <text class="signin-reward">+10</text>
+                <text class="signin-reward">+300</text>
               </view>
               <view class="account-note">签到和消耗记录可在账本核对</view>
             </view>
@@ -241,10 +241,10 @@ export default {
 
     var packages = ref([
       { id: 'test-cent', name: '测试包',  points: 1,    price: 0.01, package_type: 'points' },
-      { id: 'starter',  name: '体验包',  points: 60,   price: 9.9, package_type: 'points' },
-      { id: 'standard', name: '标准包',  points: 240,  price: 29.9, package_type: 'points' },
-      { id: 'premium',  name: '畅享包',  points: 650,  price: 68, package_type: 'points' },
-      { id: 'vip',      name: '尊享包',  points: 2200, price: 198, package_type: 'points' },
+      { id: 'starter',  name: '入门版',  points: 3000,   price: 9.9, package_type: 'points' },
+      { id: 'standard', name: '标准版',  points: 12000,  price: 36, package_type: 'points' },
+      { id: 'premium',  name: '专业版',  points: 30000,  price: 68, package_type: 'points' },
+      { id: 'vip',      name: '尊享版',  points: 100000, price: 198, package_type: 'points' },
     ])
     var pointPackages = ref([])
     var aiPackages = ref([])
@@ -272,7 +272,7 @@ export default {
       }
     ]
     var membershipPlans = [
-      { id: 'free', name: '免费版', price: '¥0', points: '每日签到领积分', benefits: ['1 个常用命盘', '基础问事体验', '适合试用'] },
+      { id: 'free', name: '免费版', price: '¥0', points: '每日签到 300 积分', benefits: ['1 个常用命盘', '基础问事体验', '适合试用'] },
       { id: 'starter', name: '入门版', price: '¥9.9', points: '约 3000 积分', benefits: ['3 个命盘', '短期问题追问', '适合轻量使用'] },
       { id: 'standard', name: '标准版', price: '¥36', points: '约 12000 积分', recommended: true, benefits: ['5 个命盘', '长期问题', '报告保存'] },
       { id: 'pro', name: '专业版', price: '¥68', points: '约 30000 积分', benefits: ['10 个命盘', '多术数合参', '高频复盘'] }

@@ -1002,7 +1002,7 @@ def test_comprehensive_guide_boss_question_requires_rounds_and_profile_tools(app
     assert "老板" in third["final_question"]
 
 
-def test_comprehensive_reading_mode_cost_delta(app_module, user_factory):
+def test_comprehensive_reading_mode_uses_agent_point_tiers(app_module, user_factory):
     user = user_factory("reading-mode-cost-user")
     client = app_module.app.test_client()
     with client.session_transaction() as sess:
@@ -1025,8 +1025,9 @@ def test_comprehensive_reading_mode_cost_delta(app_module, user_factory):
         "reading_mode": "deep",
     }).get_json()["estimated_cost"]
 
-    assert concise == standard - 1
-    assert deep == standard + 2
+    assert concise == 300
+    assert standard == 800
+    assert deep == 1500
 
 
 def test_comprehensive_options_hide_provider_details(app_module, user_factory):
@@ -1044,8 +1045,8 @@ def test_comprehensive_options_hide_provider_details(app_module, user_factory):
     assert [m["name"] for m in models] == ["SHIAN-1.1"]
     assert all("GLM" not in m["name"] for m in models)
     assert [m["name"] for m in reading_modes] == ["简约", "标准", "深度"]
-    assert [m["cost_base"] for m in models] == [2]
-    assert [m["display_cost"] for m in reading_modes] == [1, 2, 4]
+    assert [m["cost_base"] for m in models] == [800]
+    assert [m["display_cost"] for m in reading_modes] == [300, 800, 1500]
     assert all("provider" not in m for m in models)
     assert all("strength" not in m for m in models)
 
@@ -1303,13 +1304,13 @@ def test_comprehensive_new_conversation_returns_full_bazi_artifact(app_module, u
     user = user_factory("artifact-new-user")
     seen_model_ids = []
 
-    def fake_stream(messages, model_id=None):
+    def fake_stream(messages, model_id=None, **kwargs):
         seen_model_ids.append(model_id)
         return iter([("职业方向可以结合命局判断。", None)])
 
     monkeypatch.setattr(app_module, "get_reading_stream", fake_stream)
     with app_module.app.app_context():
-        app_module.add_points(user.id, "admin_add", 100, "测试积分")
+        app_module.add_points(user.id, "admin_add", 3000, "测试积分")
 
     client = app_module.app.test_client()
     with client.session_transaction() as sess:
@@ -1354,7 +1355,7 @@ def test_comprehensive_uses_frontend_handoff_paipan_without_rebuilding(app_modul
 
     monkeypatch.setattr(app_module, "get_reading_stream", fake_stream)
     with app_module.app.app_context():
-        app_module.add_points(user.id, "admin_add", 100, "测试积分")
+        app_module.add_points(user.id, "admin_add", 3000, "测试积分")
 
     client = app_module.app.test_client()
     with client.session_transaction() as sess:
@@ -1399,7 +1400,7 @@ def test_comprehensive_qimen_uses_lichun_aware_birth_year_pillar(app_module, use
 
     monkeypatch.setattr(app_module, "get_reading_stream", fake_stream)
     with app_module.app.app_context():
-        app_module.add_points(user.id, "admin_add", 100, "测试积分")
+        app_module.add_points(user.id, "admin_add", 3000, "测试积分")
 
     client = app_module.app.test_client()
     with client.session_transaction() as sess:
@@ -1440,7 +1441,7 @@ def test_comprehensive_stream_passes_reading_mode_to_model_provider(app_module, 
 
     monkeypatch.setattr(app_module, "get_reading_stream", fake_stream)
     with app_module.app.app_context():
-        app_module.add_points(user.id, "admin_add", 100, "测试积分")
+        app_module.add_points(user.id, "admin_add", 3000, "测试积分")
 
     client = app_module.app.test_client()
     with client.session_transaction() as sess:
@@ -1519,9 +1520,9 @@ def test_comprehensive_multi_profile_unwraps_artifacts_and_yun(app_module, user_
 
 def test_comprehensive_stream_refunds_points_when_model_provider_fails(app_module, user_factory, monkeypatch):
     user = user_factory("artifact-refund-user")
-    monkeypatch.setattr(app_module, "get_reading_stream", lambda messages, model_id=None: iter([(None, "AI 服务异常：余额不足")]))
+    monkeypatch.setattr(app_module, "get_reading_stream", lambda messages, **kwargs: iter([(None, "AI 服务异常：余额不足")]))
     with app_module.app.app_context():
-        app_module.add_points(user.id, "admin_add", 20, "测试积分")
+        app_module.add_points(user.id, "admin_add", 2000, "测试积分")
         membership = app_module.get_or_create_membership(user.id)
         membership.daily_ai_light_used_at = app_module.datetime.utcnow().strftime("%Y-%m-%d")
         app_module.db.session.commit()
@@ -1548,11 +1549,11 @@ def test_comprehensive_stream_refunds_points_when_model_provider_fails(app_modul
     payloads = _sse_payloads(response)
     error_payload = next(p for p in payloads if p.get("error"))
     assert error_payload["refund"]["ok"] is True
-    assert error_payload["refund"]["refunded"] == 4
+    assert error_payload["refund"]["refunded"] == 800
     with app_module.app.app_context():
         membership = app_module.Membership.query.filter_by(user_id=user.id).one()
         refund_logs = app_module.PointLog.query.filter_by(user_id=user.id, action="comprehensive_ai_refund").all()
-        assert membership.points == 20
+        assert membership.points == 2000
         assert len(refund_logs) == 1
 
 

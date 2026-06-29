@@ -3,6 +3,7 @@
 # 用法: bash deploy-to-server.sh
 # 可选: SKIP_PREFLIGHT=1 bash deploy-to-server.sh 跳过部署前检查
 # 可选: SKIP_ONLINE_QA=1 bash deploy-to-server.sh 跳过部署后线上回归
+# 可选: INCLUDE_RECHARGE_ASSETS=1 同步旧充值二维码类静态资源；默认不上传旧支付宝素材。
 
 set -e
 SERVER_USER="lighthouse"
@@ -15,6 +16,7 @@ LIVE_DB="/home/lighthouse/tianji/flask-source/backend/tianji.db"
 DATABASE_URL="sqlite:////home/lighthouse/tianji/flask-source/backend/tianji.db"
 DB_BACKUP_DIR="/home/lighthouse/backups/xuan-cet/db"
 PRODUCTION_BASE_URL="${PRODUCTION_BASE_URL:-https://shianjieyouwu.com}"
+INCLUDE_RECHARGE_ASSETS="${INCLUDE_RECHARGE_ASSETS:-0}"
 
 require_clean_backend_python() {
     if ! git -C "$LOCAL_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -67,8 +69,12 @@ $SSH_CMD "$SERVER" "rm -rf /var/www/xuan-cet/assets/" && echo "  旧assets已清
 
 # 3. 上传前端 dist
 echo "[3/5] 上传前端..."
+RSYNC_FRONTEND_EXCLUDES=(--exclude '/static/uploads/')
+if [ "$INCLUDE_RECHARGE_ASSETS" != "1" ]; then
+    RSYNC_FRONTEND_EXCLUDES+=(--exclude '/static/alipay-recharge.jpg')
+fi
 eval "$RSYNC_CMD" \
-    --exclude '/static/uploads/' \
+    "${RSYNC_FRONTEND_EXCLUDES[@]}" \
     "$LOCAL_DIR/dist/build/h5/index.html" \
     "$LOCAL_DIR/dist/build/h5/robots.txt" \
     "$LOCAL_DIR/dist/build/h5/sitemap.xml" \
@@ -77,6 +83,9 @@ eval "$RSYNC_CMD" \
     "$LOCAL_DIR/dist/build/h5/assets" \
     "$LOCAL_DIR/dist/build/h5/static" \
     "$SERVER:/var/www/xuan-cet/"
+if [ "$INCLUDE_RECHARGE_ASSETS" != "1" ]; then
+    $SSH_CMD "$SERVER" "rm -f /var/www/xuan-cet/static/alipay-recharge.jpg"
+fi
 
 # 4. 重启后端
 echo "[4/5] 重启后端..."
