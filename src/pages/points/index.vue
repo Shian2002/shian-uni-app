@@ -602,15 +602,43 @@ export default {
       stopPaymentPolling()
     }
 
+    function isMobilePaymentRuntime() {
+      try {
+        if (typeof uni !== 'undefined' && uni.getSystemInfoSync) {
+          var info = uni.getSystemInfoSync() || {}
+          var platform = String(info.platform || '').toLowerCase()
+          var uniPlatform = String(info.uniPlatform || '').toLowerCase()
+          if (platform === 'ios' || platform === 'android' || platform === 'harmony') return true
+          if (uniPlatform.indexOf('app') === 0) return true
+        }
+      } catch(_) {}
+      try {
+        if (typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '')) return true
+      } catch(_) {}
+      return false
+    }
+
     function openPaymentUrl(url) {
       if (!url) return
+      if (isMobilePaymentRuntime()) {
+        try {
+          if (typeof window !== 'undefined' && window.location) {
+            window.location.href = url
+            return true
+          }
+        } catch(_) {}
+      }
       try {
         if (typeof window !== 'undefined') {
           window.open(url, '_blank', 'noopener,noreferrer')
-          return
+          return true
         }
       } catch(_) {}
-      try { uni.navigateTo({ url: url }) } catch(_) {}
+      try {
+        uni.navigateTo({ url: url })
+        return true
+      } catch(_) {}
+      return false
     }
 
     function stopPaymentPolling() {
@@ -708,6 +736,34 @@ export default {
       img.src = qrUrl
     }
 
+    function handleCreatedPaymentOrder(payUrl, qrUrl, orderId) {
+      if (isMobilePaymentRuntime() && payUrl) {
+        paymentState.value = 'pending'
+        paymentStateLabel.value = '打开支付页'
+        paymentStatusText.value = '正在打开虎皮椒支付页，支付完成后返回积分中心会自动刷新。'
+        try { uni.hideLoading() } catch(_) {}
+        startPaymentPolling()
+        openPaymentUrl(payUrl)
+        return
+      }
+      if (qrUrl) {
+        openRechargeModalWithQr(qrUrl, orderId)
+        return
+      }
+      try { uni.hideLoading() } catch(_) {}
+      if (payUrl) {
+        paymentState.value = 'pending'
+        paymentStateLabel.value = '等待支付'
+        paymentStatusText.value = '未拿到二维码，请点打开支付页继续支付。'
+        startPaymentPolling()
+        return
+      }
+      paymentState.value = 'failed'
+      paymentStateLabel.value = '创建失败'
+      paymentStatusText.value = '支付链接生成失败，请关闭后重试。'
+      uni.showToast({ title: '支付链接生成失败', icon: 'none' })
+    }
+
     function startHupijiaoPayment() {
       if (paymentChecking.value) return
       if (paymentPayUrl.value) {
@@ -751,7 +807,7 @@ export default {
           paymentState.value = 'pending'
           paymentStateLabel.value = '等待支付'
           paymentStatusText.value = '请扫码完成支付，支付成功后会自动刷新账本。'
-          openRechargeModalWithQr(d.qrcode_url || '', d.order_id)
+          handleCreatedPaymentOrder(d.pay_url || '', d.qrcode_url || '', d.order_id)
         },
         fail: function() {
           paymentState.value = 'failed'

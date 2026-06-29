@@ -53,3 +53,16 @@ def test_points_pages_keep_recharge_api_behind_policy_guard():
         assert "rechargeQrSrc" not in source
         assert "paymentProofPlaceholder" not in source
         assert "verifyPayButtonText" not in source
+
+
+def test_points_pages_open_hupijiao_pay_url_on_mobile_and_keep_qr_fallback():
+    for path in ["src/pages/points/index.vue", "src/package-user/points/index.vue"]:
+        source = read(path)
+
+        assert "function isMobilePaymentRuntime()" in source
+        assert "window.location.href = url" in source
+        assert "function handleCreatedPaymentOrder(payUrl, qrUrl, orderId)" in source
+        assert "if (isMobilePaymentRuntime() && payUrl)" in source
+        assert "openRechargeModalWithQr(qrUrl, orderId)" in source
+        assert "未拿到二维码，请点打开支付页继续支付。" in source
+        assert "handleCreatedPaymentOrder(d.pay_url || '', d.qrcode_url || '', d.order_id)" in source
