@@ -28,6 +28,20 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/static/images/apple-touch-icon.png?v=8">
   <link rel="manifest" href="/manifest.json">
   <link rel="preload" href="/static/images/logo.svg?v=7" as="image" type="image/svg+xml">
+  <script>
+    (function(){
+      try {
+        var hash = window.location.hash || '';
+        var queryStart = hash.indexOf('?');
+        if (hash.indexOf('#/pages/profile/index') === 0 && queryStart > -1) {
+          var query = hash.substring(queryStart);
+          if (/[?&]oauth_(?:success|error)=/.test(query)) {
+            sessionStorage.setItem('_nav_query', query);
+          }
+        }
+      } catch (_) {}
+    })();
+  </script>
   <!--preload-links-->
   <!--app-context-->
   <style>html,body{background:#f8f5f0!important;color:#1f1b14;color-scheme:light}#app{min-height:100vh;background:#f8f5f0}#xc-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:#f8f5f0;z-index:999999}#xc-overlay .xc-img{position:absolute;top:calc(50% - 40px);left:50%;margin-left:-40px;width:80px;height:80px;border-radius:50%;object-fit:cover;animation:xc-rotate 1s linear infinite;box-shadow:0 0 30px rgba(0,0,0,.06)}#xc-overlay .xc-tx{position:absolute;top:calc(50% + 50px);left:0;width:100%;text-align:center;font-size:13px;color:#b8a088}#xc-boot-fallback{display:none;position:fixed;inset:0;z-index:999998;background:#f8f5f0;color:#4b3b26;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-align:center;padding:34vh 24px 0;box-sizing:border-box}#xc-boot-fallback .xc-title{font-size:20px;font-weight:700;margin-bottom:10px}#xc-boot-fallback .xc-desc{font-size:14px;color:#8a7454;margin-bottom:18px}.xc-reload-btn{border:0;border-radius:999px;background:#8a631f;color:#fff;padding:10px 22px;font-size:14px;cursor:pointer}@keyframes xc-rotate{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>

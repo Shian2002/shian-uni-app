@@ -82,6 +82,16 @@ def test_profile_oauth_callback_reads_preserved_nav_query():
     assert "cacheOAuthQueryFromOptions(options || {})" in source
 
 
+def test_index_bootstrap_preserves_profile_oauth_query_before_router_boot():
+    index_html = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert "var hash = window.location.hash || ''" in index_html
+    assert "hash.indexOf('#/pages/profile/index') === 0" in index_html
+    assert "var query = hash.substring(queryStart)" in index_html
+    assert r"/[?&]oauth_(?:success|error)=/.test(query)" in index_html
+    assert "sessionStorage.setItem('_nav_query', query)" in index_html
+
+
 def test_home_ai_input_is_compressed_and_chat_has_mobile_bottom_buffer():
     source = _source()
 
