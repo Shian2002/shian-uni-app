@@ -491,6 +491,12 @@ def migrate_db():
         try:
             dialect = db.session.bind.dialect.name if db.session.bind else ''
             if dialect == 'sqlite':
+                existing_index_sql = db.session.execute(db.text(
+                    "SELECT sql FROM sqlite_master "
+                    "WHERE type='index' AND name='ux_recharge_order_payment_reference_nonempty'"
+                )).scalar() or ''
+                if existing_index_sql and 'UNIQUE' not in existing_index_sql.upper():
+                    db.session.execute(db.text('DROP INDEX ux_recharge_order_payment_reference_nonempty'))
                 db.session.execute(db.text(
                     "CREATE UNIQUE INDEX IF NOT EXISTS ux_recharge_order_payment_reference_nonempty "
                     "ON recharge_order (payment_reference) "
@@ -632,7 +638,6 @@ def migrate_db():
             ('ix_recharge_order_user_created', 'recharge_order', 'user_id, created_at'),
             ('ix_recharge_order_status_created', 'recharge_order', 'status, created_at'),
             ('ix_recharge_order_payment_reference', 'recharge_order', 'payment_reference'),
-            ('ux_recharge_order_payment_reference_nonempty', 'recharge_order', 'payment_reference'),
             ('ix_bazi_record_user_pinned_created', 'bazi_record', 'user_id, pinned, created_at'),
             ('ix_tarot_conversation_user_updated', 'tarot_conversation', 'user_id, updated_at'),
             ('ix_liuyao_conversation_user_updated', 'liuyao_conversation', 'user_id, updated_at'),
