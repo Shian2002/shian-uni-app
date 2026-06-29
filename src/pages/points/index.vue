@@ -198,8 +198,8 @@
       <view class="modal-box recharge-modal pay-sheet" @click.stop>
         <view class="modal-head">
           <view>
-            <view class="modal-title">创建账单</view>
-            <view class="modal-subtitle">虎皮椒扫码支付，到账后自动刷新</view>
+            <view class="modal-title">扫码支付</view>
+            <view class="modal-subtitle">微信扫一扫付款，到账后自动刷新</view>
           </view>
           <view class="modal-close" @click="closeRechargeModal">×</view>
         </view>
@@ -209,8 +209,11 @@
         </view>
         <view class="hupijiao-panel">
           <view class="qr-panel">
-            <img class="hupijiao-qr" v-if="paymentQrUrl" :src="paymentQrUrl" alt="支付二维码" />
-            <view class="payment-loading" v-else>{{ paymentStatusText }}</view>
+            <view class="qr-frame">
+              <img class="hupijiao-qr" v-if="paymentQrUrl" :src="paymentQrUrl" alt="支付二维码" />
+              <view class="payment-loading" v-else>{{ paymentStatusText }}</view>
+            </view>
+            <view class="scan-title">微信扫码付款</view>
             <view class="pay-hint">{{ paymentStatusText }}</view>
             <view class="payment-actions">
               <view class="payment-state" :class="'state-' + paymentState">{{ paymentStateLabel }}</view>
@@ -293,8 +296,8 @@ export default {
     var paymentQrUrl = ref('')
     var paymentState = ref('idle')
     var paymentStateLabel = ref('等待创建')
-    var paymentStatusText = ref('选择套餐后会自动创建虎皮椒账单。')
-    var paymentPayButtonText = ref('打开支付页')
+    var paymentStatusText = ref('选择套餐后生成扫码账单。')
+    var paymentPayButtonText = ref('备用支付页')
     var paymentChecking = ref(false)
     var externalRechargeEnabled = ref(isExternalRechargeEnabled())
     var paymentBoundaryNotice = getPaymentBoundaryNotice()
@@ -314,8 +317,8 @@ export default {
       paymentQrUrl.value = ''
       paymentState.value = 'idle'
       paymentStateLabel.value = '等待创建'
-      paymentStatusText.value = '选择套餐后会自动创建虎皮椒账单。'
-      paymentPayButtonText.value = '打开支付页'
+      paymentStatusText.value = '选择套餐后生成扫码账单。'
+      paymentPayButtonText.value = '备用支付页'
       paymentChecking.value = false
       stopPaymentPolling()
       try {
@@ -622,13 +625,6 @@ export default {
       return false
     }
 
-    function isWechatBrowser() {
-      try {
-        return typeof navigator !== 'undefined' && /MicroMessenger/i.test(navigator.userAgent || '')
-      } catch(_) {}
-      return false
-    }
-
     function openPaymentUrl(url) {
       if (!url) return
       if (isMobilePaymentRuntime()) {
@@ -691,7 +687,7 @@ export default {
           }
           paymentState.value = 'pending'
           paymentStateLabel.value = '等待支付'
-          paymentStatusText.value = '请扫码完成支付，系统正在自动核对到账状态。'
+          paymentStatusText.value = '请用微信扫码付款，系统会自动核对到账。'
           loadLogs()
         },
         fail: function() {
@@ -732,7 +728,8 @@ export default {
         paymentQrUrl.value = qrUrl
         paymentState.value = 'pending'
         paymentStateLabel.value = '等待支付'
-        paymentStatusText.value = '请扫码完成支付，系统正在自动核对到账状态。'
+        paymentPayButtonText.value = '备用支付页'
+        paymentStatusText.value = '请用微信扫码付款，系统会自动核对到账。'
         try { uni.hideLoading() } catch(_) {}
         startPaymentPolling()
       }
@@ -748,25 +745,6 @@ export default {
     }
 
     function handleCreatedPaymentOrder(payUrl, qrUrl, orderId) {
-      if (isWechatBrowser() && payUrl) {
-        paymentState.value = 'pending'
-        paymentStateLabel.value = '待打开'
-        paymentPayButtonText.value = '打开微信支付页'
-        paymentStatusText.value = '订单已创建，请点击下方按钮进入微信支付页。支付完成后返回积分中心会自动刷新。'
-        try { uni.hideLoading() } catch(_) {}
-        startPaymentPolling()
-        return
-      }
-      if (isMobilePaymentRuntime() && payUrl) {
-        paymentState.value = 'pending'
-        paymentStateLabel.value = '打开支付页'
-        paymentPayButtonText.value = '重新打开支付页'
-        paymentStatusText.value = '正在打开虎皮椒支付页，支付完成后返回积分中心会自动刷新。'
-        try { uni.hideLoading() } catch(_) {}
-        startPaymentPolling()
-        openPaymentUrl(payUrl)
-        return
-      }
       if (qrUrl) {
         openRechargeModalWithQr(qrUrl, orderId)
         return
@@ -776,7 +754,7 @@ export default {
         paymentState.value = 'pending'
         paymentStateLabel.value = '等待支付'
         paymentPayButtonText.value = '打开支付页'
-        paymentStatusText.value = '未拿到二维码，请点打开支付页继续支付。'
+        paymentStatusText.value = '未拿到二维码，请打开支付页继续支付。'
         startPaymentPolling()
         return
       }
@@ -828,7 +806,7 @@ export default {
           paymentQrUrl.value = ''
           paymentState.value = 'pending'
           paymentStateLabel.value = '等待支付'
-          paymentStatusText.value = '请扫码完成支付，支付成功后会自动刷新账本。'
+          paymentStatusText.value = '请用微信扫码付款，支付成功后会自动刷新账本。'
           handleCreatedPaymentOrder(d.pay_url || '', d.qrcode_url || '', d.order_id)
         },
         fail: function() {
@@ -1550,26 +1528,37 @@ export default {
   align-items: center;
 }
 .qr-panel {
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+}
+.qr-frame {
+  width: min(238px, 100%);
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px;
+  box-sizing: border-box;
+  border: 1px solid rgba(178,149,93,0.18);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(80,62,34,0.13);
 }
 .hupijiao-qr {
   display: block;
-  width: min(252px, 100%);
+  width: 100%;
+  height: 100%;
   aspect-ratio: 1;
-  max-height: 252px;
   object-fit: contain;
-  padding: 8px;
-  box-sizing: border-box;
-  border: 1px solid rgba(178,149,93,0.2);
-  border-radius: 18px;
+  border-radius: 12px;
   background: #fff;
-  box-shadow: 0 12px 30px rgba(80,62,34,0.12);
 }
 .payment-loading {
-  width: min(252px, 100%);
+  width: 100%;
+  height: 100%;
   aspect-ratio: 1;
   display: flex;
   align-items: center;
@@ -1583,7 +1572,13 @@ export default {
   box-sizing: border-box;
   background: rgba(178,149,93,0.06);
 }
+.scan-title {
+  color: var(--text-1);
+  font-size: 0.96rem;
+  font-weight: 850;
+}
 .pay-hint {
+  max-width: 300px;
   color: var(--text-3);
   font-size: 0.72rem;
   line-height: 1.5;
@@ -1593,6 +1588,7 @@ export default {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
+  margin-top: 2px;
   gap: 8px;
 }
 .payment-state {
@@ -1698,8 +1694,7 @@ export default {
   .points-page .pkg-name {
     padding-right: 34px;
   }
-  .hupijiao-qr,
-  .payment-loading {
+  .qr-frame {
     width: min(100%, 220px);
     margin: 0 auto;
   }

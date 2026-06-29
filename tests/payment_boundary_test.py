@@ -55,23 +55,27 @@ def test_points_pages_keep_recharge_api_behind_policy_guard():
         assert "verifyPayButtonText" not in source
 
 
-def test_points_pages_open_hupijiao_pay_url_on_mobile_and_keep_qr_fallback():
+def test_points_pages_prefer_scan_qr_and_keep_pay_url_as_manual_fallback():
     for path in ["src/pages/points/index.vue", "src/package-user/points/index.vue"]:
         source = read(path)
 
         assert "function isMobilePaymentRuntime()" in source
-        assert "function isWechatBrowser()" in source
         assert "paymentPayButtonText" in source
         assert "pkg-cta" in source
         assert "立即充值" in source
         assert "登录后充值" in source
-        assert "打开微信支付页" in source
-        assert "订单已创建，请点击下方按钮进入微信支付页。" in source
+        assert "扫码支付" in source
+        assert "微信扫码付款" in source
+        assert "备用支付页" in source
+        assert "请用微信扫码付款，系统会自动核对到账。" in source
+        assert "打开微信支付页" not in source
+        assert "订单已创建，请点击下方按钮进入微信支付页。" not in source
+        assert "正在打开虎皮椒支付页" not in source
         assert "window.location.href = url" in source
         assert "function handleCreatedPaymentOrder(payUrl, qrUrl, orderId)" in source
-        assert "if (isWechatBrowser() && payUrl)" in source
-        assert "if (isMobilePaymentRuntime() && payUrl)" in source
-        assert source.index("if (isWechatBrowser() && payUrl)") < source.index("if (isMobilePaymentRuntime() && payUrl)")
+        assert "if (isWechatBrowser() && payUrl)" not in source
+        assert "if (isMobilePaymentRuntime() && payUrl)" not in source
         assert "openRechargeModalWithQr(qrUrl, orderId)" in source
-        assert "未拿到二维码，请点打开支付页继续支付。" in source
+        assert source.index("if (qrUrl)") < source.index("if (payUrl)")
+        assert "未拿到二维码，请打开支付页继续支付。" in source
         assert "handleCreatedPaymentOrder(d.pay_url || '', d.qrcode_url || '', d.order_id)" in source
