@@ -182,6 +182,8 @@ def test_top_nav_distinguishes_agent_query_from_plain_home():
     assert "window.__xcHomeMode === 'app'" in source
     assert "xc-home-mode-changed" in source
     assert "window.__xcHomeMode = active ? 'marketing' : 'app'" in index_source
+    assert "if (window.__xcHomeMode === 'app' || pendingAgentHomeUntil > Date.now()) queryStr = '?app=1'" in app_source
+    assert "document.documentElement.classList.toggle('marketing-page', !isAppHome)" in app_source
     assert "if (href === '#/') target = '/pages/index/index'" not in source
     assert "window.__switchTabPageDom = function(path)" in app_source
     assert "var raw = path ? String(path) : ((window.location.hash || '').replace('#', '') || '/')" in app_source
@@ -212,6 +214,10 @@ def test_agent_entry_stays_in_app_mode_until_explicit_logout():
     assert "sessionStorage.setItem(pendingAgentHomeKey, '1')" in top_nav_source
     assert "pendingAgentHome = sessionStorage.getItem('_xc_pending_agent_home') === '1'" in app_source
     assert "window.history.replaceState({ app: 'home' }, '', '#/?app=1')" in app_source
+    assert "marketingMode.value = !wantsToolHome" in source
+    assert "pendingAgentHomeUntil > Date.now()" in source
+    assert "function markAgentHomePending()" in top_nav_source
+    assert "window.__xcPendingAgentHomeUntil = Date.now() + 2500" in top_nav_source
     assert "function openMarketingLogin()" in source
     assert "function showMarketingHomeAfterAuthChange()" in top_nav_source
     assert "showMarketingHomeAfterAuthChange()" in top_nav_source
@@ -578,6 +584,16 @@ def test_qimen_free_json_copy_is_member_only_and_uses_backend_pan_type_values():
     assert "JSON.stringify(qfRawResult.value, null, 2)" in source
     assert "const qimenPanTypeValues = [2]" in source
     assert "['拆补法', '置闰法']" not in source
+
+
+def test_qimen_free_request_uses_callback_promise_wrapper_for_h5_request_task():
+    source = QIMEN_VUE.read_text(encoding="utf-8")
+
+    assert "function qimenRequestJson(options)" in source
+    assert "success: function(res)" in source
+    assert "fail: function(err)" in source
+    assert "const data = await qimenRequestJson({" in source
+    assert "const res = await uni.request({ url: '/api/qimen/paipan'" not in source
 
 
 def test_qimen_free_grid_marks_xingmu_and_centers_palace_rows():

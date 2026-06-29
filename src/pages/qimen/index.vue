@@ -266,6 +266,34 @@ const qfRawResult = ref(null)
 const qfJsonCopyAllowed = ref(false)
 const qimenPanTypeValues = [2]
 
+function qimenRequestJson(options) {
+  return new Promise(function(resolve, reject) {
+    uni.request({
+      ...options,
+      success: function(res) {
+        const statusCode = Number(res && res.statusCode) || 0
+        let data = res ? res.data : null
+        if (typeof data === 'string') {
+          try {
+            data = JSON.parse(data)
+          } catch (_) {
+            reject(new Error('响应解析失败'))
+            return
+          }
+        }
+        if (statusCode && (statusCode < 200 || statusCode >= 300)) {
+          reject(new Error((data && data.error) || '请求失败'))
+          return
+        }
+        resolve(data || {})
+      },
+      fail: function(err) {
+        reject(err || new Error('请求失败'))
+      },
+    })
+  })
+}
+
 function qfOnDateChange() {
   const year = qfYearIdx.value >= 0 ? yearOptions[qfYearIdx.value] : 0
   const month = qfMonthIdx.value >= 0 ? monthOptions[qfMonthIdx.value] : 0
@@ -319,10 +347,9 @@ async function qimenFreePaipan() {
   qfRawResult.value = null
   qfResult.value = ''
   try {
-    const res = await uni.request({ url: '/api/qimen/paipan', method: 'POST', data: { year: y, month: m, day: d, hour: h, minute: min, panType } })
+    const data = await qimenRequestJson({ url: '/api/qimen/paipan', method: 'POST', data: { year: y, month: m, day: d, hour: h, minute: min, panType } })
     const elapsed = Date.now() - startedAt
     if (elapsed < 520) await new Promise(resolve => setTimeout(resolve, 520 - elapsed))
-    const data = res.data
     if (data.error) {
       qfRawResult.value = null
       qfResult.value = `<div style="color:var(--danger);padding:16px;">${data.error}</div>`
@@ -348,8 +375,7 @@ async function refreshQimenJsonCopyPermission() {
     return
   }
   try {
-    const res = await uni.request({ url: '/api/membership', method: 'GET' })
-    const data = res.data || {}
+    const data = await qimenRequestJson({ url: '/api/membership', method: 'GET' })
     qfJsonCopyAllowed.value = isPaidMembershipLevel(data.level)
   } catch (_) {
     qfJsonCopyAllowed.value = false
