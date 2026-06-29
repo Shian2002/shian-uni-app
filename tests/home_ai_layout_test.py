@@ -50,7 +50,7 @@ def test_home_ai_reading_mode_claims_hero_space_without_locking_page_scroll():
 
     assert ".hero-home.chat-active.reading-active .hero-brand" in source
     assert ".hero-home.chat-active.reading-active .home-ai-console.has-chat" in source
-    assert "min-height: calc(100dvh - 60px - var(--home-ai-dock-space));" in source
+    assert "min-height: calc(100dvh - var(--xc-topnav-total-height, 60px) - var(--home-ai-dock-space));" in source
     assert "setHomeFixedPage(true)" not in source
     scroll_fn = re.search(
         r"function scrollComprehensiveChatToBottom\(behavior, force\) \{(?P<body>.*?)\n\}",
@@ -427,7 +427,7 @@ def test_top_nav_switches_back_to_home_before_rendering_agent_from_non_tab_pages
     ), "非 tab 页进入时安agent必须先 switchTab 并 return，避免先改 URL 导致页面栈卡死"
 
 
-def test_top_nav_primary_buttons_are_not_double_handled_by_global_delegate():
+def test_top_nav_primary_buttons_have_native_data_href_fallback():
     source = TOP_NAV_VUE.read_text(encoding="utf-8")
 
     assert "function goAsync(hash, event)" in source
@@ -436,14 +436,20 @@ def test_top_nav_primary_buttons_are_not_double_handled_by_global_delegate():
     assert '@click="goAsync(\'#/?app=1\', $event)"' in source
     assert "return window.__topNavGoAsync(event, '#/pages/qimen/index?tab=free')" in source
     assert "return window.__topNavGoAsync(event, '#/pages/bazi-index/index?tab=free')" in source
-    assert "if (el.classList && el.classList.contains('nav-btn')) return" in source
     delegate = re.search(
         r"document\.addEventListener\('click', function\(e\) \{(?P<body>.*?)\n\s*\}, true\)",
         source,
         re.S,
     )
     assert delegate, "缺少顶部导航全局点击代理"
-    assert delegate.group("body").find("contains('nav-btn')) return") < delegate.group("body").find("if (el.dataset && el.dataset.href)")
+    nav_btn_fallback = re.search(
+        r"if \(el\.classList && el\.classList\.contains\('nav-btn'\)\) \{(?P<body>.*?)\n\s*\}\n\s*if \(el\.dataset && el\.dataset\.href\)",
+        delegate.group("body"),
+        re.S,
+    )
+    assert nav_btn_fallback, "普通 nav-btn 必须在全局代理里处理 data-href 兜底"
+    assert "if (el.dataset && el.dataset.href)" in nav_btn_fallback.group("body")
+    assert "go(el.dataset.href)" in nav_btn_fallback.group("body")
 
 
 def test_top_nav_waits_for_switch_tab_before_rendering_from_non_tab_pages():

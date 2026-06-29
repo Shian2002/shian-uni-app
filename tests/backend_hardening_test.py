@@ -163,7 +163,7 @@ def test_staging_sms_and_email_default_to_log_mode(tmp_path, monkeypatch):
         assert module.VerificationCode.query.filter_by(code_key="email_tester@example.com").one()
 
 
-def test_staging_recharge_records_proof_without_auto_confirm(tmp_path, monkeypatch):
+def test_staging_legacy_recharge_proof_endpoint_is_disabled(tmp_path, monkeypatch):
     monkeypatch.setenv("APP_ENV", "staging")
     monkeypatch.setenv("ALIPAY_QR_AUTO_CONFIRM", "1")
     module = _fresh_import_app(tmp_path, monkeypatch)
@@ -200,16 +200,14 @@ def test_staging_recharge_records_proof_without_auto_confirm(tmp_path, monkeypat
         "payment_proof_hash": "staging-proof-hash",
     })
 
-    assert response.status_code == 200
+    assert response.status_code == 410
     body = response.get_json()
-    assert body["status"] == "pending"
-    assert body["auto_confirmed"] is False
-    assert "测试环境" in body["message"]
+    assert "已停用" in body["error"]
     with module.app.app_context():
         refreshed = module.db.session.get(module.RechargeOrder, order_id)
         membership = module.Membership.query.filter_by(user_id=user_id).first()
         logs = module.PointLog.query.filter_by(user_id=user_id, action="recharge").all()
         assert refreshed.status == "pending"
-        assert refreshed.payment_reference == "staging-proof-hash"
+        assert refreshed.payment_reference == ""
         assert membership is None
         assert logs == []
