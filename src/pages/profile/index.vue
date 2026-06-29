@@ -182,7 +182,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import TopNav from '@/components/TopNav.vue'
 
 const theme = ref(uni.getStorageSync('xc_theme') || 'dark')
@@ -206,6 +206,8 @@ const questionGuidanceEnabled = ref(readQuestionGuidanceEnabled())
 const artifactNavStickyEnabled = ref(readArtifactNavStickyEnabled())
 const accordionOpen = ref('')
 const accordionInputsCreated = {}
+const pendingOAuthQuery = ref('')
+let oauthCallbackHandled = false
 
 function currentUserScopedStorageKey(base) {
   let userKey = 'guest'
@@ -520,6 +522,67 @@ async function refreshProfileSessionState() {
     }
   } catch (_) {}
   await loadProfiles()
+}
+
+function normalizeOAuthQuery(raw) {
+  var value = raw ? String(raw) : ''
+  return value.charAt(0) === '?' ? value.substring(1) : value
+}
+
+function cacheOAuthQueryFromOptions(options) {
+  try {
+    var query = new URLSearchParams()
+    ;['oauth_success', 'oauth_error', 'qa'].forEach(function(key) {
+      if (options && options[key]) query.set(key, options[key])
+    })
+    var raw = query.toString()
+    if (raw) {
+      pendingOAuthQuery.value = raw
+      try { sessionStorage.setItem('_nav_query', '?' + raw) } catch (_) {}
+    }
+  } catch (_) {}
+}
+
+function readOAuthCallbackParams() {
+  var oauthQuery = ''
+  try { oauthQuery = normalizeOAuthQuery(window.location.hash.split('?')[1] || window.location.search) } catch (_) {}
+  if (!/(^|&)oauth_(?:success|error)=/.test(oauthQuery)) {
+    oauthQuery = pendingOAuthQuery.value || ''
+  }
+  if (!/(^|&)oauth_(?:success|error)=/.test(oauthQuery)) {
+    try { oauthQuery = normalizeOAuthQuery(sessionStorage.getItem('_nav_query') || '') } catch (_) {}
+  }
+  return new URLSearchParams(oauthQuery)
+}
+
+function consumeOAuthCallback() {
+  if (oauthCallbackHandled) return false
+  try {
+    var params = readOAuthCallbackParams()
+    var oauthSuccess = params.get('oauth_success')
+    var oauthError = params.get('oauth_error')
+    if (oauthSuccess) {
+      oauthCallbackHandled = true
+      isLoggedIn.value = true
+      uni.setStorageSync('xc_token', 'session')
+      try { sessionStorage.removeItem('_nav_query') } catch (_) {}
+      try { window.dispatchEvent(new CustomEvent('xc-auth-changed', { detail: { type: 'login', loggedIn: true } })) } catch (_) {}
+      try { uni.$emit('xc-auth-changed', { type: 'login', loggedIn: true }) } catch (_) {}
+      uni.showToast({ title: oauthSuccess === 'qq' ? 'QQ登录成功' : oauthSuccess === 'gitee' ? 'Gitee绑定成功' : oauthSuccess === 'wechat' ? '微信登录成功' : '登录成功', icon: 'success' })
+      loadProfiles()
+      loadBindings()
+      window.history.replaceState({}, '', window.location.pathname + window.location.hash.split('?')[0])
+      return true
+    }
+    if (oauthError) {
+      oauthCallbackHandled = true
+      try { sessionStorage.removeItem('_nav_query') } catch (_) {}
+      uni.showToast({ title: decodeURIComponent(oauthError), icon: 'none' })
+      window.history.replaceState({}, '', window.location.pathname + window.location.hash.split('?')[0])
+      return true
+    }
+  } catch (_) {}
+  return false
 }
 
 function onProfileAuthChanged(event) {
@@ -871,6 +934,11 @@ function goNav(url, type) {
 }
 
 // 页面加载时从后端获取档案
+onLoad(function(options) {
+  cacheOAuthQueryFromOptions(options || {})
+  consumeOAuthCallback()
+})
+
 onMounted(() => {
   window.__xc_hasPassword = hasPassword.value
   window.addEventListener('xc-auth-changed', onProfileAuthChanged)
@@ -1081,33 +1149,7 @@ onMounted(() => {
 
   if (isLoggedIn.value) refreshProfileSessionState()
 
-  // OAuth 回调处理
-  try {
-    var oauthQuery = window.location.hash.split('?')[1] || window.location.search
-    if (!oauthQuery) {
-      try { oauthQuery = sessionStorage.getItem('_nav_query') || '' } catch (_) {}
-    }
-    var params = new URLSearchParams(oauthQuery)
-    var oauthSuccess = params.get('oauth_success')
-    var oauthError = params.get('oauth_error')
-    if (oauthSuccess) {
-      isLoggedIn.value = true
-      uni.setStorageSync('xc_token', 'session')
-      try { sessionStorage.removeItem('_nav_query') } catch (_) {}
-      try { window.dispatchEvent(new CustomEvent('xc-auth-changed', { detail: { type: 'login', loggedIn: true } })) } catch (_) {}
-      try { uni.$emit('xc-auth-changed', { type: 'login', loggedIn: true }) } catch (_) {}
-      uni.showToast({ title: oauthSuccess === 'qq' ? 'QQ登录成功' : oauthSuccess === 'gitee' ? 'Gitee绑定成功' : oauthSuccess === 'wechat' ? '微信登录成功' : '登录成功', icon: 'success' })
-      loadProfiles()
-      loadBindings()
-      // 清除 URL 参数
-      window.history.replaceState({}, '', window.location.pathname + window.location.hash.split('?')[0])
-    }
-    if (oauthError) {
-      try { sessionStorage.removeItem('_nav_query') } catch (_) {}
-      uni.showToast({ title: decodeURIComponent(oauthError), icon: 'none' })
-      window.history.replaceState({}, '', window.location.pathname + window.location.hash.split('?')[0])
-    }
-  } catch(_) {}
+  consumeOAuthCallback()
 
   // 验证真实登录状态（后端 session 可能已过期）
   refreshProfileSessionState()
