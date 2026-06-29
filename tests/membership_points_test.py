@@ -997,6 +997,9 @@ def test_hupijiao_create_order_returns_payment_urls(app_module, user_factory, mo
     assert body["qrcode_url"] == "https://pay.example/qr.png"
     assert body["trade_order_id"].startswith("XC")
     assert captured["payload"]["notify_url"] == "https://example.com/api/recharge/hupijiao/notify"
+    assert captured["payload"]["type"] == "WAP"
+    assert captured["payload"]["wap_url"] == "https://example.com"
+    assert captured["payload"]["wap_name"] == "时安解忧屋"
     assert captured["payload"]["hash"] == app_module._hupijiao_sign(captured["payload"], "test-secret")
 
     with app_module.app.app_context():
