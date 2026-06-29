@@ -38,6 +38,30 @@ export default {
     } catch(_) {}
     document.documentElement.setAttribute('data-theme', saved)
     document.body.setAttribute('data-theme', saved)
+    function applySafeAreaFallback() {
+      try {
+        var ua = navigator.userAgent || ''
+        var isAndroid = /Android/i.test(ua)
+        var isTouch = (navigator.maxTouchPoints || 0) > 0
+        var narrow = Math.min(window.innerWidth || 0, window.innerHeight || 0) <= 900
+        var inAppOrOem = /(MicroMessenger|QQ\/|MQQBrowser|Weibo|AlipayClient|DingTalk|Lark|Feishu|Bytedance|Aweme|Douyin|TikTok|NewsArticle|Toutiao|Quark|UCBrowser|MiuiBrowser|HuaweiBrowser|HeyTapBrowser|VivoBrowser|SamsungBrowser)/i.test(ua)
+        var topFallback = 0
+        if (isAndroid && isTouch && narrow && inAppOrOem) {
+          var portrait = (window.innerHeight || 0) >= (window.innerWidth || 0)
+          topFallback = portrait ? 30 : 0
+        }
+        document.documentElement.style.setProperty('--xc-safe-top-fallback', topFallback + 'px')
+        document.documentElement.style.setProperty('--xc-safe-left-fallback', '0px')
+        document.documentElement.style.setProperty('--xc-safe-right-fallback', '0px')
+        document.documentElement.classList.toggle('xc-android-safe-fallback', topFallback > 0)
+      } catch(_) {}
+    }
+    applySafeAreaFallback()
+    window.addEventListener('resize', applySafeAreaFallback, { passive: true })
+    window.addEventListener('orientationchange', function() { setTimeout(applySafeAreaFallback, 120) }, { passive: true })
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', applySafeAreaFallback, { passive: true })
+    }
     try {
       document.documentElement.classList.toggle('desktop-native-shell', isDesktopShell)
       document.body.classList.toggle('desktop-native-shell', isDesktopShell)
@@ -238,6 +262,10 @@ export default {
       try {
         if (!path || path === '/pages/index/index') path = '/'
         queryStr = queryStr || ''
+        if (path === '/' && !queryStr) {
+          var pendingAgentHomeUntil = Number(window.__xcPendingAgentHomeUntil || 0)
+          if (window.__xcHomeMode === 'app' || pendingAgentHomeUntil > Date.now()) queryStr = '?app=1'
+        }
         var isHome = path === '/'
         var isAppHome = isHome && /(?:[?&])app=(?:1|true)(?:&|$)/.test(queryStr)
         var isQimen = path === '/pages/qimen/index'
@@ -262,6 +290,14 @@ export default {
         }
         document.documentElement.classList.toggle('home-fixed-page', isAppHome)
         document.body.classList.toggle('home-fixed-page', isAppHome)
+        if (isHome) {
+          document.documentElement.classList.toggle('marketing-page', !isAppHome)
+          document.body.classList.toggle('marketing-page', !isAppHome)
+          if (isAppHome) {
+            document.documentElement.classList.remove('marketing-android', 'marketing-wheel-scroll')
+            document.body.classList.remove('marketing-android', 'marketing-wheel-scroll')
+          }
+        }
         document.documentElement.classList.toggle('qimen-page-active', isQimen)
         document.body.classList.toggle('qimen-page-active', isQimen)
         document.documentElement.classList.toggle('tool-compact-page', isCompactTool)
@@ -830,11 +866,22 @@ uni-tabbar, .uni-tabbar, .uni-tabbar-bottom {
 .ai-stage-logo{display:inline-block;width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:3px;object-fit:cover;animation:ai-logo-spin 1s linear infinite}.ai-stage-logo-box{display:inline-block;width:18px;height:18px;border-radius:50%;vertical-align:middle;margin-right:3px;background:url(/static/images/logo.svg?v=7) center/cover no-repeat;animation:ai-logo-spin 1s linear infinite}@keyframes ai-logo-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
 .site-footer{margin-top:0!important;padding:16px 32px 12px!important}.site-footer .footer-disclaimer{margin-bottom:0!important}@media(max-width:768px){.site-footer{padding:12px 16px 10px!important}}
 uni-page-wrapper{min-height:0!important}
-.page-root{padding-top:60px!important}@media(max-width:768px){.page-root{padding-top:56px!important}}
+:root{
+  --xc-safe-top-fallback:0px;
+  --xc-safe-left-fallback:0px;
+  --xc-safe-right-fallback:0px;
+  --xc-safe-top:max(env(safe-area-inset-top,0px), var(--xc-safe-top-fallback));
+  --xc-safe-left:max(env(safe-area-inset-left,0px), var(--xc-safe-left-fallback));
+  --xc-safe-right:max(env(safe-area-inset-right,0px), var(--xc-safe-right-fallback));
+  --xc-topnav-base-height:60px;
+  --xc-topnav-total-height:calc(var(--xc-topnav-base-height) + var(--xc-safe-top));
+}
+@media(max-width:768px){:root{--xc-topnav-base-height:56px}}
+.page-root{padding-top:var(--xc-topnav-total-height)!important}
 body.marketing-page .page-root.marketing-active{padding-top:0!important}
 body:not(.home-fixed-page):not(.marketing-page) .page-root{
   height:auto!important;
-  min-height:calc(100dvh - 60px)!important;
+  min-height:calc(100dvh - var(--xc-topnav-total-height))!important;
   overflow:visible!important;
 }
 body:not(.home-fixed-page):not(.marketing-page) .page-wrap{
@@ -857,7 +904,7 @@ body:not(.home-fixed-page):not(.marketing-page) uni-page-body{
   overflow:visible!important;
 }
 @media(max-width:768px){
-  body:not(.home-fixed-page):not(.marketing-page) .page-root{min-height:calc(100dvh - 56px)!important}
+  body:not(.home-fixed-page):not(.marketing-page) .page-root{min-height:calc(100dvh - var(--xc-topnav-total-height))!important}
 }
 
 /* 第二批工具页视觉优化：统一术数工具台的密度、层次和可点击状态 */
@@ -2149,9 +2196,9 @@ body.home-fixed-page:not(:has(.home-ai-console.has-chat)) .page-root{
 }
 body.home-fixed-page:not(:has(.home-ai-console.has-chat)) .page-wrap,
 body.home-fixed-page:not(:has(.home-ai-console.has-chat)) .hero-home{
-  height:calc(100dvh - 60px)!important;
-  min-height:calc(100dvh - 60px)!important;
-  max-height:calc(100dvh - 60px)!important;
+  height:calc(100dvh - var(--xc-topnav-total-height, 60px))!important;
+  min-height:calc(100dvh - var(--xc-topnav-total-height, 60px))!important;
+  max-height:calc(100dvh - var(--xc-topnav-total-height, 60px))!important;
   overflow:hidden!important;
 }
 body.home-fixed-page:not(:has(.home-ai-console.has-chat)) .home-ai-main{

@@ -7,7 +7,7 @@
       <view class="nav-btn-bar" id="navBtnBar">
         <view class="nav-btn" data-href="#/?app=1" @click="goAsync('#/?app=1', $event)">时安agent</view>
 
-        <view class="nav-btn nav-btn-has-drop" onclick="window._xc_toggleDrop(event)">
+        <view class="nav-btn nav-btn-has-drop" onclick="window._xc_toggleDrop(event)" onmouseenter="window._xc_hoverDrop && window._xc_hoverDrop(event)" onmouseleave="window._xc_unhoverDrop && window._xc_unhoverDrop(event)">
           术数工具 ▾
           <view class="nav-btn-drop-menu">
             <view class="nav-btn-drop-item" data-href="#/pages/qimen/index?tab=free" onclick="return window.__topNavGoAsync(event, '#/pages/qimen/index?tab=free')">奇门遁甲</view>
@@ -25,7 +25,7 @@
         <view class="nav-btn" data-href="#/pages/about/index" @click="goAsync('#/pages/about/index', $event)">关于我们</view>
 
         <!-- 溢出"更多"按钮（JS 控制显示） -->
-        <view class="nav-btn nav-btn-more" id="navBtnMore" style="display:none;" onclick="window._xc_toggleMore(event)">
+        <view class="nav-btn nav-btn-more" id="navBtnMore" style="display:none;" onclick="window._xc_toggleMore(event)" onmouseenter="window._xc_hoverMore && window._xc_hoverMore(event)" onmouseleave="window._xc_unhoverMore && window._xc_unhoverMore(event)">
           更多 ▾
           <view class="nav-btn-drop-menu" id="navBtnMoreMenu"></view>
         </view>
@@ -38,7 +38,7 @@
           <view class="btn btn-outline btn-sm" @click="openLoginFromNav" @tap="openLoginFromNav" onclick="window._openLoginModal && window._openLoginModal()">登录</view>
         </view>
         <view class="nav-avatar-wrap" v-else>
-           <view class="nav-avatar-trigger nav-avatar-trigger-global" id="avatarGlobalTrigger">
+           <view class="nav-avatar-trigger nav-avatar-trigger-global" id="avatarGlobalTrigger" @click.stop.prevent="toggleAvatarDropdown" @tap.stop.prevent="toggleAvatarDropdown">
              <view class="nav-avatar-inner">
                <image v-if="avatarUrl" class="nav-avatar-img" :src="avatarUrl" mode="aspectFill" @error="onAvatarError"></image>
               <text v-else class="nav-avatar-text">{{ avatarLetter || '我' }}</text>
@@ -141,11 +141,13 @@ if (typeof window !== 'undefined') {
       pointsLoaded = false
       loadAvatar()
       loadPointsSummary()
+      setTimeout(updateNavOverflow, 120)
     } else {
       avatarUrl.value = ''
       avatarLetter.value = ''
       _avatarInstanceLoaded = false
       pointsLoaded = false
+      setTimeout(updateNavOverflow, 120)
     }
   })
 }
@@ -1775,6 +1777,7 @@ function applyLoginSuccess(user) {
   pointsLoaded = false
   loadAvatar()
   loadPointsSummary()
+  setTimeout(updateNavOverflow, 120)
   try { _loadSidebarUserPanel() } catch(_) {}
   try { window.dispatchEvent(new CustomEvent('xc-auth-changed', { detail: { loggedIn: true, user: user || uni.getStorageSync('xc_user') } })) } catch(_) {}
   try { uni.$emit('xc-auth-changed', { loggedIn: true, user: user || uni.getStorageSync('xc_user') }) } catch(_) {}
@@ -1805,6 +1808,7 @@ function applyLogoutState() {
   } catch(_) {}
   try { window.dispatchEvent(new CustomEvent('xc-auth-changed', { detail: { type: 'logout', loggedIn: false } })) } catch(_) {}
   try { uni.$emit('xc-auth-changed', { type: 'logout', loggedIn: false }) } catch(_) {}
+  setTimeout(updateNavOverflow, 120)
 }
 
 function clearHomeAgentSessionPrefs() {
@@ -1821,10 +1825,21 @@ function clearHomeAgentSessionPrefs() {
   })
 }
 
+function markAgentHomePending() {
+  try { window.__xcPendingAgentHomeUntil = Date.now() + 2500 } catch(_) {}
+}
+
+function clearAgentHomePending() {
+  try { delete window.__xcPendingAgentHomeUntil } catch(_) {
+    try { window.__xcPendingAgentHomeUntil = 0 } catch(__) {}
+  }
+}
+
 function showMarketingHomeAfterAuthChange() {
   // 退出账号后统一回到营销页，避免停留在需要登录态的应用页导致空白。
   try {
     sessionStorage.removeItem('_nav_query')
+    clearAgentHomePending()
     window.__xcHomeMode = 'marketing'
     if (window.location.hash !== '#/') window.history.replaceState({ marketing: 'home' }, '', '#/')
     window.dispatchEvent(new CustomEvent('xc-show-marketing-home'))
@@ -1864,6 +1879,15 @@ function openLoginFromNav() {
   try {
     if (window._openLoginModal) window._openLoginModal()
   } catch(_) {}
+}
+
+function toggleAvatarDropdown(event) {
+  try {
+    if (typeof window !== 'undefined' && window._xc_openAvatarDropdown) {
+      return window._xc_openAvatarDropdown(event)
+    }
+  } catch(_) {}
+  return false
 }
 
 function performLogout() {
@@ -2034,12 +2058,14 @@ function go(hash) {
 
   if (!wantsAppHome && !wantsMarketingHome) {
     try { sessionStorage.removeItem(pendingAgentHomeKey) } catch(_) {}
+    clearAgentHomePending()
   }
 
   if (wantsAppHome && !shouldSwitchForAgentHome) {
     try {
       sessionStorage.removeItem('_nav_query')
       sessionStorage.setItem(pendingAgentHomeKey, '1')
+      markAgentHomePending()
       window.__xcHomeMode = 'app'
       document.documentElement.classList.add('home-fixed-page')
       document.body.classList.add('home-fixed-page')
@@ -2052,6 +2078,7 @@ function go(hash) {
     try {
       sessionStorage.removeItem('_nav_query')
       sessionStorage.removeItem(pendingAgentHomeKey)
+      clearAgentHomePending()
       window.__xcHomeMode = 'marketing'
       if (window.location.hash !== '#/') window.history.pushState({ marketing: 'home' }, '', '#/')
       window.dispatchEvent(new CustomEvent('xc-show-marketing-home'))
@@ -2063,8 +2090,10 @@ function go(hash) {
 
   if (wantsAppHome) {
     try { sessionStorage.setItem(pendingAgentHomeKey, '1') } catch(_) {}
+    markAgentHomePending()
     var renderAgentHome = function() {
       try {
+        markAgentHomePending()
         if (window.__xcRenderTabPath) window.__xcRenderTabPath('/', '?app=1')
         window.__xcHomeMode = 'app'
         try { document.title = '时安解忧屋' } catch(_) {}
@@ -2245,7 +2274,7 @@ function updateNavOverflow() {
     return copy.textContent.replace(' ▾','').trim()
   }
 
-  document.querySelectorAll('#navBtnBar').forEach(function(bar, idx) {
+  document.querySelectorAll('#navBtnBar').forEach(function(bar) {
     var more = bar.querySelector('#navBtnMore')
     var moreMenu = bar.querySelector('#navBtnMoreMenu')
     if (!bar || !more || !moreMenu) return
@@ -2254,25 +2283,59 @@ function updateNavOverflow() {
       b.style.display = ''
     })
     more.style.display = 'none'
+    more.style.visibility = ''
     moreMenu.innerHTML = ''
 
+    var nav = bar.closest ? bar.closest('.topnav') : bar.parentNode
     var sidebarBtn = bar.parentNode ? bar.parentNode.querySelector('.topnav-sidebar-btn') : null
     var topnavRight = bar.parentNode ? bar.parentNode.querySelector('.topnav-right') : null
+    var navRect = nav && nav.getBoundingClientRect ? nav.getBoundingClientRect() : null
+    if (navRect && navRect.width > 0 && navRect.width < 120) return
     var rightWidth = topnavRight ? topnavRight.getBoundingClientRect().width : 0
     var sidebarWidth = sidebarBtn ? sidebarBtn.getBoundingClientRect().width : 0
-    var viewportWidth = window.innerWidth
-    var barMaxRight = viewportWidth - Math.max(rightWidth, 0) - sidebarWidth - 20
+    var navWidth = navRect && navRect.width ? navRect.width : window.innerWidth
+    var availableWidth = Math.floor(navWidth - sidebarWidth - rightWidth - 18)
+    availableWidth = Math.max(86, availableWidth)
+    if (window.innerWidth <= 768) {
+      bar.style.maxWidth = availableWidth + 'px'
+      bar.style.flexBasis = availableWidth + 'px'
+    } else {
+      bar.style.removeProperty('max-width')
+      bar.style.removeProperty('flex-basis')
+    }
 
     var allBtns = []
     bar.querySelectorAll('.nav-btn:not(.nav-btn-more)').forEach(function(btn) {
       allBtns.push(btn)
     })
+    if (!allBtns.length) return
+
+    var gap = 2
+    try {
+      var barStyle = window.getComputedStyle ? window.getComputedStyle(bar) : null
+      if (barStyle) gap = parseFloat(barStyle.columnGap || barStyle.gap || '2') || 2
+    } catch(_) {}
+    var widths = allBtns.map(function(btn) {
+      return Math.ceil(btn.getBoundingClientRect().width || btn.scrollWidth || 0)
+    })
+    var visibleWidth = widths.reduce(function(sum, w) { return sum + w }, 0)
+    var visibleCount = allBtns.length
+    var totalWidth = visibleWidth + Math.max(0, visibleCount - 1) * gap
+    if (totalWidth <= availableWidth) return
+
+    more.style.display = ''
+    more.style.visibility = 'hidden'
+    var moreWidth = Math.ceil(more.getBoundingClientRect().width || more.scrollWidth || 64)
+    more.style.display = 'none'
+    more.style.visibility = ''
 
     var overflow = []
-    for (var i = allBtns.length - 1; i >= 0; i--) {
-      if (allBtns[i].getBoundingClientRect().right > barMaxRight) {
-        overflow.unshift(allBtns[i])
-      }
+    for (var i = allBtns.length - 1; i > 0; i--) {
+      var requiredWidth = visibleWidth + Math.max(0, visibleCount - 1) * gap + moreWidth + gap
+      if (requiredWidth <= availableWidth) break
+      overflow.unshift(allBtns[i])
+      visibleWidth -= widths[i]
+      visibleCount -= 1
     }
 
     if (overflow.length > 0) {
@@ -2367,20 +2430,52 @@ onMounted(() => {
   window.__topNavGo.avatarLoad = loadAvatar
   window.addEventListener('xc-home-mode-changed', syncNavHighlight)
 
-  var _xc_applyFrost = function(el) {
+  var _xc_applyFrost = function(el, anchorOverride) {
     if (!el) return
     var parent = el.parentElement
-    var isMoreMenu = parent && parent.classList && parent.classList.contains('nav-btn-more')
-    if (window.innerWidth > 768 && !isMoreMenu) return
+    var anchorParent = anchorOverride || parent
+    var isMoreMenu = anchorParent && anchorParent.classList && anchorParent.classList.contains('nav-btn-more')
+    var isAvatarMenu = el.id === 'avatarDropdown'
+    var shouldFloat = isAvatarMenu || isMoreMenu
+    if (window.innerWidth > 768 && !shouldFloat) return
+
+    if (!shouldFloat) {
+      el.style.setProperty('display', 'block', 'important')
+      el.style.setProperty('position', 'absolute', 'important')
+      el.style.setProperty('top', '100%', 'important')
+      el.style.setProperty('left', '50%', 'important')
+      el.style.setProperty('right', 'auto', 'important')
+      el.style.setProperty('transform', 'translateX(-50%) translateY(0)', 'important')
+      el.style.setProperty('transition', 'none', 'important')
+      el.style.setProperty('background', 'rgba(255,253,248,0.96)', 'important')
+      el.style.setProperty('border-color', 'rgba(178,149,93,0.18)', 'important')
+      el.style.setProperty('border-radius', '20px', 'important')
+      el.style.setProperty('box-shadow', '0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.4)', 'important')
+      el.style.setProperty('-webkit-backdrop-filter', 'blur(20px) saturate(180%)', 'important')
+      el.style.setProperty('backdrop-filter', 'blur(20px) saturate(180%)', 'important')
+      el.style.setProperty('z-index', '9999', 'important')
+      el.style.setProperty('padding', '6px 0', 'important')
+      el.style.setProperty('color', '#333', 'important')
+      el.style.setProperty('visibility', 'visible', 'important')
+      el.style.setProperty('opacity', '1', 'important')
+      el.style.setProperty('pointer-events', 'auto', 'important')
+      el.style.setProperty('min-width', '160px', 'important')
+      el.style.setProperty('max-width', 'min(220px, calc(100vw - 20px))', 'important')
+      el.style.setProperty('max-height', 'calc(100dvh - 70px)', 'important')
+      el.style.setProperty('overflow-y', 'auto', 'important')
+      el.style.setProperty('overflow-x', 'hidden', 'important')
+      return
+    }
+
     if (parent && parent !== document.body) {
-      el._xc_origParent = parent
+      el._xc_origParent = anchorParent || parent
       el._xc_origNext = el.nextElementSibling
       document.body.appendChild(el)
     }
     el.style.setProperty('display', 'block', 'important')
     el.style.setProperty('position', 'fixed', 'important')
-    el.style.setProperty('background', 'rgba(255,255,255,0.65)', 'important')
-    el.style.setProperty('border-color', 'rgba(255,255,255,0.3)', 'important')
+    el.style.setProperty('background', 'rgba(255,253,248,0.96)', 'important')
+    el.style.setProperty('border-color', 'rgba(178,149,93,0.18)', 'important')
     el.style.setProperty('border-radius', '20px', 'important')
     el.style.setProperty('box-shadow', '0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.4)', 'important')
     el.style.setProperty('-webkit-backdrop-filter', 'blur(20px) saturate(180%)', 'important')
@@ -2392,23 +2487,41 @@ onMounted(() => {
     el.style.setProperty('opacity', '1', 'important')
     el.style.setProperty('pointer-events', 'auto', 'important')
 
+    var safeTop = 0
+    try {
+      safeTop = parseFloat(window.getComputedStyle(document.documentElement).getPropertyValue('--xc-safe-top')) || 0
+    } catch(_) {}
+    var navBaseTop = Math.max(52, safeTop + 52)
+
     if (el.id === 'avatarDropdown') {
       if (el._xc_origParent) {
         var rect = el._xc_origParent.getBoundingClientRect()
-        el.style.setProperty('top', (rect.bottom + 8) + 'px', 'important')
-        el.style.setProperty('right', (window.innerWidth - rect.right) + 'px', 'important')
-        el.style.setProperty('left', 'auto', 'important')
+        var avatarVw = window.innerWidth || document.documentElement.clientWidth || 0
+        var avatarVh = window.innerHeight || document.documentElement.clientHeight || 0
+        var avatarGap = 10
+        var avatarTop = Math.max(navBaseTop, rect.bottom + 8)
+        var avatarMaxHeight = Math.max(140, avatarVh - avatarTop - avatarGap)
+        el.style.setProperty('max-width', 'min(220px, calc(100vw - 20px))', 'important')
+        el.style.setProperty('max-height', avatarMaxHeight + 'px', 'important')
+        el.style.setProperty('overflow-y', 'auto', 'important')
+        el.style.setProperty('overflow-x', 'hidden', 'important')
+        var avatarWidth = Math.min(Math.max(el.getBoundingClientRect().width || 136, 136), Math.max(136, avatarVw - avatarGap * 2))
+        var avatarLeft = rect.right - avatarWidth
+        avatarLeft = Math.max(avatarGap, Math.min(avatarLeft, avatarVw - avatarWidth - avatarGap))
+        el.style.setProperty('top', avatarTop + 'px', 'important')
+        el.style.setProperty('left', avatarLeft + 'px', 'important')
+        el.style.setProperty('right', 'auto', 'important')
         el.style.setProperty('transform', 'translateZ(0)', 'important')
       }
     } else if (isMoreMenu || (el._xc_origParent && el._xc_origParent.classList && el._xc_origParent.classList.contains('nav-btn-more'))) {
-      var moreAnchor = el._xc_origParent || parent
+      var moreAnchor = anchorOverride || el._xc_origParent || parent
       var moreRect = moreAnchor ? moreAnchor.getBoundingClientRect() : null
       var vw = window.innerWidth || document.documentElement.clientWidth || 0
       var vh = window.innerHeight || document.documentElement.clientHeight || 0
       var gap = 10
       var pageZoom = 1
       try { pageZoom = parseFloat(window.getComputedStyle(document.body).zoom) || 1 } catch(_) {}
-      var top = moreRect ? Math.max(52, moreRect.bottom + 8) : 60
+      var top = moreRect ? Math.max(navBaseTop, moreRect.bottom + 8) : (safeTop + 60)
       var maxHeight = Math.max(140, vh - top - gap)
       el.style.setProperty('min-width', '160px', 'important')
       el.style.setProperty('max-width', 'min(240px, calc(100vw - 20px))', 'important')
@@ -2423,9 +2536,25 @@ onMounted(() => {
       el.style.setProperty('right', 'auto', 'important')
       el.style.setProperty('transform', 'translateZ(0)', 'important')
     } else {
-      el.style.setProperty('top', '60px', 'important')
-      el.style.setProperty('left', '50%', 'important')
-      el.style.setProperty('transform', 'translateX(-50%) translateZ(0)', 'important')
+      var anchor = anchorOverride || el._xc_origParent || parent
+      var anchorRect = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null
+      var menuVw = window.innerWidth || document.documentElement.clientWidth || 0
+      var menuVh = window.innerHeight || document.documentElement.clientHeight || 0
+      var menuGap = 10
+      var menuTop = anchorRect ? Math.max(navBaseTop, anchorRect.bottom + 8) : (safeTop + 60)
+      var menuMaxHeight = Math.max(140, menuVh - menuTop - menuGap)
+      el.style.setProperty('min-width', '160px', 'important')
+      el.style.setProperty('max-width', 'min(220px, calc(100vw - 20px))', 'important')
+      el.style.setProperty('max-height', menuMaxHeight + 'px', 'important')
+      el.style.setProperty('overflow-y', 'auto', 'important')
+      el.style.setProperty('overflow-x', 'hidden', 'important')
+      var menuWidth = Math.min(Math.max(el.getBoundingClientRect().width || 160, 160), Math.max(160, menuVw - menuGap * 2))
+      var menuLeft = anchorRect ? (anchorRect.left + anchorRect.width / 2 - menuWidth / 2) : ((menuVw - menuWidth) / 2)
+      menuLeft = Math.max(menuGap, Math.min(menuLeft, menuVw - menuWidth - menuGap))
+      el.style.setProperty('top', menuTop + 'px', 'important')
+      el.style.setProperty('left', menuLeft + 'px', 'important')
+      el.style.setProperty('right', 'auto', 'important')
+      el.style.setProperty('transform', 'translateZ(0)', 'important')
     }
   }
 
@@ -2454,6 +2583,7 @@ onMounted(() => {
     el.style.removeProperty('visibility')
     el.style.removeProperty('opacity')
     el.style.removeProperty('pointer-events')
+    el.style.removeProperty('transition')
     if (el._xc_origParent) {
       var origParent = el._xc_origParent
       var origNext = el._xc_origNext
@@ -2466,16 +2596,53 @@ onMounted(() => {
       el._xc_origNext = null
     }
   }
+  window._xc_applyFrost = _xc_applyFrost
+  window._xc_restoreMenu = _xc_restoreMenu
 
   if (!window.__xcDropInited) {
     window.__xcDropInited = true
 
+    var _xc_collectDropdownMenus = function() {
+      var menus = []
+      var seen = []
+      var addMenu = function(menu) {
+        if (!menu || seen.indexOf(menu) >= 0) return
+        seen.push(menu)
+        menus.push(menu)
+      }
+      document.querySelectorAll('.nav-btn-drop-menu, .nav-dropdown-menu, .nav-avatar-dropdown, #avatarDropdown, #navBtnMoreMenu').forEach(addMenu)
+      document.querySelectorAll('body > .nav-btn-drop-menu, body > .nav-dropdown-menu, body > .nav-avatar-dropdown, body > #avatarDropdown, body > #navBtnMoreMenu').forEach(addMenu)
+      return menus
+    }
+
+    var _xc_hardHideMenu = function(menu) {
+      if (!menu || !menu.style) return
+      if (menu.classList) menu.classList.remove('open')
+      menu.style.setProperty('visibility', 'hidden', 'important')
+      menu.style.setProperty('opacity', '0', 'important')
+      menu.style.setProperty('pointer-events', 'none', 'important')
+      menu.style.setProperty('display', 'none', 'important')
+    }
+
     var _xc_closeAllDropdowns = function() {
-      document.querySelectorAll('.nav-btn-has-drop.open, .nav-btn-more.open, #avatarDropdown').forEach(function(d) {
+      var menus = _xc_collectDropdownMenus()
+      document.querySelectorAll('.nav-btn-has-drop.open, .nav-btn-more.open, .nav-dropdown.open, .nav-avatar-dropdown.open, #avatarDropdown.open').forEach(function(d) {
+        if (d._xc_moreCloseTimer) {
+          clearTimeout(d._xc_moreCloseTimer)
+          d._xc_moreCloseTimer = null
+        }
+        d._xc_hoverOpen = false
+        d._xc_moreMenuHover = false
         d.classList.remove('open')
       })
-      document.querySelectorAll('.nav-btn-drop-menu, #avatarDropdown').forEach(function(m) {
-        if (m._xc_origParent) _xc_restoreMenu(m)
+      menus.forEach(_xc_hardHideMenu)
+      try { menus.forEach(function(m) { return m && m.offsetHeight }) } catch(_) {}
+      menus.forEach(function(m) {
+        if (m._xc_origParent && m._xc_origParent.classList) {
+          m._xc_origParent.classList.remove('open')
+        }
+        if (m.classList) m.classList.remove('open')
+        ;(window._xc_restoreMenu || _xc_restoreMenu)(m)
       })
     }
     window._xc_closeAllDropdowns = _xc_closeAllDropdowns
@@ -2489,22 +2656,102 @@ onMounted(() => {
       if (!wasOpen) {
         el.classList.add('open')
         var menu = el.querySelector('.nav-btn-drop-menu')
-        if (menu) _xc_applyFrost(menu)
+        if (menu) (window._xc_applyFrost || _xc_applyFrost)(menu, el)
       }
+    }
+
+    window._xc_hoverDrop = function(event) {
+      var el = event && event.currentTarget
+      if (!el || !el.classList || el.classList.contains('open')) return
+      _xc_closeAllDropdowns()
+      var menu = el.querySelector('.nav-btn-drop-menu')
+      if (menu) (window._xc_applyFrost || _xc_applyFrost)(menu, el)
+    }
+
+    window._xc_unhoverDrop = function(event) {
+      var el = event && event.currentTarget
+      if (!el || !el.classList) return
+      var menu = el.querySelector('.nav-btn-drop-menu')
+      if (!menu) return
+      if (el.classList.contains('open')) {
+        el.classList.remove('open')
+      }
+      ;(window._xc_restoreMenu || _xc_restoreMenu)(menu)
+    }
+
+    var _xc_installMoreHoverGuards = function(menu, owner) {
+      if (!menu || !owner || menu._xc_moreHoverOwner === owner) return
+      menu._xc_moreHoverOwner = owner
+      menu.onmouseenter = function() {
+        owner._xc_moreMenuHover = true
+        if (owner._xc_moreCloseTimer) {
+          clearTimeout(owner._xc_moreCloseTimer)
+          owner._xc_moreCloseTimer = null
+        }
+      }
+      menu.onmouseleave = function() {
+        owner._xc_moreMenuHover = false
+        if (!owner._xc_hoverOpen) return
+        if (owner._xc_moreCloseTimer) clearTimeout(owner._xc_moreCloseTimer)
+        owner._xc_moreCloseTimer = setTimeout(function() {
+          if (owner._xc_moreMenuHover) return
+          owner.classList.remove('open')
+          owner._xc_hoverOpen = false
+          ;(window._xc_restoreMenu || _xc_restoreMenu)(menu)
+        }, 120)
+      }
+    }
+
+    var _xc_getMoreMenu = function(owner) {
+      return (owner && owner._xc_moreMenu) || (owner && owner.querySelector && owner.querySelector('#navBtnMoreMenu')) || document.querySelector('body > #navBtnMoreMenu')
+    }
+
+    window._xc_hoverMore = function(event) {
+      var el = event && event.currentTarget
+      if (!el || !el.classList || el.classList.contains('open')) return
+      _xc_closeAllDropdowns()
+      var menu = el.querySelector('#navBtnMoreMenu')
+      if (!menu || menu.children.length === 0) return
+      el._xc_hoverOpen = true
+      el._xc_moreMenuHover = false
+      el._xc_moreMenu = menu
+      el.classList.add('open')
+      _xc_installMoreHoverGuards(menu, el)
+      ;(window._xc_applyFrost || _xc_applyFrost)(menu, el)
+    }
+
+    window._xc_unhoverMore = function(event) {
+      var el = event && event.currentTarget
+      if (!el || !el.classList || !el._xc_hoverOpen) return
+      var menu = _xc_getMoreMenu(el)
+      if (menu) _xc_installMoreHoverGuards(menu, el)
+      if (el._xc_moreCloseTimer) clearTimeout(el._xc_moreCloseTimer)
+      el._xc_moreCloseTimer = setTimeout(function() {
+        if (el._xc_moreMenuHover) return
+        el.classList.remove('open')
+        el._xc_hoverOpen = false
+        if (menu) (window._xc_restoreMenu || _xc_restoreMenu)(menu)
+      }, 160)
     }
 
     window._xc_toggleMore = function(event) {
       event.stopPropagation()
       event.preventDefault()
       var el = event && event.currentTarget
-      if (!el || !el.classList) el = document.querySelector('#navBtnBar #navBtnMore')
-      if (!el) return
-      var wasOpen = el.classList.contains('open')
-      _xc_closeAllDropdowns()
-      if (!wasOpen) {
-        el.classList.add('open')
-        var menu = el.querySelector('.nav-btn-drop-menu')
-        if (menu) _xc_applyFrost(menu)
+	      if (!el || !el.classList) el = document.querySelector('#navBtnBar #navBtnMore')
+	      if (!el) return
+	      var wasOpen = el.classList.contains('open')
+	      var wasHoverOpen = !!el._xc_hoverOpen
+	      _xc_closeAllDropdowns()
+	      if (!wasOpen || wasHoverOpen) {
+	        el._xc_hoverOpen = false
+	        el.classList.add('open')
+	        var menu = el.querySelector('.nav-btn-drop-menu')
+        if (menu) {
+          el._xc_moreMenu = menu
+          _xc_installMoreHoverGuards(menu, el)
+          ;(window._xc_applyFrost || _xc_applyFrost)(menu, el)
+        }
       }
     }
 
@@ -2515,6 +2762,45 @@ onMounted(() => {
       if (href) go(href)
     }
 
+    var _xc_isDropdownEventTarget = function(target) {
+      var el = target
+      for (var d = 10; el && d > 0; d--) {
+        if (el.classList && (el.classList.contains('nav-btn-has-drop') || el.classList.contains('nav-btn-more'))) return true
+        if (el.classList && el.classList.contains('nav-btn-drop-menu')) return true
+        if (el.id === 'navBtnMore' || el.id === 'avatarDropdown') return true
+        if (el.classList && el.classList.contains('nav-avatar-wrap')) return true
+        if (el.classList && el.classList.contains('avatar-dropdown-item')) return true
+        el = el.parentElement
+      }
+      return false
+    }
+
+    var _xc_findDropdownTrigger = function(target) {
+      var el = target
+      for (var d = 10; el && d > 0; d--) {
+        if (el.classList && (el.classList.contains('nav-btn-has-drop') || el.classList.contains('nav-btn-more') || el.classList.contains('nav-avatar-wrap'))) return el
+        if (el.id === 'navBtnMore') return el
+        el = el.parentElement
+      }
+      return null
+    }
+
+    var _xc_closeIfOutsideDropdown = function(e) {
+      var trigger = _xc_findDropdownTrigger(e.target)
+      if (trigger) {
+        var otherOpen = false
+        document.querySelectorAll('.nav-btn-has-drop.open, .nav-btn-more.open, .nav-avatar-wrap.open').forEach(function(openEl) {
+          if (openEl !== trigger) otherOpen = true
+        })
+        if (otherOpen) _xc_closeAllDropdowns()
+        return
+      }
+      if (!_xc_isDropdownEventTarget(e.target)) _xc_closeAllDropdowns()
+    }
+
+    document.addEventListener('pointerdown', _xc_closeIfOutsideDropdown, true)
+    document.addEventListener('mousedown', _xc_closeIfOutsideDropdown, true)
+
     document.addEventListener('click', function(e) {
       var el = e.target
       for (var d = 10; el && d > 0; d--) {
@@ -2523,7 +2809,15 @@ onMounted(() => {
         if (el.id === 'navBtnMore' || el.id === 'avatarDropdown') return
         if (el.classList && el.classList.contains('nav-avatar-wrap')) return
         if (el.classList && el.classList.contains('avatar-dropdown-item')) return
-        if (el.classList && el.classList.contains('nav-btn')) return
+        if (el.classList && el.classList.contains('nav-btn')) {
+          if (el.dataset && el.dataset.href) {
+            e.preventDefault()
+            e.stopPropagation()
+            _xc_closeAllDropdowns()
+            go(el.dataset.href)
+          }
+          return
+        }
         if (el.dataset && el.dataset.href) {
           e.preventDefault()
           e.stopPropagation()
@@ -2574,24 +2868,57 @@ onMounted(() => {
   loadAvatar()
   // 加载积分
   loadPointsSummary()
+  setTimeout(updateNavOverflow, 120)
   // 全局头像事件委托 - 使用 mouseenter/mouseleave 防止闪烁消失
+  function closeTopNavDropdowns() {
+    if (typeof _xc_closeAllDropdowns === 'function') _xc_closeAllDropdowns()
+    else if (window._xc_closeAllDropdowns) window._xc_closeAllDropdowns()
+  }
+  function findAvatarDropdown(source) {
+    var wrap = source && source.closest ? source.closest('.nav-avatar-wrap') : null
+    if (!wrap && source && source.classList && source.classList.contains('nav-avatar-wrap')) wrap = source
+    if (!wrap) return null
+    var dropdown = wrap.querySelector('#avatarDropdown')
+    if (!dropdown) {
+      document.querySelectorAll('#avatarDropdown').forEach(function(item) {
+        if (item._xc_origParent === wrap) dropdown = item
+      })
+    }
+    return dropdown ? { wrap: wrap, dropdown: dropdown } : null
+  }
+  function setAvatarDropdown(event, source, mode) {
+    if (event && event.preventDefault) event.preventDefault()
+    if (event && event.stopPropagation) event.stopPropagation()
+    if (event && event.stopImmediatePropagation) event.stopImmediatePropagation()
+    var now = Date.now()
+    if (mode === 'toggle' && now - (window.__xcAvatarLastToggleAt || 0) < 220) return false
+    if (mode === 'toggle') window.__xcAvatarLastToggleAt = now
+    var found = findAvatarDropdown(source || (event && (event.currentTarget || event.target)))
+    if (!found || !found.dropdown) return false
+    var wasOpen = found.dropdown.classList.contains('open')
+    closeTopNavDropdowns()
+    if (mode === 'open' || !wasOpen) {
+      found.dropdown.classList.add('open')
+      if (typeof _xc_applyFrost === 'function') _xc_applyFrost(found.dropdown, found.wrap)
+      else if (window._xc_applyFrost) window._xc_applyFrost(found.dropdown, found.wrap)
+      else found.dropdown.style.display = 'block'
+      if (!window.__avatarLoaded) loadAvatar()
+    }
+    return false
+  }
+  window._xc_toggleAvatarDropdown = function(event, source) {
+    return setAvatarDropdown(event, source, 'toggle')
+  }
+  window._xc_openAvatarDropdown = function(event, source) {
+    return setAvatarDropdown(event, source, 'open')
+  }
   if (!window.__avatarDelegated) {
     window.__avatarDelegated = true
     document.addEventListener('mouseover', function(e) {
       for (var el = e.target; el; el = el.parentElement) {
         if (el.classList && el.classList.contains('nav-avatar-trigger-global')) {
-          // 同一 wrap 内的 dropdown
-          var wrap = el.closest('.nav-avatar-wrap')
-          if (wrap) {
-            var dd = wrap.querySelector('#avatarDropdown')
-            if (dd) {
-              var wasOpen = dd.classList.contains('open')
-              _xc_closeAllDropdowns()
-              dd.classList.add('open')
-              _xc_applyFrost(dd)
-            }
-          }
-          if (!window.__avatarLoaded) loadAvatar()
+          if (document.querySelector('.nav-btn-has-drop.open, .nav-btn-more.open')) return
+          if (window._xc_openAvatarDropdown) window._xc_openAvatarDropdown(e, el)
           return
         }
       }
@@ -2608,11 +2935,15 @@ onMounted(() => {
           }
           return
         }
-        if (el.classList && (el.classList.contains('nav-avatar-trigger-global') || el.classList.contains('nav-avatar-wrap') || el.id === 'avatarDropdown')) return
+        if (el.classList && el.classList.contains('nav-avatar-trigger-global')) {
+          if (window._xc_openAvatarDropdown) window._xc_openAvatarDropdown(e, el)
+          return
+        }
+        if (el.classList && (el.classList.contains('nav-avatar-wrap') || el.id === 'avatarDropdown')) return
       }
       document.querySelectorAll('#avatarDropdown').forEach(function(x) {
         x.classList.remove('open')
-        if (x._xc_origParent) _xc_restoreMenu(x)
+        _xc_restoreMenu(x)
       })
     }, true)
     // 移动端 nav-dropdown 点击切换（移动端无 hover）
@@ -2645,28 +2976,14 @@ onMounted(() => {
             if (!isOpen) {
               dropdown.classList.add('open')
               var dm = dropdown.querySelector('.nav-dropdown-menu')
-              if (dm) _xc_applyFrost(dm)
+              if (dm) _xc_applyFrost(dm, dropdown)
             }
           }
           return
         }
         if (el.classList && el.classList.contains('nav-avatar-trigger-global')) {
           touchedAvatar = true
-          var wrap = el.closest('.nav-avatar-wrap')
-          if (wrap) {
-            var dd = wrap.querySelector('#avatarDropdown')
-            if (dd) {
-              var wasOpen = dd.classList.contains('open')
-              _xc_closeAllDropdowns()
-              if (!wasOpen) {
-                dd.classList.add('open')
-                _xc_applyFrost(dd)
-              }
-            }
-          }
-          if (!window.__avatarLoaded) loadAvatar()
-          e.preventDefault()
-          e.stopPropagation()
+          if (window._xc_openAvatarDropdown) window._xc_openAvatarDropdown(e, el)
           return
         }
       }
@@ -2678,7 +2995,7 @@ onMounted(() => {
       if (!touchedAvatar) {
         document.querySelectorAll('#avatarDropdown').forEach(function(x) {
           x.classList.remove('open')
-          if (x._xc_origParent) _xc_restoreMenu(x)
+          _xc_restoreMenu(x)
         })
       }
     }, true)
@@ -2692,7 +3009,7 @@ onMounted(() => {
             if (!isOpen) {
               dropdown.classList.add('open')
               var dm = dropdown.querySelector('.nav-dropdown-menu')
-              if (dm) _xc_applyFrost(dm)
+              if (dm) _xc_applyFrost(dm, dropdown)
             }
           }
           return
@@ -2741,8 +3058,10 @@ onMounted(() => {
   backdrop-filter: blur(40px) saturate(1.4);
   display: flex;
   align-items: center;
-  height: 60px;
-  padding: 0 24px;
+  min-height: var(--xc-topnav-total-height, 60px);
+  height: var(--xc-topnav-total-height, 60px);
+  padding: var(--xc-safe-top, 0px) max(24px, calc(var(--xc-safe-right, 0px) + 24px)) 0 max(24px, calc(var(--xc-safe-left, 0px) + 24px));
+  box-sizing: border-box;
   border-bottom: 1px solid var(--card-border);
   font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
   font-weight: 400;
@@ -2786,7 +3105,8 @@ onMounted(() => {
   gap: 8px;
   flex-shrink: 0;
   margin-left: auto;
-  z-index: 10;
+  position: relative;
+  z-index: 30;
 }
 
 /* ═══ 第 2 行：按钮栏 ═══ */
@@ -2798,6 +3118,8 @@ onMounted(() => {
   flex: 1 1 0;
   min-width: 0;
   overflow: visible;
+  position: relative;
+  z-index: 1;
 }
 .nav-btn {
   display: inline-flex;
@@ -2828,7 +3150,7 @@ onMounted(() => {
   position: absolute;
   top: 100%;
   left: 50%;
-  transform: translateX(-50%) translateY(4px);
+  transform: translateX(-50%) translateY(0);
   min-width: 160px;
   background: rgba(48, 53, 76, 0.94);
   border: 1px solid rgba(255,255,255,0.14);
@@ -2839,21 +3161,20 @@ onMounted(() => {
   pointer-events: none;
   -webkit-backdrop-filter: blur(20px) saturate(1.6);
   backdrop-filter: blur(20px) saturate(1.6);
-  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+  transition: none;
 }
 [data-theme="light"] .nav-btn-drop-menu {
-  background: rgba(255, 253, 248, 0.94);
-  border: 1px solid rgba(0,0,0,0.07);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+  background: rgba(255, 253, 248, 0.96);
+  border: 1px solid rgba(178,149,93,0.18);
+  box-shadow: 0 12px 34px rgba(74,54,24,0.16);
 }
 .nav-btn-has-drop.open .nav-btn-drop-menu,
 .nav-btn-more.open .nav-btn-drop-menu {
   visibility: visible;
   opacity: 1;
   pointer-events: auto;
-  transform: translateX(-50%) translateY(2px);
+  transform: translateX(-50%) translateY(0);
 }
-.nav-btn-has-drop:hover .nav-btn-drop-menu,
 .nav-btn-has-drop.open .nav-btn-drop-menu {
   visibility: visible !important;
   opacity: 1 !important;
@@ -2939,7 +3260,8 @@ body > #navBtnMoreMenu.nav-btn-drop-menu {
 }
 
 /* ═══ 用户头像 ═══ */
-.nav-avatar-wrap { position: relative; display: flex; align-items: center; cursor: pointer; margin-left: 8px; }
+.nav-avatar-wrap { position: relative; display: flex; align-items: center; cursor: pointer; margin-left: 8px; z-index: 35; }
+.nav-avatar-trigger { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; touch-action: manipulation; }
 .nav-avatar-inner {
   width: 38px; height: 38px; border-radius: 50%; overflow: hidden;
   background: rgba(178,149,93,0.14); display: flex; align-items: center; justify-content: center;
@@ -2948,7 +3270,7 @@ body > #navBtnMoreMenu.nav-btn-drop-menu {
 .nav-avatar-img { width: 100%; height: 100%; object-fit: cover; }
 .nav-avatar-text { font-size: 0.95rem; font-weight: 800; color: var(--accent); line-height:1; }
 .nav-avatar-dropdown { position: absolute; top: 100%; right: 0; margin-top: 8px; background: rgba(48, 53, 76, 0.94); border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; padding: 4px 0; min-width: 120px; display: none; box-shadow: 0 8px 32px rgba(0,0,0,0.25); z-index: 200; -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6); }
-[data-theme="light"] .nav-avatar-dropdown { background: rgba(255, 253, 248, 0.94); border: 1px solid rgba(0,0,0,0.07); box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
+[data-theme="light"] .nav-avatar-dropdown { background: rgba(255, 253, 248, 0.96); border: 1px solid rgba(178,149,93,0.18); box-shadow: 0 12px 34px rgba(74,54,24,0.16); }
 .nav-avatar-dropdown.open { display: block; }
 .avatar-dropdown-item { padding: 10px 16px; font-size: 0.78rem; color: var(--text-2); cursor: pointer; white-space: nowrap; }
 .avatar-dropdown-item:hover { background: var(--accent-glow); color: var(--accent); }
@@ -3045,18 +3367,18 @@ body.home-fixed-page #topnavLoginModal .modal-btns > * {
 
 /* ═══ 响应式 ═══ */
 @media (max-width: 768px) {
-  .topnav { padding: 0 8px; }
+  .topnav { padding: var(--xc-safe-top, 0px) max(8px, calc(var(--xc-safe-right, 0px) + 8px)) 0 max(8px, calc(var(--xc-safe-left, 0px) + 8px)); }
   .topnav-right { margin-left: 0; flex-shrink: 0; gap: 4px; }
+  .nav-btn-bar { overflow: visible; }
+  .nav-btn { padding: 6px 10px; font-size: 0.94rem; }
+  .nav-avatar-wrap { margin-left: 4px; }
+  .nav-avatar-dropdown { min-width: 136px; max-width: calc(100vw - 24px); }
   .theme-toggle-nav { font-size: 1rem; padding: 2px 4px; }
   .nav-auth-btns .btn-sm { font-size: 0.8rem; padding: 4px 8px; }
   
-  /* 完全按照 record-ctx-menu 手机版样式 */
+  /* 移动端只保留玻璃质感，不强行把菜单按视口居中；定位由按钮自身或 _xc_applyFrost 接管。 */
   .nav-btn-drop-menu,
   .nav-avatar-dropdown {
-    position: fixed !important;
-    top: 60px !important;
-    left: 50% !important;
-    transform: translateX(-50%) translateZ(0) !important;
     background: rgba(28,32,52,0.98) !important;
     border-color: rgba(255,255,255,0.14) !important;
     border-radius: 20px !important;
@@ -3093,10 +3415,10 @@ body.home-fixed-page #topnavLoginModal .modal-btns > * {
   /* 覆盖主题切换的浅色样式 */
   [data-theme="light"] .nav-btn-drop-menu,
   [data-theme="light"] .nav-avatar-dropdown {
-    background: rgba(255,255,255,0.65) !important;
-    border-color: rgba(255,255,255,0.3) !important;
+    background: rgba(255,253,248,0.96) !important;
+    border-color: rgba(178,149,93,0.18) !important;
     border-radius: 20px !important;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.4) !important;
+    box-shadow: 0 14px 40px rgba(74,54,24,0.16), inset 0 1px 0 rgba(255,255,255,0.78) !important;
     -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
     backdrop-filter: blur(20px) saturate(180%) !important;
     isolation: isolate !important;
@@ -3110,6 +3432,9 @@ body.home-fixed-page #topnavLoginModal .modal-btns > * {
 }
 @media (max-width: 480px) {
   .topnav-right { gap: 2px; }
+  .nav-btn { padding: 6px 9px; font-size: 0.9rem; }
+  .nav-avatar-trigger { width: 38px; height: 38px; }
+  .nav-avatar-inner { width: 36px; height: 36px; }
   .theme-toggle-nav { font-size: 0.9rem; padding: 1px 2px; }
   .nav-auth-btns .btn-sm { font-size: 0.75rem; padding: 3px 6px; }
 }
