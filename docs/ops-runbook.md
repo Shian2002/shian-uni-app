@@ -183,6 +183,25 @@ bash scripts/preflight_release.sh
 - 未登录 `/api/membership` 必须是 `401`，不能误放开会员数据。
 - 涉及积分异常时，同时核对 `membership.points` 和 `point_log`，不能只看余额。
 
+虎皮椒支付生产配置：
+
+积分中心支付使用虎皮椒下单和异步回调。旧支付宝收款码/截图识别入口已停用。生产启用前在后端服务环境里配置：
+
+```bash
+HUPIJIAO_ENABLED=1
+HUPIJIAO_APPID=你的虎皮椒APPID
+HUPIJIAO_APPSECRET=你的虎皮椒APPSECRET
+PUBLIC_BASE_URL=https://shianjieyouwu.com
+# 可选：HUPIJIAO_GATEWAY_URL=https://api.xunhupay.com/payment/do.html
+```
+
+注意：
+
+- `HUPIJIAO_APPSECRET` 只能放服务器环境变量或受控 `.env`，不能提交到 Git，也不能写入前端。
+- `PUBLIC_BASE_URL` 必须是虎皮椒能公网访问的 HTTPS 域名，回调地址为 `/api/recharge/hupijiao/notify`。
+- 上线前先用测试包或一分钱订单做端到端验活，核对 `recharge_order.status`、`membership.points` / AI 次数和 `point_log` 只入账一次。
+- 虎皮椒重复回调应返回 `success`，但不能重复加积分或 AI 次数。
+
 改部署脚本、依赖、服务器配置或数据库迁移：
 
 ```bash

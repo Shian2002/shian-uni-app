@@ -17,13 +17,14 @@ def test_release_policy_restricts_app_store_and_google_play_external_recharge():
     assert "getPaymentBoundaryNotice" in source
 
 
-def test_release_policy_requires_explicit_external_recharge_channel():
+def test_release_policy_enables_default_h5_and_restricts_store_channels():
     source = read("src/utils/releasePolicy.js")
 
     assert "externalRechargeChannels" in source
     assert "h5-recharge" in source
+    assert "if (!channel) return true" in source
     assert "return externalRechargeChannels.has(channel)" in source
-    assert "当前正式站暂不展示第三方数字内容充值入口" in source
+    assert "当前审核渠道暂不展示第三方数字内容充值入口" in source
 
 
 def test_points_pages_hide_external_recharge_for_restricted_channels():
@@ -46,6 +47,9 @@ def test_points_pages_keep_recharge_api_behind_policy_guard():
         create_order_index = source.index("url: rechargeApiBase + '/create-order'")
 
         assert guard_index < create_order_index
-        assert "rechargeQrSrc" in source
-        assert "paymentProofPlaceholder" in source
-        assert "verifyPayButtonText" in source
+        assert "startHupijiaoPayment" in source
+        assert "paymentQrUrl" in source
+        assert "pay_method: 'hupijiao'" in source
+        assert "rechargeQrSrc" not in source
+        assert "paymentProofPlaceholder" not in source
+        assert "verifyPayButtonText" not in source

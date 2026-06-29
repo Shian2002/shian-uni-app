@@ -193,33 +193,29 @@
 
     <!-- 充值弹窗 -->
     <view class="modal-overlay" id="rechargeModal" v-if="externalRechargeEnabled" @click="closeRechargeModal">
-      <view class="modal-box recharge-modal" @click.stop>
-        <view class="modal-title">充值确认</view>
+      <view class="modal-box recharge-modal pay-sheet" @click.stop>
+        <view class="modal-head">
+          <view>
+            <view class="modal-title">创建账单</view>
+            <view class="modal-subtitle">虎皮椒扫码支付，到账后自动刷新</view>
+          </view>
+          <view class="modal-close" @click="closeRechargeModal">×</view>
+        </view>
         <view class="recharge-summary">
           <text class="recharge-pkg-name" id="rechargePkgName"></text>
           <text class="recharge-amount" id="rechargeAmount"></text>
         </view>
-        <view class="alipay-panel">
+        <view class="hupijiao-panel">
           <view class="qr-panel">
-            <img class="alipay-qr" :src="rechargeQrSrc" alt="支付宝收款码" />
-            <view class="pay-hint">请用支付宝扫码付款，付款金额必须与当前套餐一致。</view>
-          </view>
-          <view class="proof-panel">
-            <view class="service-window">
-              <text class="service-title">到账说明</text>
-              <text class="service-text">每日 10:00 - 24:00 在线处理；小额截图识别通过后可自动到账。</text>
-            </view>
-            <view class="proof-picker" @click="choosePaymentProof">
-              <text class="proof-picker-title">{{ paymentProofName || paymentProofPlaceholder }}</text>
-              <text class="proof-picker-desc">系统识别金额和收款方，提交后写入充值记录</text>
+            <img class="hupijiao-qr" v-if="paymentQrUrl" :src="paymentQrUrl" alt="支付二维码" />
+            <view class="payment-loading" v-else>{{ paymentStatusText }}</view>
+            <view class="pay-hint">{{ paymentStatusText }}</view>
+            <view class="payment-actions">
+              <view class="payment-state" :class="'state-' + paymentState">{{ paymentStateLabel }}</view>
+              <view class="btn btn-outline" @click="refreshPaymentStatus(false)">刷新到账</view>
+              <view class="btn btn-primary" v-if="paymentPayUrl" @click="openPaymentUrl(paymentPayUrl)">打开支付页</view>
             </view>
           </view>
-        </view>
-        <view class="modal-btns">
-          <view class="btn btn-primary verify-pay-btn" :class="{ disabled: paymentChecking }" @click="verifyAlipayPayment">
-            {{ paymentChecking ? '识别中...' : verifyPayButtonText }}
-          </view>
-          <view class="btn btn-outline" @click="closeRechargeModal">取消</view>
         </view>
       </view>
     </view>
@@ -291,17 +287,18 @@ export default {
     var dpPerPage = 5
     var currentPackage = null
     var currentOrderId = ref(null)
-    var paymentProofPath = ref('')
-    var paymentProofName = ref('')
+    var paymentPayUrl = ref('')
+    var paymentQrUrl = ref('')
+    var paymentState = ref('idle')
+    var paymentStateLabel = ref('等待创建')
+    var paymentStatusText = ref('选择套餐后会自动创建虎皮椒账单。')
     var paymentChecking = ref(false)
     var externalRechargeEnabled = ref(isExternalRechargeEnabled())
     var paymentBoundaryNotice = getPaymentBoundaryNotice()
     var rechargeApiBase = ['/api', 'recharge'].join('/')
-    var rechargeQrSrc = externalRechargeEnabled.value ? ['/static/', 'alipay', '-recharge.jpg'].join('') : ''
-    var paymentProofCodes = externalRechargeEnabled.value ? [19978, 20256, 25903, 20184, 23453, 20184, 27454, 25104, 21151, 25130, 22270] : []
-    var paymentProofPlaceholder = paymentProofCodes.map(function(code) { return String.fromCharCode(code) }).join('')
-    var paymentProofDescription = ['用户', paymentProofPlaceholder].join('')
-    var verifyPayButtonText = ['提交截图', '并识别到账'].join('')
+    var paymentPollTimer = null
+    var paymentPollCount = 0
+    var pendingQrOrderId = null
 
     function resetPointsSessionState() {
       isLoggedIn.value = false
@@ -310,9 +307,13 @@ export default {
       dpFilter = 'all'
       currentPackage = null
       currentOrderId.value = null
-      paymentProofPath.value = ''
-      paymentProofName.value = ''
+      paymentPayUrl.value = ''
+      paymentQrUrl.value = ''
+      paymentState.value = 'idle'
+      paymentStateLabel.value = '等待创建'
+      paymentStatusText.value = '选择套餐后会自动创建虎皮椒账单。'
       paymentChecking.value = false
+      stopPaymentPolling()
       try {
         var pointsEl = document.getElementById('pointsNumber')
         var levelEl = document.getElementById('pointsLevel')
@@ -573,8 +574,11 @@ export default {
       }
       currentPackage = pkg
       currentOrderId.value = null
-      paymentProofPath.value = ''
-      paymentProofName.value = ''
+      paymentPayUrl.value = ''
+      paymentQrUrl.value = ''
+      paymentState.value = 'creating'
+      paymentStateLabel.value = '创建中'
+      paymentStatusText.value = '正在创建账单，请稍候。'
       var modal = document.getElementById('rechargeModal')
       if (!modal) return
       modal.classList.add('open')
@@ -587,60 +591,129 @@ export default {
       var amtEl = document.getElementById('rechargeAmount')
       if (amtEl) amtEl.textContent = '需支付 ¥' + pkg.price
       modal.dataset.pkgId = pkg.id
+      startHupijiaoPayment()
     }
 
     function closeRechargeModal() {
       var modal = document.getElementById('rechargeModal')
       if (modal) modal.classList.remove('open')
       paymentChecking.value = false
+      try { uni.hideLoading() } catch(_) {}
+      stopPaymentPolling()
     }
 
-    function ensureRechargeOrder(done) {
-      if (currentOrderId.value) {
-        done(currentOrderId.value)
-        return
+    function openPaymentUrl(url) {
+      if (!url) return
+      try {
+        if (typeof window !== 'undefined') {
+          window.open(url, '_blank', 'noopener,noreferrer')
+          return
+        }
+      } catch(_) {}
+      try { uni.navigateTo({ url: url }) } catch(_) {}
+    }
+
+    function stopPaymentPolling() {
+      if (paymentPollTimer) {
+        clearInterval(paymentPollTimer)
+        paymentPollTimer = null
       }
-      var modal = document.getElementById('rechargeModal')
-      var pkgId = modal ? modal.dataset.pkgId : ''
-      if (!pkgId) {
-        uni.showToast({ title: '请选择充值套餐', icon: 'none' })
+    }
+
+    function refreshPaymentStatus(silent) {
+      if (!currentOrderId.value) {
+        loadPoints()
+        loadLogs()
         return
       }
       uni.request({
-        url: rechargeApiBase + '/create-order',
-        method: 'POST',
-        data: { package_id: pkgId, pay_method: 'alipay_qr' },
+        url: '/api/recharge/orders?page=1&per_page=20',
+        method: 'GET',
         success: function(res) {
-          var d = res.data || {}
-          if (!d.ok || !d.order_id) {
-            uni.showToast({ title: d.error || '创建订单失败', icon: 'none' })
+          var list = (res.data && res.data.orders) || []
+          var matched = list.find(function(o) { return String(o.id) === String(currentOrderId.value) })
+          if (matched && matched.status === 'paid') {
+            stopPaymentPolling()
+            paymentState.value = 'paid'
+            paymentStateLabel.value = '支付成功'
+            paymentStatusText.value = '支付已到账，积分中心正在刷新。'
+            uni.showToast({ title: '支付已到账', icon: 'success' })
+            loadPoints()
+            loadLogs()
+            setTimeout(closeRechargeModal, 1200)
             return
           }
-          currentOrderId.value = d.order_id
-          done(d.order_id)
+          if (matched && matched.status && matched.status !== 'pending') {
+            stopPaymentPolling()
+            paymentState.value = 'failed'
+            paymentStateLabel.value = '支付失败'
+            paymentStatusText.value = '这笔账单未完成，请关闭后重新选择套餐。'
+            return
+          }
+          paymentState.value = 'pending'
+          paymentStateLabel.value = '等待支付'
+          paymentStatusText.value = '请扫码完成支付，系统正在自动核对到账状态。'
+          loadLogs()
         },
         fail: function() {
-          uni.showToast({ title: '创建订单失败', icon: 'none' })
+          if (!silent) uni.showToast({ title: '刷新失败', icon: 'none' })
         }
       })
     }
 
-    function choosePaymentProof() {
-      uni.chooseImage({
-        count: 1,
-        sizeType: ['compressed', 'original'],
-        sourceType: ['album', 'camera'],
-        success: function(res) {
-          var filePath = (res.tempFilePaths && res.tempFilePaths[0]) || ''
-          if (!filePath) return
-          paymentProofPath.value = filePath
-          paymentProofName.value = '付款截图已选择'
+    function startPaymentPolling() {
+      stopPaymentPolling()
+      paymentPollCount = 0
+      paymentPollTimer = setInterval(function() {
+        paymentPollCount += 1
+        if (paymentPollCount > 60) {
+          stopPaymentPolling()
+          paymentState.value = 'failed'
+          paymentStateLabel.value = '未到账'
+          paymentStatusText.value = '长时间未核对到账，请关闭后在账本确认，或重新选择套餐。'
+          return
         }
-      })
+        refreshPaymentStatus(true)
+      }, 3000)
     }
 
-    function verifyAlipayPayment() {
+    function openRechargeModalWithQr(qrUrl, orderId) {
+      if (!qrUrl) {
+        try { uni.hideLoading() } catch(_) {}
+        paymentState.value = 'failed'
+        paymentStateLabel.value = '二维码失败'
+        paymentStatusText.value = '二维码生成失败，请关闭后重试。'
+        uni.showToast({ title: '二维码生成失败，请重试', icon: 'none' })
+        return
+      }
+      pendingQrOrderId = orderId
+      var img = new Image()
+      img.onload = function() {
+        if (String(pendingQrOrderId) !== String(orderId) || String(currentOrderId.value) !== String(orderId)) return
+        paymentQrUrl.value = qrUrl
+        paymentState.value = 'pending'
+        paymentStateLabel.value = '等待支付'
+        paymentStatusText.value = '请扫码完成支付，系统正在自动核对到账状态。'
+        try { uni.hideLoading() } catch(_) {}
+        startPaymentPolling()
+      }
+      img.onerror = function() {
+        if (String(pendingQrOrderId) !== String(orderId)) return
+        try { uni.hideLoading() } catch(_) {}
+        paymentState.value = 'failed'
+        paymentStateLabel.value = '二维码失败'
+        paymentStatusText.value = '二维码加载失败，请关闭后重试。'
+        uni.showToast({ title: '二维码加载失败，请重试', icon: 'none' })
+      }
+      img.src = qrUrl
+    }
+
+    function startHupijiaoPayment() {
       if (paymentChecking.value) return
+      if (paymentPayUrl.value) {
+        openPaymentUrl(paymentPayUrl.value)
+        return
+      }
       if (!isLoggedIn.value) {
         try { if (window._openLoginModal) window._openLoginModal() } catch(_) {}
         uni.showToast({ title: '请先登录', icon: 'none' })
@@ -650,55 +723,46 @@ export default {
         uni.showToast({ title: '请选择充值套餐', icon: 'none' })
         return
       }
-      if (!paymentProofPath.value) {
-        uni.showToast({ title: '请先上传付款成功截图', icon: 'none' })
+      var modal = document.getElementById('rechargeModal')
+      var pkgId = modal ? modal.dataset.pkgId : ''
+      if (!pkgId) {
+        uni.showToast({ title: '请选择充值套餐', icon: 'none' })
         return
       }
       paymentChecking.value = true
-      ensureRechargeOrder(function(orderId) {
-        var headers = { 'X-Requested-With': 'XMLHttpRequest' }
-        try {
-          var token = localStorage.getItem('xc_token') || ''
-          if (token) headers.Authorization = 'Bearer ' + token
-        } catch(_) {}
-        uni.uploadFile({
-          url: rechargeApiBase + '/verify-payment',
-          filePath: paymentProofPath.value,
-          name: 'file',
-          header: headers,
-          formData: {
-            order_id: orderId,
-            expected_amount: currentPackage.price,
-            payment_proof: paymentProofDescription
-          },
-          success: function(res) {
-            var d = {}
-            try { d = typeof res.data === 'string' ? JSON.parse(res.data) : (res.data || {}) } catch(_) {}
-            if (!d.ok) {
-              uni.showToast({ title: d.error || '识别失败', icon: 'none' })
-              return
-            }
-            closeRechargeModal()
-            if (d.status === 'pending') {
-              uni.showToast({ title: d.message || '已提交，待确认到账', icon: 'none' })
-              loadLogs()
-              return
-            }
-            uni.showToast({ title: (d.credit_type === 'points' ? '充值到账 +' : '次数到账 +') + d.added, icon: 'success' })
-            if (typeof d.points === 'number') {
-              var el = document.getElementById('pointsNumber')
-              if (el) el.textContent = d.points
-              try { window.dispatchEvent(new CustomEvent('xc-points-updated', { detail: { points: d.points } })) } catch(_) {}
-            }
-            loadLogs()
-          },
-          fail: function() {
-            uni.showToast({ title: '识别失败', icon: 'none' })
-          },
-          complete: function() {
-            paymentChecking.value = false
+      try { uni.showLoading({ title: '创建账单中', mask: false }) } catch(_) {}
+      uni.request({
+        url: rechargeApiBase + '/create-order',
+        method: 'POST',
+        data: { package_id: pkgId, pay_method: 'hupijiao' },
+        success: function(res) {
+          var d = res.data || {}
+          if (!d.ok || !d.order_id) {
+            paymentState.value = 'failed'
+            paymentStateLabel.value = '创建失败'
+            paymentStatusText.value = d.error || '账单创建失败，请关闭后重试。'
+            try { uni.hideLoading() } catch(_) {}
+            uni.showToast({ title: d.error || '创建订单失败', icon: 'none' })
+            return
           }
-        })
+          currentOrderId.value = d.order_id
+          paymentPayUrl.value = d.pay_url || ''
+          paymentQrUrl.value = ''
+          paymentState.value = 'pending'
+          paymentStateLabel.value = '等待支付'
+          paymentStatusText.value = '请扫码完成支付，支付成功后会自动刷新账本。'
+          openRechargeModalWithQr(d.qrcode_url || '', d.order_id)
+        },
+        fail: function() {
+          paymentState.value = 'failed'
+          paymentStateLabel.value = '创建失败'
+          paymentStatusText.value = '账单创建失败，请关闭后重试。'
+          try { uni.hideLoading() } catch(_) {}
+          uni.showToast({ title: '创建订单失败', icon: 'none' })
+        },
+        complete: function() {
+          paymentChecking.value = false
+        }
       })
     }
 
@@ -718,6 +782,7 @@ export default {
     onBeforeUnmount(function() {
       try { window.removeEventListener('xc-auth-changed', handleAuthChanged) } catch(_) {}
       try { window.removeEventListener('xc-session-expired', resetPointsSessionState) } catch(_) {}
+      stopPaymentPolling()
     })
 
     return {
@@ -729,14 +794,14 @@ export default {
       aiPackages,
       externalRechargeEnabled,
       paymentBoundaryNotice,
-      rechargeQrSrc,
-      paymentProofPlaceholder,
-      verifyPayButtonText,
+      paymentPayUrl,
+      paymentQrUrl,
+      paymentState,
+      paymentStateLabel,
+      paymentStatusText,
       usageScenarios,
       membershipPlans,
       conversionSteps,
-      paymentProofPath,
-      paymentProofName,
       paymentChecking,
       goBack,
       openAgent,
@@ -744,8 +809,9 @@ export default {
       loadMoreLogs,
       selectPackage,
       closeRechargeModal,
-      choosePaymentProof,
-      verifyAlipayPayment,
+      openPaymentUrl,
+      startHupijiaoPayment,
+      refreshPaymentStatus,
     }
   }
 }
@@ -1314,31 +1380,65 @@ export default {
 }
 .modal-overlay.open { display: flex; }
 .modal-box {
-  width: min(720px, 100%);
+  position: relative;
+  width: min(430px, 100%);
   max-height: calc(100dvh - 32px);
-  padding: 22px;
+  padding: 20px;
   border: 1px solid rgba(178,149,93,0.22);
-  border-radius: 18px;
-  background: var(--card-bg);
-  box-shadow: 0 22px 64px rgba(26,20,12,.24);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(178,149,93,0.14), transparent 38%),
+    linear-gradient(180deg, color-mix(in srgb, var(--card-bg) 98%, #fff4d8 2%), var(--card-bg));
+  box-shadow: 0 26px 70px rgba(26,20,12,.28);
   overflow: auto;
 }
-.modal-title {
-  margin-bottom: 14px;
-  color: var(--text-1);
-  font-size: 1.05rem;
-  font-weight: 850;
-}
-.recharge-summary {
+.modal-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 13px 15px;
   margin-bottom: 14px;
+}
+.modal-title {
+  color: var(--text-1);
+  font-size: 1.08rem;
+  font-weight: 850;
+}
+.modal-subtitle {
+  margin-top: 4px;
+  color: var(--text-3);
+  font-size: 0.72rem;
+}
+.modal-close {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(178,149,93,0.2);
+  border-radius: 999px;
+  color: var(--text-3);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  background: rgba(178,149,93,0.06);
+}
+.modal-close:hover {
+  color: var(--accent);
+  border-color: rgba(178,149,93,0.42);
+}
+.recharge-summary {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 14px;
+  padding: 14px 15px;
+  margin-bottom: 16px;
   border: 1px solid rgba(178,149,93,0.18);
-  border-radius: 13px;
-  background: rgba(178,149,93,0.08);
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(178,149,93,0.12), rgba(178,149,93,0.03)),
+    rgba(178,149,93,0.05);
 }
 .recharge-pkg-name {
   color: var(--text-2);
@@ -1347,74 +1447,76 @@ export default {
 }
 .recharge-amount {
   color: var(--accent);
-  font-size: 1.12rem;
+  font-size: 1.2rem;
   font-weight: 850;
+  white-space: nowrap;
 }
-.alipay-panel {
-  display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
-  gap: 14px;
-  align-items: stretch;
+.hupijiao-panel {
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
-.qr-panel,
-.proof-panel {
+.qr-panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  align-items: center;
+  gap: 12px;
 }
-.alipay-qr {
+.hupijiao-qr {
   display: block;
-  width: 100%;
-  max-height: 330px;
+  width: min(252px, 100%);
+  aspect-ratio: 1;
+  max-height: 252px;
   object-fit: contain;
+  padding: 8px;
+  box-sizing: border-box;
   border: 1px solid rgba(178,149,93,0.2);
-  border-radius: 14px;
+  border-radius: 18px;
   background: #fff;
+  box-shadow: 0 12px 30px rgba(80,62,34,0.12);
 }
-.pay-hint,
-.service-text,
-.proof-picker-desc {
+.payment-loading {
+  width: min(252px, 100%);
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  border: 1px dashed rgba(178,149,93,0.3);
+  border-radius: 18px;
+  color: var(--text-3);
+  font-size: 0.78rem;
+  text-align: center;
+  box-sizing: border-box;
+  background: rgba(178,149,93,0.06);
+}
+.pay-hint {
   color: var(--text-3);
   font-size: 0.72rem;
   line-height: 1.5;
+  text-align: center;
 }
-.pay-hint { text-align: center; }
-.service-window {
-  padding: 13px;
-  border: 1px solid rgba(178,149,93,0.18);
-  border-radius: 13px;
-  background: rgba(178,149,93,0.07);
-}
-.service-title {
-  display: block;
-  margin-bottom: 5px;
-  color: var(--text-1);
-  font-size: 0.8rem;
-  font-weight: 850;
-}
-.proof-picker {
+.payment-actions {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   justify-content: center;
-  gap: 5px;
-  min-height: 108px;
-  padding: 14px;
-  border: 1px dashed var(--accent);
-  border-radius: 13px;
-  background: rgba(178,149,93,0.08);
-  cursor: pointer;
+  gap: 8px;
 }
-.proof-picker-title {
+.payment-state {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 8px 12px;
+  border-radius: 12px;
   color: var(--text-1);
-  font-size: 0.86rem;
+  font-size: 0.78rem;
   font-weight: 850;
+  background: rgba(178,149,93,0.12);
 }
-.modal-btns {
-  display: grid;
-  grid-template-columns: 1fr 120px;
-  gap: 10px;
-  margin-top: 16px;
-}
+.state-paid { color: #2f8f67; background: rgba(47,143,103,0.12); }
+.state-failed { color: #b15c4f; background: rgba(177,92,79,0.12); }
+.state-pending,
+.state-creating { color: var(--accent); background: rgba(178,149,93,0.14); }
 .btn {
   display: inline-flex;
   align-items: center;
@@ -1503,22 +1605,17 @@ export default {
   .points-page .pkg-name {
     padding-right: 34px;
   }
-  .alipay-panel {
-    grid-template-columns: 1fr;
-  }
-  .alipay-qr {
+  .hupijiao-qr,
+  .payment-loading {
     width: min(100%, 220px);
     margin: 0 auto;
   }
-  .recharge-summary,
-  .modal-btns {
+  .recharge-summary {
     grid-template-columns: 1fr;
     flex-direction: column;
     align-items: stretch;
   }
-  .modal-btns {
-    display: flex;
-  }
+  .recharge-amount { justify-self: start; }
 }
 
 @media (max-width: 390px) {

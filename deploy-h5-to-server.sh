@@ -2,7 +2,7 @@
 # 时安解忧屋 - 仅部署 H5 前端产物
 # 用法: CONFIRM_H5_DEPLOY=shianjieyouwu.com bash deploy-h5-to-server.sh
 # 可选: DRY_RUN=1 bash deploy-h5-to-server.sh 只打印将要同步的文件，不改线上。
-# 可选: INCLUDE_RECHARGE_ASSETS=1 同步充值二维码类静态资源；默认不上传，避免商店审核包混入外部充值素材。
+# 可选: INCLUDE_RECHARGE_ASSETS=1 同步旧充值二维码类静态资源；默认不上传，避免商店审核包混入外部充值素材。
 
 set -euo pipefail
 
@@ -58,7 +58,7 @@ echo "目标域名: $BASE_URL"
 if [ "$INCLUDE_RECHARGE_ASSETS" = "1" ]; then
   echo "充值素材: 同步"
 else
-  echo "充值素材: 默认跳过 static/alipay-recharge.jpg"
+  echo "充值素材: 默认跳过 static/alipay-recharge.jpg（旧支付宝素材）"
 fi
 if [ "$DRY_RUN" = "1" ]; then
   echo "模式: dry-run，不会修改线上文件。"

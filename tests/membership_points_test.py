@@ -404,22 +404,11 @@ def test_recharge_test_package_creates_one_cent_one_point_order(app_module, user
 
     response = client.post("/api/recharge/create-order", json={
         "package_id": "test-cent",
-        "pay_method": "alipay_qr",
+        "pay_method": "hupijiao",
     })
 
-    assert response.status_code == 200
-    body = response.get_json()
-    assert body["ok"] is True
-    assert body["points_amount"] == 1
-    assert body["price"] == 0.01
-
-    with app_module.app.app_context():
-        order = app_module.RechargeOrder.query.filter_by(user_id=member.id).one()
-        assert order.package_id == "test-cent"
-        assert order.package_name == "测试包"
-        assert order.points == 1
-        assert order.amount == 0.01
-        assert order.status == "pending"
+    assert response.status_code == 503
+    assert response.get_json()["error"] == "虎皮椒支付暂未配置"
 
 
 def test_recharge_packages_include_points_and_ai_credit_packages(app_module):
@@ -921,307 +910,145 @@ def test_admin_can_add_points_by_username_and_users_endpoint_is_guarded(app_modu
         assert audit.target_id == member.id
 
 
-def test_alipay_recharge_verification_records_proof_without_auto_confirm(app_module, user_factory):
-    member = user_factory("alipay-buyer")
+def _enable_hupijiao(monkeypatch):
+    monkeypatch.setenv("HUPIJIAO_ENABLED", "1")
+    monkeypatch.setenv("HUPIJIAO_APPID", "test-appid")
+    monkeypatch.setenv("HUPIJIAO_APPSECRET", "test-secret")
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://example.com")
 
-    with app_module.app.app_context():
-        order = app_module.RechargeOrder(
-            user_id=member.id,
-            package_id="starter",
-            package_name="体验包",
-            points=60,
-            amount=9.9,
-            status="pending",
-        )
-        app_module.db.session.add(order)
-        app_module.db.session.commit()
-        order_id = order.id
 
+def _signed_hupijiao_notify(app_module, **overrides):
+    payload = {
+        "trade_order_id": "XC1",
+        "total_fee": "9.90",
+        "transaction_id": "txn-001",
+        "open_order_id": "open-001",
+        "order_title": "体验包",
+        "status": "OD",
+        "appid": "test-appid",
+        "time": "1710000000",
+        "nonce_str": "nonce001",
+    }
+    payload.update({k: str(v) for k, v in overrides.items()})
+    payload["hash"] = app_module._hupijiao_sign(payload, "test-secret")
+    return payload
+
+
+def test_hupijiao_signature_skips_empty_values_and_hash(app_module):
+    payload = {
+        "appid": "test-appid",
+        "hash": "ignored",
+        "nonce_str": "abc",
+        "optional": "",
+        "time": "1710000000",
+        "trade_order_id": "XC1",
+    }
+
+    assert app_module._hupijiao_sign(payload, "secret") == app_module.hashlib.md5(
+        b"appid=test-appid&nonce_str=abc&time=1710000000&trade_order_id=XC1secret"
+    ).hexdigest()
+
+
+def test_hupijiao_create_order_requires_configuration(app_module, user_factory):
+    member = user_factory("missing-hupijiao-config")
     client = app_module.app.test_client()
     with client.session_transaction() as sess:
         sess["_user_id"] = str(member.id)
         sess["_fresh"] = True
 
-    response = client.post("/api/recharge/verify-payment", json={
-        "order_id": order_id,
-        "paid_amount": 9.9,
-        "payment_reference": "2026053113580001",
+    response = client.post("/api/recharge/create-order", json={
+        "package_id": "starter",
+        "pay_method": "hupijiao",
     })
-    assert response.status_code == 200
+
+    assert response.status_code == 503
     body = response.get_json()
-    assert body["ok"] is True
-    assert body["status"] == "pending"
-
-    with app_module.app.app_context():
-        refreshed = app_module.db.session.get(app_module.RechargeOrder, order_id)
-        membership = app_module.Membership.query.filter_by(user_id=member.id).first()
-        logs = app_module.PointLog.query.filter_by(user_id=member.id, action="recharge").all()
-        assert refreshed.status == "pending"
-        assert refreshed.pay_method == "alipay_qr"
-        assert refreshed.payment_reference == "2026053113580001"
-        assert membership is None
-        assert logs == []
+    assert body["error"] == "虎皮椒支付暂未配置"
+    assert "HUPIJIAO_APPSECRET" in body["missing"]
+    assert "test-secret" not in json.dumps(body)
 
 
-def test_alipay_recharge_verification_can_auto_confirm_when_enabled(app_module, user_factory, monkeypatch):
-    monkeypatch.setenv("ALIPAY_QR_AUTO_CONFIRM", "1")
-    member = user_factory("auto-alipay-buyer")
+def test_hupijiao_create_order_returns_payment_urls(app_module, user_factory, monkeypatch):
+    import recharge_routes
+    _enable_hupijiao(monkeypatch)
+    member = user_factory("hupijiao-buyer")
 
-    with app_module.app.app_context():
-        order = app_module.RechargeOrder(
-            user_id=member.id,
-            package_id="starter",
-            package_name="体验包",
-            points=60,
-            amount=9.9,
-            status="pending",
-        )
-        app_module.db.session.add(order)
-        app_module.db.session.commit()
-        order_id = order.id
+    captured = {}
+    def fake_post(url, payload, timeout=10):
+        captured["url"] = url
+        captured["payload"] = payload
+        return {"errcode": 0, "url": "https://pay.example/order", "url_qrcode": "https://pay.example/qr.png"}
 
+    monkeypatch.setattr(recharge_routes, "_post_hupijiao_order", fake_post)
     client = app_module.app.test_client()
     with client.session_transaction() as sess:
         sess["_user_id"] = str(member.id)
         sess["_fresh"] = True
 
-    response = client.post("/api/recharge/verify-payment", json={
-        "order_id": order_id,
-        "paid_amount": 9.9,
-        "payment_reference": "2026053113580001",
-    })
-    duplicate = client.post("/api/recharge/verify-payment", json={
-        "order_id": order_id,
-        "paid_amount": 9.9,
-        "payment_reference": "2026053113580001",
-    })
-
-    assert response.status_code == 200
-    assert response.get_json()["added"] == 60
-    assert duplicate.status_code == 400
-
-    with app_module.app.app_context():
-        refreshed = app_module.db.session.get(app_module.RechargeOrder, order_id)
-        membership = app_module.Membership.query.filter_by(user_id=member.id).one()
-        logs = app_module.PointLog.query.filter_by(user_id=member.id, action="recharge").all()
-        assert refreshed.status == "paid"
-        assert membership.points == 60
-        assert len(logs) == 1
-
-
-def test_small_recharge_screenshot_auto_confirms_when_amount_and_receiver_match(app_module, user_factory):
-    member = user_factory("small-auto-buyer")
-
-    with app_module.app.app_context():
-        order = app_module.RechargeOrder(
-            user_id=member.id,
-            package_id="starter",
-            package_name="体验包",
-            points=60,
-            amount=9.9,
-            status="pending",
-        )
-        app_module.db.session.add(order)
-        app_module.db.session.commit()
-        order_id = order.id
-
-    client = app_module.app.test_client()
-    with client.session_transaction() as sess:
-        sess["_user_id"] = str(member.id)
-        sess["_fresh"] = True
-
-    response = client.post("/api/recharge/verify-payment", json={
-        "order_id": order_id,
-        "payment_proof_text": "支付宝支付成功 收款方 时安解忧屋 支付金额 ¥9.90",
-        "payment_proof_hash": "proof-small-unique",
+    response = client.post("/api/recharge/create-order", json={
+        "package_id": "test-cent",
+        "pay_method": "hupijiao",
     })
 
     assert response.status_code == 200
     body = response.get_json()
-    assert body["status"] == "paid"
-    assert body["auto_confirmed"] is True
-    assert body["added"] == 60
+    assert body["ok"] is True
+    assert body["pay_url"] == "https://pay.example/order"
+    assert body["qrcode_url"] == "https://pay.example/qr.png"
+    assert body["trade_order_id"].startswith("XC")
+    assert captured["payload"]["notify_url"] == "https://example.com/api/recharge/hupijiao/notify"
+    assert captured["payload"]["hash"] == app_module._hupijiao_sign(captured["payload"], "test-secret")
 
     with app_module.app.app_context():
-        refreshed = app_module.db.session.get(app_module.RechargeOrder, order_id)
-        membership = app_module.Membership.query.filter_by(user_id=member.id).one()
-        assert refreshed.status == "paid"
-        assert refreshed.payment_reference == "proof-small-unique"
-        assert membership.points == 60
+        order = app_module.RechargeOrder.query.filter_by(user_id=member.id).one()
+        assert order.pay_method == "hupijiao"
+        assert order.status == "pending"
 
 
-def test_small_recharge_ignores_alipay_reward_numbers_when_matching_amount(app_module, user_factory):
-    member = user_factory("small-noisy-alipay-buyer")
+def test_alipay_recharge_verification_is_disabled(app_module, user_factory):
+    member = user_factory("legacy-disabled-buyer")
+    client = app_module.app.test_client()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(member.id)
+        sess["_fresh"] = True
 
+    response = client.post("/api/recharge/verify-payment", json={"order_id": 1})
+
+    assert response.status_code == 410
+    assert "已停用" in response.get_json()["error"]
+
+
+def test_hupijiao_notify_rejects_bad_signature(app_module, user_factory, monkeypatch):
+    _enable_hupijiao(monkeypatch)
+    member = user_factory("bad-sign-buyer")
     with app_module.app.app_context():
         order = app_module.RechargeOrder(
             user_id=member.id,
-            package_id="test-cent",
-            package_name="测试包",
-            points=1,
-            amount=0.01,
+            package_id="starter",
+            package_name="体验包",
+            points=60,
+            amount=9.9,
+            pay_method="hupijiao",
             status="pending",
         )
         app_module.db.session.add(order)
         app_module.db.session.commit()
         order_id = order.id
 
-    client = app_module.app.test_client()
-    with client.session_transaction() as sess:
-        sess["_user_id"] = str(member.id)
-        sess["_fresh"] = True
-
-    noisy_proof_text = "\n".join([
-        "23:12:20 58.3KB/s 5G 66",
-        "支付成功",
-        "¥0.01",
-        "时安解忧屋 ¥0.01",
-        "支付宝积分+2 账单贴纸+1",
-        "最高领20元红包",
-        "完成",
-    ])
-    response = client.post("/api/recharge/verify-payment", json={
-        "order_id": order_id,
-        "payment_proof_text": noisy_proof_text,
-        "payment_proof_hash": "proof-small-noisy-unique",
-    })
-
-    assert response.status_code == 200
-    body = response.get_json()
-    assert body["status"] == "paid"
-    assert body["auto_confirmed"] is True
-    assert body["added"] == 1
-
-    with app_module.app.app_context():
-        refreshed = app_module.db.session.get(app_module.RechargeOrder, order_id)
-        membership = app_module.Membership.query.filter_by(user_id=member.id).one()
-        assert refreshed.status == "paid"
-        assert membership.points == 1
-
-
-def test_spaced_ocr_receiver_text_still_matches(app_module):
-    assert app_module._payment_text_matches_receiver("支 付 成 功\n时 安 解 忧 屋 ¥0.01") is True
-
-
-def test_large_recharge_screenshot_waits_for_manual_confirmation(app_module, user_factory):
-    member = user_factory("large-manual-buyer")
-
-    with app_module.app.app_context():
-        order = app_module.RechargeOrder(
-            user_id=member.id,
-            package_id="premium",
-            package_name="畅享包",
-            points=650,
-            amount=68,
-            status="pending",
-        )
-        app_module.db.session.add(order)
-        app_module.db.session.commit()
-        order_id = order.id
-
-    client = app_module.app.test_client()
-    with client.session_transaction() as sess:
-        sess["_user_id"] = str(member.id)
-        sess["_fresh"] = True
-
-    response = client.post("/api/recharge/verify-payment", json={
-        "order_id": order_id,
-        "payment_proof_text": "支付宝支付成功 收款方 时安解忧屋 支付金额 ¥68.00",
-        "payment_proof_hash": "proof-large-unique",
-    })
-
-    assert response.status_code == 200
-    body = response.get_json()
-    assert body["status"] == "pending"
-    assert body["auto_confirmed"] is False
-    assert "10:00 - 24:00" in body["message"]
-
-    with app_module.app.app_context():
-        refreshed = app_module.db.session.get(app_module.RechargeOrder, order_id)
-        membership = app_module.Membership.query.filter_by(user_id=member.id).first()
-        assert refreshed.status == "pending"
-        assert refreshed.payment_reference == "proof-large-unique"
-        assert membership is None
-
-
-def test_recharge_screenshot_proof_cannot_be_reused(app_module, user_factory):
-    member = user_factory("duplicate-proof-buyer")
-
-    with app_module.app.app_context():
-        first_order = app_module.RechargeOrder(
-            user_id=member.id,
-            package_id="starter",
-            package_name="体验包",
-            points=60,
-            amount=9.9,
-            status="paid",
-            payment_reference="duplicate-proof-hash",
-        )
-        second_order = app_module.RechargeOrder(
-            user_id=member.id,
-            package_id="starter",
-            package_name="体验包",
-            points=60,
-            amount=9.9,
-            status="pending",
-        )
-        app_module.db.session.add_all([first_order, second_order])
-        app_module.db.session.commit()
-        order_id = second_order.id
-
-    client = app_module.app.test_client()
-    with client.session_transaction() as sess:
-        sess["_user_id"] = str(member.id)
-        sess["_fresh"] = True
-
-    response = client.post("/api/recharge/verify-payment", json={
-        "order_id": order_id,
-        "payment_proof_text": "支付宝支付成功 收款方 时安解忧屋 支付金额 ¥9.90",
-        "payment_proof_hash": "duplicate-proof-hash",
-    })
+    payload = _signed_hupijiao_notify(app_module, trade_order_id=f"XC{order_id}")
+    payload["hash"] = "bad"
+    response = app_module.app.test_client().post("/api/recharge/hupijiao/notify", data=payload)
 
     assert response.status_code == 400
-    assert response.get_json()["error"] == "付款截图已提交过"
-
-
-def test_recharge_screenshot_rejects_disguised_image_file(app_module, user_factory):
-    member = user_factory("fake-proof-buyer")
-
+    assert response.text == "failed"
     with app_module.app.app_context():
-        order = app_module.RechargeOrder(
-            user_id=member.id,
-            package_id="starter",
-            package_name="体验包",
-            points=60,
-            amount=9.9,
-            status="pending",
-        )
-        app_module.db.session.add(order)
-        app_module.db.session.commit()
-        order_id = order.id
-
-    client = app_module.app.test_client()
-    with client.session_transaction() as sess:
-        sess["_user_id"] = str(member.id)
-        sess["_fresh"] = True
-
-    response = client.post(
-        "/api/recharge/verify-payment",
-        data={
-            "order_id": str(order_id),
-            "paid_amount": "9.9",
-            "file": (io.BytesIO(b"not a real image"), "proof.png"),
-        },
-        content_type="multipart/form-data",
-    )
-
-    assert response.status_code == 400
-    assert response.get_json()["error"] == "图片内容无法识别"
+        refreshed = app_module.db.session.get(app_module.RechargeOrder, order_id)
+        assert refreshed.status == "pending"
 
 
-def test_alipay_recharge_verification_rejects_mismatched_amount(app_module, user_factory):
-    member = user_factory("mismatch-buyer")
-
+def test_hupijiao_notify_rejects_mismatched_amount(app_module, user_factory, monkeypatch):
+    _enable_hupijiao(monkeypatch)
+    member = user_factory("bad-amount-buyer")
     with app_module.app.app_context():
         order = app_module.RechargeOrder(
             user_id=member.id,
@@ -1229,26 +1056,18 @@ def test_alipay_recharge_verification_rejects_mismatched_amount(app_module, user
             package_name="标准包",
             points=240,
             amount=29.9,
+            pay_method="hupijiao",
             status="pending",
         )
         app_module.db.session.add(order)
         app_module.db.session.commit()
         order_id = order.id
 
-    client = app_module.app.test_client()
-    with client.session_transaction() as sess:
-        sess["_user_id"] = str(member.id)
-        sess["_fresh"] = True
-
-    response = client.post("/api/recharge/verify-payment", json={
-        "order_id": order_id,
-        "paid_amount": 9.9,
-        "payment_reference": "wrong-amount",
-    })
+    payload = _signed_hupijiao_notify(app_module, trade_order_id=f"XC{order_id}", total_fee="9.90")
+    response = app_module.app.test_client().post("/api/recharge/hupijiao/notify", data=payload)
 
     assert response.status_code == 400
-    assert response.get_json()["error"] == "付款金额与订单金额不一致"
-
+    assert response.text == "failed"
     with app_module.app.app_context():
         refreshed = app_module.db.session.get(app_module.RechargeOrder, order_id)
         membership = app_module.Membership.query.filter_by(user_id=member.id).first()
@@ -1256,41 +1075,69 @@ def test_alipay_recharge_verification_rejects_mismatched_amount(app_module, user
         assert membership is None
 
 
-def test_recharge_screenshot_rejects_explicit_mismatched_amount(app_module, user_factory):
-    member = user_factory("proof-mismatch-buyer")
-
+def test_hupijiao_notify_pays_points_once_and_accepts_duplicate(app_module, user_factory, monkeypatch):
+    _enable_hupijiao(monkeypatch)
+    member = user_factory("hupijiao-paid-buyer")
     with app_module.app.app_context():
         order = app_module.RechargeOrder(
             user_id=member.id,
-            package_id="test-cent",
-            package_name="测试包",
-            points=1,
-            amount=0.01,
+            package_id="starter",
+            package_name="体验包",
+            points=60,
+            amount=9.9,
+            pay_method="hupijiao",
             status="pending",
         )
         app_module.db.session.add(order)
         app_module.db.session.commit()
         order_id = order.id
 
+    payload = _signed_hupijiao_notify(app_module, trade_order_id=f"XC{order_id}", total_fee="9.90")
     client = app_module.app.test_client()
-    with client.session_transaction() as sess:
-        sess["_user_id"] = str(member.id)
-        sess["_fresh"] = True
+    first = client.post("/api/recharge/hupijiao/notify", data=payload)
+    second = client.post("/api/recharge/hupijiao/notify", data=payload)
 
-    response = client.post("/api/recharge/verify-payment", json={
-        "order_id": order_id,
-        "payment_proof_text": "支付宝支付成功 收款方 时安解忧屋 支付金额 ¥0.02",
-        "payment_proof_hash": "proof-explicit-mismatch",
-    })
-
-    assert response.status_code == 400
-    assert response.get_json()["error"] == "付款金额与订单金额不一致"
-
+    assert first.status_code == 200
+    assert first.text == "success"
+    assert second.status_code == 200
+    assert second.text == "success"
     with app_module.app.app_context():
         refreshed = app_module.db.session.get(app_module.RechargeOrder, order_id)
-        membership = app_module.Membership.query.filter_by(user_id=member.id).first()
-        assert refreshed.status == "pending"
-        assert membership is None
+        membership = app_module.Membership.query.filter_by(user_id=member.id).one()
+        logs = app_module.PointLog.query.filter_by(user_id=member.id, action="recharge").all()
+        assert refreshed.status == "paid"
+        assert refreshed.payment_reference == "txn-001"
+        assert membership.points == 60
+        assert len(logs) == 1
+
+
+def test_hupijiao_notify_adds_ai_quota_not_points(app_module, user_factory, monkeypatch):
+    _enable_hupijiao(monkeypatch)
+    member = user_factory("hupijiao-ai-buyer")
+    with app_module.app.app_context():
+        order = app_module.RechargeOrder(
+            user_id=member.id,
+            package_id="ai-starter",
+            package_name="入门 AI 包",
+            points=0,
+            amount=9.9,
+            pay_method="hupijiao",
+            status="pending",
+        )
+        app_module.db.session.add(order)
+        app_module.db.session.commit()
+        order_id = order.id
+
+    payload = _signed_hupijiao_notify(app_module, trade_order_id=f"XC{order_id}", total_fee="9.90")
+    response = app_module.app.test_client().post("/api/recharge/hupijiao/notify", data=payload)
+
+    assert response.status_code == 200
+    with app_module.app.app_context():
+        membership = app_module.Membership.query.filter_by(user_id=member.id).one()
+        logs = app_module.PointLog.query.filter_by(user_id=member.id, action="ai_credit_recharge").all()
+        assert membership.points == 0
+        assert membership.ai_single_credits == 10
+        assert len(logs) == 1
 
 
 def test_migrate_db_promotes_legacy_first_user_when_no_admin_exists(app_module, user_factory):

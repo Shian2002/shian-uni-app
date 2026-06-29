@@ -93,6 +93,11 @@ if grep -q '^OAUTH_ORIGIN=' .env; then
   sed -i 's|^OAUTH_ORIGIN=.*|OAUTH_ORIGIN=$PRODUCTION_BASE_URL|' .env
 else
   printf '\nOAUTH_ORIGIN=$PRODUCTION_BASE_URL\n' >> .env
+fi
+if grep -q '^PUBLIC_BASE_URL=' .env; then
+  sed -i 's|^PUBLIC_BASE_URL=.*|PUBLIC_BASE_URL=$PRODUCTION_BASE_URL|' .env
+else
+  printf '\nPUBLIC_BASE_URL=$PRODUCTION_BASE_URL\n' >> .env
 fi"
 $SSH_CMD "$SERVER" "sudo tee /etc/systemd/system/xuan-cet-flask.service > /dev/null <<'EOF'
 [Unit]
@@ -106,6 +111,7 @@ WorkingDirectory=/opt/xuan-cet/backend
 Environment=FLASK_ENV=production
 Environment=DATABASE_URL=$DATABASE_URL
 Environment=OAUTH_ORIGIN=$PRODUCTION_BASE_URL
+Environment=PUBLIC_BASE_URL=$PRODUCTION_BASE_URL
 Environment=UPLOAD_FOLDER=/var/www/xuan-cet/static/uploads
 EnvironmentFile=-/opt/xuan-cet/backend/.env
 ExecStart=/opt/xuan-cet/backend/venv/bin/gunicorn --workers 2 --threads 4 --timeout 180 --bind 127.0.0.1:5199 app:app

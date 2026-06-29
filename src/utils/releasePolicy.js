@@ -27,9 +27,10 @@ export function getReleaseChannel() {
 export function isExternalRechargeEnabled() {
   const channel = getReleaseChannel()
   if (restrictedRechargeChannels.has(channel)) return false
+  if (!channel) return true
   return externalRechargeChannels.has(channel)
 }
 
 export function getPaymentBoundaryNotice() {
-  return '当前正式站暂不展示第三方数字内容充值入口；积分消耗、签到、历史记录和账号功能仍可正常验证。'
+  return '当前审核渠道暂不展示第三方数字内容充值入口；积分消耗、签到、历史记录和账号功能仍可正常验证。'
 }
