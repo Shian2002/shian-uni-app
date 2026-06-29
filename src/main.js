@@ -294,6 +294,18 @@ function installCsrfProtection() {
       const requestUrl = options.url
       const method = requestMethod(options)
       const userSuccess = options.success
+      const userFail = options.fail
+      const userComplete = options.complete
+      const shouldReturnPromise =
+        typeof userSuccess !== 'function' &&
+        typeof userFail !== 'function' &&
+        typeof userComplete !== 'function'
+      let resolveCompatRequest = null
+      let rejectCompatRequest = null
+      const compatPromise = shouldReturnPromise ? new Promise(function(resolve, reject) {
+        resolveCompatRequest = resolve
+        rejectCompatRequest = reject
+      }) : null
       const nextOptions = Object.assign({}, options)
       let inspected = false
       const inspectOnce = function(res) {
@@ -305,7 +317,15 @@ function installCsrfProtection() {
         try {
           inspectOnce(res)
         } catch (_) {}
+        if (resolveCompatRequest) resolveCompatRequest(res)
         if (typeof userSuccess === 'function') return userSuccess.apply(this, arguments)
+      }
+      nextOptions.fail = function(err) {
+        if (rejectCompatRequest) rejectCompatRequest(err)
+        if (typeof userFail === 'function') return userFail.apply(this, arguments)
+      }
+      nextOptions.complete = function(res) {
+        if (typeof userComplete === 'function') return userComplete.apply(this, arguments)
       }
       const result = originalUniRequest(nextOptions)
       if (result && typeof result.then === 'function') {
@@ -316,6 +336,7 @@ function installCsrfProtection() {
           return res
         })
       }
+      if (compatPromise) return compatPromise
       return result
     }
   }
