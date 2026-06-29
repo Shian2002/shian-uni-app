@@ -60,9 +60,18 @@ def test_points_pages_open_hupijiao_pay_url_on_mobile_and_keep_qr_fallback():
         source = read(path)
 
         assert "function isMobilePaymentRuntime()" in source
+        assert "function isWechatBrowser()" in source
+        assert "paymentPayButtonText" in source
+        assert "pkg-cta" in source
+        assert "立即充值" in source
+        assert "登录后充值" in source
+        assert "打开微信支付页" in source
+        assert "订单已创建，请点击下方按钮进入微信支付页。" in source
         assert "window.location.href = url" in source
         assert "function handleCreatedPaymentOrder(payUrl, qrUrl, orderId)" in source
+        assert "if (isWechatBrowser() && payUrl)" in source
         assert "if (isMobilePaymentRuntime() && payUrl)" in source
+        assert source.index("if (isWechatBrowser() && payUrl)") < source.index("if (isMobilePaymentRuntime() && payUrl)")
         assert "openRechargeModalWithQr(qrUrl, orderId)" in source
         assert "未拿到二维码，请点打开支付页继续支付。" in source
         assert "handleCreatedPaymentOrder(d.pay_url || '', d.qrcode_url || '', d.order_id)" in source

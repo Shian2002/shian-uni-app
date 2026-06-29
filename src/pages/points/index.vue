@@ -135,6 +135,7 @@
                   <text class="pkg-label">积分</text>
                 </view>
                 <view class="pkg-price">¥{{ pkg.price }}</view>
+                <view class="pkg-cta">{{ isLoggedIn ? '立即充值' : '登录后充值' }}</view>
               </view>
             </view>
           </view>
@@ -156,6 +157,7 @@
                 </view>
                 <view class="pkg-price">¥{{ pkg.price }}</view>
                 <view class="pkg-desc">{{ pkg.description }}</view>
+                <view class="pkg-cta">{{ isLoggedIn ? '立即充值' : '登录后充值' }}</view>
               </view>
             </view>
           </view>
@@ -213,7 +215,7 @@
             <view class="payment-actions">
               <view class="payment-state" :class="'state-' + paymentState">{{ paymentStateLabel }}</view>
               <view class="btn btn-outline" @click="refreshPaymentStatus(false)">刷新到账</view>
-              <view class="btn btn-primary" v-if="paymentPayUrl" @click="openPaymentUrl(paymentPayUrl)">打开支付页</view>
+              <view class="btn btn-primary" v-if="paymentPayUrl" @click="openPaymentUrl(paymentPayUrl)">{{ paymentPayButtonText }}</view>
             </view>
           </view>
         </view>
@@ -292,6 +294,7 @@ export default {
     var paymentState = ref('idle')
     var paymentStateLabel = ref('等待创建')
     var paymentStatusText = ref('选择套餐后会自动创建虎皮椒账单。')
+    var paymentPayButtonText = ref('打开支付页')
     var paymentChecking = ref(false)
     var externalRechargeEnabled = ref(isExternalRechargeEnabled())
     var paymentBoundaryNotice = getPaymentBoundaryNotice()
@@ -312,6 +315,7 @@ export default {
       paymentState.value = 'idle'
       paymentStateLabel.value = '等待创建'
       paymentStatusText.value = '选择套餐后会自动创建虎皮椒账单。'
+      paymentPayButtonText.value = '打开支付页'
       paymentChecking.value = false
       stopPaymentPolling()
       try {
@@ -618,6 +622,13 @@ export default {
       return false
     }
 
+    function isWechatBrowser() {
+      try {
+        return typeof navigator !== 'undefined' && /MicroMessenger/i.test(navigator.userAgent || '')
+      } catch(_) {}
+      return false
+    }
+
     function openPaymentUrl(url) {
       if (!url) return
       if (isMobilePaymentRuntime()) {
@@ -737,9 +748,19 @@ export default {
     }
 
     function handleCreatedPaymentOrder(payUrl, qrUrl, orderId) {
+      if (isWechatBrowser() && payUrl) {
+        paymentState.value = 'pending'
+        paymentStateLabel.value = '待打开'
+        paymentPayButtonText.value = '打开微信支付页'
+        paymentStatusText.value = '订单已创建，请点击下方按钮进入微信支付页。支付完成后返回积分中心会自动刷新。'
+        try { uni.hideLoading() } catch(_) {}
+        startPaymentPolling()
+        return
+      }
       if (isMobilePaymentRuntime() && payUrl) {
         paymentState.value = 'pending'
         paymentStateLabel.value = '打开支付页'
+        paymentPayButtonText.value = '重新打开支付页'
         paymentStatusText.value = '正在打开虎皮椒支付页，支付完成后返回积分中心会自动刷新。'
         try { uni.hideLoading() } catch(_) {}
         startPaymentPolling()
@@ -754,6 +775,7 @@ export default {
       if (payUrl) {
         paymentState.value = 'pending'
         paymentStateLabel.value = '等待支付'
+        paymentPayButtonText.value = '打开支付页'
         paymentStatusText.value = '未拿到二维码，请点打开支付页继续支付。'
         startPaymentPolling()
         return
@@ -855,6 +877,7 @@ export default {
       paymentState,
       paymentStateLabel,
       paymentStatusText,
+      paymentPayButtonText,
       usageScenarios,
       membershipPlans,
       conversionSteps,
@@ -1313,6 +1336,20 @@ export default {
   color: var(--accent);
   font-size: 1rem;
   font-weight: 850;
+}
+.pkg-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  margin-top: 12px;
+  padding: 0 12px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-align: center;
 }
 .pkg-desc {
   margin-top: 8px;
