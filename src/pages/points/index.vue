@@ -34,7 +34,7 @@
                 <text id="signinText">每日签到</text>
                 <text class="signin-reward">+10</text>
               </view>
-              <view class="account-note">充值后请在账本核对到账记录</view>
+              <view class="account-note">签到和消耗记录可在账本核对</view>
             </view>
           </view>
 
@@ -44,8 +44,8 @@
               <text class="guide-v">AI 解读、深度合参、工具增值</text>
             </view>
             <view class="guide-item">
-              <text class="guide-k">到账</text>
-              <text class="guide-v">小额识别通过后自动到账</text>
+              <text class="guide-k">账本</text>
+              <text class="guide-v">签到、消耗和订单记录统一展示</text>
             </view>
           </view>
         </view>
@@ -85,7 +85,7 @@
             <view class="section-head">
               <view>
                 <view class="section-title">会员方案参考</view>
-                <view class="section-subtitle">当前为产品说明，真实到账以充值套餐和订单记录为准</view>
+                <view class="section-subtitle">当前为产品说明，正式销售前会接入合规支付能力</view>
               </view>
             </view>
             <view class="plan-grid">
@@ -167,14 +167,14 @@
                 <view class="section-subtitle">{{ paymentBoundaryNotice }}</view>
               </view>
             </view>
-            <view class="store-payment-text">审核包内可继续验证签到、积分消耗、历史记录、账号注销和时安 agent；正式销售数字内容前会接入对应商店要求的支付能力。</view>
+            <view class="store-payment-text">当前可继续验证签到、积分消耗、历史记录、账号注销和时安 agent；正式销售数字内容前会接入合规支付能力。</view>
           </view>
 
           <view class="section ledger-section">
             <view class="section-head ledger-head">
               <view>
                 <view class="section-title">积分账本</view>
-                <view class="section-subtitle">充值、签到和消耗记录</view>
+                <view class="section-subtitle">签到、消耗和积分调整记录</view>
               </view>
               <view class="dp-tabs">
                 <view class="dp-tab active" id="dpTabAll" onclick="window._switchDpTab('all')">全部</view>

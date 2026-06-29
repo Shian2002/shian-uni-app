@@ -17,6 +17,15 @@ def test_release_policy_restricts_app_store_and_google_play_external_recharge():
     assert "getPaymentBoundaryNotice" in source
 
 
+def test_release_policy_requires_explicit_external_recharge_channel():
+    source = read("src/utils/releasePolicy.js")
+
+    assert "externalRechargeChannels" in source
+    assert "h5-recharge" in source
+    assert "return externalRechargeChannels.has(channel)" in source
+    assert "当前正式站暂不展示第三方数字内容充值入口" in source
+
+
 def test_points_pages_hide_external_recharge_for_restricted_channels():
     for path in ["src/pages/points/index.vue", "src/package-user/points/index.vue"]:
         source = read(path)

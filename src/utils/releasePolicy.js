@@ -7,6 +7,12 @@ const restrictedRechargeChannels = new Set([
   'googleplay',
 ])
 
+const externalRechargeChannels = new Set([
+  'h5-recharge',
+  'internal-recharge',
+  'manual-recharge',
+])
+
 export function getReleaseChannel() {
   let channel = ''
   try {
@@ -19,9 +25,11 @@ export function getReleaseChannel() {
 }
 
 export function isExternalRechargeEnabled() {
-  return !restrictedRechargeChannels.has(getReleaseChannel())
+  const channel = getReleaseChannel()
+  if (restrictedRechargeChannels.has(channel)) return false
+  return externalRechargeChannels.has(channel)
 }
 
 export function getPaymentBoundaryNotice() {
-  return '当前审核渠道暂不展示第三方数字内容充值入口；积分消耗、签到、历史记录和账号功能仍可正常验证。'
+  return '当前正式站暂不展示第三方数字内容充值入口；积分消耗、签到、历史记录和账号功能仍可正常验证。'
 }
