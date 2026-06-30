@@ -51,36 +51,6 @@
         </view>
 
         <view class="commerce-panel">
-          <view class="section usage-section">
-            <view class="section-head">
-              <view>
-                <view class="section-title">积分怎么用</view>
-                <view class="section-subtitle">先按问题难度估算，再决定是否做多术数合参</view>
-              </view>
-              <view class="section-action" @click="openAgent">去问时安 agent</view>
-            </view>
-            <view class="usage-grid">
-              <view class="plan-card usage-offer usage-cta" @click="openAgent">
-                <text class="plan-name">先问一个具体问题</text>
-                <view class="plan-price">去问时安 agent</view>
-                <text class="plan-points">从事业、感情、决策、年运进入，系统再推荐术数。</text>
-                <view class="usage-examples">
-                  <text>输入问题</text>
-                  <text>补命主资料</text>
-                  <text>生成报告</text>
-                </view>
-              </view>
-              <view class="plan-card usage-offer" v-for="item in usageScenarios" :key="item.id">
-                <text class="plan-name">{{ item.name }}</text>
-                <view class="plan-price">{{ item.points }}积分</view>
-                <text class="plan-points">{{ item.desc }}</text>
-                <view class="usage-examples">
-                  <text v-for="example in item.examples" :key="example">{{ example }}</text>
-                </view>
-              </view>
-            </view>
-          </view>
-
           <view class="section plan-section">
             <view class="section-head">
               <view>
@@ -264,29 +234,6 @@ export default {
     ])
     var pointPackages = ref([])
     var aiPackages = ref([])
-    var usageScenarios = [
-      {
-        id: 'short',
-        name: '短期问题',
-        points: 300,
-        desc: '适合三个月内的事业、合作、感情和选择题。',
-        examples: ['跳槽是否推进', '这次合作能不能谈', '关系近期走势']
-      },
-      {
-        id: 'long',
-        name: '长期问题',
-        points: 800,
-        desc: '适合年运、关系主线、事业阶段和连续追问。',
-        examples: ['今年事业主线', '感情长期走向', '创业节奏判断']
-      },
-      {
-        id: 'complex',
-        name: '复杂合参',
-        points: 1500,
-        desc: '适合八字、奇门、紫微多术数合参和正式报告。',
-        examples: ['合盘报告', '年度报告', '重大决策复盘']
-      }
-    ]
     var membershipPlans = [
       { id: 'free', name: '免费版', price: '¥0', points: '每日签到 300 积分', benefits: ['1 个常用命盘', '基础问事体验', '适合试用'] },
       { id: 'starter', name: '入门版', price: '¥9.9', points: '约 3000 积分', benefits: ['3 个命盘', '短期问题追问', '适合轻量使用'] },
@@ -565,46 +512,6 @@ export default {
 
     function goBack() {
       uni.switchTab({ url: '/pages/index/index' })
-    }
-
-    function openAgent() {
-      // 从积分页进入 Agent 必须先切回首页 tab，再渲染 app 模式。
-      // 直接 switchTab 携带 query 会出现导航高亮已变、内容仍停在积分页的问题。
-      var renderAgentHome = function() {
-        try {
-          window.__xcHomeMode = 'app'
-          document.documentElement.classList.add('home-fixed-page')
-          document.body.classList.add('home-fixed-page')
-          document.documentElement.classList.remove('marketing-page')
-          document.body.classList.remove('marketing-page')
-        } catch(_) {}
-        try {
-          if (window.history && window.history.replaceState) window.history.replaceState({ app: 'home' }, '', '#/?app=1')
-          else window.location.hash = '#/?app=1'
-        } catch(_) {}
-        try {
-          if (window.__xcRenderTabPath) window.__xcRenderTabPath('/', '?app=1')
-        } catch(_) {}
-        try { window.dispatchEvent(new CustomEvent('xc-home-mode-changed', { detail: { mode: 'app' } })) } catch(_) {}
-        try { window.dispatchEvent(new CustomEvent('xc-show-agent-home')) } catch(_) {}
-      }
-      renderAgentHome()
-      try {
-        uni.switchTab({
-          url: '/pages/index/index',
-          success: function() {
-            renderAgentHome()
-            setTimeout(renderAgentHome, 80)
-            setTimeout(renderAgentHome, 260)
-          },
-          fail: function() {
-            renderAgentHome()
-            setTimeout(renderAgentHome, 120)
-          }
-        })
-      } catch(_) {
-        if (window.__xcRenderTabPath) window.__xcRenderTabPath('/', '?app=1')
-      }
     }
 
     function loadPoints() {
@@ -978,12 +885,10 @@ export default {
       paymentStateLabel,
       paymentStatusText,
       paymentPayButtonText,
-      usageScenarios,
       membershipPlans,
       conversionSteps,
       paymentChecking,
       goBack,
-      openAgent,
       doSignin,
       loadMoreLogs,
       loadOrders,
@@ -1243,29 +1148,13 @@ export default {
 .points-page .ai-pkg-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
-.section-action {
-  flex: 0 0 auto;
-  padding: 9px 14px;
-  border-radius: 999px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 0.78rem;
-  font-weight: 800;
-  cursor: pointer;
-  box-shadow: 0 8px 18px rgba(135,101,42,0.16);
-}
-.usage-grid,
 .plan-grid,
 .conversion-steps {
   display: grid;
   gap: 10px;
 }
-.usage-grid,
 .conversion-steps {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-.usage-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 .plan-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1286,20 +1175,17 @@ export default {
   font-weight: 850;
   line-height: 1.25;
 }
-.usage-examples,
 .plan-benefits {
   display: flex;
   flex-direction: column;
   gap: 6px;
   margin-top: 12px;
 }
-.usage-examples text,
 .plan-benefits text {
   color: var(--text-3);
   font-size: 0.7rem;
   line-height: 1.35;
 }
-.usage-examples text::before,
 .plan-benefits text::before {
   content: '· ';
   color: var(--accent);
@@ -1308,14 +1194,6 @@ export default {
   position: relative;
   min-height: 174px;
   padding: 15px 13px;
-}
-.usage-offer {
-  min-height: 172px;
-}
-.usage-cta {
-  border-color: var(--accent);
-  background: linear-gradient(135deg, rgba(178,149,93,0.18), rgba(178,149,93,0.04)), var(--card-bg);
-  cursor: pointer;
 }
 .plan-card.recommended {
   border-color: var(--accent);
@@ -1857,7 +1735,6 @@ export default {
   }
   .points-page .pkg-grid,
   .points-page .ai-pkg-grid,
-  .usage-grid,
   .conversion-steps {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1893,7 +1770,6 @@ export default {
 @media (max-width: 390px) {
   .points-page .pkg-grid,
   .points-page .ai-pkg-grid,
-  .usage-grid,
   .plan-grid,
   .conversion-steps {
     grid-template-columns: 1fr;
