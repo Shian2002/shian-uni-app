@@ -1325,6 +1325,12 @@ body:not(.home-fixed-page):not(.marketing-page) .page-root{
     display:none!important;
   }
 }
+body.home-fixed-page .agent-global-rail,
+body.marketing-page .agent-global-rail,
+body:has(.tool-home-shell) .agent-global-rail{
+  display:none!important;
+  pointer-events:none!important;
+}
 .agent-rail-icon{
   position:relative;
   width:17px;
