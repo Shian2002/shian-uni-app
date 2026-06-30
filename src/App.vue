@@ -1163,6 +1163,101 @@ body:not(.home-fixed-page):not(.marketing-page) .page-root{
   min-height:calc(100dvh - var(--xc-topnav-total-height))!important;
   overflow:visible!important;
 }
+
+.agent-global-rail{
+  display:none;
+}
+@media(min-width:721px){
+  body:not(.home-fixed-page):not(.marketing-page) .agent-global-rail{
+    position:fixed;
+    left:0;
+    top:0;
+    bottom:0;
+    z-index:180;
+    width:52px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:14px;
+    padding:16px 8px 14px;
+    box-sizing:border-box;
+    background:rgba(255,255,255,.84);
+    border-right:1px solid rgba(92,72,38,.10);
+    box-shadow:8px 0 26px rgba(var(--shadow-rgb),.045);
+    -webkit-backdrop-filter:blur(22px) saturate(1.4);
+    backdrop-filter:blur(22px) saturate(1.4);
+  }
+  body:not(.home-fixed-page):not(.marketing-page) .agent-rail-logo,
+  body:not(.home-fixed-page):not(.marketing-page) .agent-rail-btn{
+    width:32px;
+    height:32px;
+    flex:0 0 32px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:11px;
+    color:rgba(58,55,49,.80);
+    font-size:14px;
+    font-weight:700;
+    line-height:1;
+    cursor:pointer;
+    user-select:none;
+    box-sizing:border-box;
+    transition:background .18s ease,color .18s ease,transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+  }
+  body:not(.home-fixed-page):not(.marketing-page) .agent-rail-logo{
+    background:rgba(255,255,255,.70);
+    border:1px solid rgba(92,72,38,.12);
+    box-shadow:0 1px 8px rgba(var(--shadow-rgb),.06), inset 0 1px 0 rgba(255,255,255,.78);
+  }
+  body:not(.home-fixed-page):not(.marketing-page) .agent-rail-logo img{
+    width:24px;
+    height:24px;
+    object-fit:contain;
+    display:block;
+  }
+  body:not(.home-fixed-page):not(.marketing-page) .agent-rail-btn.active,
+  body:not(.home-fixed-page):not(.marketing-page) .agent-rail-btn:hover,
+  body:not(.home-fixed-page):not(.marketing-page) .agent-rail-logo:hover{
+    color:hsl(38,52%,36%);
+    background:rgba(var(--accent-rgb),.11);
+    border-color:rgba(var(--accent-rgb),.20);
+    box-shadow:0 2px 12px rgba(var(--shadow-rgb),.08);
+  }
+  body:not(.home-fixed-page):not(.marketing-page) .agent-rail-btn:active,
+  body:not(.home-fixed-page):not(.marketing-page) .agent-rail-logo:active{
+    transform:scale(.94);
+  }
+  body:not(.home-fixed-page):not(.marketing-page) .agent-rail-spacer{
+    flex:1 1 auto;
+    min-height:12px;
+  }
+  body:not(.home-fixed-page):not(.marketing-page) .topnav{
+    padding-left:max(76px, calc(var(--xc-safe-left, 0px) + 76px))!important;
+  }
+  body:not(.home-fixed-page):not(.marketing-page) .topnav-sidebar-btn{
+    display:none!important;
+  }
+  body:not(.home-fixed-page):not(.marketing-page) .page-root{
+    padding-left:52px!important;
+    box-sizing:border-box!important;
+  }
+  body:not(.home-fixed-page):not(.marketing-page) #sidebarOverlayGlobal.show{
+    display:none!important;
+    pointer-events:none!important;
+    background:transparent!important;
+    -webkit-backdrop-filter:none!important;
+    backdrop-filter:none!important;
+  }
+  body:not(.home-fixed-page):not(.marketing-page) .tarot-sidebar.agent-sidebar.open{
+    box-shadow:10px 0 42px rgba(24,20,15,.12)!important;
+  }
+}
+@media(max-width:720px){
+  .agent-global-rail{
+    display:none!important;
+  }
+}
 body:not(.home-fixed-page):not(.marketing-page) .page-wrap{
   height:auto!important;
   min-height:0!important;
@@ -2579,11 +2674,14 @@ body.desktop-native-shell .page-root{
   padding-top:36px!important;
 }
 body.desktop-native-shell .topnav-sidebar-btn{
-  height:28px!important;
-  width:28px!important;
+  height:30px!important;
+  width:30px!important;
   font-size:1.2rem!important;
   margin-top:0!important;
   color:rgba(70,66,58,0.86)!important;
+  background:rgba(255,255,255,0.84)!important;
+  border:1px solid rgba(92,72,38,0.16)!important;
+  box-shadow:0 1px 6px rgba(var(--shadow-rgb),0.08), inset 0 1px 0 rgba(255,255,255,0.8)!important;
 }
 body.desktop-native-shell .nav-btn{
   font-size:.88rem!important;

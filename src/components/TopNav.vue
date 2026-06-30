@@ -38,7 +38,7 @@
           <text id="themeToggleIcon">{{ theme === 'dark' ? '🌙' : '☀️' }}</text>
         </view>
         <view class="nav-auth-btns" v-if="!localLoggedIn">
-          <view class="btn btn-outline btn-sm" @click="openLoginFromNav" @tap="openLoginFromNav" onclick="window._openLoginModal && window._openLoginModal()">登录</view>
+          <view class="btn btn-outline btn-sm" role="button" tabindex="0" data-login-trigger="1" @click="openLoginFromNav" @tap="openLoginFromNav" onclick="window._openLoginModal && window._openLoginModal()">登录</view>
         </view>
         <view class="nav-avatar-wrap" v-else>
            <view class="nav-avatar-trigger nav-avatar-trigger-global" id="avatarGlobalTrigger" @click.stop.prevent="toggleAvatarDropdown" @tap.stop.prevent="toggleAvatarDropdown">
@@ -236,6 +236,54 @@ function openAgentHomeFromSidebar(openNewConversation) {
   }, 520)
 }
 
+function dispatchHomeSidebarSection(section) {
+  try { window.dispatchEvent(new CustomEvent('xc-home-sidebar-section', { detail: { section: section || 'history' } })) } catch(_) {}
+}
+
+function openAgentHomeSidebarSection(section) {
+  closeGlobalSidebarPanel()
+  try {
+    sessionStorage.setItem('xc_skip_agent_home_login_prompt', '1')
+    sessionStorage.setItem('xc_home_sidebar_pending_section', section || 'history')
+  } catch(_) {}
+  go('#/?app=1')
+  setTimeout(function() {
+    dispatchHomeSidebarOpen()
+    dispatchHomeSidebarSection(section)
+  }, 220)
+  setTimeout(function() {
+    dispatchHomeSidebarOpen()
+    dispatchHomeSidebarSection(section)
+  }, 560)
+}
+
+function ensureAgentGlobalRail() {
+  if (typeof document === 'undefined') return
+  if (document.getElementById('agentRailGlobal')) return
+  var rail = document.createElement('div')
+  rail.className = 'agent-global-rail'
+  rail.id = 'agentRailGlobal'
+  rail.setAttribute('aria-label', '时安 agent 侧边栏')
+  rail.innerHTML = '<div class="agent-rail-logo" id="agentRailToggle" role="button" tabindex="0" aria-label="打开侧栏"><img src="/static/images/logo.webp?v=3" alt=""></div>'
+    + '<div class="agent-rail-btn active" id="agentRailNew" role="button" tabindex="0" aria-label="新建对话">＋</div>'
+    + '<div class="agent-rail-btn" id="agentRailProfiles" role="button" tabindex="0" aria-label="命主列表">命</div>'
+    + '<div class="agent-rail-btn" id="agentRailFavorites" role="button" tabindex="0" aria-label="收藏对话">☆</div>'
+    + '<div class="agent-rail-btn" id="agentRailHistory" role="button" tabindex="0" aria-label="历史对话">历</div>'
+    + '<div class="agent-rail-spacer"></div>'
+    + '<div class="agent-rail-btn" id="agentRailSettings" role="button" tabindex="0" aria-label="设置">设</div>'
+    + '<div class="agent-rail-btn" id="agentRailNotice" role="button" tabindex="0" aria-label="通知">知</div>'
+    + '<div class="agent-rail-btn" id="agentRailHome" role="button" tabindex="0" aria-label="回首页">⌂</div>'
+  document.body.appendChild(rail)
+  bindGlobalSidebarClick(rail, '#agentRailToggle', function() { toggleSidebar() })
+  bindGlobalSidebarClick(rail, '#agentRailNew', function() { openAgentHomeFromSidebar(true) })
+  bindGlobalSidebarClick(rail, '#agentRailProfiles', function() { goFromGlobalSidebar('#/pages/user-management/index') })
+  bindGlobalSidebarClick(rail, '#agentRailFavorites', function() { openAgentHomeSidebarSection('favorites') })
+  bindGlobalSidebarClick(rail, '#agentRailHistory', function() { openAgentHomeSidebarSection('history') })
+  bindGlobalSidebarClick(rail, '#agentRailSettings', function() { openAgentHomeSidebarSection('settings') })
+  bindGlobalSidebarClick(rail, '#agentRailNotice', function() { openAgentHomeSidebarSection('notice') })
+  bindGlobalSidebarClick(rail, '#agentRailHome', function() { goMarketingHomeFromSidebar() })
+}
+
 // ── 全局侧边栏：在 document.body 上创建唯一实例 ──
 // 原因：uni-app custom tabBar 下每个 tab 页面各有一份 TopNav 实例，
 // 若侧边栏 DOM 在 TopNav template 中，会产生 11 份 #tarotSidebar，
@@ -244,7 +292,10 @@ function openAgentHomeFromSidebar(openNewConversation) {
 // 修复：改为 JS 动态创建全局唯一 DOM 挂到 body 上，不受 tab 切换影响。
 function ensureGlobalSidebar() {
   var existingSidebar = document.getElementById('tarotSidebarGlobal')
-  if (existingSidebar && existingSidebar.classList && existingSidebar.classList.contains('agent-sidebar')) return
+  if (existingSidebar && existingSidebar.classList && existingSidebar.classList.contains('agent-sidebar')) {
+    ensureAgentGlobalRail()
+    return
+  }
   if (existingSidebar && existingSidebar.parentNode) existingSidebar.parentNode.removeChild(existingSidebar)
   var existingOverlay = document.getElementById('sidebarOverlayGlobal')
   if (existingOverlay && existingOverlay.parentNode) existingOverlay.parentNode.removeChild(existingOverlay)
@@ -284,7 +335,7 @@ function ensureGlobalSidebar() {
     + '</div>'
     + '<div class="sidebar-user-guest" id="sidebarUserGuest" style="display:none;">'
     + '<span class="sidebar-guest-text">登录后可同步历史记录</span>'
-    + '<span class="sidebar-guest-btn" id="sidebarGuestLogin">登录</span>'
+    + '<span class="sidebar-guest-btn" id="sidebarGuestLogin" role="button" tabindex="0" data-login-trigger="1">登录</span>'
     + '</div>'
     + '</div>'
     + '<div class="sidebar-content agent-sidebar-legacy-list" id="sidebarListGlobal" style="display:none;"></div>'
@@ -312,19 +363,20 @@ function ensureGlobalSidebar() {
   bindGlobalSidebarClick(sidebar, '#sidebarNewChatBtn', function() { openAgentHomeFromSidebar(true) })
   bindGlobalSidebarClick(sidebar, '#sidebarProfilesBtn', function() { goFromGlobalSidebar('#/pages/user-management/index') })
   bindGlobalSidebarClick(sidebar, '#sidebarProfileSelectBtn', function() { goFromGlobalSidebar('#/pages/user-management/index') })
-  bindGlobalSidebarClick(sidebar, '#sidebarFavoritesBtn', function() { showSidebarToast('暂无收藏对话') })
-  bindGlobalSidebarClick(sidebar, '#sidebarFavoriteEmptyBtn', function() { showSidebarToast('暂无收藏对话') })
-  bindGlobalSidebarClick(sidebar, '#sidebarHistoryBtn', function() { showSidebarToast(localLoggedIn.value ? '历史对话会在这里展开' : '登录后可同步历史记录') })
-  bindGlobalSidebarClick(sidebar, '#sidebarHistoryRecentBtn', function() { showSidebarToast(localLoggedIn.value ? '历史对话会在这里展开' : '登录后可同步历史记录') })
-  bindGlobalSidebarClick(sidebar, '#sidebarHistoryOlderBtn', function() { showSidebarToast(localLoggedIn.value ? '历史对话会在这里展开' : '登录后可同步历史记录') })
-  bindGlobalSidebarClick(sidebar, '#sidebarUserSetting', function() { goFromGlobalSidebar('#/pages/profile/index') })
-  bindGlobalSidebarClick(sidebar, '#sidebarNoticeBtn', function() { showSidebarToast('暂无新通知') })
+  bindGlobalSidebarClick(sidebar, '#sidebarFavoritesBtn', function() { openAgentHomeSidebarSection('favorites') })
+  bindGlobalSidebarClick(sidebar, '#sidebarFavoriteEmptyBtn', function() { openAgentHomeSidebarSection('favorites') })
+  bindGlobalSidebarClick(sidebar, '#sidebarHistoryBtn', function() { openAgentHomeSidebarSection('history') })
+  bindGlobalSidebarClick(sidebar, '#sidebarHistoryRecentBtn', function() { openAgentHomeSidebarSection('history') })
+  bindGlobalSidebarClick(sidebar, '#sidebarHistoryOlderBtn', function() { openAgentHomeSidebarSection('history') })
+  bindGlobalSidebarClick(sidebar, '#sidebarUserSetting', function() { openAgentHomeSidebarSection('settings') })
+  bindGlobalSidebarClick(sidebar, '#sidebarNoticeBtn', function() { openAgentHomeSidebarSection('notice') })
   bindGlobalSidebarClick(sidebar, '#sidebarHomeBtn', function() { goMarketingHomeFromSidebar() })
   bindGlobalSidebarClick(sidebar, '#sidebarUserLogout', function() { if (window._xc_doLogout) window._xc_doLogout() })
   bindGlobalSidebarClick(sidebar, '#sidebarGuestLogin', function() { if (window._openLoginModal) window._openLoginModal() })
 
   document.body.appendChild(overlay)
   document.body.appendChild(sidebar)
+  ensureAgentGlobalRail()
   ensureHistoryDeleteConfirm()
   _bindSidebarScrollIsolation(sidebar)
   _bindSidebarListInteractions(sidebar)
@@ -514,10 +566,20 @@ onMounted(function() {
     window._xc_getVisibleModal = function() {
       var modals = Array.prototype.slice.call(document.querySelectorAll('#topnavLoginModal'))
       if (!modals.length) return null
+      var isHiddenByAncestor = function(el) {
+        var node = el ? el.parentElement : null
+        while (node && node !== document.body && node !== document.documentElement) {
+          var style = window.getComputedStyle ? window.getComputedStyle(node) : null
+          if ((style && (style.display === 'none' || style.visibility === 'hidden')) || node.hidden) return true
+          node = node.parentElement
+        }
+        return false
+      }
       var isCurrentPageModal = function(el) {
         if (!el) return false
+        if (isHiddenByAncestor(el)) return false
         var style = window.getComputedStyle ? window.getComputedStyle(el) : null
-        if (style && (style.display === 'none' || style.visibility === 'hidden')) return false
+        if (style && style.visibility === 'hidden') return false
         var page = el.closest('.tab-page-wrapper')
         if (page) {
           var pageStyle = window.getComputedStyle ? window.getComputedStyle(page) : null
@@ -857,6 +919,7 @@ onMounted(function() {
         }
       }, true)
     }
+    bindLoginTriggerDelegate()
   })
 
 window._xc_toggleSidebar = function(e) {
@@ -1945,6 +2008,45 @@ function openLoginFromNav() {
   try {
     if (window._openLoginModal) window._openLoginModal()
   } catch(_) {}
+}
+
+function handleLoginTriggerEvent(e) {
+  try {
+    if (!e || !e.target || !e.target.closest) return
+    if (e.type === 'keydown') {
+      var key = e.key || e.code
+      if (key !== 'Enter' && key !== ' ' && key !== 'Spacebar') return
+    }
+    var trigger = e.target.closest('[data-login-trigger="1"]')
+    if (!trigger || trigger.closest('#topnavLoginModal')) return
+    var now = Date.now()
+    if (now - (window.__xcLoginTriggerAt || 0) < 360) {
+      if (e.preventDefault) e.preventDefault()
+      if (e.stopPropagation) e.stopPropagation()
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation()
+      return
+    }
+    window.__xcLoginTriggerAt = now
+    if (e.preventDefault) e.preventDefault()
+    if (e.stopPropagation) e.stopPropagation()
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation()
+    if (trigger.closest('.agent-sidebar')) closeGlobalSidebarPanel()
+    if (window._openLoginModal) window._openLoginModal()
+  } catch(_) {}
+}
+
+function bindLoginTriggerDelegate() {
+  if (typeof document === 'undefined') return
+  var events = ['pointerup', 'click', 'touchend', 'keydown']
+  if (window.__xcLoginTriggerHandler) {
+    events.forEach(function(evt) {
+      try { document.removeEventListener(evt, window.__xcLoginTriggerHandler, true) } catch(_) {}
+    })
+  }
+  window.__xcLoginTriggerHandler = handleLoginTriggerEvent
+  events.forEach(function(evt) {
+    try { document.addEventListener(evt, window.__xcLoginTriggerHandler, true) } catch(_) {}
+  })
 }
 
 function toggleAvatarDropdown(event) {
@@ -3180,23 +3282,28 @@ onMounted(() => {
 }
 .topnav-sidebar-btn {
   display:flex;
-  color:rgba(58,55,49,.78);
+  color:rgba(58,55,49,.88);
   cursor:pointer;
   padding:0;
-  margin-right:6px;
+  margin-right:10px;
   flex-shrink:0;
   align-items:center;
   justify-content:center;
   border-radius:12px;
-  width:38px;
-  height:38px;
+  width:40px;
+  height:40px;
   line-height:1;
   margin-top:0;
-  transition:background .18s ease,color .18s ease,transform .18s ease;
+  background:rgba(255,255,255,.72);
+  border:1px solid rgba(58,55,49,.14);
+  box-shadow:0 1px 8px rgba(34,30,23,.06), inset 0 1px 0 rgba(255,255,255,.72);
+  transition:background .18s ease,color .18s ease,transform .18s ease,border-color .18s ease,box-shadow .18s ease;
 }
 .topnav-sidebar-btn:hover {
   color:rgba(58,55,49,.92);
-  background:rgba(58,55,49,.08);
+  background:rgba(var(--accent-rgb),.10);
+  border-color:rgba(var(--accent-rgb),.22);
+  box-shadow:0 2px 12px rgba(var(--shadow-rgb),.08), inset 0 1px 0 rgba(255,255,255,.78);
 }
 .topnav-sidebar-btn:active {
   transform:scale(.96);

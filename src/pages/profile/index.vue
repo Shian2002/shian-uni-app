@@ -33,7 +33,16 @@
           <view class="profile-empty" v-if="!isLoggedIn">
             <view class="profile-empty-icon">🔒</view>
             <text class="profile-empty-text">登录后查看账号信息</text>
-            <view class="btn btn-accent btn-sm" style="margin-top:16px;" @tap="showLoginBtn">立即登录</view>
+            <view
+              class="btn btn-accent btn-sm"
+              style="margin-top:16px;"
+              role="button"
+              tabindex="0"
+              data-login-trigger="1"
+              @click="showLoginBtn"
+              @tap="showLoginBtn"
+              onclick="window._openLoginModal && window._openLoginModal()"
+            >立即登录</view>
           </view>
 
           <!-- 账号安全分组 -->

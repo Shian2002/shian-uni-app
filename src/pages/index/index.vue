@@ -446,7 +446,7 @@
                 v-for="item in homeSidebarFavoriteRows"
                 :key="item.id"
                 class="home-side-subrow"
-                @tap="openHomeSidebarFavorites"
+                @tap="openHomeSidebarConversation(item)"
               >
                 {{ item.title }}
               </view>
@@ -466,7 +466,7 @@
               v-for="item in homeSidebarHistoryRows"
               :key="item.id"
               class="home-side-subrow"
-              @tap="openHomeSidebarHistory"
+              @tap="openHomeSidebarConversation(item)"
             >
               {{ item.title }}
             </view>
@@ -1704,6 +1704,7 @@ window.addEventListener('xc-auth-changed', function(e) {
   refreshArtifactNavStickyPreference()
   if (loggedIn) {
     loadComprehensiveOptions()
+    loadHomeSidebarConversations(true)
     loadProfiles()
     if (marketingMode.value) {
       nextTick(function() {
@@ -1712,6 +1713,7 @@ window.addEventListener('xc-auth-changed', function(e) {
     }
   } else {
     const detail = (e && e.detail) || {}
+    homeSidebarConversations.value = []
     resetHomeAuthState({ returnMarketing: detail.type === 'logout' })
   }
 })
@@ -1828,6 +1830,8 @@ const aiSingleCredits = ref(0)
 const aiComboCredits = ref(0)
 const dailyLightAvailable = ref(false)
 const comprehensiveMessages = ref([])
+const homeSidebarConversations = ref([])
+const homeSidebarConversationsLoading = ref(false)
 const artifactNavStickyEnabled = ref(readArtifactNavStickyEnabled())
 const artifactNavStickyCollapsed = ref(false)
 const artifactNavStickyVisible = ref(false)
@@ -1919,12 +1923,14 @@ const selectedProfileName = computed(() => {
 const homeSidebarProfileRows = computed(() => {
   return [{ id: 'current', title: selectedProfileName.value || '选择命主' }]
 })
-const homeSidebarFavoriteRows = computed(() => [])
+const homeSidebarFavoriteRows = computed(() => {
+  const state = loadAgentSidebarRecordState()
+  return homeSidebarConversations.value
+    .filter(item => !!state.favorite[agentSidebarRecordKey(item)])
+    .slice(0, 4)
+})
 const homeSidebarHistoryRows = computed(() => {
-  return [
-    { id: 'recent-1', title: '最近一条问题' },
-    { id: 'recent-2', title: '再早一点的问题' },
-  ]
+  return homeSidebarConversations.value.slice(0, 5)
 })
 const selectedProfileMeta = computed(() => {
   const p = selectedProfiles.value[0]
@@ -2071,15 +2077,94 @@ function startHomeSidebarNewConversation() {
 }
 
 function openHomeSidebarNotice() {
-  uni.showToast({ title: '通知中心即将开放', icon: 'none' })
+  settingsTab.value = 'help'
+  settingsContactOpen.value = false
+  closeHomeSidebar()
+  settingsSheetOpen.value = true
+  uni.showToast({ title: '暂无新通知', icon: 'none' })
 }
 
 function openHomeSidebarFavorites() {
-  uni.showToast({ title: '暂无收藏对话', icon: 'none' })
+  if (!isLoggedIn.value) {
+    closeHomeSidebar()
+    if (typeof window !== 'undefined' && window._openLoginModal) window._openLoginModal()
+    return
+  }
+  if (!homeSidebarFavoriteRows.value.length) {
+    uni.showToast({ title: '可在历史记录里点星标收藏', icon: 'none' })
+    return
+  }
+  openHomeSidebar()
 }
 
 function openHomeSidebarHistory() {
-  uni.showToast({ title: isLoggedIn.value ? '历史对话会在这里展开' : '登录后可同步历史记录', icon: 'none' })
+  if (!isLoggedIn.value) {
+    closeHomeSidebar()
+    if (typeof window !== 'undefined' && window._openLoginModal) window._openLoginModal()
+    return
+  }
+  if (!homeSidebarHistoryRows.value.length) {
+    loadHomeSidebarConversations(true)
+    uni.showToast({ title: homeSidebarConversationsLoading.value ? '正在加载历史' : '暂无历史对话', icon: 'none' })
+    return
+  }
+  openHomeSidebar()
+}
+
+function agentSidebarRecordKey(item) {
+  if (!item) return ''
+  return 'comprehensive:' + String(item.id || '')
+}
+
+function loadAgentSidebarRecordState() {
+  try {
+    const raw = localStorage.getItem('xc_sidebar_record_state')
+    const parsed = raw ? JSON.parse(raw) : {}
+    return {
+      favorite: parsed.favorite || {},
+      pinned: parsed.pinned || {},
+      archived: parsed.archived || {},
+    }
+  } catch (_) {
+    return { favorite: {}, pinned: {}, archived: {} }
+  }
+}
+
+function normalizeHomeSidebarConversation(item) {
+  const raw = item || {}
+  const title = String(raw.title || raw.question || '未命名对话').trim() || '未命名对话'
+  return {
+    id: raw.id,
+    title: title.length > 18 ? title.slice(0, 18) + '...' : title,
+    fullTitle: title,
+    updatedAt: raw.updated_at || raw.created_at || '',
+    models: Array.isArray(raw.models) ? raw.models : [],
+    appType: 'comprehensive',
+  }
+}
+
+async function loadHomeSidebarConversations(force) {
+  if (!isLoggedIn.value) {
+    homeSidebarConversations.value = []
+    return
+  }
+  if (!force && homeSidebarConversations.value.length) return
+  homeSidebarConversationsLoading.value = true
+  try {
+    const res = await uni.request({ url: '/api/comprehensive/conversations', method: 'GET' })
+    const rows = Array.isArray(res.data) ? res.data : []
+    homeSidebarConversations.value = rows.map(normalizeHomeSidebarConversation).filter(item => item.id)
+  } catch (_) {
+    homeSidebarConversations.value = []
+  } finally {
+    homeSidebarConversationsLoading.value = false
+  }
+}
+
+function openHomeSidebarConversation(item) {
+  if (!item || !item.id) return
+  closeHomeSidebar()
+  restoreComprehensiveConversation(item.id)
 }
 
 function openMiitBeian() {
@@ -2119,6 +2204,54 @@ function closeHomeSidebar() {
 
 function openHomeSidebarSettings() {
   openSettingsSheet()
+}
+
+function openHomeSidebarSection(eventOrSection) {
+  const section = typeof eventOrSection === 'string'
+    ? eventOrSection
+    : ((eventOrSection && eventOrSection.detail && eventOrSection.detail.section) || 'history')
+  if (section === 'new') {
+    startHomeSidebarNewConversation()
+    return
+  }
+  if (section === 'profiles') {
+    openHomeSidebar()
+    return
+  }
+  if (section === 'favorites') {
+    openHomeSidebar()
+    loadHomeSidebarConversations(true)
+    nextTick(openHomeSidebarFavorites)
+    return
+  }
+  if (section === 'history') {
+    openHomeSidebar()
+    loadHomeSidebarConversations(true)
+    nextTick(openHomeSidebarHistory)
+    return
+  }
+  if (section === 'settings') {
+    closeHomeSidebar()
+    openHomeSidebarSettings()
+    return
+  }
+  if (section === 'notice') {
+    closeHomeSidebar()
+    openHomeSidebarNotice()
+    return
+  }
+  openHomeSidebar()
+}
+
+function consumePendingHomeSidebarSection() {
+  // #ifdef H5
+  try {
+    const section = sessionStorage.getItem('xc_home_sidebar_pending_section')
+    if (!section) return
+    sessionStorage.removeItem('xc_home_sidebar_pending_section')
+    nextTick(function() { openHomeSidebarSection(section) })
+  } catch (_) {}
+  // #endif
 }
 
 function cycleThemeMode() {
@@ -5008,6 +5141,8 @@ onShow(() => {
   } catch(_) {}
   // #endif
   loadComprehensiveOptions()
+  loadHomeSidebarConversations(false)
+  consumePendingHomeSidebarSection()
   loadProfiles().then(function() {
     if (pendingComprehensiveId) {
       const id = pendingComprehensiveId
@@ -5030,6 +5165,7 @@ onMounted(() => {
   refreshMarketingMode()
   resetSelectedToolModels()
   loadComprehensiveOptions()
+  loadHomeSidebarConversations(false)
   loadProfiles()
   // #ifdef H5
   setHomeFixedPage(!marketingMode.value)
@@ -5037,6 +5173,7 @@ onMounted(() => {
   window._xc_newComprehensive = startNewComprehensiveConversation
   window.addEventListener('xc-home-sidebar-toggle', toggleHomeSidebar)
   window.addEventListener('xc-home-sidebar-open', openHomeSidebar)
+  window.addEventListener('xc-home-sidebar-section', openHomeSidebarSection)
   window.addEventListener('keydown', onHomeKeydown)
   window.addEventListener('scroll', onHomePageScroll, { passive: true })
   window.addEventListener('popstate', onMarketingRouteChange)
@@ -5046,6 +5183,7 @@ onMounted(() => {
   document.addEventListener('touchstart', onMarketingEnterNative, { passive: false, capture: true })
   document.addEventListener('visibilitychange', onHomeVisibilityChange)
   document.addEventListener('click', onHomeBaziYunClick)
+  consumePendingHomeSidebarSection()
   if (!marketingMode.value) scheduleHomeVideoLoad()
   // #endif
 })
@@ -5064,6 +5202,7 @@ onBeforeUnmount(() => {
   if (window._xc_newComprehensive === startNewComprehensiveConversation) window._xc_newComprehensive = null
   window.removeEventListener('xc-home-sidebar-toggle', toggleHomeSidebar)
   window.removeEventListener('xc-home-sidebar-open', openHomeSidebar)
+  window.removeEventListener('xc-home-sidebar-section', openHomeSidebarSection)
   window.removeEventListener('keydown', onHomeKeydown)
   window.removeEventListener('scroll', onHomePageScroll)
   window.removeEventListener('popstate', onMarketingRouteChange)
@@ -5301,7 +5440,7 @@ onBeforeUnmount(() => {
   display: flex !important;
 }
 
-@media (min-width: 901px) {
+@media (min-width: 721px) {
   .tool-home-shell {
     --home-sidebar-width: clamp(238px, 20vw, 268px);
   }
@@ -5413,7 +5552,7 @@ onBeforeUnmount(() => {
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 720px) {
   .tool-home-shell.home-sidebar-open .page-wrap {
     width: calc(100vw - var(--home-sidebar-width));
     margin-left: var(--home-sidebar-width);
@@ -9992,7 +10131,7 @@ onBeforeUnmount(() => {
   }
 }
 
-@media (min-width: 720px) and (max-width: 1023px) {
+@media (min-width: 721px) and (max-width: 1023px) {
   .tool-home-shell {
     --home-sidebar-width: 238px;
   }
@@ -10019,7 +10158,7 @@ onBeforeUnmount(() => {
   }
 }
 
-@media (min-width: 901px) {
+@media (min-width: 721px) {
   .tool-home-shell.home-sidebar-open .home-ai-main {
     left: calc(var(--home-sidebar-width) + (100vw - var(--home-sidebar-width)) / 2) !important;
     width: min(960px, calc(100vw - var(--home-sidebar-width) - 56px)) !important;
@@ -10245,10 +10384,13 @@ onBeforeUnmount(() => {
   line-height: 1;
 }
 
-@media (min-width: 901px) {
+@media (min-width: 721px) {
   .tool-home-shell {
     --home-rail-width: 56px;
     --home-sidebar-width: 260px;
+  }
+  .tool-home-shell :deep(.topnav-sidebar-btn) {
+    display: none !important;
   }
   .home-desktop-sidebar {
     width: var(--home-rail-width) !important;
@@ -10272,6 +10414,25 @@ onBeforeUnmount(() => {
     opacity: 1;
     pointer-events: auto;
     transform: translateX(0);
+  }
+  .tool-home-shell .page-wrap {
+    width: calc(100vw - var(--home-rail-width)) !important;
+    margin-left: var(--home-rail-width) !important;
+  }
+  .tool-home-shell :deep(.topnav) {
+    padding-left: calc(var(--home-rail-width) + 16px) !important;
+  }
+  .tool-home-shell .home-ai-main {
+    left: calc(var(--home-rail-width) + (100vw - var(--home-rail-width)) / 2) !important;
+    width: min(960px, calc(100vw - var(--home-rail-width) - 56px)) !important;
+  }
+  .tool-home-shell .home-question-templates,
+  .tool-home-shell .home-ai-console.has-chat {
+    width: min(100%, calc(100vw - var(--home-rail-width) - 48px)) !important;
+  }
+  .tool-home-shell .home-artifact-sticky-nav {
+    left: calc(var(--home-rail-width) + 18px) !important;
+    width: calc(100vw - var(--home-rail-width) - 36px) !important;
   }
   .tool-home-shell.home-sidebar-open .page-wrap {
     width: calc(100vw - var(--home-sidebar-width)) !important;
@@ -10297,7 +10458,7 @@ onBeforeUnmount(() => {
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 720px) {
   .home-sidebar-backdrop {
     position: fixed;
     inset: 0;

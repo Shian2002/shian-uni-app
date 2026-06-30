@@ -19,7 +19,15 @@
         <view class="login-mark">锁</view>
         <view class="login-title">登录后管理档案信息</view>
         <view class="login-desc">档案会同步到八字排盘、紫微斗数和时安agent。</view>
-        <view class="user-primary-btn" @tap="openLogin">立即登录</view>
+        <view
+          class="user-primary-btn"
+          role="button"
+          tabindex="0"
+          data-login-trigger="1"
+          @click="openLogin"
+          @tap="openLogin"
+          onclick="window._openLoginModal && window._openLoginModal()"
+        >立即登录</view>
       </section>
 
       <section v-else class="user-workspace">
