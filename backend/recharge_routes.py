@@ -395,14 +395,16 @@ def _refund_notice_content(refund_request):
     order = refund_request.order
     user = refund_request.user
     admin_url = f"{public_base_url}/#/pages/admin/index?tab=refunds&request_id={refund_request.id}" if public_base_url else ''
-    title = f"时安解忧屋退款申请 #{refund_request.id}"
+    reason = (refund_request.reason or '未填写').strip() or '未填写'
+    title_reason = reason[:24] + ('...' if len(reason) > 24 else '')
+    title = f"时安解忧屋退款申请 #{refund_request.id} · {title_reason}"
     content = '\n'.join([
         '[时安解忧屋] 新退款申请',
         f"申请 #{refund_request.id} / 订单 #{refund_request.order_id}",
         f"用户: {(user.username if user else '未知')} (ID {refund_request.user_id})",
         f"套餐: {(order.package_name if order else '')} / ¥{(order.amount if order else 0)}",
         f"积分/次数: {(order.points if order else 0)}",
-        f"原因: {refund_request.reason or '未填写'}",
+        f"原因: {reason}",
         f"处理: {admin_url or '请进入运营控制台退款审核'}",
     ])
     return title, content

@@ -1482,6 +1482,7 @@ def test_refund_request_notice_uses_serverchan(monkeypatch):
     assert error == ""
     assert captured["url"] == "https://123.push.ft07.com/send/sctp123tabc.send"
     assert "title=%E6%97%B6%E5%AE%89%E8%A7%A3%E5%BF%A7%E5%B1%8B%E9%80%80%E6%AC%BE%E7%94%B3%E8%AF%B7+%237" in captured["data"]
+    assert "%C2%B7+%E4%B9%B0%E9%94%99%E5%A5%97%E9%A4%90" in captured["data"]
     assert "%E4%B9%B0%E9%94%99%E5%A5%97%E9%A4%90" in captured["data"]
     assert captured["timeout"] == 8
 
@@ -1530,7 +1531,7 @@ def test_refund_request_notice_uses_wxpusher(monkeypatch):
     assert captured["payload"]["appToken"] == "AT_test"
     assert captured["payload"]["uids"] == ["UID_a", "UID_b"]
     assert captured["payload"]["contentType"] == 1
-    assert "退款申请 #8" in captured["payload"]["summary"]
+    assert "退款申请 #8 · 重复付款" in captured["payload"]["summary"]
     assert "重复付款" in captured["payload"]["content"]
 
 
