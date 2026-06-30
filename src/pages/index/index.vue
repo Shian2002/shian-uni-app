@@ -10178,7 +10178,7 @@ onBeforeUnmount(() => {
   width: var(--home-rail-width, 56px);
   flex: 0 0 var(--home-rail-width, 56px);
   min-height: 100%;
-  padding: 18px 10px 14px;
+  padding: 14px 10px 14px;
   border-right: 1px solid rgba(var(--accent-rgb), 0.10);
   display: flex;
   flex-direction: column;
@@ -10227,8 +10227,8 @@ onBeforeUnmount(() => {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   border: 1.8px solid currentColor;
   border-radius: 5px;
   box-shadow: inset 5px 0 0 rgba(var(--accent-rgb),0.16);
@@ -10417,7 +10417,7 @@ onBeforeUnmount(() => {
 .home-side-panel {
   flex: 1;
   min-width: 0;
-  padding: 18px 14px 14px;
+  padding: 14px 14px 14px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -10430,7 +10430,8 @@ onBeforeUnmount(() => {
     visibility 0s linear 0s;
 }
 .home-side-head {
-  min-height: 36px;
+  height: 32px;
+  min-height: 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -10442,6 +10443,8 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+  height: 32px;
+  min-height: 32px;
   padding: 0;
   border-radius: 0;
 }
@@ -10470,18 +10473,17 @@ onBeforeUnmount(() => {
   height: 32px;
   border-radius: 10px;
   flex: 0 0 32px;
+  align-self: center;
 }
 .home-side-head .home-side-close-icon {
-  width: 19px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border-width: 1.8px;
-  border-radius: 6px;
+  border-radius: 5px;
+  box-shadow: inset -5px 0 0 rgba(var(--accent-rgb),0.16);
 }
 .home-side-head .home-side-close-icon view {
-  top: 3px;
-  bottom: 3px;
-  left: 6px;
-  width: 1.8px;
+  display: none;
 }
 .home-side-nav {
   display: grid;
