@@ -1440,6 +1440,117 @@ def test_user_can_request_refund_for_paid_hupijiao_order(app_module, user_factor
         assert refund_request.notify_sent_at is not None
 
 
+def test_refund_request_notice_uses_serverchan(monkeypatch):
+    import recharge_routes
+
+    captured = {}
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return json.dumps({"code": 0}).encode("utf-8")
+
+    def fake_urlopen(req, timeout=8):
+        captured["url"] = req.full_url
+        captured["data"] = req.data.decode("utf-8")
+        captured["timeout"] = timeout
+        return FakeResponse()
+
+    refund_request = SimpleNamespace(
+        id=7,
+        order_id=11,
+        user_id=3,
+        reason="买错套餐",
+        user=SimpleNamespace(username="refund-user"),
+        order=SimpleNamespace(package_name="体验包", amount=9.9, points=60),
+    )
+
+    monkeypatch.setenv("ALERT_SERVERCHAN_SENDKEY", "sctp123tabc")
+    monkeypatch.delenv("ALERT_WXPUSHER_APP_TOKEN", raising=False)
+    monkeypatch.delenv("ALERT_WXPUSHER_UIDS", raising=False)
+    monkeypatch.delenv("ALERT_WECHAT_WEBHOOK", raising=False)
+    monkeypatch.setattr(recharge_routes.urlrequest, "urlopen", fake_urlopen)
+
+    sent, error = recharge_routes._send_refund_request_notice(refund_request)
+
+    assert sent is True
+    assert error == ""
+    assert captured["url"] == "https://123.push.ft07.com/send/sctp123tabc.send"
+    assert "title=%E6%97%B6%E5%AE%89%E8%A7%A3%E5%BF%A7%E5%B1%8B%E9%80%80%E6%AC%BE%E7%94%B3%E8%AF%B7+%237" in captured["data"]
+    assert "%E4%B9%B0%E9%94%99%E5%A5%97%E9%A4%90" in captured["data"]
+    assert captured["timeout"] == 8
+
+
+def test_refund_request_notice_uses_wxpusher(monkeypatch):
+    import recharge_routes
+
+    captured = {}
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return json.dumps({"code": 1000, "msg": "处理成功"}).encode("utf-8")
+
+    def fake_urlopen(req, timeout=8):
+        captured["url"] = req.full_url
+        captured["payload"] = json.loads(req.data.decode("utf-8"))
+        captured["headers"] = dict(req.header_items())
+        return FakeResponse()
+
+    refund_request = SimpleNamespace(
+        id=8,
+        order_id=12,
+        user_id=4,
+        reason="重复付款",
+        user=SimpleNamespace(username="wxpusher-user"),
+        order=SimpleNamespace(package_name="测试包", amount=0.01, points=1),
+    )
+
+    monkeypatch.delenv("ALERT_SERVERCHAN_SENDKEY", raising=False)
+    monkeypatch.setenv("ALERT_WXPUSHER_APP_TOKEN", "AT_test")
+    monkeypatch.setenv("ALERT_WXPUSHER_UIDS", "UID_a, UID_b")
+    monkeypatch.delenv("ALERT_WECHAT_WEBHOOK", raising=False)
+    monkeypatch.setattr(recharge_routes.urlrequest, "urlopen", fake_urlopen)
+
+    sent, error = recharge_routes._send_refund_request_notice(refund_request)
+
+    assert sent is True
+    assert error == ""
+    assert captured["url"] == "https://wxpusher.zjiecode.com/api/send/message"
+    assert captured["payload"]["appToken"] == "AT_test"
+    assert captured["payload"]["uids"] == ["UID_a", "UID_b"]
+    assert captured["payload"]["contentType"] == 1
+    assert "退款申请 #8" in captured["payload"]["summary"]
+    assert "重复付款" in captured["payload"]["content"]
+
+
+def test_refund_request_notice_reports_missing_personal_wechat_config(monkeypatch):
+    import recharge_routes
+
+    refund_request = SimpleNamespace(id=9, order_id=13, user_id=5, reason="", user=None, order=None)
+    monkeypatch.delenv("ALERT_SERVERCHAN_SENDKEY", raising=False)
+    monkeypatch.delenv("SERVERCHAN_SENDKEY", raising=False)
+    monkeypatch.delenv("ALERT_WXPUSHER_APP_TOKEN", raising=False)
+    monkeypatch.delenv("ALERT_WXPUSHER_UIDS", raising=False)
+    monkeypatch.delenv("ALERT_WXPUSHER_TOPIC_IDS", raising=False)
+    monkeypatch.delenv("ALERT_WECHAT_WEBHOOK", raising=False)
+
+    sent, error = recharge_routes._send_refund_request_notice(refund_request)
+
+    assert sent is False
+    assert "ALERT_SERVERCHAN_SENDKEY" in error
+
+
 def test_admin_approve_refund_calls_hupijiao_and_reverses_points(app_module, user_factory, monkeypatch):
     import recharge_routes
     _enable_hupijiao(monkeypatch)

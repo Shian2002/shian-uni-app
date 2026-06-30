@@ -207,7 +207,7 @@ PUBLIC_BASE_URL=https://shianjieyouwu.com
 - 如果商户后台手动退款没有触发退款回调，线上 `xuan-cet-hupijiao-reconcile.timer` 会每 30 秒查询最近 paid 订单；虎皮椒查询状态为 `CD` 时，自动把本站订单改为 `refunded` 并生成一次 `refund_order:<id>` 扣减流水。
 - 手动核验退款对账可运行：`/opt/xuan-cet/backend/venv/bin/python /opt/xuan-cet/backend/scripts/reconcile_hupijiao_refunds.py --order-id <订单ID> --json`。
 - 用户退款走 `refund_request`：用户在积分中心订单里申请，管理员在运营控制台“退款审核”同意后，后端调用虎皮椒 `payment/refund.html`。返回 `CD` 时立即扣回积分/AI 次数；返回 `RD` 时进入退款中，并由退款对账 timer 收尾；返回失败或用户余额不足时不会先向虎皮椒退款。
-- 退款申请微信提醒复用生产告警变量：`ALERT_WECHAT_WEBHOOK` 和可选 `ALERT_WECHAT_MENTION_MOBILE`。未配置 webhook 时不影响申请入库，只是不发送微信提醒。
+- 退款申请微信提醒优先支持个人微信推送：`ALERT_SERVERCHAN_SENDKEY`，或 `ALERT_WXPUSHER_APP_TOKEN` + `ALERT_WXPUSHER_UIDS` / `ALERT_WXPUSHER_TOPIC_IDS`。未配置时不影响申请入库，只是不发送微信提醒；`ALERT_WECHAT_WEBHOOK` 仅作为企业微信或兼容 webhook 兜底。
 
 改部署脚本、依赖、服务器配置或数据库迁移：
 
@@ -271,7 +271,20 @@ ALERT_EMAIL_TO=你的邮箱 bash scripts/install_production_alert.sh
 告警渠道：
 
 - 邮箱：复用 `/opt/xuan-cet/backend/.env` 里的 `SMTP_USER` / `SMTP_PASS`，收件人由 `ALERT_EMAIL_TO` 设置。
-- 微信机器人：个人微信号不能直接变成机器人；拿到企业微信或群机器人的 webhook 后，在服务器 `/etc/xuan-cet-alert.env` 加：
+- 个人微信：推荐用 Server酱，微信扫码绑定后拿到 SendKey，在服务器 `/etc/xuan-cet-alert.env` 加：
+
+```bash
+ALERT_SERVERCHAN_SENDKEY=sctp...
+```
+
+也可以用 WxPusher，微信扫码关注后拿到 appToken 和 UID：
+
+```bash
+ALERT_WXPUSHER_APP_TOKEN=AT_xxx
+ALERT_WXPUSHER_UIDS=UID_xxx
+```
+
+- 企业微信或兼容 webhook：个人微信号不能直接变成官方机器人；只有拿到 webhook 时才配置这一组兜底变量：
 
 ```bash
 ALERT_WECHAT_WEBHOOK=https://...

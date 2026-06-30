@@ -390,14 +390,12 @@ def _check_order_refund_balance(order):
     return {'ok': True, 'credit_type': 'points'}
 
 
-def _send_refund_request_notice(refund_request):
-    webhook = os.environ.get('ALERT_WECHAT_WEBHOOK', '').strip()
-    if not webhook:
-        return False, '微信机器人 webhook 未配置'
+def _refund_notice_content(refund_request):
     public_base_url = os.environ.get('PUBLIC_BASE_URL', '').strip().rstrip('/')
     order = refund_request.order
     user = refund_request.user
     admin_url = f"{public_base_url}/#/pages/admin/index?tab=refunds&request_id={refund_request.id}" if public_base_url else ''
+    title = f"时安解忧屋退款申请 #{refund_request.id}"
     content = '\n'.join([
         '[时安解忧屋] 新退款申请',
         f"申请 #{refund_request.id} / 订单 #{refund_request.order_id}",
@@ -407,6 +405,106 @@ def _send_refund_request_notice(refund_request):
         f"原因: {refund_request.reason or '未填写'}",
         f"处理: {admin_url or '请进入运营控制台退款审核'}",
     ])
+    return title, content
+
+
+def _notice_response_ok(data):
+    if not isinstance(data, dict):
+        return False
+    if data.get('success') is True:
+        return True
+    for key in ('code', 'errcode', 'errno'):
+        if key not in data:
+            continue
+        try:
+            value = int(data.get(key))
+        except (TypeError, ValueError):
+            continue
+        if value in (0, 1000):
+            return True
+    nested = data.get('data')
+    if isinstance(nested, dict):
+        try:
+            return int(nested.get('errno')) == 0
+        except (TypeError, ValueError):
+            return False
+    return False
+
+
+def _read_notice_json(resp):
+    raw = resp.read().decode('utf-8', errors='replace')
+    try:
+        data = json.loads(raw) if raw else {}
+    except json.JSONDecodeError:
+        data = {'raw': raw[:300]}
+    return raw, data
+
+
+def _serverchan_endpoint(sendkey):
+    custom_url = os.environ.get('ALERT_SERVERCHAN_URL', '').strip()
+    if custom_url:
+        return custom_url.replace('{sendkey}', urlparse.quote(sendkey, safe=''))
+    quoted = urlparse.quote(sendkey, safe='')
+    if sendkey.startswith('sctp'):
+        uid = ''
+        for char in sendkey[4:]:
+            if not char.isdigit():
+                break
+            uid += char
+        if uid:
+            return f'https://{uid}.push.ft07.com/send/{quoted}.send'
+    return f'https://sctapi.ftqq.com/{quoted}.send'
+
+
+def _send_serverchan_notice(sendkey, title, content):
+    body = urlparse.urlencode({
+        'title': title[:120],
+        'desp': content,
+        'noip': '1',
+    }).encode('utf-8')
+    req = urlrequest.Request(
+        _serverchan_endpoint(sendkey),
+        data=body,
+        headers={'Content-Type': 'application/x-www-form-urlencoded'},
+        method='POST',
+    )
+    with urlrequest.urlopen(req, timeout=8) as resp:
+        raw, data = _read_notice_json(resp)
+    if _notice_response_ok(data):
+        return True, ''
+    return False, data.get('message') or data.get('errmsg') or raw[:120]
+
+
+def _send_wxpusher_notice(app_token, uids, topic_ids, title, content):
+    payload = {
+        'appToken': app_token,
+        'summary': title[:100],
+        'content': content,
+        'contentType': 1,
+    }
+    if uids:
+        payload['uids'] = uids
+    if topic_ids:
+        payload['topicIds'] = topic_ids
+    body = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+    req = urlrequest.Request(
+        'https://wxpusher.zjiecode.com/api/send/message',
+        data=body,
+        headers={'Content-Type': 'application/json'},
+        method='POST',
+    )
+    with urlrequest.urlopen(req, timeout=8) as resp:
+        raw, data = _read_notice_json(resp)
+    if _notice_response_ok(data):
+        return True, ''
+    return False, data.get('msg') or data.get('message') or raw[:120]
+
+
+def _notice_list_from_env(name):
+    return [item.strip() for item in os.environ.get(name, '').split(',') if item.strip()]
+
+
+def _send_wechat_webhook_notice(webhook, content):
     text_payload = {'content': content}
     mobiles = [
         item.strip()
@@ -422,15 +520,56 @@ def _send_refund_request_notice(refund_request):
         headers={'Content-Type': 'application/json'},
         method='POST',
     )
-    try:
-        with urlrequest.urlopen(req, timeout=8) as resp:
-            raw = resp.read().decode('utf-8', errors='replace')
-        data = json.loads(raw) if raw else {}
-        if int(data.get('errcode') or 0) == 0:
+    with urlrequest.urlopen(req, timeout=8) as resp:
+        raw, data = _read_notice_json(resp)
+    if _notice_response_ok(data):
+        return True, ''
+    return False, data.get('errmsg') or raw[:120]
+
+
+def _send_refund_request_notice(refund_request):
+    title, content = _refund_notice_content(refund_request)
+    attempts = []
+
+    serverchan_sendkey = (
+        os.environ.get('ALERT_SERVERCHAN_SENDKEY', '').strip()
+        or os.environ.get('SERVERCHAN_SENDKEY', '').strip()
+    )
+    if serverchan_sendkey:
+        attempts.append(('Server酱', lambda: _send_serverchan_notice(serverchan_sendkey, title, content)))
+
+    wxpusher_app_token = os.environ.get('ALERT_WXPUSHER_APP_TOKEN', '').strip()
+    wxpusher_uids = _notice_list_from_env('ALERT_WXPUSHER_UIDS')
+    wxpusher_topic_ids = _notice_list_from_env('ALERT_WXPUSHER_TOPIC_IDS')
+    if wxpusher_app_token and (wxpusher_uids or wxpusher_topic_ids):
+        attempts.append((
+            'WxPusher',
+            lambda: _send_wxpusher_notice(
+                wxpusher_app_token,
+                wxpusher_uids,
+                wxpusher_topic_ids,
+                title,
+                content,
+            ),
+        ))
+
+    webhook = os.environ.get('ALERT_WECHAT_WEBHOOK', '').strip()
+    if webhook:
+        attempts.append(('微信 webhook', lambda: _send_wechat_webhook_notice(webhook, content)))
+
+    if not attempts:
+        return False, '个人微信推送未配置，请设置 ALERT_SERVERCHAN_SENDKEY 或 ALERT_WXPUSHER_APP_TOKEN/ALERT_WXPUSHER_UIDS'
+
+    errors = []
+    for label, sender in attempts:
+        try:
+            sent, error = sender()
+        except Exception as exc:
+            sent, error = False, str(exc)
+        if sent:
             return True, ''
-        return False, data.get('errmsg') or raw[:120]
-    except Exception as exc:
-        return False, str(exc)
+        errors.append(f'{label}: {error}')
+    return False, '; '.join(errors)
 
 
 def approve_refund_request(db, refund_recharge_order_once, refund_request_id, admin_id, admin_note=''):
