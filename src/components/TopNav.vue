@@ -257,6 +257,78 @@ function openAgentHomeSidebarSection(section) {
   }, 560)
 }
 
+function setGlobalSidebarSection(section) {
+  var key = section || 'history'
+  var rowMap = {
+    profiles: 'sidebarProfilesBtn',
+    favorites: 'sidebarFavoritesBtn',
+    history: 'sidebarHistoryBtn'
+  }
+  var subMap = {
+    profiles: 'sidebarProfileSelectBtn',
+    favorites: 'sidebarFavoriteEmptyBtn',
+    history: 'sidebarHistoryRecentBtn'
+  }
+  var railMap = {
+    profiles: 'agentRailProfiles',
+    favorites: 'agentRailFavorites',
+    history: 'agentRailHistory',
+    settings: 'agentRailSettings',
+    notice: 'agentRailNotice'
+  }
+  document.querySelectorAll('.agent-sidebar-row').forEach(function(row) {
+    row.classList.toggle('active', row.id === rowMap[key])
+  })
+  document.querySelectorAll('.agent-sidebar-subrow').forEach(function(row) {
+    row.classList.toggle('selected', row.id === subMap[key])
+  })
+  document.querySelectorAll('.agent-rail-btn').forEach(function(btn) {
+    btn.classList.toggle('active', btn.id === railMap[key])
+  })
+}
+
+function bindGlobalSidebarClickAway(sidebar) {
+  document.body.removeEventListener('click', window.__sidebarClickAway)
+  window.__sidebarClickAway = function(e) {
+    if (Date.now() - (window.__xcSidebarOpenedAt || 0) < 500) return
+    var target = e && e.target
+    if (target && target.closest && target.closest('#topnavSidebarBtn')) return
+    if (target && target.closest && target.closest('.history-delete-overlay')) return
+    var currentSidebar = document.getElementById('tarotSidebarGlobal')
+    if (currentSidebar && currentSidebar.classList.contains('open') && !currentSidebar.contains(target)) {
+      e.stopPropagation()
+      closeGlobalSidebarPanel()
+    }
+  }
+  setTimeout(function() { document.body.addEventListener('click', window.__sidebarClickAway) }, 160)
+}
+
+function openGlobalSidebarSection(section) {
+  var body = document.body
+  var isAgentHome = body && body.classList && body.classList.contains('home-fixed-page') && window.__xcHomeMode === 'app'
+  if (isAgentHome) {
+    closeGlobalSidebarPanel()
+    dispatchHomeSidebarOpen()
+    dispatchHomeSidebarSection(section)
+    return
+  }
+  var sidebar = document.getElementById('tarotSidebarGlobal')
+  var overlay = document.getElementById('sidebarOverlayGlobal')
+  if (!sidebar || !overlay) {
+    ensureGlobalSidebar()
+    sidebar = document.getElementById('tarotSidebarGlobal')
+    overlay = document.getElementById('sidebarOverlayGlobal')
+  }
+  if (!sidebar || !overlay) return
+  if (!sidebar.classList.contains('open')) {
+    openSidebarPanel(sidebar, overlay)
+    window.__xcSidebarOpenedAt = Date.now()
+    bindGlobalSidebarClickAway(sidebar)
+  }
+  _loadSidebarUserPanel()
+  setGlobalSidebarSection(section)
+}
+
 function ensureAgentGlobalRail() {
   if (typeof document === 'undefined') return
   if (document.getElementById('agentRailGlobal')) return
@@ -277,10 +349,10 @@ function ensureAgentGlobalRail() {
   bindGlobalSidebarClick(rail, '#agentRailToggle', function() { toggleSidebar() })
   bindGlobalSidebarClick(rail, '#agentRailNew', function() { openAgentHomeFromSidebar(true) })
   bindGlobalSidebarClick(rail, '#agentRailProfiles', function() { goFromGlobalSidebar('#/pages/user-management/index') })
-  bindGlobalSidebarClick(rail, '#agentRailFavorites', function() { openAgentHomeSidebarSection('favorites') })
-  bindGlobalSidebarClick(rail, '#agentRailHistory', function() { openAgentHomeSidebarSection('history') })
-  bindGlobalSidebarClick(rail, '#agentRailSettings', function() { openAgentHomeSidebarSection('settings') })
-  bindGlobalSidebarClick(rail, '#agentRailNotice', function() { openAgentHomeSidebarSection('notice') })
+  bindGlobalSidebarClick(rail, '#agentRailFavorites', function() { openGlobalSidebarSection('favorites') })
+  bindGlobalSidebarClick(rail, '#agentRailHistory', function() { openGlobalSidebarSection('history') })
+  bindGlobalSidebarClick(rail, '#agentRailSettings', function() { openGlobalSidebarSection('settings') })
+  bindGlobalSidebarClick(rail, '#agentRailNotice', function() { openGlobalSidebarSection('notice') })
   bindGlobalSidebarClick(rail, '#agentRailHome', function() { goMarketingHomeFromSidebar() })
 }
 
@@ -364,13 +436,13 @@ function ensureGlobalSidebar() {
   bindGlobalSidebarClick(sidebar, '#sidebarProfilesBtn', function() { goFromGlobalSidebar('#/pages/user-management/index') })
   bindGlobalSidebarClick(sidebar, '#sidebarProfileAddBtn', function() { goFromGlobalSidebar('#/pages/user-management/index?action=create') })
   bindGlobalSidebarClick(sidebar, '#sidebarProfileSelectBtn', function() { goFromGlobalSidebar('#/pages/user-management/index') })
-  bindGlobalSidebarClick(sidebar, '#sidebarFavoritesBtn', function() { openAgentHomeSidebarSection('favorites') })
-  bindGlobalSidebarClick(sidebar, '#sidebarFavoriteEmptyBtn', function() { openAgentHomeSidebarSection('favorites') })
-  bindGlobalSidebarClick(sidebar, '#sidebarHistoryBtn', function() { openAgentHomeSidebarSection('history') })
-  bindGlobalSidebarClick(sidebar, '#sidebarHistoryRecentBtn', function() { openAgentHomeSidebarSection('history') })
-  bindGlobalSidebarClick(sidebar, '#sidebarHistoryOlderBtn', function() { openAgentHomeSidebarSection('history') })
-  bindGlobalSidebarClick(sidebar, '#sidebarUserSetting', function() { openAgentHomeSidebarSection('settings') })
-  bindGlobalSidebarClick(sidebar, '#sidebarNoticeBtn', function() { openAgentHomeSidebarSection('notice') })
+  bindGlobalSidebarClick(sidebar, '#sidebarFavoritesBtn', function() { openGlobalSidebarSection('favorites') })
+  bindGlobalSidebarClick(sidebar, '#sidebarFavoriteEmptyBtn', function() { openGlobalSidebarSection('favorites') })
+  bindGlobalSidebarClick(sidebar, '#sidebarHistoryBtn', function() { openGlobalSidebarSection('history') })
+  bindGlobalSidebarClick(sidebar, '#sidebarHistoryRecentBtn', function() { openGlobalSidebarSection('history') })
+  bindGlobalSidebarClick(sidebar, '#sidebarHistoryOlderBtn', function() { openGlobalSidebarSection('history') })
+  bindGlobalSidebarClick(sidebar, '#sidebarUserSetting', function() { openGlobalSidebarSection('settings') })
+  bindGlobalSidebarClick(sidebar, '#sidebarNoticeBtn', function() { openGlobalSidebarSection('notice') })
   bindGlobalSidebarClick(sidebar, '#sidebarHomeBtn', function() { goMarketingHomeFromSidebar() })
   bindGlobalSidebarClick(sidebar, '#sidebarUserLogout', function() { if (window._xc_doLogout) window._xc_doLogout() })
   bindGlobalSidebarClick(sidebar, '#sidebarGuestLogin', function() { if (window._openLoginModal) window._openLoginModal() })
@@ -1190,19 +1262,7 @@ function toggleSidebar() {
   openSidebarPanel(sidebar, overlay)
   window.__xcSidebarOpenedAt = Date.now()
   _loadSidebarUserPanel()
-  document.body.removeEventListener('click', window.__sidebarClickAway)
-  window.__sidebarClickAway = function(e) {
-    if (Date.now() - (window.__xcSidebarOpenedAt || 0) < 500) return
-    var target = e && e.target
-    if (target && target.closest && target.closest('#topnavSidebarBtn')) return
-    if (target && target.closest && target.closest('.history-delete-overlay')) return
-    var currentSidebar = document.getElementById('tarotSidebarGlobal')
-    if (currentSidebar && currentSidebar.classList.contains('open') && !currentSidebar.contains(target)) {
-      e.stopPropagation()
-      closeGlobalSidebarPanel()
-    }
-  }
-  setTimeout(function() { document.body.addEventListener('click', window.__sidebarClickAway) }, 160)
+  bindGlobalSidebarClickAway(sidebar)
 }
 
 // 渲染分组历史（共享函数，避免与 sidebar.js 重复）
