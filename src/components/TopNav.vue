@@ -265,14 +265,14 @@ function ensureAgentGlobalRail() {
   rail.id = 'agentRailGlobal'
   rail.setAttribute('aria-label', '时安 agent 侧边栏')
   rail.innerHTML = '<div class="agent-rail-logo" id="agentRailToggle" role="button" tabindex="0" aria-label="打开侧栏"><img src="/static/images/logo.webp?v=3" alt=""></div>'
-    + '<div class="agent-rail-btn active" id="agentRailNew" role="button" tabindex="0" aria-label="新建对话">＋</div>'
-    + '<div class="agent-rail-btn" id="agentRailProfiles" role="button" tabindex="0" aria-label="命主列表">命</div>'
-    + '<div class="agent-rail-btn" id="agentRailFavorites" role="button" tabindex="0" aria-label="收藏对话">☆</div>'
-    + '<div class="agent-rail-btn" id="agentRailHistory" role="button" tabindex="0" aria-label="历史对话">历</div>'
+    + '<div class="agent-rail-btn active" id="agentRailNew" role="button" tabindex="0" aria-label="新建对话"><span class="agent-rail-icon agent-rail-icon-plus"></span></div>'
+    + '<div class="agent-rail-btn" id="agentRailProfiles" role="button" tabindex="0" aria-label="命主列表"><span class="agent-rail-icon agent-rail-icon-user"></span></div>'
+    + '<div class="agent-rail-btn" id="agentRailFavorites" role="button" tabindex="0" aria-label="收藏对话"><span class="agent-rail-icon agent-rail-icon-star"></span></div>'
+    + '<div class="agent-rail-btn" id="agentRailHistory" role="button" tabindex="0" aria-label="历史对话"><span class="agent-rail-icon agent-rail-icon-history"></span></div>'
     + '<div class="agent-rail-spacer"></div>'
-    + '<div class="agent-rail-btn" id="agentRailSettings" role="button" tabindex="0" aria-label="设置">设</div>'
-    + '<div class="agent-rail-btn" id="agentRailNotice" role="button" tabindex="0" aria-label="通知">知</div>'
-    + '<div class="agent-rail-btn" id="agentRailHome" role="button" tabindex="0" aria-label="回首页">⌂</div>'
+    + '<div class="agent-rail-btn" id="agentRailSettings" role="button" tabindex="0" aria-label="设置"><span class="agent-rail-icon agent-rail-icon-settings"></span></div>'
+    + '<div class="agent-rail-btn" id="agentRailNotice" role="button" tabindex="0" aria-label="通知"><span class="agent-rail-icon agent-rail-icon-bell"></span></div>'
+    + '<div class="agent-rail-btn" id="agentRailHome" role="button" tabindex="0" aria-label="回首页"><span class="agent-rail-icon agent-rail-icon-home"></span></div>'
   document.body.appendChild(rail)
   bindGlobalSidebarClick(rail, '#agentRailToggle', function() { toggleSidebar() })
   bindGlobalSidebarClick(rail, '#agentRailNew', function() { openAgentHomeFromSidebar(true) })
@@ -313,19 +313,19 @@ function ensureGlobalSidebar() {
     + '<div class="agent-sidebar-brand" role="button" tabindex="0" aria-label="新建对话"><img class="agent-sidebar-logo" src="/static/images/logo.webp?v=3" alt=""><span>时安解忧屋</span></div>'
     + '<div class="agent-sidebar-close" id="sidebarPanelClose" role="button" tabindex="0" aria-label="收起侧栏"><span></span></div>'
     + '</div>'
-    + '<div class="agent-sidebar-primary" id="sidebarNewChatBtn" role="button" tabindex="0"><span>＋</span><strong>新建对话</strong></div>'
+    + '<div class="agent-sidebar-primary" id="sidebarNewChatBtn" role="button" tabindex="0"><span><span class="agent-rail-icon agent-rail-icon-plus"></span></span><strong>新建对话</strong></div>'
     + '<div class="agent-sidebar-nav">'
-    + '<div class="agent-sidebar-row active" id="sidebarProfilesBtn" role="button" tabindex="0"><span class="agent-sidebar-row-main"><span class="agent-sidebar-row-icon">命</span><strong>命主列表</strong></span><span class="agent-sidebar-row-action">＋</span></div>'
+    + '<div class="agent-sidebar-row active" id="sidebarProfilesBtn" role="button" tabindex="0"><span class="agent-sidebar-row-main"><span class="agent-sidebar-row-icon"><span class="agent-rail-icon agent-rail-icon-user"></span></span><strong>命主列表</strong></span><span class="agent-sidebar-row-action">＋</span></div>'
     + '<div class="agent-sidebar-sublist"><div class="agent-sidebar-subrow selected" id="sidebarProfileSelectBtn" role="button" tabindex="0">选择命主</div></div>'
-    + '<div class="agent-sidebar-row" id="sidebarFavoritesBtn" role="button" tabindex="0"><span class="agent-sidebar-row-main"><span class="agent-sidebar-row-icon">☆</span><strong>收藏对话</strong></span></div>'
+    + '<div class="agent-sidebar-row" id="sidebarFavoritesBtn" role="button" tabindex="0"><span class="agent-sidebar-row-main"><span class="agent-sidebar-row-icon"><span class="agent-rail-icon agent-rail-icon-star"></span></span><strong>收藏对话</strong></span></div>'
     + '<div class="agent-sidebar-sublist"><div class="agent-sidebar-subrow empty" id="sidebarFavoriteEmptyBtn" role="button" tabindex="0">暂无收藏</div></div>'
-    + '<div class="agent-sidebar-row" id="sidebarHistoryBtn" role="button" tabindex="0"><span class="agent-sidebar-row-main"><span class="agent-sidebar-row-icon">历</span><strong>历史对话</strong></span><span class="agent-sidebar-row-action">⌃</span></div>'
+    + '<div class="agent-sidebar-row" id="sidebarHistoryBtn" role="button" tabindex="0"><span class="agent-sidebar-row-main"><span class="agent-sidebar-row-icon"><span class="agent-rail-icon agent-rail-icon-history"></span></span><strong>历史对话</strong></span><span class="agent-sidebar-row-action">⌃</span></div>'
     + '<div class="agent-sidebar-sublist"><div class="agent-sidebar-subrow" id="sidebarHistoryRecentBtn" role="button" tabindex="0">最近一条问题</div><div class="agent-sidebar-subrow" id="sidebarHistoryOlderBtn" role="button" tabindex="0">再早一点的问题</div></div>'
     + '</div>'
     + '<div class="agent-sidebar-footer">'
-    + '<div id="sidebarUserSetting" role="button" tabindex="0"><span>设</span><em>设置</em></div>'
-    + '<div id="sidebarNoticeBtn" role="button" tabindex="0"><span>知</span><em>通知</em></div>'
-    + '<div id="sidebarHomeBtn" role="button" tabindex="0"><span>⌂</span><em>回首页</em></div>'
+    + '<div id="sidebarUserSetting" role="button" tabindex="0"><span><span class="agent-rail-icon agent-rail-icon-settings"></span></span><em>设置</em></div>'
+    + '<div id="sidebarNoticeBtn" role="button" tabindex="0"><span><span class="agent-rail-icon agent-rail-icon-bell"></span></span><em>通知</em></div>'
+    + '<div id="sidebarHomeBtn" role="button" tabindex="0"><span><span class="agent-rail-icon agent-rail-icon-home"></span></span><em>回首页</em></div>'
     + '</div>'
     + '<div class="sidebar-user-panel agent-sidebar-user" id="sidebarUserPanel">'
     + '<div class="sidebar-user-logged" id="sidebarUserLogged" style="display:none;">'
@@ -3374,10 +3374,10 @@ onMounted(() => {
 .nav-btn {
   display: inline-flex;
   align-items: center;
-  min-height: 36px;
-  padding: 0 14px;
-  border-radius: 16px;
-  font-size: .96rem;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 14px;
+  font-size: .94rem;
   color: var(--text-2);
   white-space: nowrap;
   letter-spacing: 0;
@@ -3392,6 +3392,8 @@ onMounted(() => {
   box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb),.11);
   color: var(--accent);
   font-weight: 760;
+  min-height: 32px;
+  border-radius: 13px;
 }
 
 /* 带下拉的按钮 */

@@ -385,16 +385,16 @@
       aria-hidden="false"
     >
       <view class="home-side-rail" aria-hidden="true">
-        <view class="home-rail-logo" @tap="toggleHomeSidebar">
+        <view class="home-rail-logo" @tap="toggleHomeSidebar" aria-label="展开侧栏">
           <img src="/static/images/logo.webp?v=3" alt="" />
         </view>
-        <view class="home-rail-item active" @tap="startHomeSidebarNewConversation">＋</view>
-        <view class="home-rail-item" @tap="goToPage('/pages/user-management/index')">命</view>
-        <view class="home-rail-item" @tap="openHomeSidebarFavorites">☆</view>
-        <view class="home-rail-item" @tap="openHomeSidebarHistory">历</view>
+        <view class="home-rail-item active" @tap="startHomeSidebarNewConversation" aria-label="新建对话"><view class="home-rail-icon home-rail-icon-plus"></view></view>
+        <view class="home-rail-item" @tap="goToPage('/pages/user-management/index')" aria-label="命主列表"><view class="home-rail-icon home-rail-icon-user"></view></view>
+        <view class="home-rail-item" @tap="openHomeSidebarFavorites" aria-label="收藏对话"><view class="home-rail-icon home-rail-icon-star"></view></view>
+        <view class="home-rail-item" @tap="openHomeSidebarHistory" aria-label="历史对话"><view class="home-rail-icon home-rail-icon-history"></view></view>
         <view class="home-rail-spacer"></view>
-        <view class="home-rail-item" @tap="openHomeSidebarSettings">设</view>
-        <view class="home-rail-item" @tap="goToMarketingHome">⌂</view>
+        <view class="home-rail-item" @tap="openHomeSidebarSettings" aria-label="设置"><view class="home-rail-icon home-rail-icon-settings"></view></view>
+        <view class="home-rail-item" @tap="goToMarketingHome" aria-label="回首页"><view class="home-rail-icon home-rail-icon-home"></view></view>
       </view>
 
       <view class="home-side-panel">
@@ -411,14 +411,14 @@
         </view>
 
         <view class="home-side-primary" @tap="startHomeSidebarNewConversation">
-          <text class="home-side-primary-icon">＋</text>
+          <view class="home-side-primary-icon"><view class="home-rail-icon home-rail-icon-plus"></view></view>
           <text>新建对话</text>
         </view>
 
         <view class="home-side-nav">
           <view class="home-side-nav-row active" @tap="goToPage('/pages/user-management/index')">
             <view class="home-side-row-main">
-              <text class="home-side-row-icon">命</text>
+              <view class="home-side-row-icon"><view class="home-rail-icon home-rail-icon-user"></view></view>
               <text>命主列表</text>
             </view>
             <text class="home-side-row-action" @tap.stop="goToPage('/pages/user-management/index')">＋</text>
@@ -436,7 +436,7 @@
 
           <view class="home-side-nav-row" @tap="openHomeSidebarFavorites">
             <view class="home-side-row-main">
-              <text class="home-side-row-icon">☆</text>
+              <view class="home-side-row-icon"><view class="home-rail-icon home-rail-icon-star"></view></view>
               <text>收藏对话</text>
             </view>
           </view>
@@ -456,7 +456,7 @@
 
           <view class="home-side-nav-row" @tap="openHomeSidebarHistory">
             <view class="home-side-row-main">
-              <text class="home-side-row-icon">历</text>
+              <view class="home-side-row-icon"><view class="home-rail-icon home-rail-icon-history"></view></view>
               <text>历史对话</text>
             </view>
             <text class="home-side-row-action">⌃</text>
@@ -475,15 +475,15 @@
 
         <view class="home-side-footer">
           <view @tap="openHomeSidebarSettings">
-            <text class="home-side-footer-icon">设</text>
+            <view class="home-side-footer-icon"><view class="home-rail-icon home-rail-icon-settings"></view></view>
             <text>设置</text>
           </view>
           <view @tap="openHomeSidebarNotice">
-            <text class="home-side-footer-icon">知</text>
+            <view class="home-side-footer-icon"><view class="home-rail-icon home-rail-icon-bell"></view></view>
             <text>通知</text>
           </view>
           <view @tap="goToMarketingHome">
-            <text class="home-side-footer-icon">⌂</text>
+            <view class="home-side-footer-icon"><view class="home-rail-icon home-rail-icon-home"></view></view>
             <text>回首页</text>
           </view>
         </view>
@@ -5382,7 +5382,7 @@ onBeforeUnmount(() => {
   --shadow-rgb: 34,30,23;
   --hero-logo-backdrop: rgba(255,255,255,0.94);
   --hero-logo-backdrop-shadow: 0 16px 46px rgba(34,30,23,0.045), inset 0 1px 0 rgba(255,255,255,0.9);
-  --home-sidebar-width: min(288px, 82vw);
+  --home-sidebar-width: min(300px, 86vw);
   min-height: 100dvh;
 }
 :global(body.home-fixed-page) {
@@ -5419,7 +5419,7 @@ onBeforeUnmount(() => {
   transform: translateX(-100%);
   opacity: 0;
   pointer-events: none;
-  transition: transform .22s ease, opacity .18s ease;
+  transition: width .15s ease-out, transform .22s ease, opacity .18s ease;
 }
 .home-desktop-sidebar.open {
   transform: translateX(0);
@@ -5442,7 +5442,8 @@ onBeforeUnmount(() => {
 
 @media (min-width: 721px) {
   .tool-home-shell {
-    --home-sidebar-width: clamp(238px, 20vw, 268px);
+    --home-rail-width: 56px;
+    --home-sidebar-width: 300px;
   }
   .home-desktop-sidebar {
     padding: 18px 14px 14px;
@@ -10133,7 +10134,7 @@ onBeforeUnmount(() => {
 
 @media (min-width: 721px) and (max-width: 1023px) {
   .tool-home-shell {
-    --home-sidebar-width: 238px;
+    --home-sidebar-width: 300px;
   }
   .tool-home-shell.home-sidebar-open .page-wrap {
     width: calc(100vw - var(--home-sidebar-width)) !important;
@@ -10188,15 +10189,14 @@ onBeforeUnmount(() => {
 .home-rail-item {
   width: 32px;
   height: 32px;
-  border-radius: 11px;
+  border-radius: 999px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-2);
-  font-size: 0.76rem;
-  font-weight: 850;
+  color: rgba(58,55,49,0.64);
   cursor: pointer;
   box-sizing: border-box;
+  transition: background .16s ease, color .16s ease, border-color .16s ease, transform .16s ease;
 }
 .home-rail-logo {
   margin-bottom: 8px;
@@ -10213,9 +10213,138 @@ onBeforeUnmount(() => {
 }
 .home-rail-item:hover,
 .home-rail-item.active {
-  background: rgba(var(--accent-rgb),0.12);
+  background: rgba(var(--accent-rgb),0.10);
   border-color: rgba(var(--accent-rgb),0.16);
   color: var(--accent);
+}
+.home-rail-item:active,
+.home-rail-logo:active {
+  transform: scale(.94);
+}
+.home-rail-icon {
+  position: relative;
+  width: 17px;
+  height: 17px;
+  display: block;
+  color: currentColor;
+}
+.home-rail-icon::before,
+.home-rail-icon::after {
+  content: '';
+  position: absolute;
+  box-sizing: border-box;
+}
+.home-rail-icon-plus::before {
+  left: 3px;
+  right: 3px;
+  top: 7px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+.home-rail-icon-plus::after {
+  top: 3px;
+  bottom: 3px;
+  left: 7px;
+  width: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+.home-rail-icon-user::before {
+  width: 6px;
+  height: 6px;
+  left: 5.5px;
+  top: 2px;
+  border: 1.6px solid currentColor;
+  border-radius: 50%;
+}
+.home-rail-icon-user::after {
+  width: 12px;
+  height: 8px;
+  left: 2.5px;
+  bottom: 2px;
+  border: 1.6px solid currentColor;
+  border-top: 0;
+  border-radius: 0 0 8px 8px;
+}
+.home-rail-icon-star::before {
+  inset: 1.5px;
+  background: currentColor;
+  clip-path: polygon(50% 0,61% 35%,98% 35%,68% 56%,79% 91%,50% 70%,21% 91%,32% 56%,2% 35%,39% 35%);
+}
+.home-rail-icon-history::before {
+  inset: 3px;
+  border: 1.7px solid currentColor;
+  border-left-color: transparent;
+  border-radius: 50%;
+  transform: rotate(-28deg);
+}
+.home-rail-icon-history::after {
+  left: 1.5px;
+  top: 3.5px;
+  width: 6px;
+  height: 6px;
+  border-left: 1.7px solid currentColor;
+  border-bottom: 1.7px solid currentColor;
+  transform: rotate(12deg);
+}
+.home-rail-icon-settings::before,
+.home-rail-icon-settings::after {
+  left: 2px;
+  right: 2px;
+  height: 1.7px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 6px 0 currentColor, 0 12px 0 currentColor;
+}
+.home-rail-icon-settings::before {
+  top: 2px;
+}
+.home-rail-icon-settings::after {
+  top: 0;
+  width: 4px;
+  height: 4px;
+  left: 4px;
+  right: auto;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 6px 6px 0 currentColor, -1px 12px 0 currentColor;
+}
+.home-rail-icon-bell::before {
+  left: 4px;
+  top: 2px;
+  width: 9px;
+  height: 11px;
+  border: 1.7px solid currentColor;
+  border-bottom: 0;
+  border-radius: 8px 8px 3px 3px;
+}
+.home-rail-icon-bell::after {
+  left: 6px;
+  bottom: 1.5px;
+  width: 5px;
+  height: 3px;
+  border-bottom: 1.7px solid currentColor;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 -1.5px 0 -0.3px currentColor;
+}
+.home-rail-icon-home::before {
+  width: 10px;
+  height: 10px;
+  left: 3.5px;
+  top: 5px;
+  border-left: 1.7px solid currentColor;
+  border-bottom: 1.7px solid currentColor;
+  transform: rotate(-45deg);
+}
+.home-rail-icon-home::after {
+  width: 10px;
+  height: 8px;
+  left: 3.5px;
+  bottom: 1.5px;
+  border: 1.7px solid currentColor;
+  border-top: 0;
+  border-radius: 1px 1px 3px 3px;
 }
 .home-rail-spacer {
   flex: 1;
@@ -10387,7 +10516,7 @@ onBeforeUnmount(() => {
 @media (min-width: 721px) {
   .tool-home-shell {
     --home-rail-width: 56px;
-    --home-sidebar-width: 260px;
+    --home-sidebar-width: 300px;
   }
   .tool-home-shell :deep(.topnav-sidebar-btn) {
     display: none !important;
@@ -10469,7 +10598,7 @@ onBeforeUnmount(() => {
     -webkit-backdrop-filter: blur(5px);
   }
   .home-desktop-sidebar {
-    width: min(288px, 82vw) !important;
+    width: min(300px, 86vw) !important;
     padding: 0 !important;
     transform: translateX(-100%) !important;
     opacity: 0 !important;
