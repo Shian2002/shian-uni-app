@@ -1420,10 +1420,10 @@ function openSidebarPanel(sidebar, overlay) {
     document.documentElement.classList.remove('marketing-page', 'marketing-android')
     document.body.classList.remove('marketing-page', 'marketing-android')
   } catch(_) {}
+  var useOverlay = true
+  try { useOverlay = !window.matchMedia('(min-width: 721px)').matches } catch(_) {}
   sidebar.classList.add('open')
-  overlay.classList.add('show')
   sidebar.setAttribute('aria-hidden', 'false')
-  overlay.setAttribute('aria-hidden', 'false')
   sidebar.style.setProperty('left', '0', 'important')
   sidebar.style.setProperty('right', 'auto', 'important')
   sidebar.style.setProperty('display', 'flex', 'important')
@@ -1432,8 +1432,17 @@ function openSidebarPanel(sidebar, overlay) {
   sidebar.style.setProperty('visibility', 'visible', 'important')
   sidebar.style.setProperty('pointer-events', 'auto', 'important')
   sidebar.style.setProperty('z-index', '2100', 'important')
-  overlay.style.setProperty('display', 'block', 'important')
-  overlay.style.setProperty('z-index', '2000', 'important')
+  if (useOverlay) {
+    overlay.classList.add('show')
+    overlay.setAttribute('aria-hidden', 'false')
+    overlay.style.setProperty('display', 'block', 'important')
+    overlay.style.setProperty('z-index', '2000', 'important')
+  } else {
+    overlay.classList.remove('show')
+    overlay.setAttribute('aria-hidden', 'true')
+    overlay.style.setProperty('display', 'none', 'important')
+    overlay.style.removeProperty('z-index')
+  }
 }
 
 function closeSidebarPanel(sidebar, overlay) {
