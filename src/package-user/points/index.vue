@@ -51,26 +51,6 @@
         </view>
 
         <view class="commerce-panel">
-          <view class="section plan-section">
-            <view class="section-head">
-              <view>
-                <view class="section-title">会员方案参考</view>
-                <view class="section-subtitle">当前为产品说明，正式销售前会接入合规支付能力</view>
-              </view>
-            </view>
-            <view class="plan-grid">
-              <view class="plan-card" v-for="plan in membershipPlans" :key="plan.id" :class="{ recommended: plan.recommended }">
-                <view class="plan-badge" v-if="plan.recommended">适合复购</view>
-                <text class="plan-name">{{ plan.name }}</text>
-                <view class="plan-price">{{ plan.price }}</view>
-                <text class="plan-points">{{ plan.points }}</text>
-                <view class="plan-benefits">
-                  <text v-for="benefit in plan.benefits" :key="benefit">{{ benefit }}</text>
-                </view>
-              </view>
-            </view>
-          </view>
-
           <view class="section conversion-section">
             <view class="section-head">
               <view>
@@ -234,12 +214,6 @@ export default {
     ])
     var pointPackages = ref([])
     var aiPackages = ref([])
-    var membershipPlans = [
-      { id: 'free', name: '免费版', price: '¥0', points: '每日签到 300 积分', benefits: ['1 个常用命盘', '基础问事体验', '适合试用'] },
-      { id: 'starter', name: '入门版', price: '¥9.9', points: '约 3000 积分', benefits: ['3 个命盘', '短期问题追问', '适合轻量使用'] },
-      { id: 'standard', name: '标准版', price: '¥36', points: '约 12000 积分', recommended: true, benefits: ['5 个命盘', '长期问题', '报告保存'] },
-      { id: 'pro', name: '专业版', price: '¥68', points: '约 30000 积分', benefits: ['10 个命盘', '多术数合参', '高频复盘'] }
-    ]
     var conversionSteps = [
       { title: '提出具体问题', desc: '从事业、感情、决策、年运等场景进入，不先理解工具名。' },
       { title: '选择术数和命主', desc: '时安 agent 根据资料完整度推荐八字、奇门、紫微或合参。' },
@@ -885,7 +859,6 @@ export default {
       paymentStateLabel,
       paymentStatusText,
       paymentPayButtonText,
-      membershipPlans,
       conversionSteps,
       paymentChecking,
       goBack,
@@ -1148,7 +1121,6 @@ export default {
 .points-page .ai-pkg-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
-.plan-grid,
 .conversion-steps {
   display: grid;
   gap: 10px;
@@ -1156,10 +1128,6 @@ export default {
 .conversion-steps {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
-.plan-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-.plan-card,
 .conversion-step {
   min-width: 0;
   border: 1px solid rgba(178,149,93,0.18);
@@ -1167,48 +1135,12 @@ export default {
   background: color-mix(in srgb, var(--card-bg) 92%, #fff5dd 8%);
   box-sizing: border-box;
 }
-.plan-name,
 .step-title {
   display: block;
   color: var(--text-1);
   font-size: 0.86rem;
   font-weight: 850;
   line-height: 1.25;
-}
-.plan-benefits {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 12px;
-}
-.plan-benefits text {
-  color: var(--text-3);
-  font-size: 0.7rem;
-  line-height: 1.35;
-}
-.plan-benefits text::before {
-  content: '· ';
-  color: var(--accent);
-}
-.plan-card {
-  position: relative;
-  min-height: 174px;
-  padding: 15px 13px;
-}
-.plan-card.recommended {
-  border-color: var(--accent);
-  background: linear-gradient(135deg, rgba(178,149,93,0.18), rgba(178,149,93,0.04)), var(--card-bg);
-}
-.plan-badge {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  padding: 3px 7px;
-  border-radius: 999px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 0.64rem;
-  font-weight: 800;
 }
 .plan-price {
   margin-top: 13px;
@@ -1738,9 +1670,6 @@ export default {
   .conversion-steps {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .plan-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
   .points-page .pkg-card {
     min-height: 124px;
     padding: 13px 11px;
@@ -1770,7 +1699,6 @@ export default {
 @media (max-width: 390px) {
   .points-page .pkg-grid,
   .points-page .ai-pkg-grid,
-  .plan-grid,
   .conversion-steps {
     grid-template-columns: 1fr;
   }
