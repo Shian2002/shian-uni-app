@@ -10471,16 +10471,27 @@ onBeforeUnmount(() => {
 .home-side-head .home-side-close {
   width: 32px;
   height: 32px;
-  border-radius: 10px;
+  border-radius: 999px;
   flex: 0 0 32px;
   align-self: center;
+  position: relative;
+  background: rgba(255,255,255,0.72);
+  border: 1px solid rgba(var(--accent-rgb),0.12);
+  color: rgba(58,55,49,0.64);
+  box-sizing: border-box;
+  transition: background .16s ease, color .16s ease, border-color .16s ease, transform .16s ease;
+}
+.home-side-head .home-side-close:hover {
+  background: rgba(var(--accent-rgb),0.10);
+  border-color: rgba(var(--accent-rgb),0.16);
+  color: var(--accent);
 }
 .home-side-head .home-side-close-icon {
   width: 16px;
   height: 16px;
   border-width: 1.8px;
   border-radius: 5px;
-  box-shadow: inset -5px 0 0 rgba(var(--accent-rgb),0.16);
+  box-shadow: inset 5px 0 0 rgba(var(--accent-rgb),0.16);
 }
 .home-side-head .home-side-close-icon view {
   display: none;
