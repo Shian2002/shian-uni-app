@@ -3624,7 +3624,7 @@ body.home-fixed-page #topnavLoginModal .modal-btns > * {
 .modal-hint { font-size: 0.7rem; color: var(--text-3); text-align: center; margin-top: 12px; line-height: 1.4; }
 
 /* ═══ 响应式 ═══ */
-@media (max-width: 768px) {
+@media (max-width: 720px) {
   .topnav { padding: var(--xc-safe-top, 0px) max(8px, calc(var(--xc-safe-right, 0px) + 8px)) 0 max(8px, calc(var(--xc-safe-left, 0px) + 8px)); }
   .topnav-right { margin-left: 0; flex-shrink: 0; gap: 4px; }
   .nav-btn-bar { overflow: visible; }

@@ -534,7 +534,7 @@ uni-tabbar, .uni-tabbar, .uni-tabbar-bottom {
 .sidebar-overlay { position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,.4); display:none; }
 .sidebar-overlay.show { display:block; z-index:2000 !important; }
 .agent-sidebar {
-  width:min(288px,82vw);
+  width:min(300px,86vw);
   padding:18px 14px 14px;
   gap:14px;
   box-sizing:border-box;
@@ -1207,12 +1207,65 @@ body:not(.home-fixed-page):not(.marketing-page) .page-root{
     background:rgba(255,255,255,.70);
     border:1px solid rgba(92,72,38,.12);
     box-shadow:0 1px 8px rgba(var(--shadow-rgb),.06), inset 0 1px 0 rgba(255,255,255,.78);
+    position:relative;
   }
   body:not(.home-fixed-page):not(.marketing-page) .agent-rail-logo img{
     width:24px;
     height:24px;
     object-fit:contain;
     display:block;
+    transition:opacity .14s ease;
+  }
+  body:not(.home-fixed-page):not(.marketing-page) .agent-rail-logo::before{
+    content:'';
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:15px;
+    height:15px;
+    border:1.8px solid currentColor;
+    border-radius:5px;
+    box-shadow:inset 5px 0 0 rgba(var(--accent-rgb),.16);
+    opacity:0;
+    transform:translate(-50%,-50%);
+    transition:opacity .14s ease;
+  }
+  body:not(.home-fixed-page):not(.marketing-page) .agent-rail-logo::after{
+    content:'展开侧边栏';
+    position:absolute;
+    left:42px;
+    top:50%;
+    padding:7px 10px;
+    border-radius:8px;
+    background:rgba(255,255,255,.96);
+    border:1px solid rgba(92,72,38,.12);
+    box-shadow:0 10px 28px rgba(34,30,23,.12);
+    color:rgba(58,55,49,.76);
+    font-size:.72rem;
+    font-weight:760;
+    line-height:1;
+    white-space:nowrap;
+    opacity:0;
+    pointer-events:none;
+    transform:translate(6px,-50%);
+    transition:opacity .14s ease,transform .14s ease;
+    z-index:30;
+  }
+  [data-theme="dark"] body:not(.home-fixed-page):not(.marketing-page) .agent-rail-logo::after{
+    background:rgba(28,26,22,.96);
+    border-color:rgba(255,255,255,.10);
+    color:rgba(246,241,232,.88);
+    box-shadow:0 10px 28px rgba(0,0,0,.28);
+  }
+  body:not(.home-fixed-page):not(.marketing-page) .agent-rail-logo:hover img{
+    opacity:0;
+  }
+  body:not(.home-fixed-page):not(.marketing-page) .agent-rail-logo:hover::before{
+    opacity:.86;
+  }
+  body:not(.home-fixed-page):not(.marketing-page) .agent-rail-logo:hover::after{
+    opacity:1;
+    transform:translate(0,-50%);
   }
   body:not(.home-fixed-page):not(.marketing-page) .agent-rail-btn.active,
   body:not(.home-fixed-page):not(.marketing-page) .agent-rail-btn:hover,
@@ -1256,6 +1309,15 @@ body:not(.home-fixed-page):not(.marketing-page) .page-root{
   }
   body:not(.home-fixed-page):not(.marketing-page) .tarot-sidebar.agent-sidebar.open{
     box-shadow:10px 0 42px rgba(24,20,15,.12)!important;
+  }
+  body:not(.home-fixed-page):not(.marketing-page):has(.tarot-sidebar.agent-sidebar.open) .agent-global-rail{
+    display:none!important;
+  }
+  body:not(.home-fixed-page):not(.marketing-page):has(.tarot-sidebar.agent-sidebar.open) .page-root{
+    padding-left:300px!important;
+  }
+  body:not(.home-fixed-page):not(.marketing-page):has(.tarot-sidebar.agent-sidebar.open) .topnav{
+    padding-left:max(316px, calc(var(--xc-safe-left, 0px) + 316px))!important;
   }
 }
 @media(max-width:720px){
