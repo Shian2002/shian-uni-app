@@ -1885,5 +1885,11 @@ onShow(function() {
     padding-left: 32px;
     padding-right: 24px;
   }
+  .profile-modal-panel {
+    left: 56px;
+    right: 0;
+    width: calc(100vw - 56px);
+    max-width: none;
+  }
 }
 </style>
