@@ -388,12 +388,12 @@
         <view class="home-rail-logo" @tap="toggleHomeSidebar" aria-label="展开侧栏">
           <img src="/static/images/logo.webp?v=3" alt="" />
         </view>
-        <view class="home-rail-item active" @tap="startHomeSidebarNewConversation" aria-label="新建对话"><view class="home-rail-icon home-rail-icon-plus"></view></view>
-        <view class="home-rail-item" @tap="goToPage('/pages/user-management/index')" aria-label="命主列表"><view class="home-rail-icon home-rail-icon-user"></view></view>
-        <view class="home-rail-item" @tap="openHomeSidebarFavorites" aria-label="收藏对话"><view class="home-rail-icon home-rail-icon-star"></view></view>
-        <view class="home-rail-item" @tap="openHomeSidebarHistory" aria-label="历史对话"><view class="home-rail-icon home-rail-icon-history"></view></view>
+        <view class="home-rail-item" :class="{ active: homeSidebarActiveSection === 'new' }" @tap="startHomeSidebarNewConversation" aria-label="新建对话"><view class="home-rail-icon home-rail-icon-plus"></view></view>
+        <view class="home-rail-item" :class="{ active: homeSidebarActiveSection === 'profiles' }" @tap="openHomeSidebarProfiles" aria-label="命主列表"><view class="home-rail-icon home-rail-icon-user"></view></view>
+        <view class="home-rail-item" :class="{ active: homeSidebarActiveSection === 'favorites' }" @tap="openHomeSidebarFavorites" aria-label="收藏对话"><view class="home-rail-icon home-rail-icon-star"></view></view>
+        <view class="home-rail-item" :class="{ active: homeSidebarActiveSection === 'history' }" @tap="openHomeSidebarHistory" aria-label="历史对话"><view class="home-rail-icon home-rail-icon-history"></view></view>
         <view class="home-rail-spacer"></view>
-        <view class="home-rail-item" @tap="openHomeSidebarSettings" aria-label="设置"><view class="home-rail-icon home-rail-icon-settings"></view></view>
+        <view class="home-rail-item" :class="{ active: homeSidebarActiveSection === 'settings' }" @tap="openHomeSidebarSettings" aria-label="设置"><view class="home-rail-icon home-rail-icon-settings"></view></view>
         <view class="home-rail-item" @tap="goToMarketingHome" aria-label="回首页"><view class="home-rail-icon home-rail-icon-home"></view></view>
       </view>
 
@@ -416,25 +416,25 @@
         </view>
 
         <view class="home-side-nav">
-          <view class="home-side-nav-row active" @tap="goToPage('/pages/user-management/index')">
+          <view class="home-side-nav-row" :class="{ active: homeSidebarActiveSection === 'profiles' }" @tap="openHomeSidebarProfiles">
             <view class="home-side-row-main">
               <view class="home-side-row-icon"><view class="home-rail-icon home-rail-icon-user"></view></view>
               <text>命主列表</text>
             </view>
-            <text class="home-side-row-action" @tap.stop="goToPage('/pages/user-management/index')">＋</text>
+            <text class="home-side-row-action home-side-row-add" @tap.stop="openHomeSidebarProfileCreate">＋</text>
           </view>
           <view class="home-side-sublist">
             <view
               v-for="item in homeSidebarProfileRows"
               :key="item.id"
               class="home-side-subrow selected"
-              @tap="goToPage('/pages/user-management/index')"
+              @tap="openHomeProfilePickerFromSidebar"
             >
               {{ item.title }}
             </view>
           </view>
 
-          <view class="home-side-nav-row" @tap="openHomeSidebarFavorites">
+          <view class="home-side-nav-row" :class="{ active: homeSidebarActiveSection === 'favorites' }" @tap="openHomeSidebarFavorites">
             <view class="home-side-row-main">
               <view class="home-side-row-icon"><view class="home-rail-icon home-rail-icon-star"></view></view>
               <text>收藏对话</text>
@@ -451,10 +451,10 @@
                 {{ item.title }}
               </view>
             </template>
-            <view v-else class="home-side-subrow empty" @tap="openHomeSidebarFavorites">暂无收藏</view>
+            <view v-else class="home-side-subrow empty" @tap="openHomeSidebarFavorites">{{ isLoggedIn ? '暂无收藏' : '登录后查看收藏' }}</view>
           </view>
 
-          <view class="home-side-nav-row" @tap="openHomeSidebarHistory">
+          <view class="home-side-nav-row" :class="{ active: homeSidebarActiveSection === 'history' }" @tap="openHomeSidebarHistory">
             <view class="home-side-row-main">
               <view class="home-side-row-icon"><view class="home-rail-icon home-rail-icon-history"></view></view>
               <text>历史对话</text>
@@ -462,14 +462,17 @@
             <text class="home-side-row-action">⌃</text>
           </view>
           <view class="home-side-sublist">
-            <view
-              v-for="item in homeSidebarHistoryRows"
-              :key="item.id"
-              class="home-side-subrow"
-              @tap="openHomeSidebarConversation(item)"
-            >
-              {{ item.title }}
-            </view>
+            <template v-if="homeSidebarHistoryRows.length">
+              <view
+                v-for="item in homeSidebarHistoryRows"
+                :key="item.id"
+                class="home-side-subrow"
+                @tap="openHomeSidebarConversation(item)"
+              >
+                {{ item.title }}
+              </view>
+            </template>
+            <view v-else class="home-side-subrow empty" @tap="openHomeSidebarHistory">{{ isLoggedIn ? '暂无历史对话' : '登录后查看历史' }}</view>
           </view>
         </view>
 
@@ -1830,6 +1833,7 @@ const aiSingleCredits = ref(0)
 const aiComboCredits = ref(0)
 const dailyLightAvailable = ref(false)
 const comprehensiveMessages = ref([])
+const homeSidebarActiveSection = ref('new')
 const homeSidebarConversations = ref([])
 const homeSidebarConversationsLoading = ref(false)
 const artifactNavStickyEnabled = ref(readArtifactNavStickyEnabled())
@@ -2072,8 +2076,32 @@ function goToMarketingHome() {
 }
 
 function startHomeSidebarNewConversation() {
+  homeSidebarActiveSection.value = 'new'
   startNewComprehensiveConversation()
   closeHomeSidebar()
+}
+
+function openHomeSidebarProfiles() {
+  homeSidebarActiveSection.value = 'profiles'
+  openHomeSidebar()
+}
+
+function openHomeProfilePickerFromSidebar() {
+  homeSidebarActiveSection.value = 'profiles'
+  closeHomeSidebar()
+  openProfilePicker()
+}
+
+function openHomeSidebarProfileCreate() {
+  homeSidebarActiveSection.value = 'profiles'
+  closeHomeSidebar()
+  if (!isLoggedIn.value) {
+    openProfilePicker()
+    return
+  }
+  profileQuickFormOpen.value = true
+  loadQuickCityData()
+  openProfilePicker()
 }
 
 function openHomeSidebarNotice() {
@@ -2085,22 +2113,23 @@ function openHomeSidebarNotice() {
 }
 
 function openHomeSidebarFavorites() {
+  homeSidebarActiveSection.value = 'favorites'
+  openHomeSidebar()
   if (!isLoggedIn.value) {
-    closeHomeSidebar()
-    if (typeof window !== 'undefined' && window._openLoginModal) window._openLoginModal()
+    uni.showToast({ title: '登录后可查看收藏', icon: 'none' })
     return
   }
   if (!homeSidebarFavoriteRows.value.length) {
     uni.showToast({ title: '可在历史记录里点星标收藏', icon: 'none' })
     return
   }
-  openHomeSidebar()
 }
 
 function openHomeSidebarHistory() {
+  homeSidebarActiveSection.value = 'history'
+  openHomeSidebar()
   if (!isLoggedIn.value) {
-    closeHomeSidebar()
-    if (typeof window !== 'undefined' && window._openLoginModal) window._openLoginModal()
+    uni.showToast({ title: '登录后可同步历史', icon: 'none' })
     return
   }
   if (!homeSidebarHistoryRows.value.length) {
@@ -2108,7 +2137,6 @@ function openHomeSidebarHistory() {
     uni.showToast({ title: homeSidebarConversationsLoading.value ? '正在加载历史' : '暂无历史对话', icon: 'none' })
     return
   }
-  openHomeSidebar()
 }
 
 function agentSidebarRecordKey(item) {
@@ -2203,6 +2231,8 @@ function closeHomeSidebar() {
 }
 
 function openHomeSidebarSettings() {
+  homeSidebarActiveSection.value = 'settings'
+  closeHomeSidebar()
   openSettingsSheet()
 }
 
@@ -2215,7 +2245,7 @@ function openHomeSidebarSection(eventOrSection) {
     return
   }
   if (section === 'profiles') {
-    openHomeSidebar()
+    openHomeSidebarProfiles()
     return
   }
   if (section === 'favorites') {
@@ -10549,6 +10579,16 @@ onBeforeUnmount(() => {
   justify-content: center;
   font-size: 0.72rem;
   font-weight: 850;
+  border: 1px solid transparent;
+  transition: background .16s ease, color .16s ease, border-color .16s ease, transform .16s ease;
+}
+.home-side-row-add:hover {
+  background: rgba(var(--accent-rgb),0.12);
+  border-color: rgba(var(--accent-rgb),0.18);
+  color: var(--accent);
+}
+.home-side-row-add:active {
+  transform: scale(.94);
 }
 .home-side-sublist {
   margin: 0 0 10px 20px;

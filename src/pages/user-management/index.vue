@@ -113,9 +113,9 @@
             </view>
             <view class="archive-actions">
               <view class="action-row primary-actions">
-                <view class="action-btn primary" @tap="openBazi(profile)">八字</view>
-                <view class="action-btn primary" @tap="openZiwei(profile)">紫微</view>
-                <view class="action-btn accent" @tap="openAgent(profile)">agent</view>
+                <view class="action-btn primary" @tap="openBazi(profile)">看八字</view>
+                <view class="action-btn primary" @tap="openZiwei(profile)">看紫微</view>
+                <view class="action-btn accent" @tap="openAgent(profile)">用此命盘问</view>
               </view>
               <view class="action-row secondary-actions">
                 <view class="action-btn ghost" @tap="openEditForm(profile)">编辑</view>
@@ -504,6 +504,46 @@ function openCreateForm() {
   formOpen.value = true
 }
 
+function queryWantsCreate(query) {
+  const raw = String(query || '').replace(/^\?/, '')
+  if (!raw) return false
+  try {
+    const params = new URLSearchParams(raw)
+    return params.get('action') === 'create' || params.get('new') === '1' || params.get('create') === '1'
+  } catch (_) {
+    return /(?:^|&)(action=create|new=1|create=1)(?:&|$)/.test(raw)
+  }
+}
+
+function currentUserManagementQuery() {
+  let query = ''
+  try {
+    const hash = window.location.hash || ''
+    if (hash.indexOf('/pages/user-management/index') >= 0 && hash.indexOf('?') >= 0) {
+      query = hash.substring(hash.indexOf('?'))
+    }
+  } catch (_) {}
+  if (!query) {
+    try { query = sessionStorage.getItem('_nav_query') || '' } catch (_) {}
+  }
+  return query
+}
+
+function consumeCreateQuery(query) {
+  if (!queryWantsCreate(query)) return
+  try { sessionStorage.removeItem('_nav_query') } catch (_) {}
+  try {
+    if ((window.location.hash || '').indexOf('/pages/user-management/index?') >= 0) {
+      window.history.replaceState({}, '', '#/pages/user-management/index')
+    }
+  } catch (_) {}
+  if (!isLoggedIn.value) {
+    openLogin()
+    return
+  }
+  setTimeout(openCreateForm, 80)
+}
+
 function openEditForm(profile) {
   const parts = birthParts(profile.birthTime)
   editingId.value = profile.id
@@ -633,31 +673,64 @@ function storageProfile(profile) {
   }
 }
 
+function agentProfileHandoff(profile) {
+  return {
+    source: 'profile_card',
+    profile_id: profile.id,
+    profile: storageProfile(profile),
+    paipan: {
+      source: 'profile_card',
+      profile_name: profile.name || '未命名',
+      birth_time: profile.birthTime || '',
+      birth_addr: profile.birthAddr || '',
+    },
+  }
+}
+
 async function touchProfile(profile) {
   try { await uni.request({ url: `/api/profiles/${profile.id}/touch`, method: 'POST' }) } catch (_) {}
 }
 
 function goHash(hash) {
-  if (typeof window !== 'undefined' && window.__topNavGo) window.__topNavGo(hash)
-  else uni.navigateTo({ url: hash.replace('#', '') })
+  const path = String(hash || '').replace(/^#/, '')
+  if (typeof window !== 'undefined') {
+    try {
+      if (window.__topNavGo) window.__topNavGo(hash)
+      else window.location.hash = hash
+    } catch (_) {
+      try { window.location.hash = hash } catch (__) {}
+    }
+    setTimeout(function() {
+      try {
+        if (window.location && window.location.hash !== hash) window.location.hash = hash
+        if (window.__xcRenderTabPath) window.__xcRenderTabPath(path.split('?')[0])
+      } catch (_) {}
+    }, 60)
+    return
+  }
+  uni.navigateTo({ url: path })
 }
 
 async function openBazi(profile) {
   uni.setStorageSync('xc_selected_profile', JSON.stringify(storageProfile(profile)))
   await touchProfile(profile)
+  uni.showToast({ title: '已带入命盘，打开八字', icon: 'none' })
   goHash('#/pages/bazi-index/index?fromProfile=1')
 }
 
 async function openZiwei(profile) {
   uni.setStorageSync('xc_selected_profile', JSON.stringify(storageProfile(profile)))
   await touchProfile(profile)
+  uni.showToast({ title: '已带入命盘，打开紫微', icon: 'none' })
   goHash('#/pages/ziwei/index?fromProfile=1')
 }
 
 async function openAgent(profile) {
   uni.setStorageSync('xc_selected_profile', JSON.stringify(storageProfile(profile)))
   uni.setStorageSync('xc_agent_profile_autoselect', String(profile.id))
+  uni.setStorageSync('xc_agent_handoff_v1', JSON.stringify(agentProfileHandoff(profile)))
   await touchProfile(profile)
+  uni.showToast({ title: '已带入命盘，进入时安agent', icon: 'none' })
   goHash('#/?app=1')
 }
 
@@ -683,15 +756,19 @@ function handleAuthChanged(e) {
 
 onMounted(function() {
   syncAuth(true)
+  consumeCreateQuery(currentUserManagementQuery())
+  try { uni.$on('nav-query', consumeCreateQuery) } catch (_) {}
   try { window.addEventListener('xc-auth-changed', handleAuthChanged) } catch (_) {}
 })
 
 onBeforeUnmount(function() {
+  try { uni.$off('nav-query', consumeCreateQuery) } catch (_) {}
   try { window.removeEventListener('xc-auth-changed', handleAuthChanged) } catch (_) {}
 })
 
 onShow(function() {
   syncAuth(false)
+  consumeCreateQuery(currentUserManagementQuery())
   const savedTheme = uni.getStorageSync('xc_theme')
   if (savedTheme && savedTheme !== theme.value) theme.value = savedTheme
 })
@@ -1080,12 +1157,14 @@ onShow(function() {
   color: var(--text-2);
   font-size: 0.72rem;
   cursor: pointer;
+  white-space: nowrap;
 }
 .action-btn.primary {
   color: var(--accent);
   border-color: color-mix(in srgb, var(--accent) 42%, transparent);
 }
 .action-btn.accent {
+  min-width: 86px;
   color: #fff8ea;
   background: var(--accent);
   border-color: var(--accent);
@@ -1422,24 +1501,24 @@ onShow(function() {
   --section-alt: rgba(30,34,55,0.45);
 }
 [data-theme="light"] {
-  --bg-grad-1: #f7f2ea;
-  --bg-grad-2: #f0ebe1;
-  --bg-grad-3: #f9f5f0;
+  --bg-grad-1: #ffffff;
+  --bg-grad-2: #fafafa;
+  --bg-grad-3: #ffffff;
   --accent: hsl(38, 72%, 30%);
   --accent-glow: hsla(38, 72%, 30%, 0.065);
-  --card-bg: rgba(255,253,248,0.70);
+  --card-bg: rgba(255,255,255,0.70);
   --card-border: rgba(0,0,0,0.055);
   --card-border-hover: rgba(0,0,0,0.09);
   --card-shadow: 0 12px 32px rgba(72, 48, 18, 0.08);
-  --input-bg: rgba(252,248,240,0.78);
+  --input-bg: rgba(255,255,255,0.78);
   --input-border: rgba(0,0,0,0.075);
   --text-1: rgba(20,16,10,0.96);
   --text-2: rgba(70,58,40,0.90);
   --text-3: rgba(100,88,68,0.78);
   --text-4: rgba(120,108,88,0.66);
   --danger: rgba(170,65,50,0.88);
-  --nav-bg: rgba(247,242,234,0.95);
-  --section-alt: rgba(240,235,225,0.55);
+  --nav-bg: rgba(255,255,255,0.95);
+  --section-alt: rgba(247,247,244,0.55);
 }
 @media (max-width: 1080px) {
   .profile-list {
@@ -1797,6 +1876,14 @@ onShow(function() {
     padding: 12px 14px 16px;
     background: var(--bg-grad-1);
     border-top: 1px solid var(--card-border);
+  }
+}
+@media (min-width: 721px) and (max-width: 860px) {
+  .user-page-wrap {
+    width: 100%;
+    box-sizing: border-box;
+    padding-left: 32px;
+    padding-right: 24px;
   }
 }
 </style>

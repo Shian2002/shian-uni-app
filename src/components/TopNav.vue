@@ -315,7 +315,7 @@ function ensureGlobalSidebar() {
     + '</div>'
     + '<div class="agent-sidebar-primary" id="sidebarNewChatBtn" role="button" tabindex="0"><span><span class="agent-rail-icon agent-rail-icon-plus"></span></span><strong>新建对话</strong></div>'
     + '<div class="agent-sidebar-nav">'
-    + '<div class="agent-sidebar-row active" id="sidebarProfilesBtn" role="button" tabindex="0"><span class="agent-sidebar-row-main"><span class="agent-sidebar-row-icon"><span class="agent-rail-icon agent-rail-icon-user"></span></span><strong>命主列表</strong></span><span class="agent-sidebar-row-action">＋</span></div>'
+    + '<div class="agent-sidebar-row active" id="sidebarProfilesBtn" role="button" tabindex="0"><span class="agent-sidebar-row-main"><span class="agent-sidebar-row-icon"><span class="agent-rail-icon agent-rail-icon-user"></span></span><strong>命主列表</strong></span><span class="agent-sidebar-row-action agent-sidebar-profile-add" id="sidebarProfileAddBtn" role="button" tabindex="0" aria-label="新增命主">＋</span></div>'
     + '<div class="agent-sidebar-sublist"><div class="agent-sidebar-subrow selected" id="sidebarProfileSelectBtn" role="button" tabindex="0">选择命主</div></div>'
     + '<div class="agent-sidebar-row" id="sidebarFavoritesBtn" role="button" tabindex="0"><span class="agent-sidebar-row-main"><span class="agent-sidebar-row-icon"><span class="agent-rail-icon agent-rail-icon-star"></span></span><strong>收藏对话</strong></span></div>'
     + '<div class="agent-sidebar-sublist"><div class="agent-sidebar-subrow empty" id="sidebarFavoriteEmptyBtn" role="button" tabindex="0">暂无收藏</div></div>'
@@ -362,6 +362,7 @@ function ensureGlobalSidebar() {
   bindGlobalSidebarClick(sidebar, '#sidebarPanelClose', function() { closeGlobalSidebarPanel() })
   bindGlobalSidebarClick(sidebar, '#sidebarNewChatBtn', function() { openAgentHomeFromSidebar(true) })
   bindGlobalSidebarClick(sidebar, '#sidebarProfilesBtn', function() { goFromGlobalSidebar('#/pages/user-management/index') })
+  bindGlobalSidebarClick(sidebar, '#sidebarProfileAddBtn', function() { goFromGlobalSidebar('#/pages/user-management/index?action=create') })
   bindGlobalSidebarClick(sidebar, '#sidebarProfileSelectBtn', function() { goFromGlobalSidebar('#/pages/user-management/index') })
   bindGlobalSidebarClick(sidebar, '#sidebarFavoritesBtn', function() { openAgentHomeSidebarSection('favorites') })
   bindGlobalSidebarClick(sidebar, '#sidebarFavoriteEmptyBtn', function() { openAgentHomeSidebarSection('favorites') })
