@@ -5383,6 +5383,7 @@ onBeforeUnmount(() => {
   --hero-logo-backdrop: rgba(255,255,255,0.94);
   --hero-logo-backdrop-shadow: 0 16px 46px rgba(34,30,23,0.045), inset 0 1px 0 rgba(255,255,255,0.9);
   --home-sidebar-width: min(300px, 86vw);
+  --home-sidebar-ease: cubic-bezier(.22,.78,.22,1);
   min-height: 100dvh;
 }
 :global(body.home-fixed-page) {
@@ -5419,7 +5420,7 @@ onBeforeUnmount(() => {
   transform: translateX(-100%);
   opacity: 0;
   pointer-events: none;
-  transition: width .15s ease-out, transform .22s ease, opacity .18s ease;
+  transition: width .28s var(--home-sidebar-ease), transform .26s var(--home-sidebar-ease), opacity .2s ease, box-shadow .28s ease, background .28s ease;
 }
 .home-desktop-sidebar.open {
   transform: translateX(0);
@@ -10184,6 +10185,16 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 14px;
   box-sizing: border-box;
+  overflow: hidden;
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    width .28s var(--home-sidebar-ease),
+    flex-basis .28s var(--home-sidebar-ease),
+    padding .28s var(--home-sidebar-ease),
+    opacity .18s ease,
+    transform .28s var(--home-sidebar-ease),
+    border-color .22s ease;
 }
 .home-rail-logo,
 .home-rail-item {
@@ -10411,7 +10422,12 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 14px;
   box-sizing: border-box;
-  transition: opacity .18s ease, transform .22s ease;
+  overflow: hidden;
+  visibility: visible;
+  transition:
+    opacity .22s ease,
+    transform .28s var(--home-sidebar-ease),
+    visibility 0s linear 0s;
 }
 .home-side-head {
   min-height: 36px;
@@ -10442,6 +10458,30 @@ onBeforeUnmount(() => {
 .home-side-head .home-side-logo {
   width: 32px;
   height: 32px;
+  flex: 0 0 32px;
+  padding: 4px;
+  border: 1px solid rgba(var(--accent-rgb),0.12);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.72);
+  box-sizing: border-box;
+}
+.home-side-head .home-side-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  flex: 0 0 32px;
+}
+.home-side-head .home-side-close-icon {
+  width: 19px;
+  height: 18px;
+  border-width: 1.8px;
+  border-radius: 6px;
+}
+.home-side-head .home-side-close-icon view {
+  top: 3px;
+  bottom: 3px;
+  left: 6px;
+  width: 1.8px;
 }
 .home-side-nav {
   display: grid;
@@ -10589,16 +10629,24 @@ onBeforeUnmount(() => {
     width: var(--home-sidebar-width) !important;
   }
   .home-desktop-sidebar.open .home-side-rail {
-    display: none !important;
+    width: 0 !important;
+    flex-basis: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    border-color: transparent !important;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-8px);
   }
   .home-desktop-sidebar:not(.open) .home-side-rail {
     display: flex !important;
   }
   .home-desktop-sidebar:not(.open) .home-side-panel {
-    display: none;
     opacity: 0;
     pointer-events: none;
-    transform: translateX(-8px);
+    transform: translateX(-10px);
+    visibility: hidden;
+    transition-delay: 0s, 0s, .28s;
   }
   .home-desktop-sidebar.open .home-side-panel {
     display: flex;
@@ -10606,21 +10654,30 @@ onBeforeUnmount(() => {
     opacity: 1;
     pointer-events: auto;
     transform: translateX(0);
+    visibility: visible;
+    transition-delay: .06s, .02s, 0s;
   }
   .tool-home-shell .page-wrap {
     width: calc(100vw - var(--home-rail-width)) !important;
     margin-left: var(--home-rail-width) !important;
+    transition: width .28s var(--home-sidebar-ease), margin-left .28s var(--home-sidebar-ease) !important;
   }
   .tool-home-shell :deep(.topnav) {
     padding-left: calc(var(--home-rail-width) + 16px) !important;
+    transition: padding-left .28s var(--home-sidebar-ease), background .18s ease, box-shadow .18s ease !important;
+  }
+  .tool-home-shell .hero-home {
+    transition: padding-left .28s var(--home-sidebar-ease), padding-right .28s var(--home-sidebar-ease) !important;
   }
   .tool-home-shell .home-ai-main {
     left: calc(var(--home-rail-width) + (100vw - var(--home-rail-width)) / 2) !important;
     width: min(960px, calc(100vw - var(--home-rail-width) - 56px)) !important;
+    transition: left .28s var(--home-sidebar-ease), width .28s var(--home-sidebar-ease), border-color .2s ease, box-shadow .2s ease, background .2s ease !important;
   }
   .tool-home-shell .home-question-templates,
   .tool-home-shell .home-ai-console.has-chat {
     width: min(100%, calc(100vw - var(--home-rail-width) - 48px)) !important;
+    transition: width .28s var(--home-sidebar-ease) !important;
   }
   .tool-home-shell .home-artifact-sticky-nav {
     left: calc(var(--home-rail-width) + 18px) !important;
