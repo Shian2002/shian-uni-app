@@ -194,6 +194,7 @@ HUPIJIAO_APPSECRET=你的虎皮椒APPSECRET
 PUBLIC_BASE_URL=https://shianjieyouwu.com
 # 可选：HUPIJIAO_GATEWAY_URL=https://api.xunhupay.com/payment/do.html
 # 可选：HUPIJIAO_QUERY_URL=https://api.xunhupay.com/payment/query.html
+# 可选：HUPIJIAO_REFUND_URL=https://api.xunhupay.com/payment/refund.html
 ```
 
 注意：
@@ -205,6 +206,8 @@ PUBLIC_BASE_URL=https://shianjieyouwu.com
 - 虎皮椒退款回调同样必须先验签、校验订单和金额；重复退款回调应返回 `success`，但不能重复扣积分或 AI 次数。
 - 如果商户后台手动退款没有触发退款回调，线上 `xuan-cet-hupijiao-reconcile.timer` 会每 30 秒查询最近 paid 订单；虎皮椒查询状态为 `CD` 时，自动把本站订单改为 `refunded` 并生成一次 `refund_order:<id>` 扣减流水。
 - 手动核验退款对账可运行：`/opt/xuan-cet/backend/venv/bin/python /opt/xuan-cet/backend/scripts/reconcile_hupijiao_refunds.py --order-id <订单ID> --json`。
+- 用户退款走 `refund_request`：用户在积分中心订单里申请，管理员在运营控制台“退款审核”同意后，后端调用虎皮椒 `payment/refund.html`。返回 `CD` 时立即扣回积分/AI 次数；返回 `RD` 时进入退款中，并由退款对账 timer 收尾；返回失败或用户余额不足时不会先向虎皮椒退款。
+- 退款申请微信提醒复用生产告警变量：`ALERT_WECHAT_WEBHOOK` 和可选 `ALERT_WECHAT_MENTION_MOBILE`。未配置 webhook 时不影响申请入库，只是不发送微信提醒。
 
 改部署脚本、依赖、服务器配置或数据库迁移：
 

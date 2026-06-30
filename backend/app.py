@@ -177,7 +177,7 @@ def add_security_headers(response):
 
 # ═══════ 导入数据模型（必须在 db.init_app 之后） ═══════
 from models import User, Record, UserProfile
-from models import Post, Master, Membership, PointLog, PaidContent, Purchase, RechargeOrder, AdminAuditLog, TarotConversation, LiuyaoConversation, MeihuaConversation, QimenConversation, BaziConversation, ZiweiConversation, ComprehensiveConversation
+from models import Post, Master, Membership, PointLog, PaidContent, Purchase, RechargeOrder, RefundRequest, AdminAuditLog, TarotConversation, LiuyaoConversation, MeihuaConversation, QimenConversation, BaziConversation, ZiweiConversation, ComprehensiveConversation
 from models import MigrationRecord, VerificationCode, RateLimitBucket, AiRun
 from models import BaziRecord
 from ai_runs import start_ai_run, mark_ai_run_running, mark_ai_run_done, mark_ai_run_failed
@@ -359,7 +359,7 @@ def migrate_db():
 
         # 2. 创建新表（如果不存在）
         for tbl in ['user_profile', 'follow_up', 'collection', 'post', 'comment', 'master', 'post_like',
-                     'membership', 'point_log', 'paid_content', 'purchase', 'recharge_order',
+                     'membership', 'point_log', 'paid_content', 'purchase', 'recharge_order', 'refund_request',
                      'admin_audit_log', 'tarot_conversation', 'migration_record', 'verification_code',
                      'rate_limit_bucket', 'ai_run']:
             try:
@@ -638,6 +638,9 @@ def migrate_db():
             ('ix_recharge_order_user_created', 'recharge_order', 'user_id, created_at'),
             ('ix_recharge_order_status_created', 'recharge_order', 'status, created_at'),
             ('ix_recharge_order_payment_reference', 'recharge_order', 'payment_reference'),
+            ('ix_refund_request_order_created', 'refund_request', 'order_id, created_at'),
+            ('ix_refund_request_user_created', 'refund_request', 'user_id, created_at'),
+            ('ix_refund_request_status_created', 'refund_request', 'status, created_at'),
             ('ix_bazi_record_user_pinned_created', 'bazi_record', 'user_id, pinned, created_at'),
             ('ix_tarot_conversation_user_updated', 'tarot_conversation', 'user_id, updated_at'),
             ('ix_liuyao_conversation_user_updated', 'liuyao_conversation', 'user_id, updated_at'),
@@ -3808,6 +3811,7 @@ from qimen_ask_routes import register_qimen_ask_routes
 from recharge_routes import (
     RECHARGE_PACKAGES,
     _hupijiao_sign,
+    approve_refund_request as make_approve_refund_request,
     make_confirm_recharge_order_once,
     make_refund_recharge_order_once,
     register_recharge_routes,
@@ -3820,6 +3824,13 @@ from ziwei_routes import register_ziwei_routes
 _build_one_tool = None
 confirm_recharge_order_once = make_confirm_recharge_order_once(db, get_or_create_membership, add_points)
 refund_recharge_order_once = make_refund_recharge_order_once(db, get_or_create_membership)
+approve_refund_request = lambda request_id, admin_id, admin_note='': make_approve_refund_request(
+    db,
+    refund_recharge_order_once,
+    request_id,
+    admin_id,
+    admin_note,
+)
 register_ops_routes(app)
 register_auth_routes(app, db, {
     'check_rate_limit': _check_rate_limit,
@@ -3936,6 +3947,7 @@ register_admin_routes(app, db, {
     'add_points': add_points,
     'confirm_recharge_order_once': confirm_recharge_order_once,
     'refund_recharge_order_once': refund_recharge_order_once,
+    'approve_refund_request': approve_refund_request,
 })
 register_paid_content_routes(app, db, {
     'use_points': use_points,

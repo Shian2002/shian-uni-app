@@ -262,6 +262,29 @@ class RechargeOrder(db.Model):
     user = db.relationship('User', backref=db.backref('recharge_orders', lazy='dynamic'))
 
 
+class RefundRequest(db.Model):
+    """用户退款申请"""
+    __tablename__ = 'refund_request'
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('recharge_order.id'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    status = db.Column(db.String(20), default='pending', index=True)  # pending/approved/processing/refunded/rejected/failed
+    reason = db.Column(db.String(300), default='')
+    admin_note = db.Column(db.String(300), default='')
+    hupijiao_status = db.Column(db.String(20), default='')
+    hupijiao_response = db.Column(db.Text, default='')
+    notify_sent_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    approved_at = db.Column(db.DateTime)
+    rejected_at = db.Column(db.DateTime)
+    resolved_at = db.Column(db.DateTime)
+    admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
+    user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('refund_requests', lazy='dynamic'))
+    admin = db.relationship('User', foreign_keys=[admin_id])
+    order = db.relationship('RechargeOrder', backref=db.backref('refund_requests', lazy='dynamic'))
+
+
 class AdminAuditLog(db.Model):
     """管理员操作审计"""
     __tablename__ = 'admin_audit_log'

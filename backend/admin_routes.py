@@ -5,13 +5,14 @@ HTTP 接口集中注册，避免继续膨胀 app.py。
 """
 
 import json
+from datetime import datetime
 
 from flask import jsonify, request
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from models import AdminAuditLog, Comment, Membership, Post, RechargeOrder, Report, User
+from models import AdminAuditLog, Comment, Membership, Post, RechargeOrder, RefundRequest, Report, User
 
 
 def _require_admin():
@@ -28,12 +29,14 @@ def register_admin_routes(app, db, services):
       - add_points
       - confirm_recharge_order_once
       - refund_recharge_order_once
+      - approve_refund_request
     """
 
     record_admin_audit = services['record_admin_audit']
     add_points = services['add_points']
     confirm_recharge_order_once = services['confirm_recharge_order_once']
     refund_recharge_order_once = services['refund_recharge_order_once']
+    approve_refund_request = services.get('approve_refund_request')
 
     @app.route('/api/admin/reports')
     @login_required
@@ -179,6 +182,7 @@ def register_admin_routes(app, db, services):
             'hidden_posts': Post.query.filter_by(is_hidden=True).count(),
             'pending_reports': Report.query.filter_by(status='pending').count(),
             'pending_recharge_orders': RechargeOrder.query.filter_by(status='pending').count(),
+            'pending_refund_requests': RefundRequest.query.filter_by(status='pending').count(),
         })
 
     @app.route('/api/admin/users')
@@ -299,6 +303,115 @@ def register_admin_routes(app, db, services):
             })
 
         return jsonify({'orders': items, 'total': pagination.total, 'page': page, 'has_next': pagination.has_next})
+
+    @app.route('/api/admin/refund-requests')
+    @login_required
+    def api_admin_refund_requests():
+        """管理员：退款申请列表"""
+        denied = _require_admin()
+        if denied:
+            return denied
+
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 20, type=int), 50)
+        status = (request.args.get('status') or 'pending').strip()
+
+        query = RefundRequest.query
+        if status in ('pending', 'approved', 'processing', 'refunded', 'rejected', 'failed'):
+            query = query.filter_by(status=status)
+        elif status == 'active':
+            query = query.filter(RefundRequest.status.in_(('pending', 'approved', 'processing', 'failed')))
+
+        pagination = query.order_by(RefundRequest.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+        items = []
+        for item in pagination.items:
+            order = item.order
+            user = item.user
+            items.append({
+                'id': item.id,
+                'order_id': item.order_id,
+                'user_id': item.user_id,
+                'username': user.username if user else '匿名',
+                'status': item.status,
+                'reason': item.reason or '',
+                'admin_note': item.admin_note or '',
+                'hupijiao_status': item.hupijiao_status or '',
+                'package_name': order.package_name if order else '',
+                'points_amount': order.points if order else 0,
+                'price': order.amount if order else 0,
+                'pay_method': order.pay_method if order else '',
+                'payment_reference': order.payment_reference if order else '',
+                'order_status': order.status if order else '',
+                'created_at': item.created_at.isoformat() if item.created_at else None,
+                'updated_at': item.updated_at.isoformat() if item.updated_at else None,
+                'approved_at': item.approved_at.isoformat() if item.approved_at else None,
+                'rejected_at': item.rejected_at.isoformat() if item.rejected_at else None,
+                'resolved_at': item.resolved_at.isoformat() if item.resolved_at else None,
+            })
+
+        return jsonify({'requests': items, 'total': pagination.total, 'page': page, 'has_next': pagination.has_next})
+
+    @app.route('/api/admin/refund-requests/<int:request_id>/approve', methods=['POST'])
+    @login_required
+    def api_admin_refund_request_approve(request_id):
+        """管理员同意退款：调用虎皮椒退款 API。"""
+        denied = _require_admin()
+        if denied:
+            return denied
+        if approve_refund_request is None:
+            return jsonify({'error': '退款审批服务未配置'}), 503
+
+        data = request.get_json(silent=True) or {}
+        admin_note = (data.get('admin_note') or '').strip()[:300]
+        result = approve_refund_request(request_id, current_user.id, admin_note)
+        if not result.get('ok'):
+            status_code = 404 if result.get('status') is None else 400
+            return jsonify(result), status_code
+        request_payload = result.get('request') or {}
+        record_admin_audit(
+            'refund_approve',
+            'refund_request',
+            request_id,
+            {
+                'order_id': request_payload.get('order_id'),
+                'user_id': request_payload.get('user_id'),
+                'status': result.get('status'),
+                'admin_note': admin_note,
+            },
+        )
+        db.session.commit()
+        return jsonify(result)
+
+    @app.route('/api/admin/refund-requests/<int:request_id>/reject', methods=['POST'])
+    @login_required
+    def api_admin_refund_request_reject(request_id):
+        """管理员驳回退款申请。"""
+        denied = _require_admin()
+        if denied:
+            return denied
+
+        refund_request = db.session.get(RefundRequest, request_id)
+        if not refund_request:
+            return jsonify({'error': '退款申请不存在'}), 404
+        if refund_request.status not in ('pending', 'failed'):
+            return jsonify({'error': '退款申请状态不可驳回', 'status': refund_request.status}), 400
+
+        data = request.get_json(silent=True) or {}
+        admin_note = (data.get('admin_note') or '').strip()[:300]
+        refund_request.status = 'rejected'
+        refund_request.admin_id = current_user.id
+        refund_request.admin_note = admin_note
+        now = datetime.utcnow()
+        refund_request.rejected_at = now
+        refund_request.resolved_at = now
+        record_admin_audit(
+            'refund_reject',
+            'refund_request',
+            request_id,
+            {'order_id': refund_request.order_id, 'user_id': refund_request.user_id, 'admin_note': admin_note},
+        )
+        db.session.commit()
+        return jsonify({'ok': True})
 
     @app.route('/api/admin/audit-logs')
     @login_required

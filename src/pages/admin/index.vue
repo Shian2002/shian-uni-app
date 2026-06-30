@@ -12,7 +12,7 @@
         </view>
         <view class="admin-head-actions">
           <button class="admin-icon-btn" @click="refreshAll" title="刷新">↻</button>
-          <button class="admin-primary" @click="activeTab = 'recharge'">处理充值</button>
+          <button class="admin-primary" @click="switchTab('refunds')">处理退款</button>
         </view>
       </section>
 
@@ -41,6 +41,10 @@
             <text class="metric-label">待确认充值</text>
             <text class="metric-value">{{ summary.pending_recharge_orders }}</text>
           </view>
+          <view class="metric-tile warn">
+            <text class="metric-label">待审退款</text>
+            <text class="metric-value">{{ summary.pending_refund_requests }}</text>
+          </view>
         </section>
 
         <section class="admin-tabs">
@@ -48,6 +52,7 @@
           <button :class="{ active: activeTab === 'posts' }" @click="switchTab('posts')">帖子管理</button>
           <button :class="{ active: activeTab === 'users' }" @click="switchTab('users')">用户积分</button>
           <button :class="{ active: activeTab === 'recharge' }" @click="switchTab('recharge')">充值订单</button>
+          <button :class="{ active: activeTab === 'refunds' }" @click="switchTab('refunds')">退款审核</button>
           <button :class="{ active: activeTab === 'audit' }" @click="switchTab('audit')">操作审计</button>
           <button :class="{ active: activeTab === 'security' }" @click="switchTab('security')">账号安全</button>
         </section>
@@ -195,6 +200,49 @@
           </view>
         </section>
 
+        <section class="admin-panel" v-if="activeTab === 'refunds'">
+          <view class="panel-head">
+            <view>
+              <view class="panel-title">退款审核</view>
+              <view class="panel-sub">用户申请后先人工审核，同意后由系统调用虎皮椒退款 API</view>
+            </view>
+            <select v-model="refundStatus" @change="loadRefundRequests" class="admin-select">
+              <option value="pending">待审核</option>
+              <option value="processing">退款中</option>
+              <option value="failed">失败</option>
+              <option value="refunded">已退款</option>
+              <option value="rejected">已驳回</option>
+              <option value="all">全部</option>
+            </select>
+          </view>
+          <view class="table-list">
+            <view class="table-row refund-row table-head">
+              <text>申请</text><text>用户</text><text>订单</text><text>原因</text><text>状态</text><text>操作</text>
+            </view>
+            <view class="table-row refund-row" v-for="r in refundRequests" :key="r.id">
+              <view class="time-cell">
+                <text>#{{ r.id }}</text>
+                <text>{{ formatTime(r.created_at) }}</text>
+              </view>
+              <text>{{ r.username }} (#{{ r.user_id }})</text>
+              <view class="time-cell">
+                <text>#{{ r.order_id }} · {{ r.package_name }}</text>
+                <text>¥{{ r.price }} · {{ r.points_amount }} 分</text>
+              </view>
+              <text class="title-cell">{{ r.reason || '未填写' }}</text>
+              <view class="time-cell">
+                <text>{{ refundStatusLabel(r.status) }}</text>
+                <text v-if="r.hupijiao_status">虎皮椒 {{ r.hupijiao_status }}</text>
+              </view>
+              <view class="row-actions">
+                <button class="mini-btn danger" v-if="r.status === 'pending' || r.status === 'failed'" @click="approveRefund(r)">同意退款</button>
+                <button class="mini-btn" v-if="r.status === 'pending' || r.status === 'failed'" @click="rejectRefund(r)">驳回</button>
+              </view>
+            </view>
+            <view class="empty-line" v-if="!refundRequests.length">暂无退款申请</view>
+          </view>
+        </section>
+
         <section class="admin-panel" v-if="activeTab === 'audit'">
           <view class="panel-head">
             <view>
@@ -247,8 +295,16 @@ const toggleTheme = inject('toggleTheme', function() {})
 const isLoggedIn = ref(false)
 const isAdmin = ref(false)
 const authLoading = ref(true)
-const activeTab = ref('reports')
-const summary = ref({ users: 0, posts: 0, hidden_posts: 0, pending_reports: 0, pending_recharge_orders: 0 })
+function initialAdminTab() {
+  try {
+    var href = String(window.location.href || '')
+    if (href.indexOf('tab=refunds') >= 0) return 'refunds'
+  } catch(_) {}
+  return 'reports'
+}
+
+const activeTab = ref(initialAdminTab())
+const summary = ref({ users: 0, posts: 0, hidden_posts: 0, pending_reports: 0, pending_recharge_orders: 0, pending_refund_requests: 0 })
 
 const reports = ref([])
 const reportStatus = ref('pending')
@@ -262,6 +318,8 @@ const hasMoreUsers = ref(false)
 const userQuery = ref('')
 const rechargeOrders = ref([])
 const rechargeStatus = ref('pending')
+const refundRequests = ref([])
+const refundStatus = ref('pending')
 const auditLogs = ref([])
 const oldPassword = ref('')
 const newPassword = ref('')
@@ -276,7 +334,7 @@ function resetAdminSessionState() {
   isLoggedIn.value = false
   isAdmin.value = false
   authLoading.value = false
-  summary.value = { users: 0, posts: 0, hidden_posts: 0, pending_reports: 0, pending_recharge_orders: 0 }
+  summary.value = { users: 0, posts: 0, hidden_posts: 0, pending_reports: 0, pending_recharge_orders: 0, pending_refund_requests: 0 }
   reports.value = []
   posts.value = []
   users.value = []
@@ -284,6 +342,7 @@ function resetAdminSessionState() {
   userTotal.value = 0
   hasMoreUsers.value = false
   rechargeOrders.value = []
+  refundRequests.value = []
   auditLogs.value = []
   oldPassword.value = ''
   newPassword.value = ''
@@ -333,7 +392,18 @@ function statusLabel(status) {
 }
 
 function orderStatusLabel(status) {
-  return { pending: '待确认', paid: '已到账', cancelled: '已取消' }[status] || status
+  return { pending: '待确认', paid: '已到账', refunded: '已退款', cancelled: '已取消' }[status] || status
+}
+
+function refundStatusLabel(status) {
+  return {
+    pending: '待审核',
+    approved: '已同意',
+    processing: '退款中',
+    refunded: '已退款',
+    rejected: '已驳回',
+    failed: '失败'
+  }[status] || status
 }
 
 function auditActionLabel(action) {
@@ -345,6 +415,9 @@ function auditActionLabel(action) {
     post_hide: '隐藏变更',
     points_add: '手动加分',
     recharge_confirm: '确认充值',
+    recharge_refund: '手动退积分',
+    refund_approve: '同意退款',
+    refund_reject: '驳回退款',
     admin_password_change: '修改密码'
   }[action] || action
 }
@@ -471,6 +544,11 @@ async function loadRechargeOrders() {
   rechargeOrders.value = data.orders || []
 }
 
+async function loadRefundRequests() {
+  const data = await request('/api/admin/refund-requests?status=' + encodeURIComponent(refundStatus.value))
+  refundRequests.value = data.requests || []
+}
+
 async function loadAuditLogs() {
   const data = await request('/api/admin/audit-logs')
   auditLogs.value = data.logs || []
@@ -508,6 +586,41 @@ async function changeAdminPassword() {
   }
 }
 
+async function approveRefund(item) {
+  const note = window.prompt ? window.prompt('确认调用虎皮椒退款 API？可填写备注', '') : ''
+  if (note === null) return
+  const data = await request('/api/admin/refund-requests/' + item.id + '/approve', {
+    method: 'POST',
+    data: { admin_note: note || '' }
+  })
+  if (data.ok) {
+    toast(data.status === 'processing' ? '退款已提交' : '已退款并回退积分', 'success')
+    await loadRefundRequests()
+    await loadSummary()
+    await loadAuditLogs()
+  } else {
+    toast(data.error || '退款失败')
+    await loadRefundRequests()
+  }
+}
+
+async function rejectRefund(item) {
+  const note = window.prompt ? window.prompt('请输入驳回原因', '') : ''
+  if (note === null) return
+  const data = await request('/api/admin/refund-requests/' + item.id + '/reject', {
+    method: 'POST',
+    data: { admin_note: note || '' }
+  })
+  if (data.ok) {
+    toast('已驳回', 'success')
+    await loadRefundRequests()
+    await loadSummary()
+    await loadAuditLogs()
+  } else {
+    toast(data.error || '操作失败')
+  }
+}
+
 async function confirmOrder(id) {
   const data = await request('/api/admin/confirm-recharge', { method: 'POST', data: { order_id: id } })
   if (data.ok) {
@@ -531,6 +644,7 @@ async function switchTab(tab) {
   if (tab === 'posts') await loadPosts()
   if (tab === 'users') await loadUsers()
   if (tab === 'recharge') await loadRechargeOrders()
+  if (tab === 'refunds') await loadRefundRequests()
   if (tab === 'audit') await loadAuditLogs()
 }
 
@@ -677,7 +791,7 @@ onBeforeUnmount(function() {
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -828,6 +942,11 @@ onBeforeUnmount(function() {
 .table-row.order-row {
   grid-template-columns: 0.5fr 1.3fr 1.3fr 0.7fr 1.45fr 0.75fr 1fr;
   min-width: 1040px;
+}
+
+.table-row.refund-row {
+  grid-template-columns: 0.75fr 1.1fr 1.4fr 1.4fr 0.85fr 1.4fr;
+  min-width: 1080px;
 }
 
 .table-row.audit-row {

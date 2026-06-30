@@ -16,7 +16,7 @@ from flask_login import current_user, login_required
 from sqlalchemy.exc import IntegrityError
 
 from extensions import csrf
-from models import Membership, PointLog, RechargeOrder
+from models import Membership, PointLog, RechargeOrder, RefundRequest
 
 logger = logging.getLogger('xuancetai')
 
@@ -34,9 +34,11 @@ RECHARGE_PACKAGES = [
 
 HUPIJIAO_GATEWAY_URL = os.environ.get('HUPIJIAO_GATEWAY_URL', 'https://api.xunhupay.com/payment/do.html')
 HUPIJIAO_QUERY_URL = os.environ.get('HUPIJIAO_QUERY_URL', 'https://api.xunhupay.com/payment/query.html')
+HUPIJIAO_REFUND_URL = os.environ.get('HUPIJIAO_REFUND_URL', 'https://api.xunhupay.com/payment/refund.html')
 HUPIJIAO_TRADE_PREFIX = 'XC'
 RECHARGE_PENDING_EXPIRE_SECONDS = int(os.environ.get('RECHARGE_PENDING_EXPIRE_SECONDS', '1800'))
 RECHARGE_CREATE_RATE_SECONDS = int(os.environ.get('RECHARGE_CREATE_RATE_SECONDS', '10'))
+REFUND_REQUEST_ACTIVE_STATUSES = ('pending', 'approved', 'processing', 'refunded')
 
 
 def _amount_decimal(value):
@@ -95,6 +97,7 @@ def _hupijiao_config():
     public_base_url = os.environ.get('PUBLIC_BASE_URL', '').strip().rstrip('/')
     gateway_url = os.environ.get('HUPIJIAO_GATEWAY_URL', HUPIJIAO_GATEWAY_URL).strip() or HUPIJIAO_GATEWAY_URL
     query_url = os.environ.get('HUPIJIAO_QUERY_URL', HUPIJIAO_QUERY_URL).strip() or HUPIJIAO_QUERY_URL
+    refund_url = os.environ.get('HUPIJIAO_REFUND_URL', HUPIJIAO_REFUND_URL).strip() or HUPIJIAO_REFUND_URL
     missing = []
     if not enabled:
         missing.append('HUPIJIAO_ENABLED')
@@ -111,6 +114,7 @@ def _hupijiao_config():
         'public_base_url': public_base_url,
         'gateway_url': gateway_url,
         'query_url': query_url,
+        'refund_url': refund_url,
         'missing': missing,
     }
 
@@ -195,6 +199,31 @@ def _post_hupijiao_query(query_url, payload, timeout=10):
     return json.loads(raw)
 
 
+def _build_hupijiao_refund_payload(config, order, reason):
+    payload = {
+        'appid': config['appid'],
+        'trade_order_id': _hupijiao_trade_order_id(order.id),
+        'reason': (reason or '用户申请退款')[:120],
+        'time': str(int(time.time())),
+        'nonce_str': secrets.token_hex(16),
+    }
+    payload['hash'] = _hupijiao_sign(payload, config['appsecret'])
+    return payload
+
+
+def _post_hupijiao_refund(refund_url, payload, timeout=15):
+    body = urlparse.urlencode(payload).encode('utf-8')
+    req = urlrequest.Request(
+        refund_url,
+        data=body,
+        headers={'Content-Type': 'application/x-www-form-urlencoded'},
+        method='POST',
+    )
+    with urlrequest.urlopen(req, timeout=timeout) as resp:
+        raw = resp.read().decode('utf-8', errors='replace')
+    return json.loads(raw)
+
+
 def _verify_hupijiao_hash(data, appsecret):
     expected = (data.get('hash') or '').strip().lower()
     if not expected:
@@ -258,6 +287,235 @@ def query_hupijiao_order(config, order):
         'reference': _hupijiao_query_reference(data),
         'data': data,
     }
+
+
+def _hupijiao_refund_status(result):
+    data = result.get('data') if isinstance(result, dict) else {}
+    if not isinstance(data, dict):
+        data = {}
+    return (result.get('refund_status') or data.get('refund_status') or data.get('status') or '').strip()
+
+
+def _hupijiao_refund_reference(result, order):
+    data = result.get('data') if isinstance(result, dict) else {}
+    if not isinstance(data, dict):
+        data = {}
+    return (
+        data.get('transaction_id')
+        or result.get('transaction_id')
+        or data.get('open_order_id')
+        or result.get('open_order_id')
+        or order.payment_reference
+        or _hupijiao_trade_order_id(order.id)
+        or ''
+    )[:120]
+
+
+def _safe_hupijiao_response(result):
+    try:
+        return json.dumps(result or {}, ensure_ascii=False, sort_keys=True)[:4000]
+    except TypeError:
+        return json.dumps({'raw': str(result)[:1000]}, ensure_ascii=False)
+
+
+def request_hupijiao_refund(config, order, reason):
+    payload = _build_hupijiao_refund_payload(config, order, reason)
+    result = _post_hupijiao_refund(config['refund_url'], payload)
+    errcode = int(result.get('errcode') or 0)
+    status = _hupijiao_refund_status(result)
+    return {
+        'ok': errcode == 0,
+        'errcode': errcode,
+        'error': result.get('errmsg') or '',
+        'refund_status': status,
+        'reference': _hupijiao_refund_reference(result, order),
+        'response': result,
+    }
+
+
+def _refund_request_to_dict(refund_request):
+    order = refund_request.order
+    user = refund_request.user
+    return {
+        'id': refund_request.id,
+        'order_id': refund_request.order_id,
+        'user_id': refund_request.user_id,
+        'username': user.username if user else '',
+        'status': refund_request.status,
+        'reason': refund_request.reason or '',
+        'admin_note': refund_request.admin_note or '',
+        'hupijiao_status': refund_request.hupijiao_status or '',
+        'package_name': order.package_name if order else '',
+        'points_amount': order.points if order else 0,
+        'price': order.amount if order else 0,
+        'pay_method': order.pay_method if order else '',
+        'payment_reference': order.payment_reference if order else '',
+        'order_status': order.status if order else '',
+        'created_at': refund_request.created_at.isoformat() if refund_request.created_at else None,
+        'updated_at': refund_request.updated_at.isoformat() if refund_request.updated_at else None,
+        'approved_at': refund_request.approved_at.isoformat() if refund_request.approved_at else None,
+        'rejected_at': refund_request.rejected_at.isoformat() if refund_request.rejected_at else None,
+        'resolved_at': refund_request.resolved_at.isoformat() if refund_request.resolved_at else None,
+    }
+
+
+def _check_order_refund_balance(order):
+    pkg = next((p for p in RECHARGE_PACKAGES if p['id'] == order.package_id), None)
+    membership = Membership.query.filter_by(user_id=order.user_id).first()
+    if pkg and pkg.get('package_type') == 'ai':
+        single = int(pkg.get('ai_single_credits') or 0)
+        combo = int(pkg.get('ai_combo_credits') or 0)
+        current_single = int(getattr(membership, 'ai_single_credits', 0) or 0)
+        current_combo = int(getattr(membership, 'ai_combo_credits', 0) or 0)
+        if current_single < single or current_combo < combo:
+            return {
+                'ok': False,
+                'error': 'AI 次数已使用，暂不能自动退款',
+                'credit_type': 'ai',
+                'required': {'single': single, 'combo': combo},
+                'current': {'single': current_single, 'combo': current_combo},
+            }
+        return {'ok': True, 'credit_type': 'ai'}
+
+    required_points = int(order.points or 0)
+    current_points = int(getattr(membership, 'points', 0) or 0)
+    if current_points < required_points:
+        return {
+            'ok': False,
+            'error': '积分余额不足，暂不能自动退款',
+            'credit_type': 'points',
+            'required': required_points,
+            'current': current_points,
+        }
+    return {'ok': True, 'credit_type': 'points'}
+
+
+def _send_refund_request_notice(refund_request):
+    webhook = os.environ.get('ALERT_WECHAT_WEBHOOK', '').strip()
+    if not webhook:
+        return False, '微信机器人 webhook 未配置'
+    public_base_url = os.environ.get('PUBLIC_BASE_URL', '').strip().rstrip('/')
+    order = refund_request.order
+    user = refund_request.user
+    admin_url = f"{public_base_url}/#/pages/admin/index?tab=refunds&request_id={refund_request.id}" if public_base_url else ''
+    content = '\n'.join([
+        '[时安解忧屋] 新退款申请',
+        f"申请 #{refund_request.id} / 订单 #{refund_request.order_id}",
+        f"用户: {(user.username if user else '未知')} (ID {refund_request.user_id})",
+        f"套餐: {(order.package_name if order else '')} / ¥{(order.amount if order else 0)}",
+        f"积分/次数: {(order.points if order else 0)}",
+        f"原因: {refund_request.reason or '未填写'}",
+        f"处理: {admin_url or '请进入运营控制台退款审核'}",
+    ])
+    text_payload = {'content': content}
+    mobiles = [
+        item.strip()
+        for item in os.environ.get('ALERT_WECHAT_MENTION_MOBILE', '').split(',')
+        if item.strip()
+    ]
+    if mobiles:
+        text_payload['mentioned_mobile_list'] = mobiles
+    body = json.dumps({'msgtype': 'text', 'text': text_payload}, ensure_ascii=False).encode('utf-8')
+    req = urlrequest.Request(
+        webhook,
+        data=body,
+        headers={'Content-Type': 'application/json'},
+        method='POST',
+    )
+    try:
+        with urlrequest.urlopen(req, timeout=8) as resp:
+            raw = resp.read().decode('utf-8', errors='replace')
+        data = json.loads(raw) if raw else {}
+        if int(data.get('errcode') or 0) == 0:
+            return True, ''
+        return False, data.get('errmsg') or raw[:120]
+    except Exception as exc:
+        return False, str(exc)
+
+
+def approve_refund_request(db, refund_recharge_order_once, refund_request_id, admin_id, admin_note=''):
+    refund_request = db.session.get(RefundRequest, int(refund_request_id))
+    if not refund_request:
+        return {'ok': False, 'error': '退款申请不存在', 'status': None}
+    if refund_request.status not in ('pending', 'failed'):
+        return {'ok': False, 'error': '退款申请状态不可审批', 'status': refund_request.status}
+
+    order = refund_request.order
+    if not order:
+        return {'ok': False, 'error': '充值订单不存在', 'status': refund_request.status}
+    if order.status != 'paid':
+        return {'ok': False, 'error': '订单不是已支付状态', 'status': order.status}
+    if order.pay_method != 'hupijiao':
+        return {'ok': False, 'error': '仅支持虎皮椒订单自动退款', 'status': order.pay_method}
+
+    balance = _check_order_refund_balance(order)
+    if not balance.get('ok'):
+        refund_request.hupijiao_status = 'blocked'
+        refund_request.admin_note = admin_note or refund_request.admin_note
+        refund_request.updated_at = datetime.utcnow()
+        db.session.commit()
+        return {'ok': False, 'error': balance.get('error'), 'status': refund_request.status, 'balance': balance}
+
+    config = _hupijiao_config()
+    if config['missing']:
+        return {'ok': False, 'error': '虎皮椒支付暂未配置', 'missing': config['missing']}
+
+    now = datetime.utcnow()
+    refund_request.status = 'approved'
+    refund_request.admin_id = admin_id
+    refund_request.admin_note = admin_note or ''
+    refund_request.approved_at = now
+    refund_request.updated_at = now
+    db.session.commit()
+
+    try:
+        remote = request_hupijiao_refund(config, order, refund_request.reason or admin_note or '用户申请退款')
+    except Exception as exc:
+        refund_request.status = 'failed'
+        refund_request.hupijiao_status = 'request_error'
+        refund_request.hupijiao_response = json.dumps({'error': str(exc)}, ensure_ascii=False)[:4000]
+        refund_request.updated_at = datetime.utcnow()
+        db.session.commit()
+        logger.warning("虎皮椒退款 API 请求异常: request_id=%s order_id=%s error=%s", refund_request.id, order.id, exc)
+        return {'ok': False, 'error': '虎皮椒退款请求失败', 'detail': str(exc)}
+
+    refund_status = remote.get('refund_status') or ''
+    refund_request.hupijiao_status = refund_status
+    refund_request.hupijiao_response = _safe_hupijiao_response(remote.get('response'))
+
+    if not remote.get('ok'):
+        refund_request.status = 'failed'
+        refund_request.updated_at = datetime.utcnow()
+        db.session.commit()
+        return {'ok': False, 'error': remote.get('error') or '虎皮椒退款失败', 'status': refund_status}
+
+    if refund_status == 'CD':
+        result = refund_recharge_order_once(order.id, {
+            'refund_reference': remote.get('reference') or order.payment_reference or f'hupijiao-refund:{order.id}',
+            'refund_proof': _safe_hupijiao_response(remote.get('response')),
+            'refunded_at': datetime.utcnow(),
+        })
+        if not result.get('ok') and result.get('status') != 'refunded':
+            refund_request.status = 'failed'
+            refund_request.updated_at = datetime.utcnow()
+            db.session.commit()
+            return {'ok': False, 'error': result.get('error') or '本站积分回退失败', 'status': result.get('status')}
+        refund_request.status = 'refunded'
+        refund_request.resolved_at = datetime.utcnow()
+        refund_request.updated_at = refund_request.resolved_at
+        db.session.commit()
+        return {'ok': True, 'status': 'refunded', 'request': _refund_request_to_dict(refund_request), 'refund': result}
+
+    if refund_status == 'RD':
+        refund_request.status = 'processing'
+        refund_request.updated_at = datetime.utcnow()
+        db.session.commit()
+        return {'ok': True, 'status': 'processing', 'request': _refund_request_to_dict(refund_request)}
+
+    refund_request.status = 'failed'
+    refund_request.updated_at = datetime.utcnow()
+    db.session.commit()
+    return {'ok': False, 'error': remote.get('error') or f'虎皮椒退款状态异常: {refund_status or "unknown"}', 'status': refund_status}
 
 
 def reconcile_hupijiao_refunds(
@@ -331,6 +589,16 @@ def reconcile_hupijiao_refunds(
             'refunded_at': datetime.utcnow(),
         })
         if result.get('ok') or result.get('status') == 'refunded':
+            related_request = RefundRequest.query.filter(
+                RefundRequest.order_id == order.id,
+                RefundRequest.status.in_(('pending', 'approved', 'processing', 'failed')),
+            ).order_by(RefundRequest.id.desc()).first()
+            if related_request:
+                related_request.status = 'refunded'
+                related_request.hupijiao_status = 'CD'
+                related_request.resolved_at = datetime.utcnow()
+                related_request.updated_at = related_request.resolved_at
+                db.session.commit()
             logger.info(
                 "虎皮椒退款对账回退成功: order_id=%s user_id=%s refunded=%s credit_type=%s reference=%s",
                 order.id,
@@ -676,6 +944,52 @@ def register_recharge_routes(app, db, services):
         """历史截图充值接口已停用，积分中心只保留虎皮椒支付。"""
         return jsonify({'error': '支付宝截图充值已停用，请使用虎皮椒支付'}), 410
 
+    @app.route('/api/recharge/orders/<int:order_id>/refund-request', methods=['POST'])
+    @login_required
+    def api_recharge_refund_request(order_id):
+        """用户对自己的虎皮椒已支付订单发起退款申请。"""
+        order = RechargeOrder.query.filter_by(id=order_id, user_id=current_user.id).first()
+        if not order:
+            return jsonify({'error': '订单不存在'}), 404
+        if order.pay_method != 'hupijiao':
+            return jsonify({'error': '当前仅支持虎皮椒订单申请退款'}), 400
+        if order.status != 'paid':
+            return jsonify({'error': '只有已支付订单可以申请退款', 'status': order.status}), 400
+
+        active_request = RefundRequest.query.filter(
+            RefundRequest.order_id == order.id,
+            RefundRequest.status.in_(REFUND_REQUEST_ACTIVE_STATUSES),
+        ).order_by(RefundRequest.id.desc()).first()
+        if active_request:
+            return jsonify({
+                'error': '该订单已有退款申请',
+                'request': _refund_request_to_dict(active_request),
+            }), 409
+
+        balance = _check_order_refund_balance(order)
+        if not balance.get('ok'):
+            return jsonify({'error': balance.get('error'), 'balance': balance}), 409
+
+        data = request.get_json(silent=True) or {}
+        reason = (data.get('reason') or '').strip()[:300]
+        refund_request = RefundRequest(
+            order_id=order.id,
+            user_id=current_user.id,
+            reason=reason,
+            status='pending',
+        )
+        db.session.add(refund_request)
+        db.session.commit()
+
+        sent, notify_error = _send_refund_request_notice(refund_request)
+        if sent:
+            refund_request.notify_sent_at = datetime.utcnow()
+            db.session.commit()
+        elif notify_error:
+            logger.warning("退款申请微信提醒失败: request_id=%s error=%s", refund_request.id, notify_error)
+
+        return jsonify({'ok': True, 'request': _refund_request_to_dict(refund_request), 'notify_sent': bool(sent)})
+
     @app.route('/api/recharge/orders', methods=['GET'])
     @login_required
     def api_recharge_orders():
@@ -692,6 +1006,10 @@ def register_recharge_routes(app, db, services):
             'status': o.status,
             'pay_method': o.pay_method,
             'payment_reference': o.payment_reference or '',
+            'refund_request': (
+                _refund_request_to_dict(o.refund_requests.order_by(RefundRequest.id.desc()).first())
+                if o.refund_requests.count() else None
+            ),
             'created_at': o.created_at.isoformat() if o.created_at else None,
             'paid_at': o.updated_at.isoformat() if o.status == 'paid' and o.updated_at else None,
         } for o in pagination.items]

@@ -189,6 +189,19 @@
             </view>
             <view class="dp-pager" id="dpPager"></view>
           </view>
+
+          <view class="section order-section">
+            <view class="section-head ledger-head">
+              <view>
+                <view class="section-title">充值订单</view>
+                <view class="section-subtitle">查看到账和退款申请状态</view>
+              </view>
+              <view class="btn btn-outline order-refresh-btn" @click="loadOrders">刷新</view>
+            </view>
+            <view id="rechargeOrderList">
+              <view class="log-empty">登录后查看充值订单</view>
+            </view>
+          </view>
         </view>
       </view>
     </view>
@@ -288,6 +301,7 @@ export default {
 
     var dpFilter = 'all'
     var dpLogs = []
+    var rechargeOrders = []
     var dpPage = 1
     var dpPerPage = 5
     var currentPackage = null
@@ -309,6 +323,7 @@ export default {
     function resetPointsSessionState() {
       isLoggedIn.value = false
       dpLogs = []
+      rechargeOrders = []
       dpPage = 1
       dpFilter = 'all'
       currentPackage = null
@@ -332,6 +347,8 @@ export default {
         if (pointsEl) pointsEl.textContent = '--'
         if (levelEl) levelEl.textContent = ''
         if (logEl) logEl.innerHTML = '<view class="log-empty">登录后查看积分账本</view>'
+        var orderEl = document.getElementById('rechargeOrderList')
+        if (orderEl) orderEl.innerHTML = '<view class="log-empty">登录后查看充值订单</view>'
         if (pagerEl) pagerEl.innerHTML = ''
         if (signBtn) signBtn.classList.remove('signed')
         if (signText) signText.textContent = '每日签到'
@@ -352,7 +369,17 @@ export default {
         isLoggedIn.value = true
         loadPoints()
         loadLogs()
+        loadOrders()
       }
+    }
+
+    function escapeHtml(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
     }
 
     function renderDpLogs() {
@@ -437,6 +464,99 @@ export default {
           var d = res.data
           dpLogs = (d && d.logs) || []
           renderDpLogs()
+        }
+      })
+    }
+
+    function orderStatusText(status) {
+      return { pending: '待支付', paid: '已到账', refunded: '已退款', cancelled: '已取消' }[status] || status || '--'
+    }
+
+    function refundRequestText(req) {
+      if (!req) return ''
+      return {
+        pending: '退款待审核',
+        approved: '已同意退款',
+        processing: '退款处理中',
+        refunded: '已退款',
+        rejected: '退款已驳回',
+        failed: '退款失败'
+      }[req.status] || req.status || ''
+    }
+
+    function canRequestRefund(order) {
+      if (!order || order.status !== 'paid') return false
+      var req = order.refund_request
+      if (!req) return true
+      return ['rejected', 'failed'].indexOf(req.status) >= 0
+    }
+
+    function renderRechargeOrders() {
+      var el = document.getElementById('rechargeOrderList')
+      if (!el) return
+      if (!isLoggedIn.value) {
+        el.innerHTML = '<view class="log-empty">登录后查看充值订单</view>'
+        return
+      }
+      if (!rechargeOrders.length) {
+        el.innerHTML = '<view class="log-empty">暂无充值订单</view>'
+        return
+      }
+      var h = '<view class="order-list">'
+      rechargeOrders.forEach(function(order) {
+        var date = order.created_at ? order.created_at.substring(0, 16).replace('T', ' ') : ''
+        var reqText = refundRequestText(order.refund_request)
+        h += '<view class="order-item">'
+          + '<view class="order-left">'
+          + '<text class="order-title">#' + order.id + ' · ¥' + escapeHtml(order.price) + ' · ' + escapeHtml(orderStatusText(order.status)) + '</text>'
+          + '<text class="order-meta">' + escapeHtml(date) + (reqText ? ' · ' + escapeHtml(reqText) : '') + '</text>'
+          + '</view>'
+        if (canRequestRefund(order)) {
+          h += '<view class="order-refund-btn" onclick="window._requestRefundOrder(' + Number(order.id) + ')">申请退款</view>'
+        }
+        h += '</view>'
+      })
+      h += '</view>'
+      el.innerHTML = h
+    }
+
+    function loadOrders() {
+      if (!isLoggedIn.value) {
+        renderRechargeOrders()
+        return
+      }
+      uni.request({
+        url: '/api/recharge/orders?page=1&per_page=20',
+        method: 'GET',
+        success: function(res) {
+          rechargeOrders = (res.data && res.data.orders) || []
+          renderRechargeOrders()
+        },
+        fail: function() {
+          uni.showToast({ title: '订单加载失败', icon: 'none' })
+        }
+      })
+    }
+
+    window._requestRefundOrder = function(orderId) {
+      var reason = window.prompt ? window.prompt('请输入退款原因', '') : ''
+      if (reason === null) return
+      uni.request({
+        url: '/api/recharge/orders/' + orderId + '/refund-request',
+        method: 'POST',
+        data: { reason: reason || '' },
+        success: function(res) {
+          var d = res.data || {}
+          if (d.ok) {
+            uni.showToast({ title: '已提交退款申请', icon: 'success' })
+            loadOrders()
+          } else {
+            uni.showToast({ title: d.error || '申请失败', icon: 'none' })
+            loadOrders()
+          }
+        },
+        fail: function() {
+          uni.showToast({ title: '申请失败', icon: 'none' })
         }
       })
     }
@@ -675,6 +795,7 @@ export default {
             uni.showToast({ title: '支付已到账', icon: 'success' })
             loadPoints()
             loadLogs()
+            loadOrders()
             setTimeout(closeRechargeModal, 1200)
             return
           }
@@ -828,6 +949,7 @@ export default {
       if (isLoggedIn.value) {
         loadPoints()
         loadLogs()
+        loadOrders()
       } else {
         resetPointsSessionState()
       }
@@ -864,6 +986,7 @@ export default {
       openAgent,
       doSignin,
       loadMoreLogs,
+      loadOrders,
       selectPackage,
       closeRechargeModal,
       openPaymentUrl,
@@ -1438,6 +1561,60 @@ export default {
   font-weight: 800;
 }
 
+.order-refresh-btn {
+  min-width: 62px;
+  justify-content: center;
+}
+
+.order-list {
+  display: grid;
+  gap: 10px;
+}
+
+.order-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(178,149,93,0.16);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--card-bg) 96%, var(--accent-glow) 4%);
+}
+
+.order-left {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.order-title {
+  color: var(--text-1);
+  font-size: 0.86rem;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.order-meta {
+  color: var(--text-3);
+  font-size: 0.72rem;
+}
+
+.order-refund-btn {
+  min-height: 32px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(172, 78, 70, 0.38);
+  border-radius: 8px;
+  color: #b15c4f;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -1704,6 +1881,13 @@ export default {
     align-items: stretch;
   }
   .recharge-amount { justify-self: start; }
+  .order-item {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  .order-refund-btn {
+    width: 100%;
+  }
 }
 
 @media (max-width: 390px) {

@@ -288,6 +288,33 @@ CREATE INDEX IF NOT EXISTS ix_recharge_order_status_created ON recharge_order(st
 CREATE INDEX IF NOT EXISTS ix_recharge_order_payment_reference ON recharge_order(payment_reference);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_recharge_order_payment_reference_nonempty ON recharge_order(payment_reference) WHERE payment_reference IS NOT NULL AND payment_reference <> '';
 
+-- 用户退款申请
+CREATE TABLE IF NOT EXISTS refund_request (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id INTEGER NOT NULL REFERENCES recharge_order(id),
+    user_id INTEGER NOT NULL REFERENCES user(id),
+    status VARCHAR(20) DEFAULT 'pending',
+    reason VARCHAR(300) DEFAULT '',
+    admin_note VARCHAR(300) DEFAULT '',
+    hupijiao_status VARCHAR(20) DEFAULT '',
+    hupijiao_response TEXT DEFAULT '',
+    notify_sent_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    approved_at DATETIME,
+    rejected_at DATETIME,
+    resolved_at DATETIME,
+    admin_id INTEGER REFERENCES user(id)
+);
+CREATE INDEX IF NOT EXISTS ix_refund_request_order_id ON refund_request(order_id);
+CREATE INDEX IF NOT EXISTS ix_refund_request_user_id ON refund_request(user_id);
+CREATE INDEX IF NOT EXISTS ix_refund_request_status ON refund_request(status);
+CREATE INDEX IF NOT EXISTS ix_refund_request_created_at ON refund_request(created_at);
+CREATE INDEX IF NOT EXISTS ix_refund_request_admin_id ON refund_request(admin_id);
+CREATE INDEX IF NOT EXISTS ix_refund_request_order_created ON refund_request(order_id, created_at);
+CREATE INDEX IF NOT EXISTS ix_refund_request_user_created ON refund_request(user_id, created_at);
+CREATE INDEX IF NOT EXISTS ix_refund_request_status_created ON refund_request(status, created_at);
+
 -- 八字排盘/合盘历史记录
 CREATE TABLE IF NOT EXISTS bazi_record (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

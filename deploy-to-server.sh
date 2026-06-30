@@ -123,6 +123,7 @@ Environment=OAUTH_ORIGIN=$PRODUCTION_BASE_URL
 Environment=PUBLIC_BASE_URL=$PRODUCTION_BASE_URL
 Environment=UPLOAD_FOLDER=/var/www/xuan-cet/static/uploads
 EnvironmentFile=-/opt/xuan-cet/backend/.env
+EnvironmentFile=-/etc/xuan-cet-alert.env
 ExecStart=/opt/xuan-cet/backend/venv/bin/gunicorn --workers 2 --threads 4 --timeout 180 --bind 127.0.0.1:5199 app:app
 Restart=always
 RestartSec=5
