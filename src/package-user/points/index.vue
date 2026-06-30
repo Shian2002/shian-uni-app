@@ -51,24 +51,6 @@
         </view>
 
         <view class="commerce-panel">
-          <view class="section conversion-section">
-            <view class="section-head">
-              <view>
-                <view class="section-title">从首问到报告</view>
-                <view class="section-subtitle">把一次解读沉淀为可保存、可追问、可复盘的报告资产</view>
-              </view>
-            </view>
-            <view class="conversion-steps">
-              <view class="conversion-step" v-for="(step, index) in conversionSteps" :key="step.title">
-                <text class="step-index">{{ index + 1 }}</text>
-                <view>
-                  <text class="step-title">{{ step.title }}</text>
-                  <text class="step-desc">{{ step.desc }}</text>
-                </view>
-              </view>
-            </view>
-          </view>
-
           <view class="section shop-section" v-if="externalRechargeEnabled">
             <view class="section-head">
               <view>
@@ -214,11 +196,6 @@ export default {
     ])
     var pointPackages = ref([])
     var aiPackages = ref([])
-    var conversionSteps = [
-      { title: '提出具体问题', desc: '从事业、感情、决策、年运等场景进入，不先理解工具名。' },
-      { title: '选择术数和命主', desc: '时安 agent 根据资料完整度推荐八字、奇门、紫微或合参。' },
-      { title: '生成解读报告', desc: '完整解读后保存为报告，后续可继续追问和复盘。' }
-    ]
 
     var dpFilter = 'all'
     var dpLogs = []
@@ -859,7 +836,6 @@ export default {
       paymentStateLabel,
       paymentStatusText,
       paymentPayButtonText,
-      conversionSteps,
       paymentChecking,
       goBack,
       doSignin,
@@ -1121,27 +1097,6 @@ export default {
 .points-page .ai-pkg-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
-.conversion-steps {
-  display: grid;
-  gap: 10px;
-}
-.conversion-steps {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-.conversion-step {
-  min-width: 0;
-  border: 1px solid rgba(178,149,93,0.18);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--card-bg) 92%, #fff5dd 8%);
-  box-sizing: border-box;
-}
-.step-title {
-  display: block;
-  color: var(--text-1);
-  font-size: 0.86rem;
-  font-weight: 850;
-  line-height: 1.25;
-}
 .plan-price {
   margin-top: 13px;
   color: var(--accent);
@@ -1154,32 +1109,6 @@ export default {
   color: var(--text-2);
   font-size: 0.75rem;
   line-height: 1.35;
-}
-.conversion-step {
-  display: grid;
-  grid-template-columns: 32px 1fr;
-  gap: 10px;
-  padding: 13px;
-  background: rgba(178,149,93,0.06);
-}
-.step-index {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
-  font-size: 0.78rem;
-  font-weight: 850;
-}
-.step-desc {
-  display: block;
-  margin-top: 5px;
-  color: var(--text-3);
-  font-size: 0.72rem;
-  line-height: 1.45;
 }
 .points-page .pkg-card {
   position: relative;
@@ -1666,8 +1595,7 @@ export default {
     align-items: stretch;
   }
   .points-page .pkg-grid,
-  .points-page .ai-pkg-grid,
-  .conversion-steps {
+  .points-page .ai-pkg-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .points-page .pkg-card {
@@ -1698,8 +1626,7 @@ export default {
 
 @media (max-width: 390px) {
   .points-page .pkg-grid,
-  .points-page .ai-pkg-grid,
-  .conversion-steps {
+  .points-page .ai-pkg-grid {
     grid-template-columns: 1fr;
   }
 }
