@@ -1249,6 +1249,13 @@ body:not(.home-fixed-page):not(.marketing-page) .page-root{
     -webkit-backdrop-filter:none!important;
     backdrop-filter:none!important;
   }
+  #sidebarOverlayGlobal.show{
+    display:none!important;
+    pointer-events:none!important;
+    background:transparent!important;
+    -webkit-backdrop-filter:none!important;
+    backdrop-filter:none!important;
+  }
   body:not(.home-fixed-page):not(.marketing-page) .tarot-sidebar.agent-sidebar.open{
     box-shadow:10px 0 42px rgba(24,20,15,.12)!important;
   }
