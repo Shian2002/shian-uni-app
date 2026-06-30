@@ -2,8 +2,12 @@
   <view class="topnav-wrap">
     <!-- 顶部固定导航 — 两行结构 -->
     <nav class="topnav topnav-solid">
-      <!-- 单行：☰ + 按钮栏 + 右侧 -->
-      <view class="topnav-sidebar-btn" id="topnavSidebarBtn">☰</view>
+      <!-- 单行：侧栏 + 按钮栏 + 右侧 -->
+      <view class="topnav-sidebar-btn" id="topnavSidebarBtn" aria-label="打开侧栏">
+        <view class="sidebar-panel-icon" aria-hidden="true">
+          <view class="sidebar-panel-rail"></view>
+        </view>
+      </view>
       <view class="nav-btn-bar" id="navBtnBar">
         <view class="nav-btn" data-href="#/?app=1" @click="goAsync('#/?app=1', $event)">时安agent</view>
 
@@ -23,14 +27,13 @@
         <view class="nav-btn" data-href="#/pages/user-management/index" @click="goAsync('#/pages/user-management/index', $event)">档案列表</view>
         <view v-if="showCommunityEntry" class="nav-btn" data-href="#/pages/community/index" @click="goAsync('#/pages/community/index', $event)">社区</view>
         <view class="nav-btn" data-href="#/pages/about/index" @click="goAsync('#/pages/about/index', $event)">关于我们</view>
-
+      </view>
+      <view class="topnav-right">
         <!-- 溢出"更多"按钮（JS 控制显示） -->
         <view class="nav-btn nav-btn-more" id="navBtnMore" style="display:none;" onclick="window._xc_toggleMore(event)" onmouseenter="window._xc_hoverMore && window._xc_hoverMore(event)" onmouseleave="window._xc_unhoverMore && window._xc_unhoverMore(event)">
           更多 ▾
           <view class="nav-btn-drop-menu" id="navBtnMoreMenu"></view>
         </view>
-      </view>
-      <view class="topnav-right">
         <view class="theme-toggle-nav" id="themeToggleBtn" data-action="auth" @click="onToggleTheme">
           <text id="themeToggleIcon">{{ theme === 'dark' ? '🌙' : '☀️' }}</text>
         </view>
@@ -183,6 +186,56 @@ function applySidebarAvatar(src, shouldCache) {
   }
 }
 
+function bindGlobalSidebarClick(sidebar, selector, handler) {
+  var el = sidebar && sidebar.querySelector ? sidebar.querySelector(selector) : null
+  if (!el) return
+  el.onclick = function(e) {
+    if (e && e.preventDefault) e.preventDefault()
+    if (e && e.stopPropagation) e.stopPropagation()
+    handler(e)
+  }
+  el.onkeydown = function(e) {
+    var key = e && (e.key || e.code)
+    if (key !== 'Enter' && key !== ' ' && key !== 'Spacebar') return
+    if (e && e.preventDefault) e.preventDefault()
+    if (e && e.stopPropagation) e.stopPropagation()
+    handler(e)
+  }
+}
+
+function closeGlobalSidebarPanel() {
+  var sidebar = document.getElementById('tarotSidebarGlobal')
+  var overlay = document.getElementById('sidebarOverlayGlobal')
+  if (sidebar && overlay && sidebar.classList.contains('open')) closeSidebarPanel(sidebar, overlay)
+  if (overlay) {
+    overlay.classList.remove('show')
+    overlay.setAttribute('aria-hidden', 'true')
+    overlay.style.setProperty('display', 'none', 'important')
+    overlay.style.removeProperty('z-index')
+  }
+  document.body.removeEventListener('click', window.__sidebarClickAway)
+}
+
+function showSidebarToast(message) {
+  try { uni.showToast({ title: message, icon: 'none' }) } catch(_) {}
+}
+
+function goFromGlobalSidebar(hash) {
+  closeGlobalSidebarPanel()
+  go(hash)
+}
+
+function openAgentHomeFromSidebar(openNewConversation) {
+  closeGlobalSidebarPanel()
+  try { sessionStorage.setItem('xc_skip_agent_home_login_prompt', '1') } catch(_) {}
+  go('#/?app=1')
+  setTimeout(dispatchHomeSidebarOpen, 220)
+  setTimeout(function() {
+    dispatchHomeSidebarOpen()
+    if (openNewConversation && window._xc_startNewConversation) window._xc_startNewConversation('comprehensive')
+  }, 520)
+}
+
 // ── 全局侧边栏：在 document.body 上创建唯一实例 ──
 // 原因：uni-app custom tabBar 下每个 tab 页面各有一份 TopNav 实例，
 // 若侧边栏 DOM 在 TopNav template 中，会产生 11 份 #tarotSidebar，
@@ -190,45 +243,85 @@ function applySidebarAvatar(src, shouldCache) {
 // 导致侧边栏有时可见有时不可见。
 // 修复：改为 JS 动态创建全局唯一 DOM 挂到 body 上，不受 tab 切换影响。
 function ensureGlobalSidebar() {
-  if (document.getElementById('tarotSidebarGlobal')) return
+  var existingSidebar = document.getElementById('tarotSidebarGlobal')
+  if (existingSidebar && existingSidebar.classList && existingSidebar.classList.contains('agent-sidebar')) return
+  if (existingSidebar && existingSidebar.parentNode) existingSidebar.parentNode.removeChild(existingSidebar)
+  var existingOverlay = document.getElementById('sidebarOverlayGlobal')
+  if (existingOverlay && existingOverlay.parentNode) existingOverlay.parentNode.removeChild(existingOverlay)
   var overlay = document.createElement('div')
   overlay.className = 'sidebar-overlay'
   overlay.id = 'sidebarOverlayGlobal'
-  overlay.onclick = function() { toggleSidebar() }
+  overlay.onclick = function() { closeGlobalSidebarPanel() }
   overlay.setAttribute('aria-hidden', 'true')
 
   var sidebar = document.createElement('div')
-  sidebar.className = 'tarot-sidebar'
+  sidebar.className = 'tarot-sidebar agent-sidebar'
   sidebar.id = 'tarotSidebarGlobal'
   sidebar.setAttribute('aria-hidden', 'true')
-  sidebar.innerHTML = '<div class="sidebar-brand"><span class="sidebar-brand-icon-wrap"><img class="sidebar-brand-icon" src="/static/images/logo.svg?v=7"></span><span class="sidebar-brand-name">时安解忧屋</span></div>'
-    + '<div class="sidebar-header"><span class="sidebar-title">对话历史</span><button class="sidebar-new-chat-btn" id="sidebarNewChatBtn" type="button" onclick="window._xc_startNewConversation(\'comprehensive\')">新对话</button></div>'
-    + '<div class="sidebar-tabs">'
-    + '<span class="sidebar-tab active" data-sidebar-view="all" id="sidebarTabFlat" onclick="window._xc_setSidebarView(\'all\')">全部</span>'
-    + '<span class="sidebar-tab" data-sidebar-view="today" onclick="window._xc_setSidebarView(\'today\')">今天</span>'
-    + '<span class="sidebar-tab" data-sidebar-view="favorite" onclick="window._xc_setSidebarView(\'favorite\')">收藏</span>'
-    + '<span class="sidebar-tab" data-sidebar-view="archived" onclick="window._xc_setSidebarView(\'archived\')">已归档</span>'
+  sidebar.innerHTML = '<div class="agent-sidebar-head">'
+    + '<div class="agent-sidebar-brand" role="button" tabindex="0" aria-label="新建对话"><img class="agent-sidebar-logo" src="/static/images/logo.webp?v=3" alt=""><span>时安解忧屋</span></div>'
+    + '<div class="agent-sidebar-close" id="sidebarPanelClose" role="button" tabindex="0" aria-label="收起侧栏"><span></span></div>'
     + '</div>'
-    + '<div class="sidebar-content" id="sidebarListGlobal"><div class="sidebar-empty">加载中...</div></div>'
-    + '<div class="sidebar-detail" id="sidebarDetailGlobal" style="display:none;">'
-    + '<div class="sidebar-detail-back" onclick="window._xc_backToSidebarList()">← 返回</div>'
-    + '<div class="sidebar-detail-title" id="sidebarDetailTitle">历史记录</div>'
-    + '<div class="sidebar-detail-body" id="sidebarDetailBody"></div></div>'
-    + '<div class="sidebar-user-panel" id="sidebarUserPanel">'
+    + '<div class="agent-sidebar-primary" id="sidebarNewChatBtn" role="button" tabindex="0"><span>＋</span><strong>新建对话</strong></div>'
+    + '<div class="agent-sidebar-nav">'
+    + '<div class="agent-sidebar-row active" id="sidebarProfilesBtn" role="button" tabindex="0"><span class="agent-sidebar-row-main"><span class="agent-sidebar-row-icon">命</span><strong>命主列表</strong></span><span class="agent-sidebar-row-action">＋</span></div>'
+    + '<div class="agent-sidebar-sublist"><div class="agent-sidebar-subrow selected" id="sidebarProfileSelectBtn" role="button" tabindex="0">选择命主</div></div>'
+    + '<div class="agent-sidebar-row" id="sidebarFavoritesBtn" role="button" tabindex="0"><span class="agent-sidebar-row-main"><span class="agent-sidebar-row-icon">☆</span><strong>收藏对话</strong></span></div>'
+    + '<div class="agent-sidebar-sublist"><div class="agent-sidebar-subrow empty" id="sidebarFavoriteEmptyBtn" role="button" tabindex="0">暂无收藏</div></div>'
+    + '<div class="agent-sidebar-row" id="sidebarHistoryBtn" role="button" tabindex="0"><span class="agent-sidebar-row-main"><span class="agent-sidebar-row-icon">历</span><strong>历史对话</strong></span><span class="agent-sidebar-row-action">⌃</span></div>'
+    + '<div class="agent-sidebar-sublist"><div class="agent-sidebar-subrow" id="sidebarHistoryRecentBtn" role="button" tabindex="0">最近一条问题</div><div class="agent-sidebar-subrow" id="sidebarHistoryOlderBtn" role="button" tabindex="0">再早一点的问题</div></div>'
+    + '</div>'
+    + '<div class="agent-sidebar-footer">'
+    + '<div id="sidebarUserSetting" role="button" tabindex="0"><span>设</span><em>设置</em></div>'
+    + '<div id="sidebarNoticeBtn" role="button" tabindex="0"><span>知</span><em>通知</em></div>'
+    + '<div id="sidebarHomeBtn" role="button" tabindex="0"><span>⌂</span><em>回首页</em></div>'
+    + '</div>'
+    + '<div class="sidebar-user-panel agent-sidebar-user" id="sidebarUserPanel">'
     + '<div class="sidebar-user-logged" id="sidebarUserLogged" style="display:none;">'
     + '<div class="sidebar-user-avatar-wrap"><img class="sidebar-user-avatar" id="sidebarUserAvatar" src=""><span class="sidebar-user-avatar-letter" id="sidebarUserLetter">U</span></div>'
     + '<div class="sidebar-user-info"><span class="sidebar-user-name" id="sidebarUserName">用户</span><span class="sidebar-user-points" id="sidebarUserPoints">积分: --</span></div>'
-    + '<div class="sidebar-user-actions"><span class="sidebar-user-setting" id="sidebarUserSetting">⚙</span><span class="sidebar-user-logout" id="sidebarUserLogout">退出</span></div>'
+    + '<div class="sidebar-user-actions"><span class="sidebar-user-logout" id="sidebarUserLogout">退出</span></div>'
     + '</div>'
     + '<div class="sidebar-user-guest" id="sidebarUserGuest" style="display:none;">'
     + '<span class="sidebar-guest-text">登录后可同步历史记录</span>'
     + '<span class="sidebar-guest-btn" id="sidebarGuestLogin">登录</span>'
     + '</div>'
     + '</div>'
-  sidebar.querySelector('#sidebarUserSetting').onclick = function() { toggleSidebar(); go('#/pages/profile/index') }
-  sidebar.querySelector('#sidebarUserLogout').onclick = function() { if (window._xc_doLogout) window._xc_doLogout() }
-  sidebar.querySelector('#sidebarGuestLogin').onclick = function() { if (window._openLoginModal) window._openLoginModal() }
-  sidebar.querySelector('#sidebarNewChatBtn').onclick = function() { if (window._xc_startNewConversation) window._xc_startNewConversation('comprehensive') }
+    + '<div class="sidebar-content agent-sidebar-legacy-list" id="sidebarListGlobal" style="display:none;"></div>'
+    + '<div class="sidebar-detail" id="sidebarDetailGlobal" style="display:none;">'
+    + '<div class="sidebar-detail-back" onclick="window._xc_backToSidebarList()">← 返回</div>'
+    + '<div class="sidebar-detail-title" id="sidebarDetailTitle">历史记录</div>'
+    + '<div class="sidebar-detail-body" id="sidebarDetailBody"></div></div>'
+  var sidebarBrand = sidebar.querySelector('.agent-sidebar-brand')
+  if (sidebarBrand) {
+    sidebarBrand.onclick = function(e) {
+      if (e && e.preventDefault) e.preventDefault()
+      if (e && e.stopPropagation) e.stopPropagation()
+      openAgentHomeFromSidebar(true)
+    }
+    sidebarBrand.onkeydown = function(e) {
+      var key = e && (e.key || e.code)
+      if (key === 'Enter' || key === ' ' || key === 'Spacebar') {
+        if (e.preventDefault) e.preventDefault()
+        if (e.stopPropagation) e.stopPropagation()
+        openAgentHomeFromSidebar(true)
+      }
+    }
+  }
+  bindGlobalSidebarClick(sidebar, '#sidebarPanelClose', function() { closeGlobalSidebarPanel() })
+  bindGlobalSidebarClick(sidebar, '#sidebarNewChatBtn', function() { openAgentHomeFromSidebar(true) })
+  bindGlobalSidebarClick(sidebar, '#sidebarProfilesBtn', function() { goFromGlobalSidebar('#/pages/user-management/index') })
+  bindGlobalSidebarClick(sidebar, '#sidebarProfileSelectBtn', function() { goFromGlobalSidebar('#/pages/user-management/index') })
+  bindGlobalSidebarClick(sidebar, '#sidebarFavoritesBtn', function() { showSidebarToast('暂无收藏对话') })
+  bindGlobalSidebarClick(sidebar, '#sidebarFavoriteEmptyBtn', function() { showSidebarToast('暂无收藏对话') })
+  bindGlobalSidebarClick(sidebar, '#sidebarHistoryBtn', function() { showSidebarToast(localLoggedIn.value ? '历史对话会在这里展开' : '登录后可同步历史记录') })
+  bindGlobalSidebarClick(sidebar, '#sidebarHistoryRecentBtn', function() { showSidebarToast(localLoggedIn.value ? '历史对话会在这里展开' : '登录后可同步历史记录') })
+  bindGlobalSidebarClick(sidebar, '#sidebarHistoryOlderBtn', function() { showSidebarToast(localLoggedIn.value ? '历史对话会在这里展开' : '登录后可同步历史记录') })
+  bindGlobalSidebarClick(sidebar, '#sidebarUserSetting', function() { goFromGlobalSidebar('#/pages/profile/index') })
+  bindGlobalSidebarClick(sidebar, '#sidebarNoticeBtn', function() { showSidebarToast('暂无新通知') })
+  bindGlobalSidebarClick(sidebar, '#sidebarHomeBtn', function() { goMarketingHomeFromSidebar() })
+  bindGlobalSidebarClick(sidebar, '#sidebarUserLogout', function() { if (window._xc_doLogout) window._xc_doLogout() })
+  bindGlobalSidebarClick(sidebar, '#sidebarGuestLogin', function() { if (window._openLoginModal) window._openLoginModal() })
 
   document.body.appendChild(overlay)
   document.body.appendChild(sidebar)
@@ -391,28 +484,30 @@ function _confirmHistoryDelete() {
 onMounted(function() {
   // 创建全局侧边栏（仅一次）
   ensureGlobalSidebar()
-  if (!window.__xcSidebarNavDelegated) {
-    window.__xcSidebarNavDelegated = true
-    window.__xcSidebarNavLastTouch = 0
-    var handleSidebarNav = function(e) {
-      var target = e.target
-      var btn = target && target.closest ? target.closest('#topnavSidebarBtn') : null
-      if (!btn) return
-      if (Date.now() - (window.__xcSidebarNavLastTouch || 0) < 450) {
-        e.preventDefault()
-        e.stopPropagation()
-        if (e.stopImmediatePropagation) e.stopImmediatePropagation()
-        return
-      }
-      window.__xcSidebarNavLastTouch = Date.now()
+  closeLegacyHistorySidebar()
+  if (window.__xcSidebarNavHandler) {
+    document.removeEventListener('click', window.__xcSidebarNavHandler, true)
+  }
+  window.__xcSidebarNavDelegated = true
+  window.__xcSidebarNavLastTouch = 0
+  window.__xcSidebarNavHandler = function(e) {
+    var target = e.target
+    var btn = target && target.closest ? target.closest('#topnavSidebarBtn') : null
+    if (!btn) return
+    if (Date.now() - (window.__xcSidebarNavLastTouch || 0) < 450) {
       e.preventDefault()
       e.stopPropagation()
       if (e.stopImmediatePropagation) e.stopImmediatePropagation()
-      e.__xcSidebarHandled = true
-      toggleSidebar()
+      return
     }
-    document.addEventListener('click', handleSidebarNav, true)
+    window.__xcSidebarNavLastTouch = Date.now()
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation()
+    e.__xcSidebarHandled = true
+    toggleSidebar()
   }
+  document.addEventListener('click', window.__xcSidebarNavHandler, true)
 
   // 获取可见弹窗的辅助函数 — 兼容 uni-app H5 页面结构
   if (!window._xc_getVisibleModal) {
@@ -772,6 +867,12 @@ window._xc_toggleSidebar = function(e) {
   window.__xcSidebarNavLastTouch = Date.now()
   toggleSidebar()
 }
+
+window._xc_openGlobalHistorySidebar = function(view) {
+  closeLegacyHistorySidebar()
+  uni.showToast({ title: view === 'favorite' ? '暂无收藏对话' : '请回到时安agent查看历史对话', icon: 'none' })
+}
+
 window._xc_toggleGroup = function(headerEl) {
   var g = headerEl.parentElement
   if (!g) return
@@ -979,110 +1080,65 @@ function _loadSidebarUserPanel() {
   }).catch(function() {})
 }
 
+function shouldSuppressSidebarForHome() {
+  try {
+    if (window.__xcForceGlobalSidebar) return false
+    const body = document.body
+    const isAgentHome = body && body.classList && body.classList.contains('home-fixed-page')
+    return isAgentHome && window.__xcHomeMode === 'app'
+  } catch(_) {
+    return false
+  }
+}
+
+function closeLegacyHistorySidebar() {
+  closeGlobalSidebarPanel()
+}
+
+function dispatchHomeSidebarToggle() {
+  try { window.dispatchEvent(new CustomEvent('xc-home-sidebar-toggle')) } catch(_) {}
+}
+
+function dispatchHomeSidebarOpen() {
+  try { window.dispatchEvent(new CustomEvent('xc-home-sidebar-open')) } catch(_) {}
+}
+
 function toggleSidebar() {
+  var body = document.body
+  var isAgentHome = body && body.classList && body.classList.contains('home-fixed-page') && window.__xcHomeMode === 'app'
+  if (isAgentHome) {
+    closeGlobalSidebarPanel()
+    dispatchHomeSidebarToggle()
+    return
+  }
   var sidebar = document.getElementById('tarotSidebarGlobal')
   var overlay = document.getElementById('sidebarOverlayGlobal')
+  if (!sidebar || !overlay) {
+    ensureGlobalSidebar()
+    sidebar = document.getElementById('tarotSidebarGlobal')
+    overlay = document.getElementById('sidebarOverlayGlobal')
+  }
   if (!sidebar || !overlay) return
   if (sidebar.classList.contains('open')) {
-    closeSidebarPanel(sidebar, overlay)
-    document.body.removeEventListener('click', window.__sidebarClickAway)
+    closeGlobalSidebarPanel()
     return
   }
   openSidebarPanel(sidebar, overlay)
   window.__xcSidebarOpenedAt = Date.now()
-  uni.$emit('sidebar-opened')
+  _loadSidebarUserPanel()
   document.body.removeEventListener('click', window.__sidebarClickAway)
   window.__sidebarClickAway = function(e) {
-    if (Date.now() - (window.__xcSidebarOpenedAt || 0) < 800) return
-    var s = document.getElementById('tarotSidebarGlobal')
+    if (Date.now() - (window.__xcSidebarOpenedAt || 0) < 500) return
     var target = e && e.target
     if (target && target.closest && target.closest('#topnavSidebarBtn')) return
     if (target && target.closest && target.closest('.history-delete-overlay')) return
-    var deleteOverlay = document.getElementById('historyDeleteConfirmGlobal')
-    if (deleteOverlay && deleteOverlay.classList.contains('open')) return
-    if (s && s.classList.contains('open') && !s.contains(target)) {
+    var currentSidebar = document.getElementById('tarotSidebarGlobal')
+    if (currentSidebar && currentSidebar.classList.contains('open') && !currentSidebar.contains(target)) {
       e.stopPropagation()
-      var ov = document.getElementById('sidebarOverlayGlobal')
-      if (ov) closeSidebarPanel(s, ov)
-      document.body.removeEventListener('click', window.__sidebarClickAway)
+      closeGlobalSidebarPanel()
     }
   }
-  setTimeout(function() { document.body.addEventListener('click', window.__sidebarClickAway) }, 200)
-  var listEl = document.getElementById('sidebarListGlobal')
-  if (!listEl) return
-  // 并行加载用户面板
-  _loadSidebarUserPanel()
-  var token = ''
-  try { token = uni.getStorageSync('xc_token') || '' } catch(_) {}
-  if (!token) {
-    window.__sidebarCache = null
-    listEl.innerHTML = '<div class="sidebar-empty">登录后可同步历史记录</div>'
-    return
-  }
-  // 30 秒内缓存
-  var now = Date.now()
-  if (window.__sidebarCache && (now - window.__sidebarCache.ts) < 30000) {
-    _restoreSidebarView()
-    window._xc_setSidebarView()
-    return
-  }
-  listEl.innerHTML = '<div class="sidebar-empty">加载中...</div>'
-  var recordsLoaded = false, comprehensiveLoaded = false, tarotLoaded = false, lyConvLoaded = false, mhConvLoaded = false, qiConvLoaded = false, baziConvLoaded = false, zwConvLoaded = false
-  var allRecords = [], comprehensiveItems = [], tarotItems = [], lyConvItems = [], mhConvItems = [], qiConvItems = [], baziConvItems = [], zwConvItems = []
-  function _renderMerged() {
-    if (!recordsLoaded || !comprehensiveLoaded || !tarotLoaded || !lyConvLoaded || !mhConvLoaded || !qiConvLoaded || !baziConvLoaded || !zwConvLoaded) return
-    comprehensiveItems.forEach(function(c) {
-      allRecords.push({ id: 'cp_' + c.id, app_type: 'comprehensive', question: c.title || '综合 AI 问答', created_at: c.updated_at || c.created_at, _comprehensiveConvId: c.id })
-    })
-    tarotItems.forEach(function(c) {
-      allRecords.push({ id: 'tarot_' + c.id, app_type: 'tarot', question: c.title || c.spread_name || '塔罗解读', created_at: c.updated_at || c.created_at, _tarotConvId: c.id })
-    })
-    lyConvItems.forEach(function(c) {
-      allRecords.push({ id: 'ly_' + c.id, app_type: 'liuyao', question: c.title || '六爻占卜', created_at: c.updated_at || c.created_at, _lyConvId: c.id })
-    })
-    mhConvItems.forEach(function(c) {
-      allRecords.push({ id: 'mh_' + c.id, app_type: 'meihua', question: c.title || '梅花易数', created_at: c.updated_at || c.created_at, _mhConvId: c.id })
-    })
-    qiConvItems.forEach(function(c) {
-      allRecords.push({ id: 'qi_' + c.id, app_type: 'qimen', question: c.title || '奇门遁甲', created_at: c.updated_at || c.created_at, _qaiConvId: c.id })
-    })
-    baziConvItems.forEach(function(c) {
-      allRecords.push({ id: 'bz_' + c.id, app_type: 'bazi', question: c.title || '八字AI解读', created_at: c.updated_at || c.created_at, _baziConvId: c.id })
-    })
-    zwConvItems.forEach(function(c) {
-      allRecords.push({ id: 'zw_' + c.id, app_type: 'ziwei', question: c.title || '紫微斗数AI解读', created_at: c.updated_at || c.created_at, _zwConvId: c.id })
-    })
-    if (!allRecords.length) { listEl.innerHTML = '<div class="sidebar-empty">暂无历史记录</div>'; return }
-    var groups = _groupRecords(allRecords)
-    window.__sidebarCache = { ts: Date.now(), groups: groups, flat: allRecords }
-    // 对话历史按置顶和时间分组，筛选状态由本地侧栏状态控制。
-    _restoreSidebarView()
-    window._xc_setSidebarView()
-  }
-  uni.request({ url: '/api/records?per_page=50', method: 'GET', success: function(res) {
-    allRecords = res.data.records || []; recordsLoaded = true; _renderMerged()
-  }, fail: function() { recordsLoaded = true; _renderMerged() }})
-  uni.request({ url: '/api/comprehensive/conversations', method: 'GET', success: function(res) {
-    comprehensiveItems = res.data || []; if (!Array.isArray(comprehensiveItems)) comprehensiveItems = []; comprehensiveLoaded = true; _renderMerged()
-  }, fail: function() { comprehensiveLoaded = true; _renderMerged() }})
-  uni.request({ url: '/api/tarot/conversations', method: 'GET', success: function(res) {
-    tarotItems = res.data || []; if (!Array.isArray(tarotItems)) tarotItems = []; tarotLoaded = true; _renderMerged()
-  }, fail: function() { tarotLoaded = true; _renderMerged() }})
-  uni.request({ url: '/api/liuyao/conversations', method: 'GET', success: function(res) {
-    lyConvItems = res.data || []; if (!Array.isArray(lyConvItems)) lyConvItems = []; lyConvLoaded = true; _renderMerged()
-  }, fail: function() { lyConvLoaded = true; _renderMerged() }})
-  uni.request({ url: '/api/meihua/conversations', method: 'GET', success: function(res) {
-    mhConvItems = res.data || []; if (!Array.isArray(mhConvItems)) mhConvItems = []; mhConvLoaded = true; _renderMerged()
-  }, fail: function() { mhConvLoaded = true; _renderMerged() }})
-  uni.request({ url: '/api/qimen/conversations', method: 'GET', success: function(res) {
-    qiConvItems = res.data || []; if (!Array.isArray(qiConvItems)) qiConvItems = []; qiConvLoaded = true; _renderMerged()
-  }, fail: function() { qiConvLoaded = true; _renderMerged() }})
-  uni.request({ url: '/api/bazi/conversations', method: 'GET', success: function(res) {
-    baziConvItems = res.data || []; if (!Array.isArray(baziConvItems)) baziConvItems = []; baziConvLoaded = true; _renderMerged()
-  }, fail: function() { baziConvLoaded = true; _renderMerged() }})
-  uni.request({ url: '/api/ziwei/conversations', method: 'GET', success: function(res) {
-    zwConvItems = res.data || []; if (!Array.isArray(zwConvItems)) zwConvItems = []; zwConvLoaded = true; _renderMerged()
-  }, fail: function() { zwConvLoaded = true; _renderMerged() }})
+  setTimeout(function() { document.body.addEventListener('click', window.__sidebarClickAway) }, 160)
 }
 
 // 渲染分组历史（共享函数，避免与 sidebar.js 重复）
@@ -1332,6 +1388,16 @@ function closeSidebarPanel(sidebar, overlay) {
   sidebar.style.removeProperty('z-index')
   overlay.style.setProperty('display', 'none', 'important')
   overlay.style.removeProperty('z-index')
+}
+
+function goMarketingHomeFromSidebar() {
+  var sidebar = document.getElementById('tarotSidebarGlobal')
+  var overlay = document.getElementById('sidebarOverlayGlobal')
+  try {
+    if (sidebar && overlay && sidebar.classList.contains('open')) closeSidebarPanel(sidebar, overlay)
+    document.body.removeEventListener('click', window.__sidebarClickAway)
+  } catch(_) {}
+  go('#/')
 }
 
 // 返回侧边栏列表
@@ -2036,7 +2102,12 @@ function go(hash) {
   var routeBeforeIsTab = TAB_PATHS.indexOf(routeBeforeNav) > -1 || routeBeforeNav === '/pages/index/index'
   var routeBeforeIsHome = routeBeforeNav === '/' || routeBeforeNav === '/pages/index/index'
   var shouldSwitchForAgentHome = wantsAppHome && !routeBeforeIsHome
-  var shouldPromptLoginForAgentHome = wantsAppHome && !localLoggedIn.value
+  var skipAgentHomeLoginPrompt = false
+  try {
+    skipAgentHomeLoginPrompt = sessionStorage.getItem('xc_skip_agent_home_login_prompt') === '1'
+    if (skipAgentHomeLoginPrompt) sessionStorage.removeItem('xc_skip_agent_home_login_prompt')
+  } catch(_) {}
+  var shouldPromptLoginForAgentHome = wantsAppHome && !localLoggedIn.value && !skipAgentHomeLoginPrompt
   var pendingAgentHomeKey = '_xc_pending_agent_home'
 
   // 从其他术数页点“八字排盘”时，优先回到本次会话最后看的八字结果页。
@@ -2275,20 +2346,20 @@ function updateNavOverflow() {
   }
 
   document.querySelectorAll('#navBtnBar').forEach(function(bar) {
-    var more = bar.querySelector('#navBtnMore')
-    var moreMenu = bar.querySelector('#navBtnMoreMenu')
+    var nav = bar.closest ? bar.closest('.topnav') : bar.parentNode
+    var sidebarBtn = nav && nav.querySelector ? nav.querySelector('.topnav-sidebar-btn') : null
+    var topnavRight = nav && nav.querySelector ? nav.querySelector('.topnav-right') : null
+    var more = topnavRight && topnavRight.querySelector ? topnavRight.querySelector('#navBtnMore') : null
+    var moreMenu = more && more.querySelector ? more.querySelector('#navBtnMoreMenu') : null
     if (!bar || !more || !moreMenu) return
 
-    bar.querySelectorAll('.nav-btn:not(.nav-btn-more)').forEach(function(b) {
+    bar.querySelectorAll('.nav-btn').forEach(function(b) {
       b.style.display = ''
     })
     more.style.display = 'none'
     more.style.visibility = ''
     moreMenu.innerHTML = ''
 
-    var nav = bar.closest ? bar.closest('.topnav') : bar.parentNode
-    var sidebarBtn = bar.parentNode ? bar.parentNode.querySelector('.topnav-sidebar-btn') : null
-    var topnavRight = bar.parentNode ? bar.parentNode.querySelector('.topnav-right') : null
     var navRect = nav && nav.getBoundingClientRect ? nav.getBoundingClientRect() : null
     if (navRect && navRect.width > 0 && navRect.width < 120) return
     var rightWidth = topnavRight ? topnavRight.getBoundingClientRect().width : 0
@@ -2309,8 +2380,12 @@ function updateNavOverflow() {
       allBtns.push(btn)
     })
     if (!allBtns.length) return
-    var forceMobileMore = window.innerWidth <= 560
-    var mobilePrimaryCount = 2
+    var isCompactHomeNav = false
+    try {
+      isCompactHomeNav = window.__xcHomeMode === 'app' && window.innerWidth <= 768
+    } catch(_) {}
+    var forceMobileMore = window.innerWidth <= 560 || isCompactHomeNav
+    var mobilePrimaryCount = isCompactHomeNav ? 1 : 2
 
     function moveButtonsToMore(overflow) {
       if (!overflow || !overflow.length) return false
@@ -2377,7 +2452,7 @@ function updateNavOverflow() {
 function toggleMoreMenu(ev) {
   // 从点击事件找到当前实例的"更多"按钮
   var more = ev && ev.currentTarget
-  if (!more) more = document.querySelector('#navBtnBar #navBtnMore')
+  if (!more) more = document.querySelector('#navBtnMore')
   if (more) {
     var menu = more.querySelector('#navBtnMoreMenu')
     // 如果下拉菜单没有子项，不打开空菜单
@@ -2459,7 +2534,7 @@ onMounted(() => {
       el.style.setProperty('right', 'auto', 'important')
       el.style.setProperty('transform', 'translateX(-50%) translateY(0)', 'important')
       el.style.setProperty('transition', 'none', 'important')
-      el.style.setProperty('background', 'rgba(255,253,248,0.96)', 'important')
+      el.style.setProperty('background', 'rgba(255,255,255,0.96)', 'important')
       el.style.setProperty('border-color', 'rgba(178,149,93,0.18)', 'important')
       el.style.setProperty('border-radius', '20px', 'important')
       el.style.setProperty('box-shadow', '0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.4)', 'important')
@@ -2486,7 +2561,7 @@ onMounted(() => {
     }
     el.style.setProperty('display', 'block', 'important')
     el.style.setProperty('position', 'fixed', 'important')
-    el.style.setProperty('background', 'rgba(255,253,248,0.96)', 'important')
+    el.style.setProperty('background', 'rgba(255,255,255,0.96)', 'important')
     el.style.setProperty('border-color', 'rgba(178,149,93,0.18)', 'important')
     el.style.setProperty('border-radius', '20px', 'important')
     el.style.setProperty('box-shadow', '0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.4)', 'important')
@@ -2750,7 +2825,7 @@ onMounted(() => {
       event.stopPropagation()
       event.preventDefault()
       var el = event && event.currentTarget
-	      if (!el || !el.classList) el = document.querySelector('#navBtnBar #navBtnMore')
+	      if (!el || !el.classList) el = document.querySelector('#navBtnMore')
 	      if (!el) return
 	      var wasOpen = el.classList.contains('open')
 	      var wasHoverOpen = !!el._xc_hoverOpen
@@ -3095,7 +3170,7 @@ onMounted(() => {
   box-shadow: 0 1px 8px rgba(0,0,0,0.06);
 }
 
-/* ═══ 单行：☰ + 按钮栏 + 右侧 ═══ */
+/* ═══ 单行：侧栏 + 按钮栏 + 右侧 ═══ */
 .topnav-row {
   display: flex;
   align-items: center;
@@ -3103,8 +3178,48 @@ onMounted(() => {
   flex:1;
   min-width:0;
 }
-.topnav-sidebar-btn { display:flex; font-size:1.4rem; color:var(--text-2); cursor:pointer; padding:0 10px; margin-right:4px; flex-shrink:0; align-items:center; justify-content:center; border-radius:8px; width:40px; height:40px; line-height:1; margin-top:-5px; }
-.topnav-sidebar-btn:hover { background:var(--accent-glow); }
+.topnav-sidebar-btn {
+  display:flex;
+  color:rgba(58,55,49,.78);
+  cursor:pointer;
+  padding:0;
+  margin-right:6px;
+  flex-shrink:0;
+  align-items:center;
+  justify-content:center;
+  border-radius:12px;
+  width:38px;
+  height:38px;
+  line-height:1;
+  margin-top:0;
+  transition:background .18s ease,color .18s ease,transform .18s ease;
+}
+.topnav-sidebar-btn:hover {
+  color:rgba(58,55,49,.92);
+  background:rgba(58,55,49,.08);
+}
+.topnav-sidebar-btn:active {
+  transform:scale(.96);
+}
+.sidebar-panel-icon {
+  position:relative;
+  width:24px;
+  height:22px;
+  border:2px solid currentColor;
+  border-radius:7px;
+  box-sizing:border-box;
+  opacity:.82;
+}
+.sidebar-panel-rail {
+  position:absolute;
+  top:3px;
+  bottom:3px;
+  left:8px;
+  width:2px;
+  border-radius:999px;
+  background:currentColor;
+  opacity:.9;
+}
 .topnav-logo {
   display: flex;
   align-items: center;
@@ -3143,22 +3258,24 @@ onMounted(() => {
 .nav-btn {
   display: inline-flex;
   align-items: center;
-  padding: 6px 12px;
-  border-radius: 7px;
-  font-size: 1rem;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 16px;
+  font-size: .96rem;
   color: var(--text-2);
   white-space: nowrap;
-  letter-spacing: 0.5px;
-  transition: color 0.2s, background 0.2s;
+  letter-spacing: 0;
+  transition: color 0.2s, background 0.2s, box-shadow .2s;
   cursor: pointer;
   position: relative;
   flex-shrink: 0;
 }
-.nav-btn:hover { background: var(--accent-glow); color: var(--accent); }
+.nav-btn:hover { background: rgba(var(--accent-rgb),.07); color: var(--accent); }
 .nav-btn.current {
-  background: var(--accent-glow);
+  background: rgba(var(--accent-rgb),.075);
+  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb),.11);
   color: var(--accent);
-  font-weight: 600;
+  font-weight: 760;
 }
 
 /* 带下拉的按钮 */
@@ -3183,9 +3300,9 @@ onMounted(() => {
   transition: none;
 }
 [data-theme="light"] .nav-btn-drop-menu {
-  background: rgba(255, 253, 248, 0.96);
+  background: rgba(255, 255, 255, 0.97);
   border: 1px solid rgba(178,149,93,0.18);
-  box-shadow: 0 12px 34px rgba(74,54,24,0.16);
+  box-shadow: 0 12px 34px rgba(34,30,23,0.10);
 }
 .nav-btn-has-drop.open .nav-btn-drop-menu,
 .nav-btn-more.open .nav-btn-drop-menu {
@@ -3226,6 +3343,10 @@ onMounted(() => {
 
 /* "更多"按钮 */
 .nav-btn-more { position: relative; }
+.topnav-right .nav-btn-more {
+  flex: 0 0 auto;
+  margin-left: 0;
+}
 .nav-btn-more .nav-btn-drop-menu {
   left: auto;
   right: 0;
@@ -3289,7 +3410,7 @@ body > #navBtnMoreMenu.nav-btn-drop-menu {
 .nav-avatar-img { width: 100%; height: 100%; object-fit: cover; }
 .nav-avatar-text { font-size: 0.95rem; font-weight: 800; color: var(--accent); line-height:1; }
 .nav-avatar-dropdown { position: absolute; top: 100%; right: 0; margin-top: 8px; background: rgba(48, 53, 76, 0.94); border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; padding: 4px 0; min-width: 120px; display: none; box-shadow: 0 8px 32px rgba(0,0,0,0.25); z-index: 200; -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6); }
-[data-theme="light"] .nav-avatar-dropdown { background: rgba(255, 253, 248, 0.96); border: 1px solid rgba(178,149,93,0.18); box-shadow: 0 12px 34px rgba(74,54,24,0.16); }
+[data-theme="light"] .nav-avatar-dropdown { background: rgba(255, 255, 255, 0.97); border: 1px solid rgba(178,149,93,0.18); box-shadow: 0 12px 34px rgba(34,30,23,0.10); }
 .nav-avatar-dropdown.open { display: block; }
 .avatar-dropdown-item { padding: 10px 16px; font-size: 0.78rem; color: var(--text-2); cursor: pointer; white-space: nowrap; }
 .avatar-dropdown-item:hover { background: var(--accent-glow); color: var(--accent); }
@@ -3300,17 +3421,17 @@ body > #navBtnMoreMenu.nav-btn-drop-menu {
 .avatar-dropdown-divider { height: 1px; background: var(--card-border); margin: 2px 0; }
 
 /* ═══ 登录/注册弹窗 ═══ */
-.modal-overlay { position: fixed; inset: 0; z-index: 999; background: rgba(20,16,10,0.48); display: none; align-items: flex-end; justify-content: center; padding: 18px; padding-bottom: max(18px, calc(env(safe-area-inset-bottom) + 14px)); box-sizing: border-box; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.modal-overlay { position: fixed; inset: 0; z-index: 999; background: rgba(20,16,10,0.34); display: none; align-items: flex-end; justify-content: center; padding: 18px; padding-bottom: max(18px, calc(env(safe-area-inset-bottom) + 14px)); box-sizing: border-box; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 .modal-overlay.open { display: flex; }
 .modal-box { background: rgba(31, 29, 24, 0.94); border: 1px solid rgba(178,149,93,0.20); border-radius: 22px 22px 16px 16px; padding: 28px 32px; max-width: 400px; width: min(400px, calc(100vw - 32px)); max-height: min(84dvh, 660px); min-height: 555px; overflow: auto; box-sizing: border-box; box-shadow: 0 24px 80px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.08); -webkit-backdrop-filter: blur(28px) saturate(1.45); backdrop-filter: blur(28px) saturate(1.45); }
-[data-theme="light"] .modal-box { background: rgba(255, 253, 248, 0.96); border: 1px solid rgba(178,149,93,0.18); box-shadow: 0 24px 80px rgba(60,40,15,0.16), inset 0 1px 0 rgba(255,255,255,0.85); }
+[data-theme="light"] .modal-box { background: rgba(255, 255, 255, 0.97); border: 1px solid rgba(178,149,93,0.16); box-shadow: 0 24px 80px rgba(34,30,23,0.12), inset 0 1px 0 rgba(255,255,255,0.9); }
 body.home-fixed-page #topnavLoginModal {
   align-items: flex-end !important;
   justify-content: center !important;
   padding: 18px !important;
   padding-bottom: max(18px, calc(env(safe-area-inset-bottom) + 14px)) !important;
   box-sizing: border-box !important;
-  background: rgba(74,54,24,0.20) !important;
+  background: rgba(34,30,23,0.16) !important;
   -webkit-backdrop-filter: blur(12px) saturate(120%) !important;
   backdrop-filter: blur(12px) saturate(120%) !important;
 }
@@ -3320,8 +3441,8 @@ body.home-fixed-page #topnavLoginModal .modal-box {
   overflow: auto !important;
   border-radius: 22px 22px 16px 16px !important;
   border: 1px solid rgba(178,149,93,0.24) !important;
-  background: linear-gradient(180deg, rgba(255,253,248,0.96), rgba(247,242,234,0.96)) !important;
-  box-shadow: 0 20px 58px rgba(74,54,24,0.18), inset 0 1px 0 rgba(255,255,255,0.78) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.96)) !important;
+  box-shadow: 0 20px 58px rgba(34,30,23,0.12), inset 0 1px 0 rgba(255,255,255,0.86) !important;
   color: rgba(34,25,12,0.96) !important;
 }
 body.home-fixed-page #topnavLoginModal .modal-title,
@@ -3330,7 +3451,7 @@ body.home-fixed-page #topnavLoginModal .btn-outline {
   color: rgba(78,61,36,0.88) !important;
 }
 body.home-fixed-page #topnavLoginModal .field-input {
-  background: rgba(255,251,242,0.82) !important;
+  background: rgba(255,255,255,0.92) !important;
   border-color: rgba(178,149,93,0.20) !important;
   color: rgba(34,25,12,0.96) !important;
 }
@@ -3434,7 +3555,7 @@ body.home-fixed-page #topnavLoginModal .modal-btns > * {
   /* 覆盖主题切换的浅色样式 */
   [data-theme="light"] .nav-btn-drop-menu,
   [data-theme="light"] .nav-avatar-dropdown {
-    background: rgba(255,253,248,0.96) !important;
+    background: rgba(255,255,255,0.96) !important;
     border-color: rgba(178,149,93,0.18) !important;
     border-radius: 20px !important;
     box-shadow: 0 14px 40px rgba(74,54,24,0.16), inset 0 1px 0 rgba(255,255,255,0.78) !important;
