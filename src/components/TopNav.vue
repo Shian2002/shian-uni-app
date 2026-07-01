@@ -3482,6 +3482,36 @@ onMounted(() => {
   font-size: .82rem !important;
   line-height: 1 !important;
 }
+:global(body:not(.home-fixed-page):not(.marketing-page) .topnav-sidebar-btn) {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  box-sizing: border-box !important;
+  border-radius: 11px !important;
+  margin-right: 8px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: rgba(30,28,24,.10) !important;
+  box-shadow: none !important;
+}
+:global(body:not(.home-fixed-page):not(.marketing-page) .topnav-sidebar-btn:hover) {
+  background: rgba(var(--accent-rgb),.075) !important;
+  background-color: rgba(var(--accent-rgb),.075) !important;
+  border-color: rgba(var(--accent-rgb),.12) !important;
+  box-shadow: none !important;
+}
+:global(body:not(.home-fixed-page):not(.marketing-page) .topnav-sidebar-btn .sidebar-panel-icon) {
+  width: 20px !important;
+  height: 18px !important;
+  border-width: 1.7px !important;
+  border-radius: 6px !important;
+}
+:global(body:not(.home-fixed-page):not(.marketing-page) .topnav-sidebar-btn .sidebar-panel-rail) {
+  top: 3px !important;
+  bottom: 3px !important;
+  left: 7px !important;
+  width: 1.7px !important;
+}
 .sidebar-panel-icon {
   position:relative;
   width:24px;

@@ -1220,9 +1220,9 @@ body:not(.home-fixed-page):not(.marketing-page) .page-root{
   }
   body:not(.home-fixed-page):not(.marketing-page) .agent-rail-logo,
   body:not(.home-fixed-page):not(.marketing-page) .agent-rail-btn{
-    width:32px;
-    height:32px;
-    flex:0 0 32px;
+    width:34px;
+    height:34px;
+    flex:0 0 34px;
     display:flex;
     align-items:center;
     justify-content:center;
@@ -1255,11 +1255,11 @@ body:not(.home-fixed-page):not(.marketing-page) .page-root{
     position:absolute;
     left:50%;
     top:50%;
-    width:16px;
-    height:16px;
-    border:1.8px solid currentColor;
+    width:20px;
+    height:18px;
+    border:1.7px solid currentColor;
     border-radius:5px;
-    box-shadow:inset 5px 0 0 rgba(var(--accent-rgb),.16);
+    box-shadow:inset 6px 0 0 rgba(var(--accent-rgb),.16);
     opacity:0;
     transform:translate(-50%,-50%);
     transition:opacity .14s ease;
