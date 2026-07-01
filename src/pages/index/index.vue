@@ -10984,6 +10984,69 @@ onBeforeUnmount(() => {
   }
 }
 
+/* 聊天阅读轨道：让 shian 导航和正文宽度对齐底部输入框。 */
+.tool-home-shell .home-artifact-sticky-panel {
+  width: 100% !important;
+}
+
+.tool-home-shell .home-ai-console.has-chat {
+  width: min(960px, calc(100vw - 36px)) !important;
+  max-width: none !important;
+}
+
+.tool-home-shell .home-artifact-sticky-nav {
+  left: 50% !important;
+  width: min(960px, calc(100vw - 36px)) !important;
+  transform: translateX(-50%) !important;
+  transition:
+    left .28s var(--home-sidebar-ease),
+    width .28s var(--home-sidebar-ease),
+    transform .28s var(--home-sidebar-ease) !important;
+}
+
+@media (min-width: 1024px) {
+  .tool-home-shell .home-ai-console.has-chat {
+    width: min(960px, calc(100vw - var(--home-rail-width) - 56px)) !important;
+  }
+  .tool-home-shell.home-sidebar-open .home-ai-console.has-chat {
+    width: min(960px, calc(100vw - var(--home-sidebar-width) - 56px)) !important;
+  }
+  .tool-home-shell .home-artifact-sticky-nav {
+    left: calc(var(--home-rail-width) + (100vw - var(--home-rail-width)) / 2) !important;
+    width: min(960px, calc(100vw - var(--home-rail-width) - 56px)) !important;
+  }
+  .tool-home-shell.home-sidebar-open .home-artifact-sticky-nav {
+    left: calc(var(--home-sidebar-width) + (100vw - var(--home-sidebar-width)) / 2) !important;
+    width: min(960px, calc(100vw - var(--home-sidebar-width) - 56px)) !important;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 1023px) {
+  .tool-home-shell .home-ai-console.has-chat,
+  .tool-home-shell.home-sidebar-open .home-ai-console.has-chat {
+    width: min(720px, calc(100vw - 48px)) !important;
+  }
+  .tool-home-shell .home-artifact-sticky-nav,
+  .tool-home-shell.home-sidebar-open .home-artifact-sticky-nav {
+    left: 50% !important;
+    width: min(720px, calc(100vw - 48px)) !important;
+    transform: translateX(-50%) !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .tool-home-shell .home-ai-console.has-chat,
+  .tool-home-shell.home-sidebar-open .home-ai-console.has-chat {
+    width: calc(100vw - 18px) !important;
+  }
+  .tool-home-shell .home-artifact-sticky-nav,
+  .tool-home-shell.home-sidebar-open .home-artifact-sticky-nav {
+    left: 50% !important;
+    width: calc(100vw - 18px) !important;
+    transform: translateX(-50%) !important;
+  }
+}
+
 /* 首页首屏：恢复双语营销版 */
 .page-root .marketing-product-hero {
   height: 100vh;
