@@ -5420,6 +5420,19 @@ onBeforeUnmount(() => {
   --home-sidebar-ease: cubic-bezier(.22,.78,.22,1);
   min-height: 100dvh;
 }
+[data-theme="dark"] .tool-home-shell {
+  --accent: #d8b66d;
+  --accent-2: #b88b45;
+  --accent-hover: #e7c982;
+  --accent-rgb: 216,182,109;
+  --shadow-rgb: 0,0,0;
+  --home-surface: rgba(23,22,19,0.92);
+  --home-surface-panel: rgba(23,22,19,0.78);
+  --home-surface-panel-dark: rgba(23,22,19,0.78);
+  --home-separator: rgba(255,255,255,0.075);
+  --hero-logo-backdrop: rgba(244,240,232,0.92);
+  --hero-logo-backdrop-shadow: 0 16px 46px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.28);
+}
 :global(body.home-fixed-page) {
   --accent: #a8792e;
   --accent-2: #6f4f1b;
@@ -5429,6 +5442,17 @@ onBeforeUnmount(() => {
   --shadow-rgb: 34,30,23;
   --hero-logo-backdrop: rgba(255,255,255,0.94);
   --hero-logo-backdrop-shadow: 0 16px 46px rgba(34,30,23,0.045), inset 0 1px 0 rgba(255,255,255,0.9);
+}
+:global(html[data-theme="dark"] body.home-fixed-page),
+:global(body[data-theme="dark"].home-fixed-page) {
+  --accent: #d8b66d;
+  --accent-2: #b88b45;
+  --accent-hover: #e7c982;
+  --accent-rgb: 216,182,109;
+  --accent-glow: rgba(216,182,109,0.10);
+  --shadow-rgb: 0,0,0;
+  --hero-logo-backdrop: rgba(244,240,232,0.92);
+  --hero-logo-backdrop-shadow: 0 16px 46px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.28);
 }
 .home-desktop-sidebar {
   position: fixed;
@@ -10883,6 +10907,90 @@ onBeforeUnmount(() => {
   border-color: rgba(255,255,255,0.10) !important;
 }
 
+[data-theme="dark"] .tool-home-shell .bg-layer {
+  background:
+    radial-gradient(ellipse 68% 46% at 52% 30%, rgba(216,182,109,0.055) 0%, transparent 62%),
+    radial-gradient(ellipse 58% 42% at 88% 88%, rgba(120,86,38,0.10) 0%, transparent 66%),
+    linear-gradient(155deg, #171612 0%, #1d1a15 54%, #15130f 100%) !important;
+}
+
+[data-theme="dark"] .tool-home-shell :deep(.topnav-solid) {
+  background: var(--home-surface) !important;
+  border-bottom-color: var(--home-separator) !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .tool-home-shell .home-desktop-sidebar {
+  background: var(--home-surface-panel-dark) !important;
+  border-right-color: var(--home-separator) !important;
+}
+
+[data-theme="dark"] .tool-home-shell .home-side-rail {
+  border-right-color: var(--home-separator) !important;
+}
+
+[data-theme="dark"] .tool-home-shell .home-rail-logo,
+[data-theme="dark"] .tool-home-shell .home-rail-item {
+  color: rgba(236,229,216,0.64) !important;
+}
+
+[data-theme="dark"] .tool-home-shell .home-rail-item:hover,
+[data-theme="dark"] .tool-home-shell .home-rail-item.active,
+[data-theme="dark"] .tool-home-shell .home-rail-logo:hover {
+  color: var(--accent) !important;
+  background: rgba(var(--accent-rgb),0.10) !important;
+  border-color: rgba(var(--accent-rgb),0.16) !important;
+}
+
+[data-theme="dark"] .tool-home-shell .home-question-template {
+  background: rgba(255,255,255,0.055) !important;
+  border-color: rgba(var(--accent-rgb),0.18) !important;
+  color: rgba(238,231,216,0.82) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.055) !important;
+}
+
+[data-theme="dark"] .tool-home-shell .home-question-template:hover {
+  background: rgba(var(--accent-rgb),0.12) !important;
+  border-color: rgba(var(--accent-rgb),0.32) !important;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.07) !important;
+}
+
+[data-theme="dark"] .tool-home-shell .home-question-template-label {
+  color: rgba(var(--accent-rgb),0.96) !important;
+}
+
+[data-theme="dark"] .tool-home-shell .home-question-template-text,
+[data-theme="dark"] .tool-home-shell .hero-brand-sub {
+  color: rgba(221,212,193,0.78) !important;
+}
+
+[data-theme="dark"] .tool-home-shell .home-ai-main {
+  background: rgba(30,28,23,0.86) !important;
+  background-color: rgba(30,28,23,0.86) !important;
+  background-image: none !important;
+  border-color: rgba(var(--accent-rgb),0.20) !important;
+  box-shadow: 0 16px 42px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.055) !important;
+  color: var(--text-1) !important;
+}
+
+[data-theme="dark"] .tool-home-shell .home-ai-main:focus-within {
+  border-color: rgba(var(--accent-rgb),0.34) !important;
+  box-shadow: 0 18px 48px rgba(0,0,0,0.34), 0 0 0 3px rgba(var(--accent-rgb),0.08), inset 0 1px 0 rgba(255,255,255,0.07) !important;
+}
+
+[data-theme="dark"] .tool-home-shell .profile-picker,
+[data-theme="dark"] .tool-home-shell .tool-picker,
+[data-theme="dark"] .tool-home-shell .reading-mode-picker,
+[data-theme="dark"] .tool-home-shell .llm-picker {
+  background: rgba(255,255,255,0.045) !important;
+  border-color: rgba(var(--accent-rgb),0.18) !important;
+  color: rgba(238,231,216,0.84) !important;
+}
+
+[data-theme="dark"] .tool-home-shell .home-ai-input::placeholder {
+  color: rgba(221,212,193,0.54) !important;
+}
+
 @media (min-width: 721px) and (max-width: 1023px) {
   .tool-home-shell {
     --home-sidebar-width: min(300px, 86vw);
@@ -10938,6 +11046,19 @@ onBeforeUnmount(() => {
   .tool-home-shell.home-sidebar-open .home-ai-main:focus-within {
     border-color: rgba(var(--accent-rgb),0.22) !important;
     box-shadow: 0 12px 34px rgba(34,30,23,0.07), 0 0 0 3px rgba(var(--accent-rgb),0.055), inset 0 1px 0 rgba(255,255,255,0.76) !important;
+  }
+  [data-theme="dark"] .tool-home-shell .home-ai-main,
+  [data-theme="dark"] .tool-home-shell.home-sidebar-open .home-ai-main {
+    background: rgba(30,28,23,0.86) !important;
+    background-color: rgba(30,28,23,0.86) !important;
+    background-image: none !important;
+    border-color: rgba(var(--accent-rgb),0.20) !important;
+    box-shadow: 0 16px 42px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.055) !important;
+  }
+  [data-theme="dark"] .tool-home-shell .home-ai-main:focus-within,
+  [data-theme="dark"] .tool-home-shell.home-sidebar-open .home-ai-main:focus-within {
+    border-color: rgba(var(--accent-rgb),0.34) !important;
+    box-shadow: 0 18px 48px rgba(0,0,0,0.34), 0 0 0 3px rgba(var(--accent-rgb),0.08), inset 0 1px 0 rgba(255,255,255,0.07) !important;
   }
   .tool-home-shell .home-question-templates,
   .tool-home-shell.home-sidebar-open .home-question-templates {

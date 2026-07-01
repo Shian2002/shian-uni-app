@@ -1378,18 +1378,45 @@ body.marketing-page .agent-global-rail{
   display:none!important;
   pointer-events:none!important;
 }
-body.home-fixed-page{
+html[data-theme="light"] body.home-fixed-page,
+body[data-theme="light"].home-fixed-page{
   background:#f7f7f6!important;
 }
-body.home-fixed-page .topnav-solid{
+html[data-theme="dark"] body.home-fixed-page,
+body[data-theme="dark"].home-fixed-page{
+  background:#171612!important;
+  background-color:#171612!important;
+}
+html[data-theme="dark"] body.home-fixed-page #app,
+html[data-theme="dark"] body.home-fixed-page .uni-app,
+html[data-theme="dark"] body.home-fixed-page uni-app,
+html[data-theme="dark"] body.home-fixed-page uni-page-wrapper,
+html[data-theme="dark"] body.home-fixed-page uni-page,
+html[data-theme="dark"] body.home-fixed-page uni-page-body{
+  background:#171612!important;
+  background-color:#171612!important;
+}
+html[data-theme="light"] body.home-fixed-page .topnav-solid,
+body[data-theme="light"].home-fixed-page .topnav-solid{
   background:#f7f7f6!important;
   border-bottom-color:rgba(30,28,24,.075)!important;
+  box-shadow:none!important;
+}
+html[data-theme="dark"] body.home-fixed-page .topnav-solid,
+body[data-theme="dark"].home-fixed-page .topnav-solid{
+  background:rgba(23,22,19,.92)!important;
+  background-color:rgba(23,22,19,.92)!important;
+  border-bottom-color:rgba(255,255,255,.075)!important;
   box-shadow:none!important;
 }
 body.home-fixed-page .topnav-sidebar-btn{
   background:transparent!important;
   border-color:rgba(30,28,24,.10)!important;
   box-shadow:none!important;
+}
+html[data-theme="dark"] body.home-fixed-page .topnav-sidebar-btn,
+body[data-theme="dark"].home-fixed-page .topnav-sidebar-btn{
+  border-color:rgba(255,255,255,.10)!important;
 }
 .agent-rail-icon{
   position:relative;
@@ -3225,6 +3252,50 @@ body .modal-overlay#topnavLoginModal .modal-box{
     box-shadow:0 10px 28px rgba(34,30,23,.055),inset 0 1px 0 rgba(255,255,255,.70)!important;
     -webkit-backdrop-filter:blur(18px) saturate(1.08)!important;
     backdrop-filter:blur(18px) saturate(1.08)!important;
+  }
+}
+
+html[data-theme="dark"] body.home-fixed-page .home-ai-main,
+body[data-theme="dark"].home-fixed-page .home-ai-main,
+html[data-theme="dark"] body.home-fixed-page .page-root .tool-home-shell .home-ai-main,
+body[data-theme="dark"].home-fixed-page .page-root .tool-home-shell .home-ai-main{
+  background:rgba(30,28,23,.86)!important;
+  background-color:rgba(30,28,23,.86)!important;
+  background-image:none!important;
+  border-color:rgba(var(--accent-rgb),.20)!important;
+  border-top-color:rgba(var(--accent-rgb),.16)!important;
+  color:var(--text-1)!important;
+  box-shadow:0 16px 42px rgba(0,0,0,.30),inset 0 1px 0 rgba(255,255,255,.055)!important;
+  -webkit-backdrop-filter:blur(18px) saturate(1.08)!important;
+  backdrop-filter:blur(18px) saturate(1.08)!important;
+}
+
+html[data-theme="dark"] body.home-fixed-page .home-ai-main:focus-within,
+body[data-theme="dark"].home-fixed-page .home-ai-main:focus-within{
+  border-color:rgba(var(--accent-rgb),.34)!important;
+  box-shadow:0 18px 48px rgba(0,0,0,.34),0 0 0 3px rgba(var(--accent-rgb),.08),inset 0 1px 0 rgba(255,255,255,.07)!important;
+}
+
+html[data-theme="dark"] body.home-fixed-page .home-ai-console.has-chat,
+body[data-theme="dark"].home-fixed-page .home-ai-console.has-chat{
+  background:rgba(26,24,20,.78)!important;
+  background-image:none!important;
+  border-color:rgba(var(--accent-rgb),.18)!important;
+  box-shadow:0 18px 54px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.05)!important;
+}
+
+@media(min-width:721px) and (max-width:1023px){
+  html[data-theme="dark"].home-fixed-page body.home-fixed-page .page-root .tool-home-shell .page-wrap .hero-home .hero-home-content .home-ai-console .home-ai-main,
+  html[data-theme="dark"] body.home-fixed-page .page-root .tool-home-shell .page-wrap .hero-home .hero-home-content .home-ai-console .home-ai-main,
+  body[data-theme="dark"].home-fixed-page .page-root .tool-home-shell .page-wrap .hero-home .hero-home-content .home-ai-console .home-ai-main,
+  html[data-theme="dark"] body.home-fixed-page .tool-home-shell .home-ai-main,
+  body[data-theme="dark"].home-fixed-page .tool-home-shell .home-ai-main{
+    background:rgba(30,28,23,.86)!important;
+    background-color:rgba(30,28,23,.86)!important;
+    background-image:none!important;
+    border-color:rgba(var(--accent-rgb),.20)!important;
+    border-top-color:rgba(var(--accent-rgb),.16)!important;
+    box-shadow:0 16px 42px rgba(0,0,0,.30),inset 0 1px 0 rgba(255,255,255,.055)!important;
   }
 }
 </style>

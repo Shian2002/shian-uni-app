@@ -3342,13 +3342,22 @@ onMounted(() => {
   box-shadow: 0 1px 8px rgba(0,0,0,0.06);
 }
 :global(html[data-theme="light"] body.home-fixed-page .topnav.topnav-solid),
-:global(body.home-fixed-page .topnav.topnav-solid) {
+:global(body[data-theme="light"].home-fixed-page .topnav.topnav-solid) {
   background: #f7f7f6 !important;
   background-color: #f7f7f6 !important;
   border-bottom-color: rgba(30,28,24,.075) !important;
   box-shadow: none !important;
   -webkit-backdrop-filter: blur(18px) saturate(1.1);
   backdrop-filter: blur(18px) saturate(1.1);
+}
+:global(html[data-theme="dark"] body.home-fixed-page .topnav.topnav-solid),
+:global(body[data-theme="dark"].home-fixed-page .topnav.topnav-solid) {
+  background: rgba(23,22,19,.92) !important;
+  background-color: rgba(23,22,19,.92) !important;
+  border-bottom-color: rgba(255,255,255,.075) !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
+  backdrop-filter: blur(18px) saturate(1.08);
 }
 
 /* ═══ 单行：侧栏 + 按钮栏 + 右侧 ═══ */
@@ -3399,6 +3408,11 @@ onMounted(() => {
   border-color: rgba(30,28,24,.10) !important;
   box-shadow: none !important;
 }
+:global(html[data-theme="dark"] body.home-fixed-page .topnav-sidebar-btn),
+:global(body[data-theme="dark"].home-fixed-page .topnav-sidebar-btn) {
+  color: rgba(236,229,216,.76) !important;
+  border-color: rgba(255,255,255,.10) !important;
+}
 :global(body.home-fixed-page .topnav-sidebar-btn:hover) {
   background: rgba(var(--accent-rgb),.075) !important;
   background-color: rgba(var(--accent-rgb),.075) !important;
@@ -3435,6 +3449,16 @@ onMounted(() => {
   box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb),.10) !important;
   font-weight: 700 !important;
 }
+:global(html[data-theme="dark"] body.home-fixed-page .nav-btn),
+:global(body[data-theme="dark"].home-fixed-page .nav-btn) {
+  color: rgba(220,210,190,.76) !important;
+}
+:global(html[data-theme="dark"] body.home-fixed-page .nav-btn.current),
+:global(body[data-theme="dark"].home-fixed-page .nav-btn.current) {
+  background: rgba(var(--accent-rgb),.12) !important;
+  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb),.14) !important;
+  color: var(--accent) !important;
+}
 :global(body.home-fixed-page .topnav-right) {
   gap: 8px !important;
 }
@@ -3460,6 +3484,12 @@ onMounted(() => {
   background: transparent !important;
   color: var(--text-2) !important;
   box-sizing: border-box !important;
+}
+:global(html[data-theme="dark"] body.home-fixed-page .nav-auth-btns .btn-sm),
+:global(body[data-theme="dark"].home-fixed-page .nav-auth-btns .btn-sm) {
+  border-color: rgba(255,255,255,.12) !important;
+  background: rgba(255,255,255,.035) !important;
+  color: rgba(236,229,216,.82) !important;
 }
 :global(body.home-fixed-page .nav-avatar-wrap) {
   height: 34px !important;
@@ -3489,16 +3519,28 @@ onMounted(() => {
   box-sizing: border-box !important;
   border-radius: 11px !important;
   margin-right: 8px !important;
+  color: rgba(58,55,49,.66) !important;
   background: transparent !important;
   background-color: transparent !important;
-  border-color: rgba(30,28,24,.10) !important;
+  border-color: transparent !important;
   box-shadow: none !important;
 }
 :global(body:not(.home-fixed-page):not(.marketing-page) .topnav-sidebar-btn:hover) {
+  color: rgba(58,55,49,.86) !important;
   background: rgba(var(--accent-rgb),.075) !important;
   background-color: rgba(var(--accent-rgb),.075) !important;
   border-color: rgba(var(--accent-rgb),.12) !important;
   box-shadow: none !important;
+}
+:global(html[data-theme="dark"] body:not(.home-fixed-page):not(.marketing-page) .topnav-sidebar-btn),
+:global(body[data-theme="dark"]:not(.home-fixed-page):not(.marketing-page) .topnav-sidebar-btn) {
+  color: rgba(236,229,216,.66) !important;
+  border-color: transparent !important;
+}
+:global(html[data-theme="dark"] body:not(.home-fixed-page):not(.marketing-page) .topnav-sidebar-btn:hover),
+:global(body[data-theme="dark"]:not(.home-fixed-page):not(.marketing-page) .topnav-sidebar-btn:hover) {
+  color: rgba(236,229,216,.86) !important;
+  border-color: rgba(var(--accent-rgb),.16) !important;
 }
 :global(body:not(.home-fixed-page):not(.marketing-page) .topnav-sidebar-btn .sidebar-panel-icon) {
   width: 20px !important;
