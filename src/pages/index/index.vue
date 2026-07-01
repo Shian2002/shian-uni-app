@@ -5410,6 +5410,10 @@ onBeforeUnmount(() => {
   --accent-rgb: 178,136,56;
   --accent-glow: rgba(178,136,56,0.045);
   --shadow-rgb: 34,30,23;
+  --home-surface: #f7f7f6;
+  --home-surface-panel: rgba(247,247,246,0.96);
+  --home-surface-panel-dark: rgba(24,23,21,0.94);
+  --home-separator: rgba(30,28,24,0.075);
   --hero-logo-backdrop: rgba(255,255,255,0.94);
   --hero-logo-backdrop-shadow: 0 16px 46px rgba(34,30,23,0.045), inset 0 1px 0 rgba(255,255,255,0.9);
   --home-sidebar-width: min(300px, 86vw);
@@ -8358,7 +8362,7 @@ onBeforeUnmount(() => {
 [data-theme="light"] .bg-layer {
   background: radial-gradient(ellipse 70% 48% at 12% 18%, rgba(34,30,23,0.018) 0%, transparent 68%),
               radial-gradient(ellipse 48% 36% at 92% 85%, rgba(34,30,23,0.014) 0%, transparent 62%),
-              linear-gradient(155deg, #ffffff, #fdfdfd 60%, #ffffff);
+              linear-gradient(155deg, #f7f7f6, #f8f8f7 60%, #f7f7f6);
 }
 .page-wrap { position: relative; z-index: 1; width: 100%; min-height: calc(100dvh - var(--xc-topnav-total-height, 60px)); max-width: 100vw; overflow: visible; box-sizing: border-box; }
 :global(body.home-fixed-page) .page-wrap {
@@ -8418,7 +8422,7 @@ onBeforeUnmount(() => {
 .hero-brand-divider { width: 50px; height: 2px; background: var(--accent); margin: 12px auto; border-radius: 1px; box-shadow: 0 0 12px var(--accent-glow); }
 .hero-brand-slogan { font-family: var(--font-serif); font-size: 0.95rem; letter-spacing: 4px; color: var(--accent); margin-bottom: 6px; }
 .hero-brand-sub { font-size: 0.78rem; color: var(--text-3); letter-spacing: 1px; }
-.home-question-templates { width: min(760px, calc(100vw - 44px)); margin: 18px auto 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; pointer-events: auto; }
+.home-question-templates { width: min(960px, calc(100vw - 36px)); margin: 18px auto 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; pointer-events: auto; }
 .home-question-template { min-width: 0; min-height: 58px; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(var(--accent-rgb),0.12); background: rgba(255,255,255,0.045); color: var(--text-2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; box-sizing: border-box; text-align: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.06); transition: border-color .18s ease, background .18s ease, transform .18s ease, box-shadow .18s ease; }
 [data-theme="light"] .home-question-template { background: rgba(255,255,255,0.82); box-shadow: 0 8px 24px rgba(34,30,23,0.04), inset 0 1px 0 rgba(255,255,255,0.86); }
 .home-question-template:hover { transform: translateY(-1px); border-color: rgba(var(--accent-rgb),0.34); background: rgba(var(--accent-rgb),0.10); box-shadow: 0 10px 28px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.08); }
@@ -9477,7 +9481,15 @@ onBeforeUnmount(() => {
   .hero-home.chat-active .hero-brand-slogan { font-size: 0.68rem; letter-spacing: 2px; }
   .hero-brand-name { font-size: 2rem; letter-spacing: 6px; }
   .hero-brand-slogan { font-size: 0.875rem; letter-spacing: 3px; }
-  .home-question-templates { grid-template-columns: repeat(2, minmax(0, 1fr)); width: calc(100vw - 34px); gap: 8px; margin-top: 14px; }
+  .home-question-templates {
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: calc(100vw - 20px);
+    gap: 8px;
+    margin-top: 14px;
+  }
   .home-question-template { min-height: 50px; padding: 8px 10px; }
   .home-question-template-label { font-size: 0.66rem; }
   .home-question-template-text { font-size: 0.72rem; }
@@ -10727,9 +10739,12 @@ onBeforeUnmount(() => {
     width: min(960px, calc(100vw - var(--home-rail-width) - 56px)) !important;
     transition: left .28s var(--home-sidebar-ease), width .28s var(--home-sidebar-ease), border-color .2s ease, box-shadow .2s ease, background .2s ease !important;
   }
-  .tool-home-shell .home-question-templates,
+  .tool-home-shell .home-question-templates {
+    width: min(960px, calc(100vw - var(--home-rail-width) - 56px)) !important;
+    transition: width .28s var(--home-sidebar-ease) !important;
+  }
   .tool-home-shell .home-ai-console.has-chat {
-    width: min(100%, calc(100vw - var(--home-rail-width) - 48px)) !important;
+    width: min(1180px, calc(100vw - var(--home-rail-width) - 48px)) !important;
     transition: width .28s var(--home-sidebar-ease) !important;
   }
   .tool-home-shell .home-artifact-sticky-nav {
@@ -10749,6 +10764,9 @@ onBeforeUnmount(() => {
   }
   .tool-home-shell.home-sidebar-open .home-ai-main {
     left: calc(var(--home-sidebar-width) + (100vw - var(--home-sidebar-width)) / 2) !important;
+    width: min(960px, calc(100vw - var(--home-sidebar-width) - 56px)) !important;
+  }
+  .tool-home-shell.home-sidebar-open .home-question-templates {
     width: min(960px, calc(100vw - var(--home-sidebar-width) - 56px)) !important;
   }
   .tool-home-shell.home-sidebar-open .home-ai-console.has-chat {
@@ -10811,6 +10829,158 @@ onBeforeUnmount(() => {
   .tool-home-shell.home-sidebar-open .home-artifact-sticky-nav {
     left: 12px !important;
     width: calc(100vw - 24px) !important;
+  }
+}
+
+/* Tianfu-like rail refinement: half screen uses only the opener; desktop rail blends into the page. */
+.tool-home-shell :deep(.topnav-solid) {
+  background: var(--home-surface) !important;
+  border-bottom-color: var(--home-separator) !important;
+  box-shadow: none !important;
+}
+
+.home-desktop-sidebar {
+  background: var(--home-surface-panel) !important;
+  border-right-color: var(--home-separator) !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .home-desktop-sidebar {
+  background: var(--home-surface-panel-dark) !important;
+  border-right-color: rgba(255,255,255,0.075) !important;
+  box-shadow: none !important;
+}
+
+.home-side-rail {
+  background: transparent !important;
+  border-right-color: var(--home-separator) !important;
+  box-shadow: none !important;
+}
+
+.home-rail-logo {
+  background: transparent !important;
+  border-color: rgba(30,28,24,0.10) !important;
+  box-shadow: none !important;
+}
+
+.home-rail-item:hover,
+.home-rail-item.active,
+.home-rail-logo:hover {
+  background: rgba(var(--accent-rgb),0.075) !important;
+  border-color: rgba(var(--accent-rgb),0.12) !important;
+}
+
+.home-side-head .home-side-logo,
+.home-side-head .home-side-close {
+  background: transparent !important;
+  border-color: rgba(30,28,24,0.10) !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .home-rail-logo,
+[data-theme="dark"] .home-side-head .home-side-logo,
+[data-theme="dark"] .home-side-head .home-side-close {
+  border-color: rgba(255,255,255,0.10) !important;
+}
+
+@media (min-width: 721px) and (max-width: 1023px) {
+  .tool-home-shell {
+    --home-sidebar-width: min(300px, 86vw);
+  }
+  .tool-home-shell :deep(.topnav-sidebar-btn) {
+    display: flex !important;
+  }
+  .home-desktop-sidebar {
+    width: var(--home-sidebar-width) !important;
+    transform: translateX(-100%) !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
+  .home-desktop-sidebar.open {
+    transform: translateX(0) !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+  .home-side-rail {
+    display: none !important;
+  }
+  .home-side-panel {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: none !important;
+    padding: 18px 14px 14px !important;
+  }
+  .tool-home-shell .page-wrap,
+  .tool-home-shell.home-sidebar-open .page-wrap {
+    width: 100vw !important;
+    margin-left: 0 !important;
+  }
+  .tool-home-shell :deep(.topnav),
+  .tool-home-shell.home-sidebar-open :deep(.topnav) {
+    padding-left: max(16px, calc(var(--xc-safe-left, 0px) + 16px)) !important;
+  }
+  .tool-home-shell .home-ai-main,
+  .tool-home-shell.home-sidebar-open .home-ai-main {
+    left: 50% !important;
+    width: min(720px, calc(100vw - 48px)) !important;
+    padding: 10px 12px !important;
+    border-radius: 18px !important;
+    background: rgba(247,247,246,0.82) !important;
+    border-color: rgba(30,28,24,0.085) !important;
+    box-shadow: 0 10px 28px rgba(34,30,23,0.055), inset 0 1px 0 rgba(255,255,255,0.70) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
+    backdrop-filter: blur(18px) saturate(1.08) !important;
+  }
+  .tool-home-shell .home-ai-main:focus-within,
+  .tool-home-shell.home-sidebar-open .home-ai-main:focus-within {
+    border-color: rgba(var(--accent-rgb),0.22) !important;
+    box-shadow: 0 12px 34px rgba(34,30,23,0.07), 0 0 0 3px rgba(var(--accent-rgb),0.055), inset 0 1px 0 rgba(255,255,255,0.76) !important;
+  }
+  .tool-home-shell .home-question-templates,
+  .tool-home-shell.home-sidebar-open .home-question-templates {
+    position: relative !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    width: min(720px, calc(100vw - 48px)) !important;
+  }
+  .tool-home-shell .home-ai-console.has-chat,
+  .tool-home-shell.home-sidebar-open .home-ai-console.has-chat {
+    width: min(100%, calc(100vw - 36px)) !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .tool-home-shell {
+    --home-rail-width: 56px;
+    --home-sidebar-width: 300px;
+  }
+  .tool-home-shell :deep(.topnav-sidebar-btn) {
+    display: none !important;
+  }
+  .home-desktop-sidebar {
+    width: var(--home-rail-width) !important;
+  }
+  .home-desktop-sidebar.open {
+    width: var(--home-sidebar-width) !important;
+  }
+  .tool-home-shell .page-wrap {
+    width: calc(100vw - var(--home-rail-width)) !important;
+    margin-left: var(--home-rail-width) !important;
+  }
+  .tool-home-shell.home-sidebar-open .page-wrap {
+    width: calc(100vw - var(--home-sidebar-width)) !important;
+    margin-left: var(--home-sidebar-width) !important;
+  }
+  .tool-home-shell :deep(.topnav) {
+    padding-left: calc(var(--home-rail-width) + 16px) !important;
+  }
+  .tool-home-shell.home-sidebar-open :deep(.topnav) {
+    padding-left: calc(var(--home-sidebar-width) + 16px) !important;
   }
 }
 
